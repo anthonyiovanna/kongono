@@ -1,0 +1,76 @@
+{
+  "name": "kongono/framework",
+  "description": "A modern application framework designed for humans, software, and AI agents.",
+  "type": "library",
+  "repositories": [
+    {
+      "type": "path",
+      "url": "packages/*"
+    }
+  ],
+  "require": {
+    "kongono/application-graph": "@dev",
+    "kongono/kernel": "@dev",
+    "php": ">=8.5"
+  },
+  "require-dev": {
+    "friendsofphp/php-cs-fixer": "^3.95",
+    "phpstan/phpstan": "^2.2",
+    "phpstan/phpstan-strict-rules": "^2.0",
+    "phpunit/phpunit": "^13.2"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\ApplicationGraph\\Tests\\": "packages/application-graph/tests/",
+      "Kongono\\Kernel\\Tests\\": "packages/kernel/tests/",
+      "Kongono\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "allow-plugins": {},
+    "platform": {
+      "php": "8.5.0"
+    },
+    "policy": {
+      "advisories": {
+        "block": true,
+        "audit": "fail"
+      },
+      "malware": {
+        "block": true,
+        "block-scope": "all",
+        "audit": "fail"
+      },
+      "abandoned": {
+        "block": true,
+        "audit": "fail"
+      },
+      "ignore-unreachable": false
+    },
+    "preferred-install": "dist",
+    "secure-http": true,
+    "sort-packages": true
+  },
+  "scripts": {
+    "test": "phpunit --configuration phpunit.xml.dist",
+    "analyse": "phpstan analyse --configuration=phpstan.neon.dist --no-progress",
+    "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
+    "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
+    "audit:locked": "composer audit --locked",
+    "platform": "composer check-platform-reqs",
+    "validate:composer": "composer validate --no-check-publish",
+    "validate:packages": [
+      "composer --working-dir=packages/application-graph validate --no-check-publish",
+      "composer --working-dir=packages/kernel validate --no-check-publish"
+    ],
+    "quality": [
+      "@validate:composer",
+      "@validate:packages",
+      "@audit:locked",
+      "@platform",
+      "@cs",
+      "@analyse",
+      "@test"
+    ]
+  }
+}

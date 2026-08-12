@@ -1,0 +1,18 @@
+{
+  "name": "kongono/kernel",
+  "description": "The runtime-neutral lifecycle core for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Kernel\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\Kernel\\Tests\\": "tests/"
+    }
+  }
+}

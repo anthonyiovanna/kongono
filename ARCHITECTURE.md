@@ -1,0 +1,40 @@
+# Kongono Architecture
+
+## Status and scope
+
+This document is an index of Kongono's authorized architectural direction. Kongono is pre-alpha. The repository currently implements governance, documentation, the PHP quality toolchain, the narrow `kongono/kernel` lifecycle package, and the immutable structural core in `kongono/application-graph`. Other statements about framework behavior describe planned architecture unless explicitly identified as current repository behavior.
+
+Kongono Framework targets PHP 8.5+ and is designed for three first-class consumption surfaces: Human Experience, Software/API Experience, and Agent Experience. The framework is not a Laravel clone. It aims to preserve strong developer productivity while favoring explicit, typed, deterministic, observable, modular, persistent-runtime-safe, and AI-native architecture.
+
+## Foundational model
+
+The planned Application Graph is the authoritative, machine-readable representation of an application. It will derive from a language-neutral Intermediate Representation so that PHP, the first source-language frontend, does not permanently define the conceptual model. Phase 0D implements only a source-language-neutral in-memory structural snapshot: opaque graph-local keys, open node and relation kinds, immutable directed relations, exact validation and lookup, and canonical binary-string ordering. Stable identifiers, domain schemas, metadata, provenance, visibility, serialization, discovery, compilation mechanics, and the complete authoritative representation remain unresolved.
+
+Kongono uses `packages/kernel` as its first physical monorepo package. Its Experimental state machine boots once, owns overlapping opaque operation scopes by object identity, rejects shutdown while work is active, and shuts down terminally. It is transport-, runtime-, and container-neutral. Independently installable capabilities and application architecture beyond this boundary remain planned.
+
+The lifecycle is persistent-runtime-first: framework design may not assume all application state disappears after each request or operation. Runtime-specific integrations must remain adapters rather than kernel dependencies.
+
+## Boundaries
+
+- PHP 8.5+ is the primary application language.
+- TypeScript and JavaScript belong to browser/frontend integration.
+- Rust may later support high-performance framework tooling.
+- Go may be selected later for specific infrastructure or runtime integrations.
+- Vite is the intended default bundler integration; Kongono will own an Asset Platform abstraction, not a bundler.
+- OpenTelemetry is the intended instrumentation model; exporters will remain replaceable.
+- OpenAPI is intended to be generated from authoritative application metadata.
+- MCP and A2A are adapters around Kongono concepts and do not define its domain model.
+
+No runtime adapter, protocol adapter, domain Graph schema, complete Graph compiler, capability package, or framework API for those planned boundaries exists yet. The implemented structural snapshot and Kernel lifecycle must not be read as selecting any of them.
+
+## Detailed documentation
+
+- [Architecture overview](docs/architecture/overview.md)
+- [Application Graph](docs/architecture/application-graph.md)
+- [Microkernel and capabilities](docs/architecture/microkernel.md)
+- [Progressive architecture](docs/architecture/progressive-architecture.md)
+- [Runtime model](docs/architecture/runtime-model.md)
+- [Agent model](docs/architecture/agent-model.md)
+- [Extension platform](docs/architecture/extension-platform.md)
+- [Architectural doctrine](docs/doctrine.md)
+- [Architecture Decision Records](docs/adr/README.md)

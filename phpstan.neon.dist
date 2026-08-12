@@ -1,0 +1,14 @@
+includes:
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+
+parameters:
+    level: max
+    phpVersion: 80500
+    paths:
+        - packages/application-graph/src
+        - packages/application-graph/tests
+        - packages/kernel/src
+        - packages/kernel/tests
+        - tests/Architecture
+        - tests/Tooling
+    tmpDir: .cache/phpstan

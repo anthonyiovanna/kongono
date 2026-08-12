@@ -1,0 +1,106 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kongono\Kernel;
+
+use Kongono\Kernel\Api\Api;
+use Kongono\Kernel\Api\ApiStatus;
+use Kongono\Kernel\Contract\KernelInterface;
+use Kongono\Kernel\Exception\LifecycleException;
+use Kongono\Kernel\Lifecycle\KernelState;
+use Kongono\Kernel\Lifecycle\OperationScope;
+use SplObjectStorage;
+
+/**
+ * Owns Kongono's minimal runtime-neutral lifecycle state machine.
+ *
+ * One instance boots once, owns any number of overlapping operation scopes by
+ * object identity, and shuts down only after all scopes end. All state is local to
+ * the instance; no static, ambient, thread-local, or fiber-local current operation
+ * exists. Calls perform no filesystem, network, environment, time, randomness,
+ * logging, telemetry, process, or other global-state access.
+ *
+ * Invalid transitions throw {@see LifecycleException} before mutation. The class
+ * is final and Experimental: consumers may evaluate it but must not treat its API
+ * as stable or extend it.
+ */
+#[Api(ApiStatus::Experimental)]
+final class Kernel implements KernelInterface
+{
+    private KernelState $state = KernelState::Unbooted;
+
+    /** @var SplObjectStorage<OperationScope, null> */
+    private SplObjectStorage $activeOperations;
+
+    public function __construct()
+    {
+        $this->activeOperations = new SplObjectStorage();
+    }
+
+    public function state(): KernelState
+    {
+        return $this->state;
+    }
+
+    public function boot(): void
+    {
+        if (KernelState::Unbooted !== $this->state) {
+            throw new LifecycleException(sprintf('Cannot boot Kernel while in %s state.', $this->state->name));
+        }
+
+        $this->state = KernelState::Booted;
+    }
+
+    public function shutdown(): void
+    {
+        if (KernelState::Booted !== $this->state) {
+            throw new LifecycleException(sprintf('Cannot shut down Kernel while in %s state.', $this->state->name));
+        }
+
+        if (0 !== $this->activeOperations->count()) {
+            throw new LifecycleException(sprintf(
+                'Cannot shut down Kernel while %d operation(s) remain active.',
+                $this->activeOperations->count(),
+            ));
+        }
+
+        $this->state = KernelState::Shutdown;
+    }
+
+    public function beginOperation(): OperationScope
+    {
+        if (KernelState::Booted !== $this->state) {
+            throw new LifecycleException(sprintf(
+                'Cannot begin an operation while Kernel is in %s state.',
+                $this->state->name,
+            ));
+        }
+
+        $operation = new OperationScope();
+        $this->activeOperations[$operation] = null;
+
+        return $operation;
+    }
+
+    public function endOperation(OperationScope $operation): void
+    {
+        if (KernelState::Booted !== $this->state) {
+            throw new LifecycleException(sprintf(
+                'Cannot end an operation while Kernel is in %s state.',
+                $this->state->name,
+            ));
+        }
+
+        if (!isset($this->activeOperations[$operation])) {
+            throw new LifecycleException('Cannot end an operation that is not active and owned by this Kernel.');
+        }
+
+        unset($this->activeOperations[$operation]);
+    }
+
+    public function activeOperationCount(): int
+    {
+        return $this->activeOperations->count();
+    }
+}

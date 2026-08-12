@@ -1,0 +1,37 @@
+# Runtime Model
+
+## Purpose
+
+Kongono is persistent-runtime-first. Its core lifecycle must be safe when a process handles multiple requests, jobs, commands, messages, workflow steps, or other operations.
+
+## Lifecycle principle
+
+Framework design may not rely on process teardown to clear mutable state or release operation-specific resources. The Phase 0C Kernel makes operation lifetime explicit but deliberately carries no identity, authorization, tenant, request, error, telemetry, or other scoped data. Future state must have explicit ownership and cleanup.
+
+This principle matters even when an application runs under PHP-FPM, because runtime-independent lifecycle contracts prevent assumptions that block long-running adapters later.
+
+## Runtime adapters
+
+Future adapters may support FrankenPHP, RoadRunner, OpenSwoole, PHP-FPM, CLI workers, serverless environments, and future runtimes. No runtime is a Kernel dependency, and Phase 0C selects or implements no adapter.
+
+## Concurrency and isolation
+
+The implemented Kernel permits overlapping operations and owns each opaque scope by object identity in an instance-local collection. Ending one scope cannot affect another. There is no global, static, thread-local, fiber-local, singleton, or other ambient current-operation state. This establishes lifecycle accounting without selecting concurrency primitives, reset hooks, propagation, cancellation, or adapter contracts.
+
+## Failure
+
+Invalid lifecycle actions throw a deliberate Kernel exception before state mutation. Shutdown fails while active work remains, leaving the Kernel booted and counts intact. Operation failure cleanup, telemetry, cancellation, and recovery APIs remain unresolved.
+
+## Performance
+
+Persistent processes may reduce repeated boot cost, but performance cannot justify unsafe shared state or runtime coupling. Measurement and adapter-specific optimization belong to later implementation phases.
+
+## Stability
+
+Persistent-runtime-first design and runtime-independent Kernel boundaries are **LOCKED**. The minimal boot/operation/shutdown lifecycle is implemented but **Experimental**. Scoped data, cleanup, propagation, concurrency models beyond overlapping identity ownership, reset behavior, and runtime adapters remain open.
+
+## Related concepts
+
+- [Microkernel](microkernel.md)
+- [Architecture overview](overview.md)
+- [ADR 0006](../adr/0006-persistent-runtime-first.md)

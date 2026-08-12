@@ -1,0 +1,19 @@
+{
+  "name": "kongono/application-graph",
+  "description": "The immutable structural core for Kongono's future Application Graph.",
+  "type": "library",
+  "require": {
+    "kongono/kernel": "*",
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\ApplicationGraph\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\ApplicationGraph\\Tests\\": "tests/"
+    }
+  }
+}
