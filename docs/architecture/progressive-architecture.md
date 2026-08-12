@@ -29,7 +29,7 @@ Increasing rigor should be driven by application needs rather than framework cer
 
 ## Invariants
 
-Architectural flexibility does not authorize arbitrary framework behavior. Planned invariants include typed dependency injection, Application Graph knowledge, structured CLI output, operation scopes, architecture validation, security metadata, telemetry, and machine-readable contracts. The details remain unimplemented.
+Architectural flexibility does not authorize arbitrary framework behavior. Phase 0F now supplies only explicit interface-to-implementation constructor resolution with transient construction; autowiring, service scopes, and application-architecture conventions remain unselected. Application Graph knowledge, structured CLI output, broader architecture validation, security metadata, telemetry, and other machine-readable contracts remain planned.
 
 ## Do not use this doctrine to
 

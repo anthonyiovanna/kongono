@@ -2,7 +2,7 @@
 
 ## Project status
 
-Kongono is pre-alpha and currently contains architectural governance and documentation rather than runnable framework functionality. There are no stable public APIs or supported production releases.
+Kongono is pre-alpha and contains runnable Experimental Kernel lifecycle, Application Graph structural, and explicit dependency-resolution functionality. There are no Stable APIs or supported production releases.
 
 ## Reporting a vulnerability
 
@@ -17,6 +17,8 @@ Planned framework work must make authorization, trust, identity, delegation, and
 Extensions must not automatically receive unrestricted access to databases, filesystems, secrets, networks, shells, or processes. The planned Extension Host will govern permissions, capabilities, lifecycle, storage, network access, secrets, events, UI contributions, agent capabilities, updates, removal, and health. Exact mechanisms remain open and must not be inferred from this policy.
 
 Persistent runtimes require explicit lifecycle and operation scopes so that identity, authorization, tenant, request, and sensitive state cannot leak between operations. Runtime-specific security contracts have not yet been designed.
+
+Phase 0F dependency definitions may invoke registered autoloaders, and resolution executes consumer constructors. Applications must treat supplied definitions and implementations as reviewed executable input. The resolver retains no constructed service instance, exposes no ambient current resolver, and provides no authorization boundary, secret injection, or special Kernel lifecycle behavior.
 
 ## No security guarantees yet
 

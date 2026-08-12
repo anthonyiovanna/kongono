@@ -2,7 +2,7 @@
 
 ## Purpose and current scope
 
-Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root, Kernel, and Application Graph packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
+Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root, Kernel, Application Graph, and Dependency Injection work. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
 
 The root command is:
 
@@ -10,7 +10,7 @@ The root command is:
 composer quality
 ```
 
-It validates the root and both package manifests, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
+It validates the root and all three package manifests, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
 
 ## Guides
 
@@ -22,6 +22,7 @@ It validates the root and both package manifests, audits the locked dependency g
 - [Package layout](package-layout.md)
 - [API status](api-status.md)
 - [Application Graph structure](application-graph-structure.md)
+- [Explicit typed dependency resolution](dependency-injection.md)
 
 ## Authority and exceptions
 

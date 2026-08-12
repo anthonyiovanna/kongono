@@ -10,6 +10,7 @@
   ],
   "require": {
     "kongono/application-graph": "@dev",
+    "kongono/dependency-injection": "@dev",
     "kongono/kernel": "@dev",
     "php": ">=8.5"
   },
@@ -22,6 +23,7 @@
   "autoload-dev": {
     "psr-4": {
       "Kongono\\ApplicationGraph\\Tests\\": "packages/application-graph/tests/",
+      "Kongono\\DependencyInjection\\Tests\\": "packages/dependency-injection/tests/",
       "Kongono\\Kernel\\Tests\\": "packages/kernel/tests/",
       "Kongono\\Tests\\": "tests/"
     }
@@ -61,6 +63,7 @@
     "validate:composer": "composer validate --no-check-publish",
     "validate:packages": [
       "composer --working-dir=packages/application-graph validate --no-check-publish",
+      "composer --working-dir=packages/dependency-injection validate --no-check-publish",
       "composer --working-dir=packages/kernel validate --no-check-publish"
     ],
     "quality": [

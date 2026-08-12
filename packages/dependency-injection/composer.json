@@ -1,0 +1,19 @@
+{
+  "name": "kongono/dependency-injection",
+  "description": "Explicit typed dependency resolution for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "kongono/kernel": "*",
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\DependencyInjection\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\DependencyInjection\\Tests\\": "tests/"
+    }
+  }
+}

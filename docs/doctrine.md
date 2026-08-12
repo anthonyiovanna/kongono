@@ -2,7 +2,7 @@
 
 ## Status
 
-The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds only the explicitly identified Application Graph structural snapshot; other planned mechanisms do not yet exist unless this document says otherwise.
+The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the explicitly identified Application Graph structural snapshot. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction; other planned mechanisms do not yet exist unless this document says otherwise.
 
 ## Product philosophy
 
@@ -22,13 +22,13 @@ AI may suggest interpretations and changes, but correctness-critical application
 
 Kongono will use a small microkernel with independently installable components that contribute coherent capabilities. Potential capabilities include HTTP, Data, ORM, Migrations, Authentication, Authorization, Events, Queues, Workflows, Cache, Storage, Mail, Notifications, Realtime, Scheduling, AI, Agents, Delegation, MCP, A2A, Frontend integration, Testing, and Developer tooling.
 
-This list is direction, not a package map or implementation inventory. The only production packages are the Phase 0C Kernel and Phase 0D Application Graph structural core; no listed capability package is implemented or implied.
+This list is direction, not a package map. The production packages are the Phase 0C Kernel, Phase 0D Application Graph structural core, and Phase 0F Dependency Injection component. The resolver is not a general capability platform and implies none of the other listed packages.
 
 ## Progressive architecture
 
 MVC remains a friendly default at the HTTP and UI edge. Business logic must not be structurally trapped in controllers. Applications should be able to evolve toward actions or use cases, modular monoliths, domain-driven architecture, ports and adapters, justified CQRS, events, and durable workflows without switching frameworks.
 
-Flexibility at application architecture layers does not weaken framework invariants. Planned invariants include typed dependency injection, the Application Graph, structured CLI contracts, explicit operation scopes, architecture validation, security metadata, telemetry, and machine-readable contracts.
+Flexibility at application architecture layers does not weaken framework invariants. Phase 0F implements only explicit typed constructor resolution with transient construction. Broader dependency injection, the authoritative Application Graph, structured CLI contracts, architecture validation, security metadata, telemetry, and other machine-readable contracts remain planned.
 
 ## Persistent-runtime-first lifecycle
 

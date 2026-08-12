@@ -7,6 +7,8 @@ parameters:
     paths:
         - packages/application-graph/src
         - packages/application-graph/tests
+        - packages/dependency-injection/src
+        - packages/dependency-injection/tests
         - packages/kernel/src
         - packages/kernel/tests
         - tests/Architecture

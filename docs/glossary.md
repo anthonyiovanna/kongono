@@ -50,6 +50,14 @@ An actor's recorded authorization for a specified action or use of authority, su
 
 A governed grant of authority from one Principal to another, constrained by capability, intent, consent, policy, time, scope, and revocation. Delegation chains, receipts, and enforcement formats are not yet specified.
 
+## Dependency Injection
+
+Phase 0F dependency injection means only construction from explicit immutable definitions: a canonical interface contract, an explicit concrete implementation, and an ordered list of interface dependencies. It does not imply autowiring, PSR-11, a complete container, configuration injection, or a service-lifetime system.
+
+## Dependency Resolver
+
+The final readonly Phase 0F composition-root component that validates a complete definition set and recursively constructs explicit implementations. It retains definitions only, constructs a fresh object on every root and dependency edge, and cannot itself be defined or injected as a Kongono service.
+
 ## Developer Experience / DX
 
 The experience of building, understanding, testing, operating, and evolving a Kongono application. Kongono aims for high productivity through explicit and inspectable mechanisms rather than hidden magic.
@@ -158,9 +166,25 @@ A non-empty, exactly preserved open label carried by a Relation. It establishes 
 
 A Principal representing a software service or machine workload. Credential, identity, trust, rotation, and authorization semantics remain open.
 
+## Service Contract
+
+The exact canonical declared fully qualified name of an existing PHP interface used as a Phase 0F service identity. Classes, aliases, case variants, leading-backslash names, and the Kongono resolver contract or its subinterfaces are not service contracts.
+
+## Service Definition
+
+One immutable Phase 0F mapping from a Service Contract to a canonical concrete implementation and an ordered list of Service Contract dependencies. Constructor reflection validates the explicit list but does not discover dependencies.
+
+## Service Scope
+
+A planned lifetime and ownership boundary for service instances. Phase 0F selects only transient-per-edge construction and implements no shared, singleton, request, operation, worker, process, tenant, or custom scope.
+
 ## Structured CLI
 
 The doctrine that meaningful `kongo` commands should support deterministic, machine-readable, automation-safe interaction, including `--json`, `--dry-run`, and `--no-interaction` where applicable. The CLI architecture and exact command contracts are not yet defined.
+
+## Transient Resolution
+
+The Phase 0F rule that every top-level resolve call and every occurrence of a dependency creates a fresh implementation object. Duplicate dependencies and diamond branches never share lower-level instances, and no constructed service is retained by the resolver.
 
 ## Trust
 

@@ -10,6 +10,8 @@ Framework design may not rely on process teardown to clear mutable state or rele
 
 This principle matters even when an application runs under PHP-FPM, because runtime-independent lifecycle contracts prevent assumptions that block long-running adapters later.
 
+The Phase 0F resolver may be retained across operations because it stores only immutable definitions and constructs a new service object on every root and dependency edge. It contains no current-operation state and has no Kernel lifecycle relationship. Consumer constructors remain responsible for their own side effects, cleanup, and concurrency safety; shared and scoped service lifetimes remain open.
+
 ## Runtime adapters
 
 Future adapters may support FrankenPHP, RoadRunner, OpenSwoole, PHP-FPM, CLI workers, serverless environments, and future runtimes. No runtime is a Kernel dependency, and Phase 0C selects or implements no adapter.

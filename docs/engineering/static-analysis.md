@@ -10,7 +10,7 @@ Run analysis with:
 composer analyse
 ```
 
-The current analysis scope is `tests/Architecture`, `tests/Tooling`, `packages/kernel/src`, `packages/kernel/tests`, `packages/application-graph/src`, and `packages/application-graph/tests`. Future production paths may be added only with their authorized implementation packages.
+The current analysis scope is `tests/Architecture`, `tests/Tooling`, and the source and test trees for Kernel, Application Graph, and Dependency Injection. Future production paths may be added only with their authorized implementation packages.
 
 ## No-baseline contract
 

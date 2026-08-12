@@ -10,7 +10,7 @@ Run tests with:
 composer test
 ```
 
-The root suite discovers repository tooling and architecture tests beneath `tests/`, Kernel tests beneath `packages/kernel/tests/`, and structural Graph tests beneath `packages/application-graph/tests/`. Each package declares its own development test namespace, which the root repeats in `autoload-dev` because dependency development mappings are not imported. Phase 0D moves the deterministic production-symbol and API-status inventory check to `tests/Architecture` so root architecture owns discovery across every `packages/*/src` tree; its token scanner remains test-only infrastructure rather than a Graph source frontend.
+The root suite discovers repository tooling and architecture tests beneath `tests/`, plus package tests beneath the Kernel, Application Graph, and Dependency Injection trees. Each package declares its own development test namespace, which the root repeats in `autoload-dev` because dependency development mappings are not imported. Root architecture owns the exact 27-symbol API-status inventory and pairwise exception-marker separation across every `packages/*/src` tree; its token scanner remains test-only infrastructure rather than a Graph or dependency-discovery frontend.
 
 ## Failure behavior
 

@@ -15,6 +15,7 @@
     <testsuites>
         <testsuite name="Kongono">
             <directory>packages/application-graph/tests</directory>
+            <directory>packages/dependency-injection/tests</directory>
             <directory>packages/kernel/tests</directory>
             <directory>tests</directory>
         </testsuite>
@@ -22,6 +23,7 @@
     <source>
         <include>
             <directory>packages/application-graph/src</directory>
+            <directory>packages/dependency-injection/src</directory>
             <directory>packages/kernel/src</directory>
         </include>
     </source>

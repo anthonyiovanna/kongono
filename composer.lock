@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3b688b72fdd949b4b231437448b5beb2",
+    "content-hash": "4dce8caebff4e3aac307ba71d3675cb5",
     "packages": [
         {
             "name": "kongono/application-graph",
@@ -30,6 +30,34 @@
                 }
             },
             "description": "The immutable structural core for Kongono's future Application Graph.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/dependency-injection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/dependency-injection",
+                "reference": "c8caf9f6ce369801bf4f603f50e99e23d1172a0f"
+            },
+            "require": {
+                "kongono/kernel": "*",
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DependencyInjection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DependencyInjection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit typed dependency resolution for Kongono Framework.",
             "transport-options": {
                 "relative": true
             }
@@ -4861,6 +4889,7 @@
     "minimum-stability": "stable",
     "stability-flags": {
         "kongono/application-graph": 20,
+        "kongono/dependency-injection": 20,
         "kongono/kernel": 20
     },
     "prefer-stable": false,

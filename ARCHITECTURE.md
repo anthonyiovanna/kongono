@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This document is an index of Kongono's authorized architectural direction. Kongono is pre-alpha. The repository currently implements governance, documentation, the PHP quality toolchain, the narrow `kongono/kernel` lifecycle package, and the immutable structural core in `kongono/application-graph`. Other statements about framework behavior describe planned architecture unless explicitly identified as current repository behavior.
+This document is an index of Kongono's authorized architectural direction. Kongono is pre-alpha. Phase 0F implements governance, documentation, the PHP quality toolchain, the narrow `kongono/kernel` lifecycle package, the immutable structural core in `kongono/application-graph`, and explicit typed constructor resolution in `kongono/dependency-injection`. Other statements about framework behavior describe planned architecture unless explicitly identified as current repository behavior.
 
 Kongono Framework targets PHP 8.5+ and is designed for three first-class consumption surfaces: Human Experience, Software/API Experience, and Agent Experience. The framework is not a Laravel clone. It aims to preserve strong developer productivity while favoring explicit, typed, deterministic, observable, modular, persistent-runtime-safe, and AI-native architecture.
 
@@ -11,6 +11,8 @@ Kongono Framework targets PHP 8.5+ and is designed for three first-class consump
 The planned Application Graph is the authoritative, machine-readable representation of an application. It will derive from a language-neutral Intermediate Representation so that PHP, the first source-language frontend, does not permanently define the conceptual model. Phase 0D implements only a source-language-neutral in-memory structural snapshot: opaque graph-local keys, open node and relation kinds, immutable directed relations, exact validation and lookup, and canonical binary-string ordering. Stable identifiers, domain schemas, metadata, provenance, visibility, serialization, discovery, compilation mechanics, and the complete authoritative representation remain unresolved.
 
 Kongono uses `packages/kernel` as its first physical monorepo package. Its Experimental state machine boots once, owns overlapping opaque operation scopes by object identity, rejects shutdown while work is active, and shuts down terminally. It is transport-, runtime-, and container-neutral. Independently installable capabilities and application architecture beyond this boundary remain planned.
+
+`packages/dependency-injection` is a separate Experimental component. It maps canonical existing interfaces to explicit concrete implementations and ordered constructor dependencies, validates complete definition sets, and constructs transient instances on every dependency edge. It does not make the Kernel a container, provide PSR-11 or autowiring, select shared/scoped lifetimes, or integrate with the Application Graph.
 
 The lifecycle is persistent-runtime-first: framework design may not assume all application state disappears after each request or operation. Runtime-specific integrations must remain adapters rather than kernel dependencies.
 
@@ -32,6 +34,7 @@ No runtime adapter, protocol adapter, domain Graph schema, complete Graph compil
 - [Architecture overview](docs/architecture/overview.md)
 - [Application Graph](docs/architecture/application-graph.md)
 - [Microkernel and capabilities](docs/architecture/microkernel.md)
+- [Explicit typed dependency resolution](docs/engineering/dependency-injection.md)
 - [Progressive architecture](docs/architecture/progressive-architecture.md)
 - [Runtime model](docs/architecture/runtime-model.md)
 - [Agent model](docs/architecture/agent-model.md)

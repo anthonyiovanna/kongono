@@ -22,7 +22,7 @@ A monorepo enables atomic architectural refactors, cross-component testing, shar
 
 ## Consequences
 
-Early components will be developed together when authorized. Repository structure must remain intentional rather than pre-allocating speculative packages. Phase 0C implements `packages/kernel`; Phase 0D adds `packages/application-graph` as the second physical Composer package. The root project consumes both through the canonical `packages/*` path repository and locks each untagged local package through an exact root `@dev` constraint. Repository-wide production inventory and API-status enforcement belongs to the root architecture test suite rather than either package. Components may later be published independently.
+Early components will be developed together when authorized. Repository structure must remain intentional rather than pre-allocating speculative packages. Phase 0C implements `packages/kernel`; Phase 0D adds `packages/application-graph`; Phase 0F adds `packages/dependency-injection` as the third physical Composer package. The root project consumes all three through the canonical `packages/*` path repository and locks each untagged local package through an exact root `@dev` constraint. Repository-wide production inventory and API-status enforcement belongs to the root architecture test suite rather than any package. Components may later be published independently.
 
 ## Rejected alternatives
 

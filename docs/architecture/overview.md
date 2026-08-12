@@ -2,7 +2,7 @@
 
 ## Current reality
 
-Kongono is in Phase 0D. The repository contains architectural policy, documentation, a reproducible PHP quality toolchain, `packages/kernel`, and `packages/application-graph`. The Graph package implements only an Experimental immutable structural snapshot with graph-local opaque keys, open kinds, directed relations, structural validation, canonical order, and exact node lookup. Its exception marker is Public but not Stable and is separate from the Kernel marker. No stable Graph identity, domain schema, serialization, discovery, compiler, capability package, runtime adapter, extension host, agent runtime, or CLI executable is implemented.
+Kongono is in Phase 0F. The repository contains architectural policy, documentation, a reproducible PHP quality toolchain, `packages/kernel`, `packages/application-graph`, and `packages/dependency-injection`. The new Experimental resolver uses explicit canonical interface definitions, validates complete dependency graphs, and constructs transient objects on every edge. Its Public exception marker is distinct from the Kernel and Graph markers. It has no PSR-11, autowiring, shared/scoped lifetime, Kernel lifecycle integration, or Graph integration. No stable Graph identity, domain schema, compiler, runtime adapter, extension host, agent runtime, or CLI executable is implemented.
 
 ## Intended architecture
 
@@ -40,7 +40,7 @@ Only the structural core is implemented. The surrounding flow expresses intended
 
 ## Framework shape
 
-The Kernel owns only boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and API-status metadata. The Application Graph package owns only the immutable structural snapshot and its exception family; it has no runtime-lifecycle role. Capabilities such as HTTP, data, authorization, events, workflows, agents, and frontend integration remain planned components. The monorepo retains atomic root validation across both independently owned packages.
+The Kernel owns only boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and API-status metadata. The Application Graph package owns only the immutable structural snapshot and its exception family. Dependency Injection separately owns explicit definitions, definition-graph validation, and transient construction. None has a framework-owned integration with the others beyond the Graph and resolver packages using Kernel API-status metadata. Capabilities such as HTTP, data, authorization, events, workflows, agents, and frontend integration remain planned. The monorepo retains atomic root validation across all three independently owned packages.
 
 ## Interoperability boundaries
 

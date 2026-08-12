@@ -36,6 +36,8 @@ Runtime adapters can eventually map their operations onto explicit scopes withou
 
 The Kernel is not a container or service locator and performs no dependency resolution, object construction, request handling, I/O, global-state access, logging, telemetry, time, randomness, environment access, or cleanup orchestration. Lifecycle contracts and concrete behavior are Experimental; only the deliberate exception marker is a Public catch boundary.
 
+Phase 0F later places explicit typed dependency resolution in the separate `kongono/dependency-injection` component. That resolver has no Kongono-supplied, special, or preconfigured Kernel binding or lifecycle behavior, and its production dependency on Kernel is limited to API-status metadata. A consumer-selected Kernel interface may be handled as an ordinary explicit contract without creating a framework-owned integration.
+
 ## Rejected alternatives
 
 - A single root `src/` tree without package ownership is rejected because the authorized Kernel boundary must be independently owned in the monorepo.
@@ -48,4 +50,4 @@ The Kernel is not a container or service locator and performs no dependency reso
 
 ## What remains open
 
-Dependency injection, service scopes, scope contents, context propagation, cleanup after application failure, cancellation, reset hooks, concurrency primitives beyond overlapping identity ownership, runtime adapters, telemetry, logging, Application Graph integration, lifecycle extension points, and compatibility promotion remain open. No later capability is implied by this decision.
+Kernel/resolver composition, service scopes, scope contents, context propagation, cleanup after application failure, cancellation, reset hooks, concurrency primitives beyond overlapping identity ownership, runtime adapters, telemetry, logging, Application Graph integration, lifecycle extension points, and compatibility promotion remain open. Phase 0F's separate transient resolver does not settle these questions. No later capability is implied by this decision.

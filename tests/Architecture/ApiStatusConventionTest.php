@@ -6,8 +6,19 @@ namespace Kongono\Tests\Architecture;
 
 use Attribute;
 use FilesystemIterator;
+use Kongono\ApplicationGraph\Exception\ExceptionInterface as GraphExceptionInterface;
+use Kongono\ApplicationGraph\Exception\InvalidGraphException;
+use Kongono\DependencyInjection\Contract\ResolverInterface;
+use Kongono\DependencyInjection\Definition\ServiceDefinition;
+use Kongono\DependencyInjection\DependencyResolver;
+use Kongono\DependencyInjection\Exception\DependencyInjectionException;
+use Kongono\DependencyInjection\Exception\ExceptionInterface as DependencyInjectionExceptionInterface;
+use Kongono\DependencyInjection\Exception\InvalidDefinitionException;
+use Kongono\DependencyInjection\Exception\UnknownServiceException;
 use Kongono\Kernel\Api\Api;
 use Kongono\Kernel\Api\ApiStatus;
+use Kongono\Kernel\Exception\ExceptionInterface as KernelExceptionInterface;
+use Kongono\Kernel\Exception\LifecycleException;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -28,6 +39,13 @@ final class ApiStatusConventionTest extends TestCase
         'Kongono\\ApplicationGraph\\Model\\NodeKind' => ApiStatus::Experimental,
         'Kongono\\ApplicationGraph\\Model\\Relation' => ApiStatus::Experimental,
         'Kongono\\ApplicationGraph\\Model\\RelationKind' => ApiStatus::Experimental,
+        ResolverInterface::class => ApiStatus::Experimental,
+        ServiceDefinition::class => ApiStatus::Experimental,
+        DependencyResolver::class => ApiStatus::Experimental,
+        DependencyInjectionExceptionInterface::class => ApiStatus::Public,
+        DependencyInjectionException::class => ApiStatus::Internal,
+        InvalidDefinitionException::class => ApiStatus::Experimental,
+        UnknownServiceException::class => ApiStatus::Experimental,
         Api::class => ApiStatus::Public,
         ApiStatus::class => ApiStatus::Public,
         'Kongono\\Kernel\\Contract\\KernelInterface' => ApiStatus::Experimental,
@@ -111,6 +129,30 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(0, $declaration->flags & Attribute::IS_REPEATABLE);
     }
 
+    public function testPackageExceptionMarkersArePairwiseDistinctAndConcreteFailuresStaySeparated(): void
+    {
+        self::assertFalse(is_a(KernelExceptionInterface::class, GraphExceptionInterface::class, true));
+        self::assertFalse(is_a(KernelExceptionInterface::class, DependencyInjectionExceptionInterface::class, true));
+        self::assertFalse(is_a(GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, true));
+
+        self::assertExceptionMarkerMembership(LifecycleException::class, KernelExceptionInterface::class, [
+            GraphExceptionInterface::class,
+            DependencyInjectionExceptionInterface::class,
+        ]);
+        self::assertExceptionMarkerMembership(InvalidGraphException::class, GraphExceptionInterface::class, [
+            KernelExceptionInterface::class,
+            DependencyInjectionExceptionInterface::class,
+        ]);
+        self::assertExceptionMarkerMembership(InvalidDefinitionException::class, DependencyInjectionExceptionInterface::class, [
+            KernelExceptionInterface::class,
+            GraphExceptionInterface::class,
+        ]);
+        self::assertExceptionMarkerMembership(UnknownServiceException::class, DependencyInjectionExceptionInterface::class, [
+            KernelExceptionInterface::class,
+            GraphExceptionInterface::class,
+        ]);
+    }
+
     /** @return list<string> */
     private function discoverProductionTypes(): array
     {
@@ -175,8 +217,12 @@ final class ApiStatusConventionTest extends TestCase
                 continue;
             }
 
-            if (T_CLASS === $token[0] && T_NEW === $this->previousSignificantTokenId($tokens, $index)) {
-                continue;
+            if (T_CLASS === $token[0]) {
+                $previous = $this->previousSignificantTokenId($tokens, $index);
+
+                if (T_NEW === $previous || T_DOUBLE_COLON === $previous) {
+                    continue;
+                }
             }
 
             $name = $this->declarationNameFollowing($tokens, $index + 1);
@@ -257,5 +303,22 @@ final class ApiStatusConventionTest extends TestCase
         }
 
         throw new RuntimeException(sprintf('Production type %s is not autoloadable.', $type));
+    }
+
+    /**
+     * @param class-string              $exception
+     * @param class-string              $expectedMarker
+     * @param list<class-string>        $excludedMarkers
+     */
+    private static function assertExceptionMarkerMembership(
+        string $exception,
+        string $expectedMarker,
+        array $excludedMarkers,
+    ): void {
+        self::assertTrue(is_a($exception, $expectedMarker, true));
+
+        foreach ($excludedMarkers as $excludedMarker) {
+            self::assertFalse(is_a($exception, $excludedMarker, true));
+        }
     }
 }
