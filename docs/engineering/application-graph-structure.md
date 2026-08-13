@@ -5,9 +5,10 @@
 `kongono/application-graph` supplies the smallest immutable in-memory structure
 needed before Kongono can design its future authoritative Application Graph. Use
 it when a producer already has opaque node keys, open kind labels, and directed
-relations that need deterministic validation and lookup. Do not use it as a
-source scanner, schema registry, serializer, metadata store, mutable builder, or
-domain query system.
+relations that need deterministic validation, lookup, and exact immediate
+relation selection. Do not use it as a source scanner, schema registry,
+serializer, metadata store, mutable builder, traversal engine, or generic query
+system.
 
 All model types are final and readonly. Construction and access perform no
 filesystem, network, environment, time, randomness, process, logging, telemetry,
@@ -39,6 +40,8 @@ $graph->nodes(): array;
 $graph->relations(): array;
 $graph->hasNode(NodeKey $key): bool;
 $graph->node(NodeKey $key): ?Node;
+$graph->outgoingRelations(NodeKey $source): array;
+$graph->incomingRelations(NodeKey $target): array;
 ```
 
 The constructor arrays have static contracts `list<Node>` and `list<Relation>`.
@@ -71,6 +74,21 @@ Canonical relation order compares source value, kind value, then target value.
 No locale-aware comparison or Unicode normalization occurs. Lookup compares key
 values rather than `NodeKey` object identity.
 
+Both selectors compare the supplied `NodeKey::value()` exactly with the stored
+source or target value. They do not normalize values or consider relation kind,
+and they never reverse direction. A self-relation appears in both results for
+its key. An empty graph, a missing key, or an existing node with no relation in
+that direction returns `[]`; use `hasNode()` when missing-versus-isolated matters.
+
+Selection scans the existing canonical relation list and does not re-sort it.
+Outgoing results are therefore kind-then-target ordered, while incoming results
+preserve global source-kind-target order. Each call returns a fresh list holding
+the same immutable `Relation` objects. It performs `O(R)` endpoint comparisons
+for `R` stored relations, allocates in proportion to matches, and retains no
+index, adjacency map, memoized result, or query cache. This is direct selection
+only, not neighbor selection, reachability, paths, recursion, traversal,
+predicates, relation-kind filtering, or a query DSL.
+
 ## Correct usage
 
 ```php
@@ -83,6 +101,7 @@ $relation = new Relation(
 );
 
 $graph = new ApplicationGraph([$consumer, $service], [$relation]);
+$outgoing = $graph->outgoingRelations(new NodeKey('producer-local:1'));
 ```
 
 The returned node order is deterministic even though the input was not. The
@@ -97,9 +116,10 @@ wire format.
 
 Production tests must cover exact value preservation, runtime list and element
 validation, structural failures, valid cycles/self-relations, collision-free
-tuple comparison, canonical order, value-based lookup, immutability, exception
-separation, and API status. The root architecture suite owns complete production
-type discovery across every `packages/*/src` tree.
+tuple comparison, canonical order, value-based lookup, exact directional
+selection, missing and isolated keys, detached results, object identity,
+immutability, exception separation, and API status. The root architecture suite
+owns complete production type discovery across every `packages/*/src` tree.
 
 The package requires PHP 8.5 or newer and temporarily requires
 `kongono/kernel: *` only for `Api` and `ApiStatus`. The unbounded constraint is
@@ -112,5 +132,6 @@ dependency or Composer plugin is part of this package.
 Stable IDs, kind vocabularies, domain schemas, metadata, provenance, visibility,
 security filtering, source frontends, PHP discovery, compilation, contributions,
 merging, serialization, persistence, caching, fingerprints, diffs, queries,
-traversal, and mutation remain unresolved. The model is Experimental and is not
+traversal beyond the two exact direct selectors, neighbor selection, kind
+filtering, and mutation remain unresolved. The model is Experimental and is not
 yet the full authoritative application representation.

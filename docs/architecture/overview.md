@@ -2,7 +2,7 @@
 
 ## Current reality
 
-Kongono is in Phase 0F. The repository contains architectural policy, documentation, a reproducible PHP quality toolchain, `packages/kernel`, `packages/application-graph`, and `packages/dependency-injection`. The new Experimental resolver uses explicit canonical interface definitions, validates complete dependency graphs, and constructs transient objects on every edge. Its Public exception marker is distinct from the Kernel and Graph markers. It has no PSR-11, autowiring, shared/scoped lifetime, Kernel lifecycle integration, or Graph integration. No stable Graph identity, domain schema, compiler, runtime adapter, extension host, agent runtime, or CLI executable is implemented.
+Kongono is in Phase 0H. The repository contains architectural policy, documentation, a reproducible PHP quality toolchain, `packages/kernel`, `packages/application-graph`, and `packages/dependency-injection`. The Experimental Graph snapshot supports exact outgoing and incoming selection of immediately stored relations by endpoint-key value. Missing and isolated keys return empty lists; selected relations retain canonical global order and object identity in detached arrays; each call scans all relations without an index or cache. This is direct selection, not traversal or a generic query system. The Experimental resolver still uses explicit canonical interface definitions, validates complete dependency graphs, and constructs transient objects on every edge. No stable Graph identity, domain schema, metadata, persistence, mutation, discovery, compiler, Graph/framework integration, runtime adapter, extension host, agent runtime, or CLI executable is implemented.
 
 ## Intended architecture
 

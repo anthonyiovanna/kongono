@@ -95,3 +95,12 @@ validation phases; merging and contribution rules; serialization and schema
 versioning; persistence and caching; hashes and fingerprints; Graph diffs;
 query and traversal APIs; inter-package version constraints; and API promotion
 remain open. This decision authorizes none of those capabilities.
+
+## Later decision
+
+[ADR 0024](0024-exact-direct-relation-selection.md) later supersedes this
+decision's query prohibition only for exact `outgoingRelations()` and
+`incomingRelations()` selection over immediately stored relations. The original
+Phase 0D rationale and every other deferred query, traversal, schema, identity,
+mutation, persistence, discovery, compilation, and integration decision remain
+unchanged.

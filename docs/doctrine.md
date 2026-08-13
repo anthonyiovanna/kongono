@@ -2,7 +2,7 @@
 
 ## Status
 
-The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the explicitly identified Application Graph structural snapshot. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction; other planned mechanisms do not yet exist unless this document says otherwise.
+The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the Application Graph structural snapshot, and Phase 0H adds only its exact outgoing and incoming direct-relation selectors. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction; other planned mechanisms do not yet exist unless this document says otherwise.
 
 ## Product philosophy
 
@@ -14,7 +14,7 @@ Applications should be understandable to developers, infrastructure, tooling, AI
 
 The planned Application Graph will be Kongono's authoritative, machine-readable application representation. It is intended to describe modules, services, dependencies, routes, actions, entities, schemas, events, jobs, workflows, policies, permissions, principals, agents, delegations, capabilities, extension contributions, frontend contracts, external APIs, and documentation relationships.
 
-The Graph will derive from a language-neutral Intermediate Representation. PHP is the first source-language frontend, not the permanent conceptual boundary. Phase 0D's implemented in-memory subset contains only immutable nodes with opaque graph-local keys and open kinds, plus directed open-kind relations between existing nodes. It validates duplicates and endpoints, returns canonical binary-string order, and performs exact key lookup. It is not yet the full authoritative representation. Stable identifiers, domain schemas, metadata, provenance, visibility, serialization, discovery, compilation, storage, and broader public APIs remain experimental or open.
+The Graph will derive from a language-neutral Intermediate Representation. PHP is the first source-language frontend, not the permanent conceptual boundary. The implemented in-memory subset contains only immutable nodes with opaque graph-local keys and open kinds, plus directed open-kind relations between existing nodes. It validates duplicates and endpoints, returns canonical binary-string order, performs exact node lookup, and selects immediate outgoing or incoming relations by exact endpoint-key value. Missing and isolated keys return empty lists; self-relations select in both directions; detached results preserve global canonical relation order and the same immutable relation objects. Each selector is an `O(R)` scan with no retained index or cache. This narrow read boundary is not traversal, reachability, paths, neighbor selection, kind filtering, predicates, or a generic query system. It is not yet the full authoritative representation. Stable identities, schemas, metadata, provenance, visibility, serialization, discovery, compilation, persistence, mutation, and framework integration remain experimental or open.
 
 AI may suggest interpretations and changes, but correctness-critical application structure, authorization, security policy, migration safety, dependency legality, module boundaries, and API contracts must be determined by Kongono-owned, deterministic mechanisms.
 

@@ -13,6 +13,8 @@ use Kongono\ApplicationGraph\Model\Relation;
 use Kongono\ApplicationGraph\Model\RelationKind;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
+use ReflectionMethod;
+use ReflectionProperty;
 
 final class ApplicationGraphTest extends TestCase
 {
@@ -237,6 +239,201 @@ final class ApplicationGraphTest extends TestCase
         self::assertSame($this->relationTriples($first), $this->relationTriples($second));
     }
 
+    public function testSelectorsReturnEmptyListsForEmptyIsolatedAndMissingKeys(): void
+    {
+        $empty = new ApplicationGraph([], []);
+        $isolated = new ApplicationGraph([$this->node('isolated')], []);
+
+        self::assertSame([], $empty->outgoingRelations(new NodeKey('missing')));
+        self::assertSame([], $empty->incomingRelations(new NodeKey('missing')));
+        self::assertSame([], $isolated->outgoingRelations(new NodeKey('isolated')));
+        self::assertSame([], $isolated->incomingRelations(new NodeKey('isolated')));
+        self::assertSame([], $isolated->outgoingRelations(new NodeKey('missing')));
+        self::assertSame([], $isolated->incomingRelations(new NodeKey('missing')));
+    }
+
+    public function testSelectorsMatchExactEndpointValuesDirectionallyAndReturnStoredObjects(): void
+    {
+        $outgoingA = $this->relation('source', 'a', 'target-a');
+        $outgoingB = $this->relation('source', 'b', 'target-b');
+        $incoming = $this->relation('other', 'c', 'source');
+        $self = $this->relation('source', 'self', 'source');
+        $graph = new ApplicationGraph(
+            [
+                $this->node('source'),
+                $this->node('other'),
+                $this->node('target-a'),
+                $this->node('target-b'),
+            ],
+            [$self, $incoming, $outgoingB, $outgoingA],
+        );
+
+        $outgoing = $graph->outgoingRelations(new NodeKey('source'));
+        $incomingRelations = $graph->incomingRelations(new NodeKey('source'));
+
+        self::assertSame([$outgoingA, $outgoingB, $self], $outgoing);
+        self::assertSame([$incoming, $self], $incomingRelations);
+        self::assertFalse(in_array($incoming, $outgoing, true));
+        self::assertFalse(in_array($outgoingA, $incomingRelations, true));
+        self::assertSame($outgoingA, $outgoing[0]);
+        self::assertSame($self, $incomingRelations[1]);
+    }
+
+    public function testOutgoingSelectionPreservesCanonicalKindThenTargetOrder(): void
+    {
+        $graph = new ApplicationGraph(
+            [$this->node('source'), $this->node('a'), $this->node('b')],
+            [
+                $this->relation('source', 'z', 'a'),
+                $this->relation('source', 'a', 'b'),
+                $this->relation('source', 'a', 'a'),
+            ],
+        );
+
+        self::assertSame([
+            ['source', 'a', 'a'],
+            ['source', 'a', 'b'],
+            ['source', 'z', 'a'],
+        ], $this->relationTriplesFrom($graph->outgoingRelations(new NodeKey('source'))));
+    }
+
+    public function testIncomingSelectionPreservesGlobalSourceKindTargetOrder(): void
+    {
+        $graph = new ApplicationGraph(
+            [$this->node('target'), $this->node('a'), $this->node('z')],
+            [
+                $this->relation('z', 'a', 'target'),
+                $this->relation('a', 'z', 'target'),
+                $this->relation('a', 'a', 'target'),
+            ],
+        );
+
+        self::assertSame([
+            ['a', 'a', 'target'],
+            ['a', 'z', 'target'],
+            ['z', 'a', 'target'],
+        ], $this->relationTriplesFrom($graph->incomingRelations(new NodeKey('target'))));
+    }
+
+    public function testSelectorOrderIsIndependentOfConstructorInputOrder(): void
+    {
+        $nodes = [$this->node('source'), $this->node('a'), $this->node('b')];
+        $relations = [
+            $this->relation('source', 'z', 'a'),
+            $this->relation('source', 'a', 'b'),
+            $this->relation('a', 'incoming', 'source'),
+        ];
+        $forward = new ApplicationGraph($nodes, $relations);
+        $reverse = new ApplicationGraph(array_reverse($nodes), array_reverse($relations));
+
+        self::assertSame(
+            $this->relationTriplesFrom($forward->outgoingRelations(new NodeKey('source'))),
+            $this->relationTriplesFrom($reverse->outgoingRelations(new NodeKey('source'))),
+        );
+        self::assertSame(
+            $this->relationTriplesFrom($forward->incomingRelations(new NodeKey('source'))),
+            $this->relationTriplesFrom($reverse->incomingRelations(new NodeKey('source'))),
+        );
+    }
+
+    public function testEmbeddedControlAndPrefixEndpointValuesDoNotCollide(): void
+    {
+        $keys = ['a', "a\0", "a\x01", 'ab', 'target'];
+        $graph = new ApplicationGraph(
+            array_map(fn(string $key): Node => $this->node($key), $keys),
+            [
+                $this->relation('a', 'exact', 'target'),
+                $this->relation("a\0", 'nul', 'target'),
+                $this->relation("a\x01", 'control', 'target'),
+                $this->relation('ab', 'prefix', 'target'),
+                $this->relation('target', 'exact', 'a'),
+                $this->relation('target', 'nul', "a\0"),
+                $this->relation('target', 'control', "a\x01"),
+                $this->relation('target', 'prefix', 'ab'),
+            ],
+        );
+
+        self::assertSame([
+            ['a', 'exact', 'target'],
+        ], $this->relationTriplesFrom($graph->outgoingRelations(new NodeKey('a'))));
+        self::assertSame([
+            ['target', 'exact', 'a'],
+        ], $this->relationTriplesFrom($graph->incomingRelations(new NodeKey('a'))));
+    }
+
+    public function testSelectorResultsAreDetachedAndRepeatedCallsRetainNoMutableState(): void
+    {
+        $relation = $this->relation('source', 'kind', 'target');
+        $graph = new ApplicationGraph(
+            [$this->node('source'), $this->node('target')],
+            [$relation],
+        );
+        $outgoing = $graph->outgoingRelations(new NodeKey('source'));
+        $incoming = $graph->incomingRelations(new NodeKey('target'));
+
+        array_pop($outgoing);
+        array_pop($incoming);
+
+        self::assertSame([$relation], $graph->relations());
+        self::assertSame([$relation], $graph->outgoingRelations(new NodeKey('source')));
+        self::assertSame([$relation], $graph->outgoingRelations(new NodeKey('source')));
+        self::assertSame([$relation], $graph->incomingRelations(new NodeKey('target')));
+        self::assertSame([$relation], $graph->incomingRelations(new NodeKey('target')));
+    }
+
+    public function testApplicationGraphRetainsExactClassPropertyAndPublicMethodShape(): void
+    {
+        $reflection = new ReflectionClass(ApplicationGraph::class);
+
+        self::assertTrue($reflection->isFinal());
+        self::assertTrue($reflection->isReadOnly());
+
+        $properties = $reflection->getProperties();
+        usort(
+            $properties,
+            static fn(ReflectionProperty $left, ReflectionProperty $right): int => strcmp(
+                $left->getName(),
+                $right->getName(),
+            ),
+        );
+        self::assertSame(
+            ['nodes', 'relations'],
+            array_map(static fn(ReflectionProperty $property): string => $property->getName(), $properties),
+        );
+
+        foreach ($properties as $property) {
+            self::assertTrue($property->isPrivate());
+            self::assertFalse($property->isStatic());
+            self::assertTrue($property->isReadOnly());
+        }
+
+        $methods = array_values(array_filter(
+            $reflection->getMethods(ReflectionMethod::IS_PUBLIC),
+            static fn(ReflectionMethod $method): bool => ApplicationGraph::class === $method->getDeclaringClass()->getName(),
+        ));
+        $methodNames = array_map(static fn(ReflectionMethod $method): string => $method->getName(), $methods);
+        sort($methodNames);
+        self::assertSame([
+            '__construct',
+            'hasNode',
+            'incomingRelations',
+            'node',
+            'nodes',
+            'outgoingRelations',
+            'relations',
+        ], $methodNames);
+
+        foreach (['incomingRelations', 'outgoingRelations'] as $methodName) {
+            $method = $reflection->getMethod($methodName);
+            $parameters = $method->getParameters();
+
+            self::assertCount(1, $parameters);
+            self::assertFalse($parameters[0]->isOptional());
+            self::assertSame(NodeKey::class, (string) $parameters[0]->getType());
+            self::assertSame('array', (string) $method->getReturnType());
+        }
+    }
+
     private function node(string $key, string $kind = 'kind'): Node
     {
         return new Node(new NodeKey($key), new NodeKind($kind));
@@ -256,13 +453,23 @@ final class ApplicationGraphTest extends TestCase
     /** @return list<array{string, string, string}> */
     private function relationTriples(ApplicationGraph $graph): array
     {
+        return $this->relationTriplesFrom($graph->relations());
+    }
+
+    /**
+     * @param list<Relation> $relations
+     *
+     * @return list<array{string, string, string}>
+     */
+    private function relationTriplesFrom(array $relations): array
+    {
         return array_map(
             static fn(Relation $relation): array => [
                 $relation->source()->value(),
                 $relation->kind()->value(),
                 $relation->target()->value(),
             ],
-            $graph->relations(),
+            $relations,
         );
     }
 }

@@ -1,7 +1,7 @@
 # Kongono Application Graph Structural Core
 
-`kongono/application-graph` implements Phase 0D's source-language-neutral,
-immutable structural snapshot. It is a prerequisite for Kongono's future
+`kongono/application-graph` implements Phase 0H's source-language-neutral,
+immutable structural snapshot and exact direct-relation selection. It is a prerequisite for Kongono's future
 authoritative Application Graph, not that complete representation and not a PHP
 source-discovery or compiler package.
 
@@ -24,6 +24,19 @@ binary source-value, kind-value, target-value order. Ordering and lookup use exa
 string values with no locale behavior or Unicode normalization. Returned arrays
 are copies under PHP array semantics, while their final readonly elements cannot
 be mutated.
+
+`outgoingRelations(NodeKey $source): array` and
+`incomingRelations(NodeKey $target): array` compare endpoint-key values exactly,
+not object identity. Selection is directional and does not filter by relation
+kind. Missing keys, isolated nodes, and empty graphs return `[]`; use
+`hasNode()` when missing-versus-isolated matters. A self-relation appears in
+both selectors for its key.
+
+Selectors scan the existing canonical source-kind-target relation list without
+re-sorting. Results are fresh detached lists containing the same immutable
+`Relation` objects. Each call performs `O(R)` comparisons for `R` relations and
+allocates in proportion to the match count; no index, adjacency map, cache, or
+memoized query state is retained.
 
 ## Identity, kinds, and language neutrality
 
@@ -56,8 +69,10 @@ metadata, authorization, visibility, or a security boundary.
 This package does not provide stable identifiers, domain schemas, metadata bags,
 provenance, security filtering, serialization, persistence, caching, hashing,
 diffs, source discovery, reflection scanning, PHP Graph attributes, an IR
-frontend, compilation, contribution or merge APIs, builders, mutation, queries,
-traversal, dependency injection, HTTP, or any later framework capability.
+frontend, compilation, contribution or merge APIs, builders, mutation, generic
+queries, traversal, reachability, paths, neighbor selection, relation-kind
+filtering, predicates, dependency injection, HTTP, or any later framework
+capability. The two endpoint selectors return immediately stored relations only.
 
 The temporary production dependency on `kongono/kernel: *` exists only for the
 accepted API-status metadata while both unreleased packages are developed

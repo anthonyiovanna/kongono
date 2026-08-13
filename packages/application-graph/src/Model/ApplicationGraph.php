@@ -14,8 +14,10 @@ use Kongono\Kernel\Api\ApiStatus;
  * Construction rejects malformed lists, duplicate node keys, dangling relation
  * endpoints, and duplicate relation triples before publishing state. Returned
  * nodes and relations use binary string order with no locale or Unicode
- * normalization. The instance performs no I/O or ambient-state access and is not
- * yet Kongono's complete authoritative application representation.
+ * normalization. Exact outgoing and incoming selection scans the canonical
+ * relation list in O(R) time and retains no index or cache. The instance performs
+ * no I/O or ambient-state access and is not yet Kongono's complete authoritative
+ * application representation.
  *
  * Stability: Experimental.
  */
@@ -107,6 +109,34 @@ final readonly class ApplicationGraph
     public function relations(): array
     {
         return $this->relations;
+    }
+
+    /** @return list<Relation> */
+    public function outgoingRelations(NodeKey $source): array
+    {
+        $matches = [];
+
+        foreach ($this->relations as $relation) {
+            if ($relation->source()->value() === $source->value()) {
+                $matches[] = $relation;
+            }
+        }
+
+        return $matches;
+    }
+
+    /** @return list<Relation> */
+    public function incomingRelations(NodeKey $target): array
+    {
+        $matches = [];
+
+        foreach ($this->relations as $relation) {
+            if ($relation->target()->value() === $target->value()) {
+                $matches[] = $relation;
+            }
+        }
+
+        return $matches;
     }
 
     public function hasNode(NodeKey $key): bool
