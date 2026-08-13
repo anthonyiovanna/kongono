@@ -7,6 +7,7 @@ namespace Kongono\Kernel;
 use Kongono\Kernel\Api\Api;
 use Kongono\Kernel\Api\ApiStatus;
 use Kongono\Kernel\Contract\KernelInterface;
+use Kongono\Kernel\Diagnostic\LifecycleDiagnostic;
 use Kongono\Kernel\Exception\LifecycleException;
 use Kongono\Kernel\Lifecycle\KernelState;
 use Kongono\Kernel\Lifecycle\OperationScope;
@@ -46,7 +47,10 @@ final class Kernel implements KernelInterface
     public function boot(): void
     {
         if (KernelState::Unbooted !== $this->state) {
-            throw new LifecycleException(sprintf('Cannot boot Kernel while in %s state.', $this->state->name));
+            throw new LifecycleException(
+                LifecycleDiagnostic::BootWhenNotUnbooted,
+                sprintf('Cannot boot Kernel while in %s state.', $this->state->name),
+            );
         }
 
         $this->state = KernelState::Booted;
@@ -55,14 +59,20 @@ final class Kernel implements KernelInterface
     public function shutdown(): void
     {
         if (KernelState::Booted !== $this->state) {
-            throw new LifecycleException(sprintf('Cannot shut down Kernel while in %s state.', $this->state->name));
+            throw new LifecycleException(
+                LifecycleDiagnostic::ShutdownWhenNotBooted,
+                sprintf('Cannot shut down Kernel while in %s state.', $this->state->name),
+            );
         }
 
         if (0 !== $this->activeOperations->count()) {
-            throw new LifecycleException(sprintf(
-                'Cannot shut down Kernel while %d operation(s) remain active.',
-                $this->activeOperations->count(),
-            ));
+            throw new LifecycleException(
+                LifecycleDiagnostic::ShutdownWithActiveOperations,
+                sprintf(
+                    'Cannot shut down Kernel while %d operation(s) remain active.',
+                    $this->activeOperations->count(),
+                ),
+            );
         }
 
         $this->state = KernelState::Shutdown;
@@ -71,10 +81,13 @@ final class Kernel implements KernelInterface
     public function beginOperation(): OperationScope
     {
         if (KernelState::Booted !== $this->state) {
-            throw new LifecycleException(sprintf(
-                'Cannot begin an operation while Kernel is in %s state.',
-                $this->state->name,
-            ));
+            throw new LifecycleException(
+                LifecycleDiagnostic::BeginOperationWhenNotBooted,
+                sprintf(
+                    'Cannot begin an operation while Kernel is in %s state.',
+                    $this->state->name,
+                ),
+            );
         }
 
         $operation = new OperationScope();
@@ -86,14 +99,20 @@ final class Kernel implements KernelInterface
     public function endOperation(OperationScope $operation): void
     {
         if (KernelState::Booted !== $this->state) {
-            throw new LifecycleException(sprintf(
-                'Cannot end an operation while Kernel is in %s state.',
-                $this->state->name,
-            ));
+            throw new LifecycleException(
+                LifecycleDiagnostic::EndOperationWhenNotBooted,
+                sprintf(
+                    'Cannot end an operation while Kernel is in %s state.',
+                    $this->state->name,
+                ),
+            );
         }
 
         if (!isset($this->activeOperations[$operation])) {
-            throw new LifecycleException('Cannot end an operation that is not active and owned by this Kernel.');
+            throw new LifecycleException(
+                LifecycleDiagnostic::InactiveOrForeignOperationScope,
+                'Cannot end an operation that is not active and owned by this Kernel.',
+            );
         }
 
         unset($this->activeOperations[$operation]);

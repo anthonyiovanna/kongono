@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kongono\DependencyInjection\Tests\Fixture;
 
 use Kongono\DependencyInjection\Contract\ResolverInterface;
-use Kongono\DependencyInjection\Exception\InvalidDefinitionException;
+use RuntimeException;
 
 final class DualResolverService implements DualResolverServiceInterface, ResolverInterface
 {
@@ -18,6 +18,6 @@ final class DualResolverService implements DualResolverServiceInterface, Resolve
      */
     public function resolve(string $contract): object
     {
-        throw new InvalidDefinitionException($contract);
+        throw new RuntimeException($contract);
     }
 }

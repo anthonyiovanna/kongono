@@ -2,7 +2,38 @@
 
 ## Current reality
 
-Kongono is in Phase 0J. The repository contains architectural policy, documentation, a reproducible PHP quality toolchain, `packages/kernel`, `packages/application-graph`, and `packages/dependency-injection`. The Experimental Graph snapshot supports exact outgoing and incoming selection of immediately stored relations by endpoint-key value and exact whole-snapshot selection through `nodesOfKind(NodeKind): array` and `relationsOfKind(RelationKind): array`. Kind selection compares open labels exactly within separate node and relation domains, returns `[]` for absent kinds, and preserves canonical order and stored-object identity in fresh lists. The node selector is an `O(N)` scan and the relation selector an `O(R)` scan, with `O(k)` result allocation and no retained kind index or query cache. These are narrow selectors, not a built-in kind vocabulary, combined filtering, predicates, neighbors, traversal, or a generic query system. The Experimental resolver still uses explicit canonical interface definitions, validates complete dependency graphs, and constructs transient objects on every edge. No stable Graph identity, domain schema, metadata, serialization, persistence, mutation, discovery, compiler, Graph/framework integration, runtime adapter, extension host, agent runtime, query plan, performance budget, or CLI executable is implemented.
+Kongono is in Phase 0M. The repository now implements package-local runtime
+diagnostic metadata for every current deliberate package failure. Its broader
+production behavior remains Phase 0J: architectural policy, documentation, a
+reproducible PHP quality toolchain, `packages/kernel`,
+`packages/application-graph`, and `packages/dependency-injection`. The
+Experimental Graph snapshot supports exact outgoing and incoming selection of
+immediately stored relations by endpoint-key value and exact whole-snapshot
+selection through `nodesOfKind(NodeKind): array` and
+`relationsOfKind(RelationKind): array`. Kind selection compares open labels
+exactly within separate node and relation domains, returns `[]` for absent kinds,
+and preserves canonical order and stored-object identity in fresh lists. The
+node selector is an `O(N)` scan and the relation selector an `O(R)` scan, with
+`O(k)` result allocation and no retained kind index or query cache. These are
+narrow selectors, not a built-in kind vocabulary, combined filtering,
+predicates, neighbors, traversal, or a generic query system. The Experimental
+resolver still uses explicit canonical interface definitions, validates complete
+dependency graphs, and constructs transient objects on every edge.
+
+Phase 0M gives the existing Kernel, Graph, and DI exception markers three string
+accessors for exact ID, title, and remediation. Three Internal backed-enum
+catalogs own the 42 mappings; no universal catch or diagnostic interface exists.
+Existing messages remain unchanged protected detail, and optional native causes
+are preserved by identity. Expected application outcomes remain distinct;
+infrastructure, native, autoloader, and consumer failures are not wrapped merely
+to gain Kongono metadata.
+
+No stable Graph identity, domain schema, metadata, serialization, persistence,
+mutation, discovery, compiler, Graph/framework integration, runtime adapter,
+structured diagnostic context, renderer, HTTP or CLI mapping, development error
+page, production error surface, logging, telemetry, retry, cleanup, incident
+system, extension host, agent runtime, query plan, performance budget, or CLI
+executable is implemented.
 
 ## Intended architecture
 
@@ -15,6 +46,8 @@ Kongono Framework is designed for humans, software clients, and AI agents. Its a
 5. Persistent-runtime-safe lifecycle and operation scopes.
 6. Human, Software/API, and Agent experiences derived from coherent application capabilities.
 7. Secure extension governance and standards-based adapters.
+8. Actionable, package-owned, securely disclosed diagnostics and explicit error
+   boundaries.
 
 ## Conceptual flow
 
@@ -54,3 +87,4 @@ Composer, PSRs, OpenAPI, OpenTelemetry, OAuth/OIDC, MCP, A2A, and web standards 
 - [Runtime model](runtime-model.md)
 - [Agent model](agent-model.md)
 - [Extension platform](extension-platform.md)
+- [Error handling and actionable diagnostics](../engineering/error-handling.md)

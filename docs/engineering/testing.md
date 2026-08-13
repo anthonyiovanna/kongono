@@ -10,7 +10,16 @@ Run tests with:
 composer test
 ```
 
-The root suite discovers repository tooling and architecture tests beneath `tests/`, plus package tests beneath the Kernel, Application Graph, and Dependency Injection trees. Each package declares its own development test namespace, which the root repeats in `autoload-dev` because dependency development mappings are not imported. Root architecture owns the exact 27-symbol API-status inventory and pairwise exception-marker separation across every `packages/*/src` tree; its token scanner remains test-only infrastructure rather than a Graph or dependency-discovery frontend.
+The root suite discovers repository tooling and architecture tests beneath `tests/`, plus package tests beneath the Kernel, Application Graph, and Dependency Injection trees. Each package declares its own development test namespace, which the root repeats in `autoload-dev` because dependency development mappings are not imported. Root architecture owns the exact 30-type API-status inventory and pairwise exception-marker separation across every `packages/*/src` tree; its token scanner remains test-only infrastructure rather than a Graph or dependency-discovery frontend.
+
+Phase 0M tests cover all 42 package-local catalog cases, exact enum case names,
+identifiers, titles, remediation strings, global uniqueness and domain syntax;
+the exact Public marker and Internal base reflection shapes; every reachable
+deliberate throw mapping; both static DI-1025 invariant-defense sites; unchanged
+messages and state guarantees; optional-cause identity and native code behavior;
+and unchanged autoloader and consumer-constructor propagation. Catalog tests
+duplicate the authorized expectations explicitly; production catalogs do not
+read Markdown or external data at runtime.
 
 ## Failure behavior
 

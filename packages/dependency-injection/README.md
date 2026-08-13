@@ -55,7 +55,9 @@ call.
 ## Exceptions and API status
 
 `Kongono\DependencyInjection\Exception\ExceptionInterface` is the Public catch
-boundary for failures deliberately raised by this package. The abstract base is
+boundary for failures deliberately raised by this package. It exposes
+`diagnosticId()`, `diagnosticTitle()`, and `diagnosticRemediation()` as strings.
+The abstract base is
 Internal; definitions, resolver contracts and implementations, and concrete
 package failures are Experimental. Public does not mean Stable or
 production-ready under Kongono's pre-alpha maturity.
@@ -63,6 +65,19 @@ production-ready under Kongono's pre-alpha maturity.
 Native engine failures, registered-autoloader failures, and consumer-constructor
 failures are not broadly wrapped. Exception text is diagnostic rather than a
 Stable compatibility contract.
+
+The Internal
+`Kongono\DependencyInjection\Diagnostic\DependencyInjectionDiagnostic` catalog
+owns the twenty-five exact `DI` cases. The package's 26 deliberate throw sites
+emit their assigned identifiers; both post-construction invariant defenses share
+`KGN-DI-1025`. The identifier is stable machine identity; title and remediation
+are diagnostic prose and may improve without changing that identity. Existing
+messages remain unchanged and may contain caller-supplied contract or
+implementation names; those names are not presumed safe and the messages must
+not be exposed directly to an untrusted production surface. See [ADR
+0026](../../docs/adr/0026-actionable-diagnostics-and-error-boundaries.md), [ADR
+0027](../../docs/adr/0027-package-local-runtime-diagnostic-metadata.md), and the
+[error-handling engineering guide](../../docs/engineering/error-handling.md).
 
 ## Package separation and non-goals
 

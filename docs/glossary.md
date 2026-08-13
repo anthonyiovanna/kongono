@@ -6,6 +6,14 @@ These definitions establish architectural vocabulary, not public PHP APIs. Unles
 
 A planned explicit application operation or use case that coordinates business behavior behind an authorized calling surface. Its invocation, metadata, transaction, and Graph contracts remain open.
 
+## Actionable Diagnostic
+
+A package- or capability-owned explanation of one deliberate Kongono failure
+that identifies what failed, why and where it failed, and what the developer can
+do next. For current Kernel, Graph, and DI failures, the owning package marker
+exposes the exact ID, title, and remediation strings. Safe structured context and
+a renderer remain unimplemented.
+
 ## Agent Experience / AX
 
 The experience presented to AI agents through structured, authorized, machine-readable capabilities and context. AX is first-class alongside DX and UX, but no AX protocol or API is selected.
@@ -62,6 +70,16 @@ The final readonly Phase 0F composition-root component that validates a complete
 
 The experience of building, understanding, testing, operating, and evolving a Kongono application. Kongono aims for high productivity through explicit and inspectable mechanisms rather than hidden magic.
 
+## Diagnostic Identifier
+
+A stable, case-sensitive semantic identifier using
+`KGN-<DOMAIN>-<NNNN>` for one deliberate Kongono failure reason. It is not
+`Exception::getCode()`, a Documentation ID, Application Graph identity,
+operation/request/trace ID, incident reference, URL, database key, or transport
+code. Current package exceptions emit their assigned identity through
+`diagnosticId()`; titles and remediation are diagnostic prose rather than stable
+machine identity.
+
 ## Documentation ID
 
 A planned stable identifier connecting a documentation concept with source symbols, Application Graph nodes, IDEs, CLI tools, and AI tools. The exact syntax and mechanism are experimental; no identifier API or annotation exists.
@@ -69,6 +87,19 @@ A planned stable identifier connecting a documentation concept with source symbo
 ## Event
 
 A planned explicit record or notification that something relevant occurred. Delivery, durability, ordering, schema, transaction, and Graph semantics remain open.
+
+## Error Boundary
+
+A layer that owns meaningful recovery, semantic translation, cleanup, final
+recording, or safe presentation for failures crossing it. Catching without such
+behavior is not a boundary. No shared Kongono error-boundary API exists.
+
+## Expected Application Outcome
+
+An ordinary unsuccessful application decision, such as invalid user input,
+authorization denial, business-rule rejection, or optimistic conflict. It is not
+automatically an exception; focused typed outcome APIs remain capability-specific
+and unselected.
 
 ## Extension
 
@@ -97,6 +128,13 @@ The experience presented to people using a Kongono application. UX is one of thr
 ## Intent
 
 A structured expression of the outcome a Principal seeks. Intent may inform authorization, delegation, auditing, or agent interaction, but its schema and enforcement role remain open.
+
+## Incident Reference
+
+An opaque future reference that may let an operator locate a protected failure
+record without disclosing diagnostic detail. It is unique to an occurrence and
+is distinct from a stable Diagnostic Identifier. Incident storage is not
+implemented.
 
 ## Internal API
 

@@ -73,10 +73,23 @@ is deliberately separate from `Kongono\Kernel\Exception\ExceptionInterface`:
 Graph validation failures are not Kernel lifecycle failures. Native engine errors
 are not broadly wrapped.
 
-The package exception marker is Public, `GraphException` is Internal, and all
-concrete model/value types plus `InvalidGraphException` are Experimental. Public
+The package exception marker is Public and exposes `diagnosticId()`,
+`diagnosticTitle()`, and `diagnosticRemediation()` as strings.
+`GraphException` is Internal, and all concrete model/value types plus
+`InvalidGraphException` are Experimental. Public
 does not mean Stable, and API status is compatibility metadata rather than Graph
 metadata, authorization, visibility, or a security boundary.
+
+The Internal `Kongono\ApplicationGraph\Diagnostic\GraphDiagnostic` catalog owns
+the eleven exact `GRAPH` cases. Every deliberate Graph throw emits its assigned
+identifier. The identifier is stable machine identity; title and remediation
+are diagnostic prose and may improve without changing that identity. Existing
+messages remain unchanged and may include caller-supplied Graph keys or kind
+labels; those values are not presumed safe and the messages must not be exposed
+directly to an untrusted production surface. See [ADR
+0026](../../docs/adr/0026-actionable-diagnostics-and-error-boundaries.md), [ADR
+0027](../../docs/adr/0027-package-local-runtime-diagnostic-metadata.md), and the
+[error-handling engineering guide](../../docs/engineering/error-handling.md).
 
 ## Explicit non-goals
 

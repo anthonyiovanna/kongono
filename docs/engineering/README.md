@@ -23,6 +23,7 @@ It validates the root and all three package manifests, audits the locked depende
 - [API status](api-status.md)
 - [Application Graph structure](application-graph-structure.md)
 - [Explicit typed dependency resolution](dependency-injection.md)
+- [Error handling and actionable diagnostics](error-handling.md)
 
 ## Authority and exceptions
 

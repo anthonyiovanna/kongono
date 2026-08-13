@@ -20,7 +20,7 @@ Use the relevant subset of these concerns for a concept, component, or public sy
 | Security | What permissions, trust boundaries, sensitive information, or attack implications exist? |
 | Lifecycle | What scope and persistent-runtime rules apply? |
 | Concurrency | What happens during concurrent execution? |
-| Failure | What errors and failure states are possible? |
+| Failure | What failures are possible, who owns their boundary, and what can a developer do next? |
 | Performance | What costs or constraints matter? |
 | Calling contract | What must be true before use? |
 | Extension contract | May extensions replace, use, or implement it? |
@@ -64,3 +64,25 @@ Documentation should be written so future tooling can validate broken references
 - **Deprecated:** still present temporarily but scheduled for replacement or removal under an approved policy.
 
 Always distinguish repository reality from planned architecture. Avoid present-tense claims that imply unimplemented framework functionality exists.
+
+## Failure documentation
+
+When a deliberate diagnostic is implemented, its documentation must identify
+the stable diagnostic identifier, exact semantic cause, safe relevant context,
+actionable remediation, owning package or capability, catch or translation
+boundary, chain-preservation behavior, and material retry or cleanup policy.
+Document expected application outcomes separately from exceptional framework,
+infrastructure, engine, or programmer failures.
+
+Do not document a deliberate failure only as `Invalid value`, `Invalid
+configuration`, `Operation failed`, `Unexpected error`, `Something went wrong`,
+or `Unable to continue`. State the exact cause and what the developer can change.
+Do not present sensitive or unbounded context as diagnostic precision.
+
+Current deliberate Kernel, Graph, and DI failures expose package-owned ID,
+title, and remediation strings through their package exception markers. The 42
+exact mappings live in three Internal catalogs; messages remain unchanged
+protected detail. Documentation must not imply that future packages already
+implement this contract. Safe structured context, redaction, renderers, error
+pages, and transport representations remain planned and must be labeled as such.
+Documentation ID remains a separate concept from a diagnostic identifier.

@@ -18,7 +18,17 @@ Every production class-like type is machine-classified as Internal, Experimental
 - Experimental types may be evaluated with explicit awareness that they carry no backward-compatibility promise before promotion.
 - Public types are supported consumer contracts governed by Kongono's release maturity and future versioning policy; Public does not mean Stable.
 
-`ExceptionInterface` is the Public catch boundary for failures deliberately thrown by this package. Kernel lifecycle types and behavior remain Experimental, and no stable general framework API is implied.
+`ExceptionInterface` is the Public catch boundary for failures deliberately thrown by this package. It exposes `diagnosticId()`, `diagnosticTitle()`, and `diagnosticRemediation()` as strings. Kernel lifecycle types and behavior remain Experimental, and no stable general framework API is implied.
+
+The Internal `Kongono\Kernel\Diagnostic\LifecycleDiagnostic` catalog owns the
+six exact `KERNEL` cases. Every deliberate Kernel throw emits its assigned
+identifier. The identifier is stable machine identity; title and remediation
+are diagnostic prose and may improve without changing that identity. Existing
+messages remain unchanged, may contain caller-relevant lifecycle state, and must
+not be exposed directly to an untrusted production surface. See [ADR
+0026](../../docs/adr/0026-actionable-diagnostics-and-error-boundaries.md), [ADR
+0027](../../docs/adr/0027-package-local-runtime-diagnostic-metadata.md), and the
+[error-handling engineering guide](../../docs/engineering/error-handling.md).
 
 ## Explicit non-responsibilities
 

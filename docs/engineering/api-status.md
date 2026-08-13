@@ -4,7 +4,7 @@
 
 Kongono requires explicit, machine-checkable compatibility metadata for every production class, interface, trait, and enum beneath `packages/*/src`. Namespace and file location do not silently supply a default.
 
-Phase 0C defines the non-repeatable class-like `#[Api(ApiStatus::...)]` attribute and exactly three statuses; Phases 0D and 0F apply the same convention to the Application Graph and Dependency Injection packages:
+Phase 0C defines the non-repeatable class-like `#[Api(ApiStatus::...)]` attribute and exactly three statuses; later phases apply the same convention to the Application Graph, Dependency Injection, and package-local diagnostic catalogs:
 
 | Status | Supported use | Compatibility and extension contract |
 | --- | --- | --- |
@@ -16,7 +16,7 @@ Public does not mean Stable or unchangeable forever. A type's status applies to 
 
 ## Enforcement
 
-The root PHPUnit suite deterministically discovers the exact 27 production class-like declarations and fails when a non-bootstrap type is missing a status, has the wrong status, cannot autoload, or falls outside the authorized inventory. `Api` and `ApiStatus` are Public bootstrap metadata by definition and are the only documented exception to self-classification. The attribute is not repeatable, so multiple declarations are invalid at the language-metadata level and are also rejected by the convention check.
+The root PHPUnit suite deterministically discovers the exact 30 production class-like declarations and fails when a non-bootstrap type is missing a status, has the wrong status, cannot autoload, or falls outside the authorized inventory. `Api` and `ApiStatus` are Public bootstrap metadata by definition and are the only documented exception to self-classification. The three Phase 0M catalogs—`LifecycleDiagnostic`, `GraphDiagnostic`, and `DependencyInjectionDiagnostic`—are Internal. Their Public package exception markers return only strings, so Internal enum types do not leak into the consumer contract. The attribute is not repeatable, so multiple declarations are invalid at the language-metadata level and are also rejected by the convention check.
 
 API status communicates exposure and compatibility intent only. It is not authorization, a security boundary, package visibility enforcement, an Application Graph node, or runtime access control. No third-party API-status package is used.
 

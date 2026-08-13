@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\ApplicationGraph\Model;
 
+use Kongono\ApplicationGraph\Diagnostic\GraphDiagnostic;
 use Kongono\ApplicationGraph\Exception\InvalidGraphException;
 use Kongono\Kernel\Api\Api;
 use Kongono\Kernel\Api\ApiStatus;
@@ -21,7 +22,7 @@ final readonly class NodeKind
     public function __construct(private string $value)
     {
         if ('' === $value) {
-            throw new InvalidGraphException('Node kind must not be empty.');
+            throw new InvalidGraphException(GraphDiagnostic::EmptyNodeKind, 'Node kind must not be empty.');
         }
     }
 

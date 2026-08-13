@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\ApplicationGraph\Model;
 
+use Kongono\ApplicationGraph\Diagnostic\GraphDiagnostic;
 use Kongono\ApplicationGraph\Exception\InvalidGraphException;
 use Kongono\Kernel\Api\Api;
 use Kongono\Kernel\Api\ApiStatus;
@@ -46,26 +47,35 @@ final readonly class ApplicationGraph
 
         for ($index = 1, $count = count($nodes); $index < $count; ++$index) {
             if ($nodes[$index - 1]->key()->value() === $nodes[$index]->key()->value()) {
-                throw new InvalidGraphException(sprintf(
-                    'Duplicate node key "%s" is not allowed.',
-                    $nodes[$index]->key()->value(),
-                ));
+                throw new InvalidGraphException(
+                    GraphDiagnostic::DuplicateNodeKey,
+                    sprintf(
+                        'Duplicate node key "%s" is not allowed.',
+                        $nodes[$index]->key()->value(),
+                    ),
+                );
             }
         }
 
         foreach ($relations as $relation) {
             if (null === self::findNode($nodes, $relation->source())) {
-                throw new InvalidGraphException(sprintf(
-                    'Relation source key "%s" does not reference an existing node.',
-                    $relation->source()->value(),
-                ));
+                throw new InvalidGraphException(
+                    GraphDiagnostic::MissingRelationSource,
+                    sprintf(
+                        'Relation source key "%s" does not reference an existing node.',
+                        $relation->source()->value(),
+                    ),
+                );
             }
 
             if (null === self::findNode($nodes, $relation->target())) {
-                throw new InvalidGraphException(sprintf(
-                    'Relation target key "%s" does not reference an existing node.',
-                    $relation->target()->value(),
-                ));
+                throw new InvalidGraphException(
+                    GraphDiagnostic::MissingRelationTarget,
+                    sprintf(
+                        'Relation target key "%s" does not reference an existing node.',
+                        $relation->target()->value(),
+                    ),
+                );
             }
         }
 
@@ -87,12 +97,15 @@ final readonly class ApplicationGraph
             if (self::sameRelation($relations[$index - 1], $relations[$index])) {
                 $duplicate = $relations[$index];
 
-                throw new InvalidGraphException(sprintf(
-                    'Duplicate relation triple "%s" -> "%s" -> "%s" is not allowed.',
-                    $duplicate->source()->value(),
-                    $duplicate->kind()->value(),
-                    $duplicate->target()->value(),
-                ));
+                throw new InvalidGraphException(
+                    GraphDiagnostic::DuplicateRelationTriple,
+                    sprintf(
+                        'Duplicate relation triple "%s" -> "%s" -> "%s" is not allowed.',
+                        $duplicate->source()->value(),
+                        $duplicate->kind()->value(),
+                        $duplicate->target()->value(),
+                    ),
+                );
             }
         }
 
@@ -185,25 +198,37 @@ final readonly class ApplicationGraph
     private static function assertRuntimeInputs(array $nodes, array $relations): void
     {
         if (!array_is_list($nodes)) {
-            throw new InvalidGraphException('Nodes must be supplied as a zero-based consecutive list.');
+            throw new InvalidGraphException(
+                GraphDiagnostic::NodesNotList,
+                'Nodes must be supplied as a zero-based consecutive list.',
+            );
         }
 
         if (!array_is_list($relations)) {
-            throw new InvalidGraphException('Relations must be supplied as a zero-based consecutive list.');
+            throw new InvalidGraphException(
+                GraphDiagnostic::RelationsNotList,
+                'Relations must be supplied as a zero-based consecutive list.',
+            );
         }
 
         foreach ($nodes as $index => $node) {
             if (!$node instanceof Node) {
-                throw new InvalidGraphException(sprintf('Nodes list entry at index %s must be a Node.', $index));
+                throw new InvalidGraphException(
+                    GraphDiagnostic::InvalidNodeEntry,
+                    sprintf('Nodes list entry at index %s must be a Node.', $index),
+                );
             }
         }
 
         foreach ($relations as $index => $relation) {
             if (!$relation instanceof Relation) {
-                throw new InvalidGraphException(sprintf(
-                    'Relations list entry at index %s must be a Relation.',
-                    $index,
-                ));
+                throw new InvalidGraphException(
+                    GraphDiagnostic::InvalidRelationEntry,
+                    sprintf(
+                        'Relations list entry at index %s must be a Relation.',
+                        $index,
+                    ),
+                );
             }
         }
     }

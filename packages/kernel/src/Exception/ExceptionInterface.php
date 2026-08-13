@@ -15,4 +15,11 @@ use Throwable;
  * concrete exception. Native engine errors are not promised to implement it.
  */
 #[Api(ApiStatus::Public)]
-interface ExceptionInterface extends Throwable {}
+interface ExceptionInterface extends Throwable
+{
+    public function diagnosticId(): string;
+
+    public function diagnosticTitle(): string;
+
+    public function diagnosticRemediation(): string;
+}

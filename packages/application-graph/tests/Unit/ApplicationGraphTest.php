@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\ApplicationGraph\Tests\Unit;
 
+use Kongono\ApplicationGraph\Diagnostic\GraphDiagnostic;
 use Kongono\ApplicationGraph\Exception\InvalidGraphException;
 use Kongono\ApplicationGraph\Model\ApplicationGraph;
 use Kongono\ApplicationGraph\Model\Node;
@@ -588,6 +589,74 @@ final class ApplicationGraphTest extends TestCase
             self::assertFalse($parameters[0]->isOptional());
             self::assertSame($parameterType, (string) $parameters[0]->getType());
             self::assertSame('array', (string) $method->getReturnType());
+        }
+    }
+
+    public function testEveryApplicationGraphFailureUsesItsExactDiagnostic(): void
+    {
+        $node = $this->node('node');
+
+        $this->assertGraphDiagnostic(
+            static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance(['node' => $node], []),
+            GraphDiagnostic::NodesNotList,
+            'Nodes must be supplied as a zero-based consecutive list.',
+        );
+        $this->assertGraphDiagnostic(
+            static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance([$node], [1 => new Relation(new NodeKey('node'), new RelationKind('kind'), new NodeKey('node'))]),
+            GraphDiagnostic::RelationsNotList,
+            'Relations must be supplied as a zero-based consecutive list.',
+        );
+        $this->assertGraphDiagnostic(
+            static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance(['not-a-node'], []),
+            GraphDiagnostic::InvalidNodeEntry,
+            'Nodes list entry at index 0 must be a Node.',
+        );
+        $this->assertGraphDiagnostic(
+            static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance([$node], ['not-a-relation']),
+            GraphDiagnostic::InvalidRelationEntry,
+            'Relations list entry at index 0 must be a Relation.',
+        );
+        $this->assertGraphDiagnostic(
+            fn(): ApplicationGraph => new ApplicationGraph([$this->node('duplicate'), $this->node('duplicate')], []),
+            GraphDiagnostic::DuplicateNodeKey,
+            'Duplicate node key "duplicate" is not allowed.',
+        );
+        $this->assertGraphDiagnostic(
+            fn(): ApplicationGraph => new ApplicationGraph([$this->node('target')], [$this->relation('missing', 'kind', 'target')]),
+            GraphDiagnostic::MissingRelationSource,
+            'Relation source key "missing" does not reference an existing node.',
+        );
+        $this->assertGraphDiagnostic(
+            fn(): ApplicationGraph => new ApplicationGraph([$this->node('source')], [$this->relation('source', 'kind', 'missing')]),
+            GraphDiagnostic::MissingRelationTarget,
+            'Relation target key "missing" does not reference an existing node.',
+        );
+        $this->assertGraphDiagnostic(
+            fn(): ApplicationGraph => new ApplicationGraph(
+                [$this->node('source'), $this->node('target')],
+                [$this->relation('source', 'kind', 'target'), $this->relation('source', 'kind', 'target')],
+            ),
+            GraphDiagnostic::DuplicateRelationTriple,
+            'Duplicate relation triple "source" -> "kind" -> "target" is not allowed.',
+        );
+    }
+
+    /** @param callable(): object $operation */
+    private function assertGraphDiagnostic(
+        callable $operation,
+        GraphDiagnostic $diagnostic,
+        string $message,
+    ): void {
+        try {
+            $operation();
+            self::fail('Invalid graph construction must fail.');
+        } catch (InvalidGraphException $exception) {
+            self::assertSame($diagnostic->value, $exception->diagnosticId());
+            self::assertSame($diagnostic->title(), $exception->diagnosticTitle());
+            self::assertSame($diagnostic->remediation(), $exception->diagnosticRemediation());
+            self::assertSame($message, $exception->getMessage());
+            self::assertSame(0, $exception->getCode());
+            self::assertNull($exception->getPrevious());
         }
     }
 

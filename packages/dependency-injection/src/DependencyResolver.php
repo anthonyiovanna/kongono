@@ -6,6 +6,7 @@ namespace Kongono\DependencyInjection;
 
 use Kongono\DependencyInjection\Contract\ResolverInterface;
 use Kongono\DependencyInjection\Definition\ServiceDefinition;
+use Kongono\DependencyInjection\Diagnostic\DependencyInjectionDiagnostic;
 use Kongono\DependencyInjection\Exception\InvalidDefinitionException;
 use Kongono\DependencyInjection\Exception\UnknownServiceException;
 use Kongono\Kernel\Api\Api;
@@ -46,7 +47,10 @@ final readonly class DependencyResolver implements ResolverInterface
             $contract = $definition->contract();
 
             if (isset($definitionMap[$contract])) {
-                throw new InvalidDefinitionException(sprintf('Duplicate definition for contract "%s".', $contract));
+                throw new InvalidDefinitionException(
+                    DependencyInjectionDiagnostic::DuplicateContractDefinition,
+                    sprintf('Duplicate definition for contract "%s".', $contract),
+                );
             }
 
             $definitionMap[$contract] = $definition;
@@ -55,12 +59,15 @@ final readonly class DependencyResolver implements ResolverInterface
         foreach ($definitionMap as $owner => $definition) {
             foreach ($definition->dependencies() as $position => $dependency) {
                 if (!isset($definitionMap[$dependency])) {
-                    throw new InvalidDefinitionException(sprintf(
-                        'Definition "%s" dependency at position %d is missing contract "%s".',
-                        $owner,
-                        $position,
-                        $dependency,
-                    ));
+                    throw new InvalidDefinitionException(
+                        DependencyInjectionDiagnostic::MissingDependencyDefinition,
+                        sprintf(
+                            'Definition "%s" dependency at position %d is missing contract "%s".',
+                            $owner,
+                            $position,
+                            $dependency,
+                        ),
+                    );
                 }
             }
         }
@@ -88,26 +95,38 @@ final readonly class DependencyResolver implements ResolverInterface
     public function resolve(string $contract): object
     {
         if (!interface_exists($contract)) {
-            throw new UnknownServiceException(sprintf('Unknown service contract "%s".', $contract));
+            throw new UnknownServiceException(
+                DependencyInjectionDiagnostic::RequestedContractDoesNotExist,
+                sprintf('Unknown service contract "%s".', $contract),
+            );
         }
 
         $reflection = new ReflectionClass($contract);
 
         if (!$reflection->isInterface() || $reflection->getName() !== $contract || is_a($contract, ResolverInterface::class, true)) {
-            throw new UnknownServiceException(sprintf('Unknown service contract "%s".', $contract));
+            throw new UnknownServiceException(
+                DependencyInjectionDiagnostic::RequestedContractUnsupported,
+                sprintf('Unknown service contract "%s".', $contract),
+            );
         }
 
         if (!isset($this->definitions[$contract])) {
-            throw new UnknownServiceException(sprintf('No definition exists for service contract "%s".', $contract));
+            throw new UnknownServiceException(
+                DependencyInjectionDiagnostic::RequestedContractUndefined,
+                sprintf('No definition exists for service contract "%s".', $contract),
+            );
         }
 
         $object = $this->construct($this->definitions[$contract]);
 
         if (!$object instanceof $contract) {
-            throw new InvalidDefinitionException(sprintf(
-                'Constructed implementation violates validated service contract "%s".',
-                $contract,
-            ));
+            throw new InvalidDefinitionException(
+                DependencyInjectionDiagnostic::ConstructedContractInvariantViolation,
+                sprintf(
+                    'Constructed implementation violates validated service contract "%s".',
+                    $contract,
+                ),
+            );
         }
 
         return $object;
@@ -125,7 +144,10 @@ final readonly class DependencyResolver implements ResolverInterface
         }
 
         if (isset($visiting[$contract])) {
-            throw new InvalidDefinitionException(sprintf('Dependency cycle detected at contract "%s".', $contract));
+            throw new InvalidDefinitionException(
+                DependencyInjectionDiagnostic::DependencyCycle,
+                sprintf('Dependency cycle detected at contract "%s".', $contract),
+            );
         }
 
         $visiting[$contract] = true;
@@ -149,10 +171,13 @@ final readonly class DependencyResolver implements ResolverInterface
         $object = new $implementation(...$arguments);
 
         if (!$object instanceof ($definition->contract())) {
-            throw new InvalidDefinitionException(sprintf(
-                'Constructed implementation violates validated service contract "%s".',
-                $definition->contract(),
-            ));
+            throw new InvalidDefinitionException(
+                DependencyInjectionDiagnostic::ConstructedContractInvariantViolation,
+                sprintf(
+                    'Constructed implementation violates validated service contract "%s".',
+                    $definition->contract(),
+                ),
+            );
         }
 
         return $object;
@@ -166,15 +191,21 @@ final readonly class DependencyResolver implements ResolverInterface
     private static function validateRuntimeDefinitions(array $definitions): array
     {
         if (!array_is_list($definitions)) {
-            throw new InvalidDefinitionException('Definitions must be supplied as a zero-based consecutive list.');
+            throw new InvalidDefinitionException(
+                DependencyInjectionDiagnostic::DefinitionsNotList,
+                'Definitions must be supplied as a zero-based consecutive list.',
+            );
         }
 
         foreach ($definitions as $position => $definition) {
             if (!$definition instanceof ServiceDefinition) {
-                throw new InvalidDefinitionException(sprintf(
-                    'Definition list entry at position %d must be a ServiceDefinition.',
-                    $position,
-                ));
+                throw new InvalidDefinitionException(
+                    DependencyInjectionDiagnostic::InvalidDefinitionEntry,
+                    sprintf(
+                        'Definition list entry at position %d must be a ServiceDefinition.',
+                        $position,
+                    ),
+                );
             }
         }
 

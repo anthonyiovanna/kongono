@@ -45,6 +45,8 @@ Phase 0A ADRs normally use `Accepted` because they record locked direction. Expe
 23. [Explicit typed dependency resolution boundary](0023-explicit-typed-dependency-resolution.md)
 24. [Exact direct-relation selection](0024-exact-direct-relation-selection.md)
 25. [Exact whole-snapshot kind selection](0025-exact-whole-snapshot-kind-selection.md)
+26. [Actionable Diagnostics and Error Boundaries](0026-actionable-diagnostics-and-error-boundaries.md)
+27. [Package-Local Runtime Diagnostic Metadata](0027-package-local-runtime-diagnostic-metadata.md)
 
 ## Process
 

@@ -7,6 +7,7 @@ namespace Kongono\DependencyInjection\Tests\Unit;
 use Kongono\DependencyInjection\Contract\ResolverInterface;
 use Kongono\DependencyInjection\Definition\ServiceDefinition;
 use Kongono\DependencyInjection\DependencyResolver;
+use Kongono\DependencyInjection\Diagnostic\DependencyInjectionDiagnostic;
 use Kongono\DependencyInjection\Exception\ExceptionInterface;
 use Kongono\DependencyInjection\Exception\InvalidDefinitionException;
 use Kongono\DependencyInjection\Exception\UnknownServiceException;
@@ -61,14 +62,18 @@ final class DependencyResolverTest extends TestCase
     {
         $definition = $this->emptyDefinition();
 
-        $this->assertInvalidResolver([1 => $definition], 'list');
-        $this->assertInvalidResolver([0 => $definition, 2 => $definition], 'list');
-        $this->assertInvalidResolver(['not a definition'], 'ServiceDefinition');
+        $this->assertInvalidResolver([1 => $definition], 'list', DependencyInjectionDiagnostic::DefinitionsNotList);
+        $this->assertInvalidResolver([0 => $definition, 2 => $definition], 'list', DependencyInjectionDiagnostic::DefinitionsNotList);
+        $this->assertInvalidResolver(['not a definition'], 'ServiceDefinition', DependencyInjectionDiagnostic::InvalidDefinitionEntry);
     }
 
     public function testDuplicateContractsAreRejected(): void
     {
-        $this->assertInvalidResolver([$this->emptyDefinition(), $this->emptyDefinition()], EmptyServiceInterface::class);
+        $this->assertInvalidResolver(
+            [$this->emptyDefinition(), $this->emptyDefinition()],
+            EmptyServiceInterface::class,
+            DependencyInjectionDiagnostic::DuplicateContractDefinition,
+        );
     }
 
     public function testMissingTransitiveDependenciesAreRejected(): void
@@ -79,7 +84,11 @@ final class DependencyResolverTest extends TestCase
             [FirstDependencyInterface::class, SecondDependencyInterface::class],
         );
 
-        $this->assertInvalidResolver([$definition], FirstDependencyInterface::class);
+        $this->assertInvalidResolver(
+            [$definition],
+            FirstDependencyInterface::class,
+            DependencyInjectionDiagnostic::MissingDependencyDefinition,
+        );
     }
 
     public function testMissingDependencyFailureIsCanonicalAcrossInputOrder(): void
@@ -102,6 +111,7 @@ final class DependencyResolverTest extends TestCase
             } catch (InvalidDefinitionException $exception) {
                 self::assertStringContainsString(DiamondServiceInterface::class, $exception->getMessage());
                 self::assertStringContainsString(LeftServiceInterface::class, $exception->getMessage());
+                self::assertSame(DependencyInjectionDiagnostic::MissingDependencyDefinition->value, $exception->diagnosticId());
             }
         }
     }
@@ -110,18 +120,18 @@ final class DependencyResolverTest extends TestCase
     {
         $this->assertInvalidResolver([
             new ServiceDefinition(SelfCycleInterface::class, SelfCycleService::class, [SelfCycleInterface::class]),
-        ], 'cycle');
+        ], 'cycle', DependencyInjectionDiagnostic::DependencyCycle);
 
         $this->assertInvalidResolver([
             new ServiceDefinition(CycleAInterface::class, CycleAService::class, [CycleBInterface::class]),
             new ServiceDefinition(CycleBInterface::class, CycleBService::class, [CycleAInterface::class]),
-        ], 'cycle');
+        ], 'cycle', DependencyInjectionDiagnostic::DependencyCycle);
 
         $this->assertInvalidResolver([
             new ServiceDefinition(LongCycleAInterface::class, LongCycleAService::class, [LongCycleBInterface::class]),
             new ServiceDefinition(LongCycleBInterface::class, LongCycleBService::class, [LongCycleCInterface::class]),
             new ServiceDefinition(LongCycleCInterface::class, LongCycleCService::class, [LongCycleAInterface::class]),
-        ], 'cycle');
+        ], 'cycle', DependencyInjectionDiagnostic::DependencyCycle);
     }
 
     public function testCycleFailureIsCanonicalAcrossInputOrder(): void
@@ -140,6 +150,7 @@ final class DependencyResolverTest extends TestCase
             } catch (InvalidDefinitionException $exception) {
                 self::assertStringContainsString('cycle', strtolower($exception->getMessage()));
                 self::assertStringContainsString(OtherSelfCycleInterface::class, $exception->getMessage());
+                self::assertSame(DependencyInjectionDiagnostic::DependencyCycle->value, $exception->diagnosticId());
             }
         }
     }
@@ -218,19 +229,24 @@ final class DependencyResolverTest extends TestCase
         self::assertTrue(class_alias(EmptyServiceInterface::class, $alias));
 
         foreach ([
-            'MissingRequestedContract',
-            EmptyService::class,
-            '\\' . EmptyServiceInterface::class,
-            strtolower(EmptyServiceInterface::class),
-            $alias,
-            SecondDependencyInterface::class,
-        ] as $contract) {
+            ['MissingRequestedContract', DependencyInjectionDiagnostic::RequestedContractDoesNotExist],
+            [EmptyService::class, DependencyInjectionDiagnostic::RequestedContractDoesNotExist],
+            ['\\' . EmptyServiceInterface::class, DependencyInjectionDiagnostic::RequestedContractUnsupported],
+            [strtolower(EmptyServiceInterface::class), DependencyInjectionDiagnostic::RequestedContractUnsupported],
+            [$alias, DependencyInjectionDiagnostic::RequestedContractUnsupported],
+            [SecondDependencyInterface::class, DependencyInjectionDiagnostic::RequestedContractUndefined],
+        ] as [$contract, $diagnostic]) {
             try {
                 $this->resolveRuntime($resolver, $contract);
                 self::fail('Unknown request must fail.');
             } catch (UnknownServiceException $exception) {
                 self::assertInstanceOf(ExceptionInterface::class, $exception);
                 self::assertStringContainsString($contract, $exception->getMessage());
+                self::assertSame($diagnostic->value, $exception->diagnosticId());
+                self::assertSame($diagnostic->title(), $exception->diagnosticTitle());
+                self::assertSame($diagnostic->remediation(), $exception->diagnosticRemediation());
+                self::assertSame(0, $exception->getCode());
+                self::assertNull($exception->getPrevious());
             }
         }
     }
@@ -250,6 +266,7 @@ final class DependencyResolverTest extends TestCase
                 self::assertNotInstanceOf(ExceptionInterface::class, $exception);
                 self::assertSame('consumer constructor failure', $exception->getMessage());
                 self::assertSame($attempt, ThrowingService::$attempts);
+                self::assertFalse(method_exists($exception, 'diagnosticId'));
             }
         }
     }
@@ -284,11 +301,22 @@ final class DependencyResolverTest extends TestCase
                 $this->resolveRuntime(new DependencyResolver([]), $name);
                 self::fail('Autoloader failure must propagate.');
             } catch (Throwable $caught) {
-                self::assertSame($failure, $caught);
+                self::assertNativeFailure($failure, $caught);
             }
         } finally {
             spl_autoload_unregister($loader);
         }
+    }
+
+    public function testBothPostConstructionInvariantDefensesUseTheExactDiagnostic(): void
+    {
+        $source = file_get_contents(dirname(__DIR__, 2) . '/src/DependencyResolver.php');
+
+        self::assertIsString($source);
+        self::assertSame(
+            2,
+            substr_count($source, 'DependencyInjectionDiagnostic::ConstructedContractInvariantViolation'),
+        );
     }
 
     /** @return list<ServiceDefinition> */
@@ -315,15 +343,29 @@ final class DependencyResolverTest extends TestCase
         return new ServiceDefinition(FirstDependencyInterface::class, FirstDependency::class, []);
     }
 
-    /** @param array<array-key, mixed> $definitions */
-    private function assertInvalidResolver(array $definitions, string $messageFragment): void
+    private static function assertNativeFailure(Throwable $expected, Throwable $caught): void
     {
+        self::assertSame($expected, $caught);
+        self::assertNotInstanceOf(ExceptionInterface::class, $caught);
+    }
+
+    /** @param array<array-key, mixed> $definitions */
+    private function assertInvalidResolver(
+        array $definitions,
+        string $messageFragment,
+        DependencyInjectionDiagnostic $diagnostic,
+    ): void {
         try {
             (new ReflectionClass(DependencyResolver::class))->newInstanceArgs([$definitions]);
             self::fail('Invalid definition set must fail.');
         } catch (InvalidDefinitionException $exception) {
             self::assertStringContainsString(strtolower($messageFragment), strtolower($exception->getMessage()));
             self::assertInstanceOf(ExceptionInterface::class, $exception);
+            self::assertSame($diagnostic->value, $exception->diagnosticId());
+            self::assertSame($diagnostic->title(), $exception->diagnosticTitle());
+            self::assertSame($diagnostic->remediation(), $exception->diagnosticRemediation());
+            self::assertSame(0, $exception->getCode());
+            self::assertNull($exception->getPrevious());
         }
     }
 

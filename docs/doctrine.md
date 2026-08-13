@@ -2,7 +2,7 @@
 
 ## Status
 
-The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the Application Graph structural snapshot, Phase 0H adds only its exact outgoing and incoming direct-relation selectors, and Phase 0J adds only exact whole-snapshot node-kind and relation-kind selectors. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction; other planned mechanisms do not yet exist unless this document says otherwise.
+The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the Application Graph structural snapshot, Phase 0H adds only its exact outgoing and incoming direct-relation selectors, and Phase 0J adds only exact whole-snapshot node-kind and relation-kind selectors. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction. Phase 0L accepts actionable-diagnostic and error-boundary doctrine; Phase 0M implements only package-local runtime ID, title, and remediation metadata for current deliberate failures. Other planned mechanisms do not yet exist unless this document says otherwise.
 
 ## Product philosophy
 
@@ -47,6 +47,44 @@ Kongono will not build a JavaScript bundler. Vite is the intended default build 
 OpenTelemetry is intended to be native to the framework's instrumentation model. Framework operations should eventually emit structured telemetry hooks, with replaceable exporters. No telemetry package is selected or installed in Phase 0A.
 
 OpenAPI is intended to be generated from authoritative application metadata so contracts do not require independent manual maintenance. No OpenAPI mechanism exists yet.
+
+## Actionable diagnostics and error boundaries
+
+Every deliberate Kongono failure must answer:
+
+```text
+What failed?
+Why did it fail?
+Where did it fail?
+What can the developer do next?
+```
+
+Deliberate framework failures belong to the package or capability that owns the
+violated invariant. Expected application outcomes remain ordinary typed control
+flow rather than automatically becoming exceptions. Infrastructure failures are
+wrapped only when an owning semantic layer adds meaning, and the original cause
+chain must be preserved. Engine and programmer failures must not be disguised as
+validation or business outcomes.
+
+Diagnostics must be precise without assuming that identifiers, values, paths,
+provider messages, source, request data, or environment data are safe for an
+untrusted audience. Protected developer detail and intentionally generic
+production output remain separate. A client-controlled request value must never
+enable debug disclosure.
+
+Persistent-runtime operation boundaries must eventually guarantee cleanup while
+preserving the primary failure, reporting cleanup failure, and retiring runtime
+instances whose state becomes uncertain. The exact cleanup and simultaneous-
+failure mechanisms remain open.
+
+Phase 0M implements the 42 current assignments through three package-local
+Internal catalogs. Each existing Public package marker exposes the stable ID,
+title, and remediation as strings while markers remain unrelated and messages
+remain unchanged protected detail. Titles, remediation, and messages are prose;
+only the ID is stable machine identity. No universal diagnostic interface, safe
+structured context, renderer, error page, logger, telemetry integration, retry
+engine, cleanup runner, incident system, localization, or transport mapping
+exists.
 
 ## Agents and interoperability
 

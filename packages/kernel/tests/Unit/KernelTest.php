@@ -4,15 +4,129 @@ declare(strict_types=1);
 
 namespace Kongono\Kernel\Tests\Unit;
 
+use Kongono\Kernel\Diagnostic\LifecycleDiagnostic;
 use Kongono\Kernel\Exception\ExceptionInterface;
 use Kongono\Kernel\Exception\LifecycleException;
 use Kongono\Kernel\Kernel;
 use Kongono\Kernel\Lifecycle\KernelState;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
+use RuntimeException;
 use Throwable;
 
 final class KernelTest extends TestCase
 {
+    public function testLifecycleDiagnosticCatalogAndMetadataContract(): void
+    {
+        $expected = [
+            ['BootWhenNotUnbooted', 'KGN-KERNEL-1001', 'Boot requested when the Kernel is not `Unbooted`', 'Boot each Kernel instance exactly once from `Unbooted`'],
+            ['ShutdownWhenNotBooted', 'KGN-KERNEL-1002', 'Shutdown requested when the Kernel is not `Booted`', 'Shut down only a booted, non-shutdown Kernel'],
+            ['ShutdownWithActiveOperations', 'KGN-KERNEL-1003', 'Shutdown requested while operations remain active', 'End every operation owned by that Kernel before shutdown'],
+            ['BeginOperationWhenNotBooted', 'KGN-KERNEL-1004', 'Operation begin requested when the Kernel is not `Booted`', 'Boot first and do not begin work after shutdown'],
+            ['EndOperationWhenNotBooted', 'KGN-KERNEL-1005', 'Operation end requested when the Kernel is not `Booted`', 'End active scopes while their owning Kernel is booted'],
+            ['InactiveOrForeignOperationScope', 'KGN-KERNEL-1006', 'Operation scope is inactive, already ended, or owned by another Kernel', 'Pass the exact active scope to the Kernel instance that created it'],
+        ];
+        $actual = array_map(
+            static fn(LifecycleDiagnostic $diagnostic): array => [
+                $diagnostic->name,
+                $diagnostic->value,
+                $diagnostic->title(),
+                $diagnostic->remediation(),
+            ],
+            LifecycleDiagnostic::cases(),
+        );
+        $reflection = new ReflectionClass(LifecycleDiagnostic::class);
+        $declaredMethods = array_values(array_filter(
+            $reflection->getMethods(),
+            static fn(\ReflectionMethod $method): bool => $method->isUserDefined()
+                && LifecycleDiagnostic::class === $method->getDeclaringClass()->getName(),
+        ));
+        $declaredProperties = array_values(array_filter(
+            $reflection->getProperties(),
+            static fn(\ReflectionProperty $property): bool => LifecycleDiagnostic::class === $property->getDeclaringClass()->getName(),
+        ));
+
+        self::assertSame($expected, $actual);
+        self::assertSame(['remediation', 'title'], $this->sortedMethodNames($declaredMethods));
+        self::assertSame(
+            ['name', 'value'],
+            array_map(static fn(\ReflectionProperty $property): string => $property->getName(), $declaredProperties),
+        );
+        self::assertFalse($reflection->hasMethod('__toString'));
+
+        $cause = new RuntimeException('cause');
+        $exception = new LifecycleException(LifecycleDiagnostic::BootWhenNotUnbooted, 'message', $cause);
+
+        self::assertSame('KGN-KERNEL-1001', $exception->diagnosticId());
+        self::assertSame(LifecycleDiagnostic::BootWhenNotUnbooted->title(), $exception->diagnosticTitle());
+        self::assertSame(LifecycleDiagnostic::BootWhenNotUnbooted->remediation(), $exception->diagnosticRemediation());
+        self::assertSame('message', $exception->getMessage());
+        self::assertSame(0, $exception->getCode());
+        self::assertSame($cause, $exception->getPrevious());
+    }
+
+    public function testEveryLifecycleFailureUsesItsExactDiagnostic(): void
+    {
+        $booted = new Kernel();
+        $booted->boot();
+        $active = new Kernel();
+        $active->boot();
+        $active->beginOperation();
+        $shutdown = new Kernel();
+        $shutdown->boot();
+        $ended = $shutdown->beginOperation();
+        $shutdown->endOperation($ended);
+        $shutdown->shutdown();
+        $owner = new Kernel();
+        $foreign = new Kernel();
+        $owner->boot();
+        $foreign->boot();
+        $foreignScope = $owner->beginOperation();
+
+        $this->assertLifecycleDiagnostic(
+            static function () use ($booted): void {
+                $booted->boot();
+            },
+            LifecycleDiagnostic::BootWhenNotUnbooted,
+            'Cannot boot Kernel while in Booted state.',
+        );
+        $this->assertLifecycleDiagnostic(
+            static function (): void {
+                (new Kernel())->shutdown();
+            },
+            LifecycleDiagnostic::ShutdownWhenNotBooted,
+            'Cannot shut down Kernel while in Unbooted state.',
+        );
+        $this->assertLifecycleDiagnostic(
+            static function () use ($active): void {
+                $active->shutdown();
+            },
+            LifecycleDiagnostic::ShutdownWithActiveOperations,
+            'Cannot shut down Kernel while 1 operation(s) remain active.',
+        );
+        $this->assertLifecycleDiagnostic(
+            static function (): void {
+                (new Kernel())->beginOperation();
+            },
+            LifecycleDiagnostic::BeginOperationWhenNotBooted,
+            'Cannot begin an operation while Kernel is in Unbooted state.',
+        );
+        $this->assertLifecycleDiagnostic(
+            static function () use ($shutdown, $ended): void {
+                $shutdown->endOperation($ended);
+            },
+            LifecycleDiagnostic::EndOperationWhenNotBooted,
+            'Cannot end an operation while Kernel is in Shutdown state.',
+        );
+        $this->assertLifecycleDiagnostic(
+            static function () use ($foreign, $foreignScope): void {
+                $foreign->endOperation($foreignScope);
+            },
+            LifecycleDiagnostic::InactiveOrForeignOperationScope,
+            'Cannot end an operation that is not active and owned by this Kernel.',
+        );
+    }
+
     public function testNewKernelIsUnbootedWithNoActiveOperations(): void
     {
         $kernel = new Kernel();
@@ -227,5 +341,37 @@ final class KernelTest extends TestCase
         }
 
         self::assertSame(KernelState::Shutdown, $kernel->state());
+    }
+
+    /** @param callable(): void $operation */
+    private function assertLifecycleDiagnostic(
+        callable $operation,
+        LifecycleDiagnostic $diagnostic,
+        string $message,
+    ): void {
+        try {
+            $operation();
+            self::fail('Lifecycle misuse must fail.');
+        } catch (LifecycleException $exception) {
+            self::assertSame($diagnostic->value, $exception->diagnosticId());
+            self::assertSame($diagnostic->title(), $exception->diagnosticTitle());
+            self::assertSame($diagnostic->remediation(), $exception->diagnosticRemediation());
+            self::assertSame($message, $exception->getMessage());
+            self::assertSame(0, $exception->getCode());
+            self::assertNull($exception->getPrevious());
+        }
+    }
+
+    /**
+     * @param list<\ReflectionMethod> $methods
+     *
+     * @return list<string>
+     */
+    private function sortedMethodNames(array $methods): array
+    {
+        $names = array_map(static fn(\ReflectionMethod $method): string => $method->getName(), $methods);
+        sort($names);
+
+        return $names;
     }
 }

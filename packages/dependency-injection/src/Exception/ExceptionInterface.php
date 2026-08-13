@@ -16,4 +16,11 @@ use Throwable;
  * are not wrapped merely to enter this family.
  */
 #[Api(ApiStatus::Public)]
-interface ExceptionInterface extends Throwable {}
+interface ExceptionInterface extends Throwable
+{
+    public function diagnosticId(): string;
+
+    public function diagnosticTitle(): string;
+
+    public function diagnosticRemediation(): string;
+}
