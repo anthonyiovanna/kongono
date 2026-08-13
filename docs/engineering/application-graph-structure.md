@@ -42,6 +42,8 @@ $graph->hasNode(NodeKey $key): bool;
 $graph->node(NodeKey $key): ?Node;
 $graph->outgoingRelations(NodeKey $source): array;
 $graph->incomingRelations(NodeKey $target): array;
+$graph->nodesOfKind(NodeKind $kind): array;
+$graph->relationsOfKind(RelationKind $kind): array;
 ```
 
 The constructor arrays have static contracts `list<Node>` and `list<Relation>`.
@@ -89,6 +91,22 @@ index, adjacency map, memoized result, or query cache. This is direct selection
 only, not neighbor selection, reachability, paths, recursion, traversal,
 predicates, relation-kind filtering, or a query DSL.
 
+The whole-snapshot kind selectors compare the supplied kind value exactly with
+each stored object's `kind()->value()`. `nodesOfKind()` accepts only `NodeKind`;
+`relationsOfKind()` accepts only `RelationKind`. Equal label bytes do not cross
+those domains. Empty graphs and absent kinds return `[]` without a new exception.
+
+Kind selection scans the already canonical list and never re-sorts it, so node
+results retain global node-key order and relation results retain global
+source-kind-target order. Every call returns a fresh list containing the same
+immutable stored objects. `nodesOfKind()` performs `O(N)` exact comparisons,
+`relationsOfKind()` performs `O(R)` exact comparisons, and result allocation is
+`O(k)` for `k` matches. No kind index, map, grouped collection, memoized result,
+query cache, performance budget, or optimization promise is selected. Open kind
+labels remain producer-defined; these methods do not define a vocabulary,
+combine endpoint and kind filters, accept multiple kinds or predicates, select
+neighbors, traverse the Graph, or establish a generic query API.
+
 ## Correct usage
 
 ```php
@@ -117,9 +135,10 @@ wire format.
 Production tests must cover exact value preservation, runtime list and element
 validation, structural failures, valid cycles/self-relations, collision-free
 tuple comparison, canonical order, value-based lookup, exact directional
-selection, missing and isolated keys, detached results, object identity,
-immutability, exception separation, and API status. The root architecture suite
-owns complete production type discovery across every `packages/*/src` tree.
+selection, exact node-kind and relation-kind selection, absent kinds, separate
+kind domains, detached results, object identity, immutability, exception
+separation, and API status. The root architecture suite owns complete production
+type discovery across every `packages/*/src` tree.
 
 The package requires PHP 8.5 or newer and temporarily requires
 `kongono/kernel: *` only for `Api` and `ApiStatus`. The unbounded constraint is
@@ -131,7 +150,8 @@ dependency or Composer plugin is part of this package.
 
 Stable IDs, kind vocabularies, domain schemas, metadata, provenance, visibility,
 security filtering, source frontends, PHP discovery, compilation, contributions,
-merging, serialization, persistence, caching, fingerprints, diffs, queries,
-traversal beyond the two exact direct selectors, neighbor selection, kind
-filtering, and mutation remain unresolved. The model is Experimental and is not
-yet the full authoritative application representation.
+merging, serialization, persistence, caching, fingerprints, diffs, combined or
+generic queries, multiple-kind selection, predicates, traversal, neighbor
+selection, mutation, framework integration, query planning, and performance
+budgets remain unresolved. The model is Experimental and is not yet the full
+authoritative application representation.

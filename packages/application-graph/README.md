@@ -1,7 +1,8 @@
 # Kongono Application Graph Structural Core
 
-`kongono/application-graph` implements Phase 0H's source-language-neutral,
-immutable structural snapshot and exact direct-relation selection. It is a prerequisite for Kongono's future
+`kongono/application-graph` implements Phase 0J's source-language-neutral,
+immutable structural snapshot, exact direct-relation selection, and exact
+whole-snapshot kind selection. It is a prerequisite for Kongono's future
 authoritative Application Graph, not that complete representation and not a PHP
 source-discovery or compiler package.
 
@@ -38,6 +39,19 @@ re-sorting. Results are fresh detached lists containing the same immutable
 allocates in proportion to the match count; no index, adjacency map, cache, or
 memoized query state is retained.
 
+`nodesOfKind(NodeKind $kind): array` and
+`relationsOfKind(RelationKind $kind): array` compare exact kind-label values
+across the whole stored node or relation list. The parameter types keep node-kind
+and relation-kind domains separate even when the label bytes match. Absent kinds
+and empty graphs return `[]`.
+
+Kind selectors preserve the applicable canonical order without re-sorting and
+return fresh lists containing the same immutable stored objects. Node selection
+scans `N` nodes in `O(N)` time, relation selection scans `R` relations in `O(R)`
+time, and result allocation is `O(k)` for `k` matches. No kind index, grouped
+collection, memoized result, query cache, performance budget, or optimization
+promise is retained.
+
 ## Identity, kinds, and language neutrality
 
 `NodeKey` identifies a node only inside the snapshot and producer contract that
@@ -45,7 +59,7 @@ supplied it. It is not a stable cross-build Application Graph ID, Documentation
 ID, database ID, URI, UUID, package coordinate, or PHP class name. Selecting a
 stable identity system remains open.
 
-Node and relation kinds are open labels. The package defines no module, service,
+Node and relation kinds are open, separate label domains. The package defines no module, service,
 route, event, dependency, security, agent, or other built-in vocabulary. Open
 labels prevent this structural phase from accidentally selecting a finalized
 domain schema. The production model contains no reflection objects, PHP
@@ -69,10 +83,12 @@ metadata, authorization, visibility, or a security boundary.
 This package does not provide stable identifiers, domain schemas, metadata bags,
 provenance, security filtering, serialization, persistence, caching, hashing,
 diffs, source discovery, reflection scanning, PHP Graph attributes, an IR
-frontend, compilation, contribution or merge APIs, builders, mutation, generic
-queries, traversal, reachability, paths, neighbor selection, relation-kind
-filtering, predicates, dependency injection, HTTP, or any later framework
-capability. The two endpoint selectors return immediately stored relations only.
+frontend, compilation, contribution or merge APIs, builders, mutation, combined
+endpoint-and-kind filters, multiple-kind selection, generic queries, traversal,
+reachability, paths, neighbor selection, predicates, dependency injection, HTTP,
+or any later framework capability. The endpoint selectors return immediately
+stored relations only; the kind selectors return exact whole-snapshot matches
+only and establish no vocabulary or schema.
 
 The temporary production dependency on `kongono/kernel: *` exists only for the
 accepted API-status metadata while both unreleased packages are developed

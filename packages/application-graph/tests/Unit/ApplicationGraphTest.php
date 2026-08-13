@@ -239,6 +239,154 @@ final class ApplicationGraphTest extends TestCase
         self::assertSame($this->relationTriples($first), $this->relationTriples($second));
     }
 
+    public function testKindSelectorsReturnEmptyListsForEmptyAndAbsentKinds(): void
+    {
+        $empty = new ApplicationGraph([], []);
+        $graph = new ApplicationGraph(
+            [$this->node('source', 'present-node'), $this->node('target', 'other-node')],
+            [$this->relation('source', 'present-relation', 'target')],
+        );
+
+        self::assertSame([], $empty->nodesOfKind(new NodeKind('absent')));
+        self::assertSame([], $empty->relationsOfKind(new RelationKind('absent')));
+        self::assertSame([], $graph->nodesOfKind(new NodeKind('absent')));
+        self::assertSame([], $graph->relationsOfKind(new RelationKind('absent')));
+    }
+
+    public function testNodeKindSelectionMatchesExactValueAndPreservesCanonicalOrderAndObjects(): void
+    {
+        $first = $this->node('a', 'selected');
+        $other = $this->node('m', 'other');
+        $last = $this->node('z', 'selected');
+        $graph = new ApplicationGraph([$last, $other, $first], []);
+
+        $selected = $graph->nodesOfKind(new NodeKind('selected'));
+
+        self::assertSame([$first, $last], $selected);
+        self::assertSame(['a', 'z'], array_map(
+            static fn(Node $node): string => $node->key()->value(),
+            $selected,
+        ));
+        self::assertSame($first, $selected[0]);
+        self::assertSame($last, $selected[1]);
+    }
+
+    public function testRelationKindSelectionMatchesExactValueAndPreservesCanonicalOrderAndObjects(): void
+    {
+        $first = $this->relation('a', 'selected', 'z');
+        $other = $this->relation('m', 'other', 'a');
+        $last = $this->relation('z', 'selected', 'a');
+        $graph = new ApplicationGraph(
+            [$this->node('a'), $this->node('m'), $this->node('z')],
+            [$last, $other, $first],
+        );
+
+        $selected = $graph->relationsOfKind(new RelationKind('selected'));
+
+        self::assertSame([$first, $last], $selected);
+        self::assertSame([
+            ['a', 'selected', 'z'],
+            ['z', 'selected', 'a'],
+        ], $this->relationTriplesFrom($selected));
+        self::assertSame($first, $selected[0]);
+        self::assertSame($last, $selected[1]);
+    }
+
+    public function testNodeAndRelationKindDomainsRemainSeparateForEqualLabels(): void
+    {
+        $node = $this->node('source', 'shared-label');
+        $relation = $this->relation('source', 'shared-label', 'target');
+        $graph = new ApplicationGraph([$node, $this->node('target', 'other')], [$relation]);
+
+        self::assertSame([$node], $graph->nodesOfKind(new NodeKind('shared-label')));
+        self::assertSame([$relation], $graph->relationsOfKind(new RelationKind('shared-label')));
+        self::assertSame([], $graph->nodesOfKind(new NodeKind('other-relation-label')));
+        self::assertSame([], $graph->relationsOfKind(new RelationKind('other-node-label')));
+    }
+
+    public function testKindSelectorsDistinguishCasePrefixNulAndControlValues(): void
+    {
+        $kinds = ['kind', 'Kind', 'kind-prefix', "kind\0", "kind\x01"];
+        $nodes = [];
+        $relations = [];
+
+        foreach ($kinds as $index => $kind) {
+            $source = sprintf('source-%d', $index);
+            $nodes[] = $this->node($source, $kind);
+            $relations[] = $this->relation($source, $kind, 'target');
+        }
+
+        $nodes[] = $this->node('target', 'target-kind');
+        $graph = new ApplicationGraph($nodes, $relations);
+
+        foreach ($kinds as $index => $kind) {
+            $selectedNodes = $graph->nodesOfKind(new NodeKind($kind));
+            $selectedRelations = $graph->relationsOfKind(new RelationKind($kind));
+
+            self::assertCount(1, $selectedNodes);
+            self::assertSame(sprintf('source-%d', $index), $selectedNodes[0]->key()->value());
+            self::assertCount(1, $selectedRelations);
+            self::assertSame($kind, $selectedRelations[0]->kind()->value());
+        }
+    }
+
+    public function testKindSelectorOrderIsIndependentOfConstructorInputOrder(): void
+    {
+        $nodes = [
+            $this->node('z', 'selected'),
+            $this->node('a', 'selected'),
+            $this->node('m', 'other'),
+        ];
+        $relations = [
+            $this->relation('z', 'selected', 'a'),
+            $this->relation('a', 'selected', 'z'),
+            $this->relation('m', 'other', 'a'),
+        ];
+        $forward = new ApplicationGraph($nodes, $relations);
+        $reverse = new ApplicationGraph(array_reverse($nodes), array_reverse($relations));
+
+        self::assertSame(
+            array_map(static fn(Node $node): string => $node->key()->value(), $forward->nodesOfKind(new NodeKind('selected'))),
+            array_map(static fn(Node $node): string => $node->key()->value(), $reverse->nodesOfKind(new NodeKind('selected'))),
+        );
+        self::assertSame(
+            $this->relationTriplesFrom($forward->relationsOfKind(new RelationKind('selected'))),
+            $this->relationTriplesFrom($reverse->relationsOfKind(new RelationKind('selected'))),
+        );
+    }
+
+    public function testKindSelectorResultsAreDetachedAndRepeatedCallsRetainNoMutableState(): void
+    {
+        $node = $this->node('source', 'selected');
+        $relation = $this->relation('source', 'selected', 'target');
+        $graph = new ApplicationGraph([$node, $this->node('target', 'other')], [$relation]);
+        $nodes = $graph->nodesOfKind(new NodeKind('selected'));
+        $relations = $graph->relationsOfKind(new RelationKind('selected'));
+
+        array_pop($nodes);
+        array_pop($relations);
+
+        self::assertSame([$node], $graph->nodesOfKind(new NodeKind('selected')));
+        self::assertSame([$node], $graph->nodesOfKind(new NodeKind('selected')));
+        self::assertSame([$relation], $graph->relationsOfKind(new RelationKind('selected')));
+        self::assertSame([$relation], $graph->relationsOfKind(new RelationKind('selected')));
+        self::assertSame([$node, $graph->node(new NodeKey('target'))], $graph->nodes());
+        self::assertSame([$relation], $graph->relations());
+    }
+
+    public function testDirectRelationSelectorsContinueToIgnoreRelationKind(): void
+    {
+        $first = $this->relation('source', 'a', 'target');
+        $second = $this->relation('source', 'b', 'target');
+        $graph = new ApplicationGraph(
+            [$this->node('source'), $this->node('target')],
+            [$second, $first],
+        );
+
+        self::assertSame([$first, $second], $graph->outgoingRelations(new NodeKey('source')));
+        self::assertSame([$first, $second], $graph->incomingRelations(new NodeKey('target')));
+    }
+
     public function testSelectorsReturnEmptyListsForEmptyIsolatedAndMissingKeys(): void
     {
         $empty = new ApplicationGraph([], []);
@@ -419,17 +567,26 @@ final class ApplicationGraphTest extends TestCase
             'incomingRelations',
             'node',
             'nodes',
+            'nodesOfKind',
             'outgoingRelations',
             'relations',
+            'relationsOfKind',
         ], $methodNames);
 
-        foreach (['incomingRelations', 'outgoingRelations'] as $methodName) {
+        $selectorParameters = [
+            'incomingRelations' => NodeKey::class,
+            'nodesOfKind' => NodeKind::class,
+            'outgoingRelations' => NodeKey::class,
+            'relationsOfKind' => RelationKind::class,
+        ];
+
+        foreach ($selectorParameters as $methodName => $parameterType) {
             $method = $reflection->getMethod($methodName);
             $parameters = $method->getParameters();
 
             self::assertCount(1, $parameters);
             self::assertFalse($parameters[0]->isOptional());
-            self::assertSame(NodeKey::class, (string) $parameters[0]->getType());
+            self::assertSame($parameterType, (string) $parameters[0]->getType());
             self::assertSame('array', (string) $method->getReturnType());
         }
     }

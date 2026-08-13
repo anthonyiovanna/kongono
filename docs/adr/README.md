@@ -44,6 +44,7 @@ Phase 0A ADRs normally use `Accepted` because they record locked direction. Expe
 22. [Immutable Application Graph structural snapshot](0022-immutable-application-graph-structural-snapshot.md)
 23. [Explicit typed dependency resolution boundary](0023-explicit-typed-dependency-resolution.md)
 24. [Exact direct-relation selection](0024-exact-direct-relation-selection.md)
+25. [Exact whole-snapshot kind selection](0025-exact-whole-snapshot-kind-selection.md)
 
 ## Process
 

@@ -8,7 +8,7 @@ The Application Graph is intended to become Kongono's authoritative, machine-rea
 
 The Graph will derive from a language-neutral Intermediate Representation. PHP is the first source-language frontend, but PHP syntax must not permanently define the model. Future source frontends or tooling may contribute through the IR without changing the conceptual architecture.
 
-## Implemented Phase 0H subset
+## Implemented Phase 0J subset
 
 `kongono/application-graph` now provides one immutable in-memory structural
 snapshot. A node contains exactly an opaque graph-local key and an open kind
@@ -41,6 +41,22 @@ to the match count; the snapshot retains no adjacency index or query cache.
 Direct selection is not traversal, reachability, path finding, neighbor-node
 selection, relation-kind filtering, predicates, or a generic query language.
 
+`ApplicationGraph::nodesOfKind(NodeKind $kind): array` and
+`ApplicationGraph::relationsOfKind(RelationKind $kind): array` select across the
+whole stored snapshot by exact `kind()->value()` equality. Node kinds and
+relation kinds remain separate domains even when their labels have identical
+bytes. An empty graph or absent kind returns `[]`; open labels do not establish
+a built-in vocabulary, hierarchy, alias, compatibility rule, or domain schema.
+
+Each kind selector scans its existing canonical node or relation list without
+re-sorting. Results are fresh detached lists containing the same final readonly
+objects held by the snapshot. Node selection performs `O(N)` exact comparisons,
+relation selection performs `O(R)` exact comparisons, and result allocation is
+`O(k)` for `k` matches. No kind index, grouped collection, memoized result, query
+cache, performance budget, or optimization promise is retained. These two
+selectors do not authorize endpoint-and-kind combinations, multiple kinds,
+predicates, callbacks, neighbors, traversal, or a generic query system.
+
 `NodeKey` is deliberately weak and opaque. It identifies a node only in the
 snapshot and producer contract that supplied it; it is not a stable cross-build
 Graph ID, Documentation ID, database ID, URI, UUID, package coordinate, or PHP
@@ -63,7 +79,7 @@ The IR and Graph must represent Kongono concepts independently of PHP surface sy
 
 ## Stability
 
-**EXPERIMENTAL.** Phase 0H selects only the structural snapshot and the two exact direct-relation selectors described above. It does not select stable identifiers, domain schemas, arbitrary metadata, provenance, visibility or security filtering, serialization or schema versions, persistence, caching, hashing, diffs, discovery, source frontends, PHP Graph attributes, compilation, contributions, merging, mutation, generic queries, traversal, or the complete authoritative representation. The conceptual authority and language-neutral foundation are locked; those exact mechanisms require later architect approval.
+**EXPERIMENTAL.** Phase 0J selects only the structural snapshot, the two exact direct-relation selectors, and the two exact whole-snapshot kind selectors described above. It does not select stable identifiers, kind vocabularies, domain schemas, arbitrary metadata, provenance, visibility or security filtering, serialization or schema versions, persistence, caching, hashing, diffs, discovery, source frontends, PHP Graph attributes, compilation, contributions, merging, mutation, combined or generic queries, neighbors, traversal, query planning, performance budgets, framework integration, or the complete authoritative representation. The conceptual authority and language-neutral foundation are locked; those exact mechanisms require later architect approval.
 
 ## Documentation relationship
 
@@ -81,3 +97,4 @@ Graph visibility must eventually respect sensitive metadata, trust boundaries, a
 - [ADR 0005](../adr/0005-language-neutral-application-graph.md)
 - [ADR 0022](../adr/0022-immutable-application-graph-structural-snapshot.md)
 - [ADR 0024](../adr/0024-exact-direct-relation-selection.md)
+- [ADR 0025](../adr/0025-exact-whole-snapshot-kind-selection.md)

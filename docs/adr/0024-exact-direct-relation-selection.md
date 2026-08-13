@@ -95,3 +95,9 @@ filters, traversal, neighbor selection, paths, and reachability; indexing,
 caching, performance budgets, and query planning; Kernel, Dependency Injection,
 runtime, extension, and other framework integration; inter-package versioning;
 and API promotion all remain open. This decision authorizes none of them.
+
+## Later decision
+
+[ADR 0025](0025-exact-whole-snapshot-kind-selection.md) later authorizes only
+exact whole-snapshot node-kind and relation-kind selection. It does not alter
+this decision's endpoint-selection semantics or historical rationale.
