@@ -37,6 +37,7 @@ use Kongono\DependencyInjection\Tests\Fixture\UntypedParameterService;
 use Kongono\DependencyInjection\Tests\Fixture\VariadicParameterService;
 use Kongono\DependencyInjection\Tests\Fixture\WrongParameterService;
 use Kongono\DependencyInjection\Tests\Fixture\ZeroParameterService;
+use Kongono\Diagnostics\Context\DiagnosticContext;
 use Kongono\Kernel\Exception\ExceptionInterface as KernelExceptionInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -99,7 +100,7 @@ final class ServiceDefinitionTest extends TestCase
         ));
 
         self::assertSame($expected, $actual);
-        self::assertSame(['remediation', 'title'], $methodNames);
+        self::assertSame(['context', 'contextSchema', 'remediation', 'title'], $methodNames);
         self::assertSame(
             ['name', 'value'],
             array_map(static fn(\ReflectionProperty $property): string => $property->getName(), $declaredProperties),
@@ -110,6 +111,7 @@ final class ServiceDefinitionTest extends TestCase
         $exception = new InvalidDefinitionException(
             DependencyInjectionDiagnostic::ContractDoesNotExist,
             'message',
+            ['subject_role' => 'service_contract', 'contract_name' => 'MissingContract'],
             $cause,
         );
 
@@ -119,6 +121,8 @@ final class ServiceDefinitionTest extends TestCase
         self::assertSame('message', $exception->getMessage());
         self::assertSame(0, $exception->getCode());
         self::assertSame($cause, $exception->getPrevious());
+        self::assertInstanceOf(DiagnosticContext::class, $exception->diagnosticContext());
+        self::assertSame($exception->diagnosticContext(), $exception->diagnosticContext());
     }
 
     public function testCanonicalDefinitionPreservesValuesAndDependencyOrder(): void
@@ -410,6 +414,8 @@ final class ServiceDefinitionTest extends TestCase
             self::assertSame($diagnostic->value, $exception->diagnosticId());
             self::assertSame($diagnostic->title(), $exception->diagnosticTitle());
             self::assertSame($diagnostic->remediation(), $exception->diagnosticRemediation());
+            self::assertInstanceOf(DiagnosticContext::class, $exception->diagnosticContext());
+            self::assertSame($exception->diagnosticContext(), $exception->diagnosticContext());
             self::assertSame(0, $exception->getCode());
             self::assertNull($exception->getPrevious());
         }

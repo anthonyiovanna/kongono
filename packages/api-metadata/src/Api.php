@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kongono\Kernel\Api;
+namespace Kongono\ApiMetadata;
 
 use Attribute;
 

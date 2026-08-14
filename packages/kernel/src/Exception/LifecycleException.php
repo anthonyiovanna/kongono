@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kongono\Kernel\Exception;
 
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 
 /**
  * Reports an invalid Kernel transition or operation-ownership action.

@@ -35,9 +35,11 @@ All structural objects are final and readonly, with no static or ambient Graph.
 Deliberate failures use the package's Public `ExceptionInterface` through an
 Internal abstract `GraphException` and Experimental final
 `InvalidGraphException`. Graph exceptions do not implement the Kernel exception
-marker. API-status metadata remains the only production dependency on the Kernel
+marker. API-status metadata was the only production dependency on the Kernel
 package, temporarily constrained as `*` while no inter-package version policy
-exists.
+existed. Phase 0S replaces that metadata-only edge with
+`kongono/api-metadata: *`; Graph also retains its Diagnostics dependency. Graph
+has no Kernel dependency and its structural behavior is unchanged.
 
 ## Rationale
 

@@ -237,6 +237,13 @@ open; this decision does not authorize an arbitrary diagnostic context bag.
 Phase 0M changes no Kernel, operation-scope, runtime, or cleanup behavior and
 does not claim cleanup orchestration exists.
 
+Phase 0U implementation note: the Public Kernel, Graph, and DI markers now
+independently expose eager bounded `DiagnosticContext` values for all 42 original
+failures: 6 Kernel, 11 Graph, and 25 DI across 26 DI throw sites. Each originating
+catalog owns its exact schemas and throw sites supply only approved bounded
+values. IDs, messages, causes, behavior, package ownership, and marker separation
+remain unchanged. Diagnostics' own construction failures remain context-free.
+
 ### Future development and production experience
 
 A future development renderer should present, in this order:
@@ -330,8 +337,8 @@ propagation, and valid-state guarantees remain unchanged.
 
 ## What remains open
 
-Safe structured context and redaction types; renderer and package ownership;
-HTTP and problem-detail mapping; CLI
+Redaction and disclosure policy; renderer and package ownership; HTTP and
+problem-detail mapping; CLI
 output and exit codes; incident storage; logging and OpenTelemetry integration;
 documentation URL and version-selection mechanism; localization; source-excerpt
 provider; retry and cancellation types; and representation of simultaneous

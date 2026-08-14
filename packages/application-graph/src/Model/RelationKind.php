@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kongono\ApplicationGraph\Model;
 
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 use Kongono\ApplicationGraph\Diagnostic\GraphDiagnostic;
 use Kongono\ApplicationGraph\Exception\InvalidGraphException;
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
 
 /**
  * Carries an open, opaque kind label for a directed relation.
@@ -21,7 +21,11 @@ final readonly class RelationKind
     public function __construct(private string $value)
     {
         if ('' === $value) {
-            throw new InvalidGraphException(GraphDiagnostic::EmptyRelationKind, 'Relation kind must not be empty.');
+            throw new InvalidGraphException(
+                GraphDiagnostic::EmptyRelationKind,
+                'Relation kind must not be empty.',
+                ['actual_length' => strlen($value)],
+            );
         }
     }
 

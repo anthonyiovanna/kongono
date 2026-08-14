@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kongono\DependencyInjection\Exception;
 
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 use Kongono\DependencyInjection\Diagnostic\DependencyInjectionDiagnostic;
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
+use Kongono\Diagnostics\Context\DiagnosticContext;
 use RuntimeException;
 use Throwable;
 
@@ -19,12 +20,24 @@ use Throwable;
 #[Api(ApiStatus::Internal)]
 abstract class DependencyInjectionException extends RuntimeException implements ExceptionInterface
 {
+    private readonly DependencyInjectionDiagnostic $diagnostic;
+    private readonly DiagnosticContext $diagnosticContext;
+
+    /** @param array<string, string|int|bool> $contextValues */
     final public function __construct(
-        private readonly DependencyInjectionDiagnostic $diagnostic,
+        DependencyInjectionDiagnostic $diagnostic,
         string $message,
+        array $contextValues,
         ?Throwable $previous = null,
     ) {
+        $this->diagnostic = $diagnostic;
+        $this->diagnosticContext = $diagnostic->context($contextValues);
         parent::__construct($message, 0, $previous);
+    }
+
+    final public function diagnosticContext(): DiagnosticContext
+    {
+        return $this->diagnosticContext;
     }
 
     final public function diagnosticId(): string

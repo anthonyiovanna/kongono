@@ -140,11 +140,11 @@ kind domains, detached results, object identity, immutability, exception
 separation, and API status. The root architecture suite owns complete production
 type discovery across every `packages/*/src` tree.
 
-The package requires PHP 8.5 or newer and temporarily requires
-`kongono/kernel: *` only for `Api` and `ApiStatus`. The unbounded constraint is
-authorized while both packages are unreleased and developed atomically; package
-version coordination remains an open architectural decision. No external
-dependency or Composer plugin is part of this package.
+The package requires PHP 8.5 or newer, `kongono/api-metadata: *` for `Api` and
+`ApiStatus`, and `kongono/diagnostics: *` for bounded Graph context. It has no
+Kernel dependency. The unbounded internal constraints are authorized while the
+packages are unreleased and developed atomically; package version coordination
+remains open. No external dependency or Composer plugin is part of this package.
 
 ## Non-goals and stability
 

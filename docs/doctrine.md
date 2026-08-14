@@ -2,7 +2,7 @@
 
 ## Status
 
-The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the Application Graph structural snapshot, Phase 0H adds only its exact outgoing and incoming direct-relation selectors, and Phase 0J adds only exact whole-snapshot node-kind and relation-kind selectors. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction. Phase 0L accepts actionable-diagnostic and error-boundary doctrine; Phase 0M implements only package-local runtime ID, title, and remediation metadata for current deliberate failures. Other planned mechanisms do not yet exist unless this document says otherwise.
+The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the Application Graph structural snapshot, Phase 0H adds only its exact outgoing and incoming direct-relation selectors, and Phase 0J adds only exact whole-snapshot node-kind and relation-kind selectors. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction. Phase 0L accepts actionable-diagnostic and error-boundary doctrine; Phase 0M implements package-local runtime ID, title, and remediation metadata for current deliberate failures; Phase 0P implements presentation-neutral bounded structural diagnostic values and package-local construction failures; Phase 0Q integrates exact bounded context for the 11 Graph failures. Phase 0R accepts neutral API-metadata ownership and an acyclic package graph; Phase 0S implements that exact fifth-package extraction and namespace migration without changing runtime behavior. Phase 0T adds the one-way Kernel-to-Diagnostics edge and exact context for all six Kernel lifecycle failures. Phase 0U adds the independent DI-to-Diagnostics edge and exact context for all 25 DI diagnostics across 26 throw sites. Other planned mechanisms do not yet exist unless this document says otherwise.
 
 ## Product philosophy
 
@@ -22,7 +22,19 @@ AI may suggest interpretations and changes, but correctness-critical application
 
 Kongono will use a small microkernel with independently installable components that contribute coherent capabilities. Potential capabilities include HTTP, Data, ORM, Migrations, Authentication, Authorization, Events, Queues, Workflows, Cache, Storage, Mail, Notifications, Realtime, Scheduling, AI, Agents, Delegation, MCP, A2A, Frontend integration, Testing, and Developer tooling.
 
-This list is direction, not a package map. The production packages are the Phase 0C Kernel, Phase 0D Application Graph structural core, and Phase 0F Dependency Injection component. The resolver is not a general capability platform and implies none of the other listed packages.
+This list is direction, not a package map. The implemented production packages
+are API Metadata, Kernel, Application Graph, Dependency Injection, and Diagnostics. The
+resolver is not a general capability platform and implies none of the other
+listed packages.
+
+Neutral ownership of bootstrap API metadata and acyclic package dependencies is
+locked and implemented. Phase 0S moved `Api` and `ApiStatus` atomically from the
+former `Kongono\Kernel\Api\` namespace to `Kongono\ApiMetadata\` in the fifth
+`kongono/api-metadata` package. Kernel, Diagnostics, Graph, and DI depend
+directly on that neutral package; Graph, Kernel, and DI independently require
+Diagnostics.
+The old FQCNs are absent without a shim. Phase 0S does not authorize Kernel
+diagnostic context.
 
 ## Progressive architecture
 
@@ -85,6 +97,31 @@ only the ID is stable machine identity. No universal diagnostic interface, safe
 structured context, renderer, error page, logger, telemetry integration, retry
 engine, cleanup runner, incident system, localization, or transport mapping
 exists.
+
+Diagnostic structural context is never an arbitrary bag. Schemas fix
+operation, violated invariant, keys, labels, scalar kinds, disclosures, order,
+and optionality; direct construction produces eager immutable detached snapshots
+bounded to 16 fields and free of ambient state, I/O, or global per-failure
+accumulation. Structural validity alone does not make a schema semantically
+authorized. The Graph catalog owns exact schemas for its 11 identifiers and
+Graph throw sites provide only their approved values. Phase 0T does the same for
+all six Kernel lifecycle failures using required Safe fields. Phase 0U completes
+the original families with 25 DI schemas and 26 exact throw-site maps.
+
+Disclosure has exactly two cases. Safe means eligible under a later explicit
+policy, not automatically public. Protected means trusted developer or
+protected operational use only. Secret-bearing, unbounded, or uncertain data is
+forbidden from capture rather than assigned a third classification. The four
+package catch boundaries remain separate now that `kongono/diagnostics` owns
+presentation-neutral values and its own construction failures. AI may
+explain diagnostics but cannot classify fields, override disclosure, recover
+forbidden material, or become authoritative for interpretation.
+
+The value types, structural validation, all 42 original Kernel/Graph/DI catalog
+schemas, their three package-local marker accessors, and exact throw-site capture
+are implemented. Diagnostics construction failures remain context-free. No
+forbidden-data detection, sanitizer, renderer, transport, logger, or telemetry
+hook is implemented. Safe and Protected classifications authorize no presentation.
 
 ## Agents and interoperability
 

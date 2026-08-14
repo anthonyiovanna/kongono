@@ -10,7 +10,7 @@ Run analysis with:
 composer analyse
 ```
 
-The current analysis scope is `tests/Architecture`, `tests/Tooling`, and the source and test trees for Kernel, Application Graph, and Dependency Injection. Future production paths may be added only with their authorized implementation packages.
+The current analysis scope is `tests/Architecture`, `tests/Tooling`, and the source and test trees for API Metadata, Kernel, Application Graph, Dependency Injection, and Diagnostics. The syntax inventory is exactly 114 entries including `.php-cs-fixer.dist.php`; the style inventory is 113 PHP files. Future production paths may be added only with their authorized implementation packages.
 
 ## No-baseline contract
 

@@ -50,9 +50,51 @@ query parameter, cookie, or other client-controlled value must never enable
 expanded diagnostic disclosure. Development mode does not authorize automatic
 environment, request, secret, SQL, or provider-payload dumping.
 
-These are architectural disclosure requirements. Kongono currently implements
-no safe structured context, diagnostic renderer, error page, incident store, or
-production transport mapping.
+These are architectural disclosure requirements. Phase 0Q integrates exact
+bounded context for all 11 Graph failures. Phase 0T integrates all six Kernel
+lifecycle failures using only closed Safe state names, bounded counts, and the
+conservative `inactive_or_foreign` token. Numeric first-mismatch keys from a
+non-list array are captured only as canonical base-10 Protected text; if the
+first mismatch is a string key, it is omitted entirely and later keys are not
+inspected. Graph keys and open kind labels are schema-approved structural values
+but remain Protected. This conservative omission is not sanitization, redaction,
+or proof that retained values are publishable.
+
+Dependency Injection's 25 failures now expose exact bounded context across 26
+throw sites, while Diagnostics construction failures expose no recursive
+context. Kernel, Graph, and DI contexts remain independently package-owned. Kongono
+implements no diagnostic renderer, disclosure policy, error page, incident
+store, or production transport mapping.
+
+The closed structural context-schema model fixes every field's key, fixed label,
+scalar kind, order, optionality, and disclosure. The Graph, Kernel, and DI
+catalogs now own the semantically authorized schemas for their respective 11,
+six, and 25 identifiers, and their throw sites supply only schema-approved
+bounded values. A structurally valid consumer schema is not a Kongono-owned
+diagnostic schema, and arbitrary context bags are prohibited.
+`Safe` means eligible
+for a future explicit presentation or transport policy, never automatically
+public. `Protected` values are limited to trusted developer or protected
+operational boundaries and remain excluded from untrusted production output by
+default.
+
+Passwords and hashes, passphrases, PINs, API and bearer tokens, cookies,
+sessions, CSRF values, authorization headers, credentials, private/signing/
+encryption keys, recovery codes, credential-bearing connection strings,
+complete environment or configuration dumps, complete request or response
+bodies, arbitrary headers, SQL with bound values, provider payloads, file
+contents, source excerpts, serialized objects, memory dumps, and uncertain
+secret material are forbidden from context rather than classified as a third
+disclosure type. A boundary may record only that forbidden material was omitted.
+
+Direct structural construction is eager, immutable, ordered, bounded to 16 scalar
+fields, and free of ambient state and I/O. Text representation is deterministic,
+binary-safe, and bounded to 512 bytes with a visible marker, but it is not secret
+detection, redaction, or transport escaping. Disclosure is fixed by schema, not a
+throw site, renderer, request, environment value, or AI system. Trusted developer
+mode is enabled only by trusted server configuration. Graph, Kernel, and DI
+exception capture are implemented. Forbidden-material detection, sanitizer behavior, and disclosure
+surfaces do not exist.
 
 ## No security guarantees yet
 

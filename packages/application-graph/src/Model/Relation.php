@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kongono\ApplicationGraph\Model;
 
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 
 /**
  * Holds one directed, typed connection between two graph-local node keys.

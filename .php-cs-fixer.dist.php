@@ -3,10 +3,14 @@
 declare(strict_types=1);
 
 $finder = PhpCsFixer\Finder::create()
+    ->in(__DIR__.'/packages/api-metadata/src')
+    ->in(__DIR__.'/packages/api-metadata/tests')
     ->in(__DIR__.'/packages/application-graph/src')
     ->in(__DIR__.'/packages/application-graph/tests')
     ->in(__DIR__.'/packages/dependency-injection/src')
     ->in(__DIR__.'/packages/dependency-injection/tests')
+    ->in(__DIR__.'/packages/diagnostics/src')
+    ->in(__DIR__.'/packages/diagnostics/tests')
     ->in(__DIR__.'/packages/kernel/src')
     ->in(__DIR__.'/packages/kernel/tests')
     ->in(__DIR__.'/tests');

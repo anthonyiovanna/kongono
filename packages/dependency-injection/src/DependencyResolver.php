@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kongono\DependencyInjection;
 
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 use Kongono\DependencyInjection\Contract\ResolverInterface;
 use Kongono\DependencyInjection\Definition\ServiceDefinition;
 use Kongono\DependencyInjection\Diagnostic\DependencyInjectionDiagnostic;
 use Kongono\DependencyInjection\Exception\InvalidDefinitionException;
 use Kongono\DependencyInjection\Exception\UnknownServiceException;
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
 use ReflectionClass;
 
 /**
@@ -50,6 +50,7 @@ final readonly class DependencyResolver implements ResolverInterface
                 throw new InvalidDefinitionException(
                     DependencyInjectionDiagnostic::DuplicateContractDefinition,
                     sprintf('Duplicate definition for contract "%s".', $contract),
+                    ['contract_name' => $contract],
                 );
             }
 
@@ -67,6 +68,7 @@ final readonly class DependencyResolver implements ResolverInterface
                             $position,
                             $dependency,
                         ),
+                        ['owner_contract' => $owner, 'missing_dependency' => $dependency],
                     );
                 }
             }
@@ -98,6 +100,7 @@ final readonly class DependencyResolver implements ResolverInterface
             throw new UnknownServiceException(
                 DependencyInjectionDiagnostic::RequestedContractDoesNotExist,
                 sprintf('Unknown service contract "%s".', $contract),
+                ['requested_contract' => $contract],
             );
         }
 
@@ -107,6 +110,10 @@ final readonly class DependencyResolver implements ResolverInterface
             throw new UnknownServiceException(
                 DependencyInjectionDiagnostic::RequestedContractUnsupported,
                 sprintf('Unknown service contract "%s".', $contract),
+                [
+                    'requested_contract' => $contract,
+                    'rejection_reason' => $reflection->getName() !== $contract ? 'noncanonical' : 'resolver_contract',
+                ],
             );
         }
 
@@ -114,10 +121,12 @@ final readonly class DependencyResolver implements ResolverInterface
             throw new UnknownServiceException(
                 DependencyInjectionDiagnostic::RequestedContractUndefined,
                 sprintf('No definition exists for service contract "%s".', $contract),
+                ['requested_contract' => $contract],
             );
         }
 
-        $object = $this->construct($this->definitions[$contract]);
+        $definition = $this->definitions[$contract];
+        $object = $this->construct($definition);
 
         if (!$object instanceof $contract) {
             throw new InvalidDefinitionException(
@@ -126,6 +135,10 @@ final readonly class DependencyResolver implements ResolverInterface
                     'Constructed implementation violates validated service contract "%s".',
                     $contract,
                 ),
+                [
+                    'contract_name' => $definition->contract(),
+                    'implementation_name' => $definition->implementation(),
+                ],
             );
         }
 
@@ -147,6 +160,7 @@ final readonly class DependencyResolver implements ResolverInterface
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::DependencyCycle,
                 sprintf('Dependency cycle detected at contract "%s".', $contract),
+                ['cycle_contract' => $contract],
             );
         }
 
@@ -169,14 +183,16 @@ final readonly class DependencyResolver implements ResolverInterface
 
         $implementation = $definition->implementation();
         $object = new $implementation(...$arguments);
+        $contract = $definition->contract();
 
-        if (!$object instanceof ($definition->contract())) {
+        if (!$object instanceof $contract) {
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::ConstructedContractInvariantViolation,
                 sprintf(
                     'Constructed implementation violates validated service contract "%s".',
-                    $definition->contract(),
+                    $contract,
                 ),
+                ['contract_name' => $contract, 'implementation_name' => $implementation],
             );
         }
 
@@ -191,9 +207,17 @@ final readonly class DependencyResolver implements ResolverInterface
     private static function validateRuntimeDefinitions(array $definitions): array
     {
         if (!array_is_list($definitions)) {
+            $contextValues = ['entry_count' => count($definitions)];
+            $firstUnexpectedKey = self::firstUnexpectedListKey($definitions);
+
+            if (null !== $firstUnexpectedKey) {
+                $contextValues['first_unexpected_key'] = $firstUnexpectedKey;
+            }
+
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::DefinitionsNotList,
                 'Definitions must be supplied as a zero-based consecutive list.',
+                $contextValues,
             );
         }
 
@@ -205,10 +229,41 @@ final readonly class DependencyResolver implements ResolverInterface
                         'Definition list entry at position %d must be a ServiceDefinition.',
                         $position,
                     ),
+                    [
+                        'definition_position' => $position,
+                        'actual_value_kind' => match (gettype($definition)) {
+                            'NULL' => 'null',
+                            'boolean' => 'boolean',
+                            'integer' => 'integer',
+                            'double' => 'float',
+                            'string' => 'string',
+                            'array' => 'array',
+                            'object' => 'object',
+                            'resource' => 'resource',
+                            'resource (closed)' => 'closed_resource',
+                            default => 'unknown',
+                        },
+                    ],
                 );
             }
         }
 
         return $definitions;
+    }
+
+    /** @param array<array-key, mixed> $values */
+    private static function firstUnexpectedListKey(array $values): ?string
+    {
+        $expectedKey = 0;
+
+        foreach ($values as $key => $_value) {
+            if ($key !== $expectedKey) {
+                return is_int($key) ? (string) $key : null;
+            }
+
+            ++$expectedKey;
+        }
+
+        return null;
     }
 }

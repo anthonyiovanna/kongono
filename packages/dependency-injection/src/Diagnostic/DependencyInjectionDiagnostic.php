@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Kongono\DependencyInjection\Diagnostic;
 
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
+use Kongono\Diagnostics\Context\DiagnosticContext;
+use Kongono\Diagnostics\Context\DiagnosticContextSchema;
+use Kongono\Diagnostics\Context\DiagnosticDisclosure;
+use Kongono\Diagnostics\Context\DiagnosticFieldSchema;
+use Kongono\Diagnostics\Context\DiagnosticValueKind;
 
 /**
  * Owns the fixed metadata for deliberate Dependency Injection failures.
@@ -41,6 +46,196 @@ enum DependencyInjectionDiagnostic: string
     case RequestedContractUnsupported = 'KGN-DI-1023';
     case RequestedContractUndefined = 'KGN-DI-1024';
     case ConstructedContractInvariantViolation = 'KGN-DI-1025';
+
+    public function contextSchema(): DiagnosticContextSchema
+    {
+        return match ($this) {
+            self::ContractDoesNotExist => new DiagnosticContextSchema(
+                'Validate service contract',
+                'Contract must name an existing interface',
+                [
+                    new DiagnosticFieldSchema('subject_role', 'Subject role', DiagnosticValueKind::Text, DiagnosticDisclosure::Safe),
+                    new DiagnosticFieldSchema('contract_name', 'Contract name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                ],
+            ),
+            self::ContractNotCanonical => new DiagnosticContextSchema(
+                'Validate service contract',
+                'Contract must use its canonical declared name',
+                [
+                    new DiagnosticFieldSchema('subject_role', 'Subject role', DiagnosticValueKind::Text, DiagnosticDisclosure::Safe),
+                    new DiagnosticFieldSchema('contract_name', 'Contract name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                ],
+            ),
+            self::ResolverContractForbidden => new DiagnosticContextSchema(
+                'Validate service contract',
+                'Resolver contract cannot enter the service graph',
+                [
+                    new DiagnosticFieldSchema('subject_role', 'Subject role', DiagnosticValueKind::Text, DiagnosticDisclosure::Safe),
+                    new DiagnosticFieldSchema('contract_name', 'Contract name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                ],
+            ),
+            self::ImplementationDoesNotExist => new DiagnosticContextSchema(
+                'Validate implementation',
+                'Implementation must name an existing class',
+                [new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected)],
+            ),
+            self::ImplementationNotCanonical => new DiagnosticContextSchema(
+                'Validate implementation',
+                'Implementation must use its canonical declared name',
+                [new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected)],
+            ),
+            self::ImplementationNotInstantiable => new DiagnosticContextSchema(
+                'Validate implementation',
+                'Implementation must be publicly instantiable',
+                [new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected)],
+            ),
+            self::ImplementationDoesNotSatisfyContract => new DiagnosticContextSchema(
+                'Validate implementation',
+                'Implementation must satisfy the declared contract',
+                [
+                    new DiagnosticFieldSchema('contract_name', 'Contract name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                    new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                ],
+            ),
+            self::ImplementationExposesResolver => new DiagnosticContextSchema(
+                'Validate implementation',
+                'Implementation must not expose the resolver contract',
+                [new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected)],
+            ),
+            self::DependenciesNotList => new DiagnosticContextSchema(
+                'Validate dependency list',
+                'Dependencies must be a PHP list',
+                [
+                    new DiagnosticFieldSchema('entry_count', 'Entry count', DiagnosticValueKind::Integer, DiagnosticDisclosure::Safe),
+                    new DiagnosticFieldSchema('first_unexpected_key', 'First unexpected key', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected, false),
+                ],
+            ),
+            self::DependencyEntryNotString => new DiagnosticContextSchema(
+                'Validate dependency entry',
+                'Dependency entry must be a contract-name string',
+                [
+                    new DiagnosticFieldSchema('dependency_position', 'Dependency position', DiagnosticValueKind::Integer, DiagnosticDisclosure::Safe),
+                    new DiagnosticFieldSchema('actual_value_kind', 'Actual value kind', DiagnosticValueKind::Text, DiagnosticDisclosure::Safe),
+                ],
+            ),
+            self::DependenciesWithoutConstructor => new DiagnosticContextSchema(
+                'Validate constructor dependencies',
+                'Dependency declarations require a constructor',
+                [
+                    new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                    new DiagnosticFieldSchema('dependency_count', 'Dependency count', DiagnosticValueKind::Integer, DiagnosticDisclosure::Safe),
+                ],
+            ),
+            self::ConstructorNotPublic => new DiagnosticContextSchema(
+                'Validate constructor',
+                'Constructor must be public',
+                [new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected)],
+            ),
+            self::ConstructorArityMismatch => new DiagnosticContextSchema(
+                'Validate constructor arity',
+                'Constructor and definition arity must match exactly',
+                [
+                    new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                    new DiagnosticFieldSchema('expected_parameter_count', 'Expected parameter count', DiagnosticValueKind::Integer, DiagnosticDisclosure::Safe),
+                    new DiagnosticFieldSchema('actual_parameter_count', 'Actual parameter count', DiagnosticValueKind::Integer, DiagnosticDisclosure::Safe),
+                ],
+            ),
+            self::UnsupportedConstructorParameterMode => new DiagnosticContextSchema(
+                'Validate constructor parameter mode',
+                'Parameter must be required, by-value, non-variadic, and non-defaulted',
+                [
+                    new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                    new DiagnosticFieldSchema('parameter_position', 'Parameter position', DiagnosticValueKind::Integer, DiagnosticDisclosure::Safe),
+                    new DiagnosticFieldSchema('unsupported_mode', 'Unsupported mode', DiagnosticValueKind::Text, DiagnosticDisclosure::Safe),
+                ],
+            ),
+            self::UnsupportedConstructorParameterType => new DiagnosticContextSchema(
+                'Validate constructor parameter type',
+                'Parameter must have one non-nullable interface type',
+                [
+                    new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                    new DiagnosticFieldSchema('parameter_position', 'Parameter position', DiagnosticValueKind::Integer, DiagnosticDisclosure::Safe),
+                    new DiagnosticFieldSchema('actual_type_shape', 'Actual type shape', DiagnosticValueKind::Text, DiagnosticDisclosure::Safe),
+                ],
+            ),
+            self::ConstructorDependencyTypeMismatch => new DiagnosticContextSchema(
+                'Validate constructor dependency type',
+                'Parameter type must equal the ordered dependency contract',
+                [
+                    new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                    new DiagnosticFieldSchema('parameter_position', 'Parameter position', DiagnosticValueKind::Integer, DiagnosticDisclosure::Safe),
+                    new DiagnosticFieldSchema('expected_contract', 'Expected contract', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                    new DiagnosticFieldSchema('actual_contract', 'Actual contract', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                ],
+            ),
+            self::DefinitionsNotList => new DiagnosticContextSchema(
+                'Validate definition list',
+                'Definitions must be a PHP list',
+                [
+                    new DiagnosticFieldSchema('entry_count', 'Entry count', DiagnosticValueKind::Integer, DiagnosticDisclosure::Safe),
+                    new DiagnosticFieldSchema('first_unexpected_key', 'First unexpected key', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected, false),
+                ],
+            ),
+            self::InvalidDefinitionEntry => new DiagnosticContextSchema(
+                'Validate definition entry',
+                'Every definitions-list entry must be a ServiceDefinition',
+                [
+                    new DiagnosticFieldSchema('definition_position', 'Definition position', DiagnosticValueKind::Integer, DiagnosticDisclosure::Safe),
+                    new DiagnosticFieldSchema('actual_value_kind', 'Actual value kind', DiagnosticValueKind::Text, DiagnosticDisclosure::Safe),
+                ],
+            ),
+            self::DuplicateContractDefinition => new DiagnosticContextSchema(
+                'Validate definition uniqueness',
+                'Each service contract may have one definition',
+                [new DiagnosticFieldSchema('contract_name', 'Contract name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected)],
+            ),
+            self::MissingDependencyDefinition => new DiagnosticContextSchema(
+                'Validate definition graph completeness',
+                'Every dependency contract must have a definition',
+                [
+                    new DiagnosticFieldSchema('owner_contract', 'Owner contract', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                    new DiagnosticFieldSchema('missing_dependency', 'Missing dependency', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                ],
+            ),
+            self::DependencyCycle => new DiagnosticContextSchema(
+                'Validate definition graph acyclicity',
+                'Definition graph must be acyclic',
+                [new DiagnosticFieldSchema('cycle_contract', 'Cycle contract', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected)],
+            ),
+            self::RequestedContractDoesNotExist => new DiagnosticContextSchema(
+                'Resolve service',
+                'Requested service must name an existing interface',
+                [new DiagnosticFieldSchema('requested_contract', 'Requested contract', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected)],
+            ),
+            self::RequestedContractUnsupported => new DiagnosticContextSchema(
+                'Resolve service',
+                'Requested contract must be canonical and not the resolver contract',
+                [
+                    new DiagnosticFieldSchema('requested_contract', 'Requested contract', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                    new DiagnosticFieldSchema('rejection_reason', 'Rejection reason', DiagnosticValueKind::Text, DiagnosticDisclosure::Safe),
+                ],
+            ),
+            self::RequestedContractUndefined => new DiagnosticContextSchema(
+                'Resolve service',
+                'Requested service must have a definition',
+                [new DiagnosticFieldSchema('requested_contract', 'Requested contract', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected)],
+            ),
+            self::ConstructedContractInvariantViolation => new DiagnosticContextSchema(
+                'Construct service',
+                'Constructed object must satisfy the validated contract',
+                [
+                    new DiagnosticFieldSchema('contract_name', 'Contract name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                    new DiagnosticFieldSchema('implementation_name', 'Implementation name', DiagnosticValueKind::Text, DiagnosticDisclosure::Protected),
+                ],
+            ),
+        };
+    }
+
+    /** @param array<string, string|int|bool> $values */
+    public function context(array $values): DiagnosticContext
+    {
+        return new DiagnosticContext($this->contextSchema(), $values);
+    }
 
     public function title(): string
     {

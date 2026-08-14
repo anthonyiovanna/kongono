@@ -41,10 +41,33 @@ current Kernel or `OperationScope` implementation.
 
 Persistent processes may reduce repeated boot cost, but performance cannot justify unsafe shared state or runtime coupling. Measurement and adapter-specific optimization belong to later implementation phases.
 
+## Diagnostic-context lifetime
+
+The Diagnostics package implements eager bounded structural context construction.
+A
+`DiagnosticContext` owns one immutable detached snapshot created synchronously
+from a closed schema and explicit values. It consults no global request,
+superglobal, container, current user, thread-local, fiber-local, environment,
+clock, random source, filesystem, network, database, logger, tracer, or AI
+system and will perform no I/O.
+
+Snapshots enter no static registry or global cache, and values cannot accumulate
+across operations through this package. Memory and work are bounded by the
+16-field maximum plus represented input bytes; stored text is at most 512 bytes.
+Phase 0Q Graph exceptions, Phase 0T Kernel lifecycle exceptions, and Phase 0U DI
+exceptions eagerly construct and own exactly one context at their deliberate
+failure boundaries.
+Repeated access returns that same context object; the exception retains no value
+map, and context enters no Graph snapshot, Kernel state, operation scope, DI
+definition/resolver/service state, static registry, or global accumulation.
+Diagnostics construction failure propagates unchanged; simultaneous-failure
+representation remains unresolved.
+
 ## Stability
 
 Persistent-runtime-first design, runtime-independent Kernel boundaries, and the
-failure-cleanup principles above are **LOCKED**. The minimal
+failure-cleanup principles above and the no-ambient diagnostic-capture
+rules are **LOCKED**. The minimal
 boot/operation/shutdown lifecycle is implemented but **Experimental**. Scoped
 data, cleanup APIs and orchestration, propagation, concurrency models beyond
 overlapping identity ownership, cancellation, reset behavior, recovery, and

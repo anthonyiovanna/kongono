@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Kongono\DependencyInjection\Exception;
 
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
+use Kongono\Diagnostics\Context\DiagnosticContext;
 use Throwable;
 
 /**
@@ -18,6 +19,8 @@ use Throwable;
 #[Api(ApiStatus::Public)]
 interface ExceptionInterface extends Throwable
 {
+    public function diagnosticContext(): DiagnosticContext;
+
     public function diagnosticId(): string;
 
     public function diagnosticTitle(): string;

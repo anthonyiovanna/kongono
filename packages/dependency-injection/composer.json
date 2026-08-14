@@ -3,7 +3,8 @@
   "description": "Explicit typed dependency resolution for Kongono Framework.",
   "type": "library",
   "require": {
-    "kongono/kernel": "*",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
     "php": ">=8.5"
   },
   "autoload": {

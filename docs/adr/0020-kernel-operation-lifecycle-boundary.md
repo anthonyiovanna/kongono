@@ -16,7 +16,7 @@ The package also needs one catchable distinction between failures deliberately r
 
 ## Decision
 
-Create `kongono/kernel` as the first physical package. Its responsibilities are limited to Kernel boot and terminal shutdown state, operation-scope creation and ownership, active-operation accounting, lifecycle misuse detection, the Kernel exception hierarchy, and API-status metadata.
+Create `kongono/kernel` as the first physical package. Its Phase 0C responsibilities are limited to Kernel boot and terminal shutdown state, operation-scope creation and ownership, active-operation accounting, lifecycle misuse detection, the Kernel exception hierarchy, and the then-Kernel-owned API-status metadata.
 
 A Kernel has exactly `Unbooted`, `Booted`, and `Shutdown` states. It boots only from `Unbooted`, begins and ends operations only while `Booted`, refuses shutdown while any operation remains active, and cannot leave `Shutdown`. Invalid actions throw before valid state changes.
 
@@ -36,7 +36,13 @@ Runtime adapters can eventually map their operations onto explicit scopes withou
 
 The Kernel is not a container or service locator and performs no dependency resolution, object construction, request handling, I/O, global-state access, logging, telemetry, time, randomness, environment access, or cleanup orchestration. Lifecycle contracts and concrete behavior are Experimental; only the deliberate exception marker is a Public catch boundary.
 
-Phase 0F later places explicit typed dependency resolution in the separate `kongono/dependency-injection` component. That resolver has no Kongono-supplied, special, or preconfigured Kernel binding or lifecycle behavior, and its production dependency on Kernel is limited to API-status metadata. A consumer-selected Kernel interface may be handled as an ordinary explicit contract without creating a framework-owned integration.
+Phase 0F later places explicit typed dependency resolution in the separate `kongono/dependency-injection` component. That resolver has no Kongono-supplied, special, or preconfigured Kernel binding or lifecycle behavior. Phase 0S moves `Api` and `ApiStatus` to `kongono/api-metadata`, removes the old Kernel FQCNs, and makes Kernel and DI depend directly on the neutral owner. Kernel no longer owns API metadata; lifecycle and resolver behavior are unchanged. A consumer-selected Kernel interface may be handled as an ordinary explicit contract without creating a framework-owned integration.
+
+Phase 0T adds exact eager bounded context to the six existing lifecycle failures
+through the Kernel marker. It observes the same pre-mutation validation points
+and changes no state transition, scope identity, validation priority, message,
+or recovery boundary. Kernel requires Diagnostics only for presentation-neutral
+values and gains no service or ambient lifecycle integration.
 
 ## Rejected alternatives
 

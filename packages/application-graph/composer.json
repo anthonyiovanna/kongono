@@ -3,7 +3,8 @@
   "description": "The immutable structural core for Kongono's future Application Graph.",
   "type": "library",
   "require": {
-    "kongono/kernel": "*",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
     "php": ">=8.5"
   },
   "autoload": {

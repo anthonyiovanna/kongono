@@ -9,8 +9,10 @@
     }
   ],
   "require": {
+    "kongono/api-metadata": "@dev",
     "kongono/application-graph": "@dev",
     "kongono/dependency-injection": "@dev",
+    "kongono/diagnostics": "@dev",
     "kongono/kernel": "@dev",
     "php": ">=8.5"
   },
@@ -22,8 +24,10 @@
   },
   "autoload-dev": {
     "psr-4": {
+      "Kongono\\ApiMetadata\\Tests\\": "packages/api-metadata/tests/",
       "Kongono\\ApplicationGraph\\Tests\\": "packages/application-graph/tests/",
       "Kongono\\DependencyInjection\\Tests\\": "packages/dependency-injection/tests/",
+      "Kongono\\Diagnostics\\Tests\\": "packages/diagnostics/tests/",
       "Kongono\\Kernel\\Tests\\": "packages/kernel/tests/",
       "Kongono\\Tests\\": "tests/"
     }
@@ -62,8 +66,10 @@
     "platform": "composer check-platform-reqs",
     "validate:composer": "composer validate --no-check-publish",
     "validate:packages": [
+      "composer --working-dir=packages/api-metadata validate --no-check-publish",
       "composer --working-dir=packages/application-graph validate --no-check-publish",
       "composer --working-dir=packages/dependency-injection validate --no-check-publish",
+      "composer --working-dir=packages/diagnostics validate --no-check-publish",
       "composer --working-dir=packages/kernel validate --no-check-publish"
     ],
     "quality": [

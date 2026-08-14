@@ -24,6 +24,17 @@ A monorepo enables atomic architectural refactors, cross-component testing, shar
 
 Early components will be developed together when authorized. Repository structure must remain intentional rather than pre-allocating speculative packages. Phase 0C implements `packages/kernel`; Phase 0D adds `packages/application-graph`; Phase 0F adds `packages/dependency-injection` as the third physical Composer package. The root project consumes all three through the canonical `packages/*` path repository and locks each untagged local package through an exact root `@dev` constraint. Repository-wide production inventory and API-status enforcement belongs to the root architecture test suite rather than any package. Components may later be published independently.
 
+Phase 0P amendment: [ADR 0029](0029-presentation-neutral-diagnostic-value-foundation.md)
+adds `packages/diagnostics` as the fourth physical Composer package. The root
+project now consumes Application Graph, Dependency Injection, Diagnostics, and
+Kernel through the same canonical `packages/*` path repository. This amendment
+does not alter the original Phase 0C through Phase 0F package history.
+
+Phase 0R amendment: [ADR 0031](0031-neutral-api-metadata-ownership-and-acyclic-package-dependencies.md)
+accepts a fifth `kongono/api-metadata` package boundary and atomic namespace
+migration. Phase 0S implements that exact boundary and migration. The current
+physical package count is five; boundaries beyond these five remain open.
+
 ## Rejected alternatives
 
 Starting with separate repositories is rejected because it would make early cross-cutting changes and coordination harder. Creating a large empty package skeleton is also rejected.

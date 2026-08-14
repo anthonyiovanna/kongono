@@ -32,6 +32,13 @@ Every newly authorized production type requires an intentional classification an
 
 The bootstrap exception must remain exactly two types. Stable and Deprecated remain documentation vocabulary rather than executable statuses in Phase 0C.
 
+Phase 0S implementation note: the exact two bootstrap declarations now belong
+to `kongono/api-metadata` as `Kongono\ApiMetadata\Api` and
+`Kongono\ApiMetadata\ApiStatus`. The former Kernel FQCNs were removed atomically
+without a shim. The three values, attribute shape, 40-declaration inventory,
+status assignments, reflection behavior, and root-owned enforcement are
+unchanged.
+
 ## Rejected alternatives
 
 - Opaque or undocumented API stability is rejected because consumers and repository checks need explicit expectations.

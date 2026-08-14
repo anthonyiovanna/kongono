@@ -6,6 +6,8 @@ namespace Kongono\Tests\Architecture;
 
 use Attribute;
 use FilesystemIterator;
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 use Kongono\ApplicationGraph\Diagnostic\GraphDiagnostic;
 use Kongono\ApplicationGraph\Exception\ExceptionInterface as GraphExceptionInterface;
 use Kongono\ApplicationGraph\Exception\GraphException;
@@ -18,8 +20,16 @@ use Kongono\DependencyInjection\Exception\DependencyInjectionException;
 use Kongono\DependencyInjection\Exception\ExceptionInterface as DependencyInjectionExceptionInterface;
 use Kongono\DependencyInjection\Exception\InvalidDefinitionException;
 use Kongono\DependencyInjection\Exception\UnknownServiceException;
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
+use Kongono\Diagnostics\Context\DiagnosticContext;
+use Kongono\Diagnostics\Context\DiagnosticContextSchema;
+use Kongono\Diagnostics\Context\DiagnosticDisclosure;
+use Kongono\Diagnostics\Context\DiagnosticField;
+use Kongono\Diagnostics\Context\DiagnosticFieldSchema;
+use Kongono\Diagnostics\Context\DiagnosticValueKind;
+use Kongono\Diagnostics\Diagnostic\DiagnosticsDiagnostic;
+use Kongono\Diagnostics\Exception\DiagnosticsException;
+use Kongono\Diagnostics\Exception\ExceptionInterface as DiagnosticsExceptionInterface;
+use Kongono\Diagnostics\Exception\InvalidDiagnosticValueException;
 use Kongono\Kernel\Diagnostic\LifecycleDiagnostic;
 use Kongono\Kernel\Exception\ExceptionInterface as KernelExceptionInterface;
 use Kongono\Kernel\Exception\KernelException;
@@ -55,6 +65,16 @@ final class ApiStatusConventionTest extends TestCase
         DependencyInjectionException::class => ApiStatus::Internal,
         InvalidDefinitionException::class => ApiStatus::Experimental,
         UnknownServiceException::class => ApiStatus::Experimental,
+        DiagnosticContext::class => ApiStatus::Public,
+        DiagnosticContextSchema::class => ApiStatus::Public,
+        DiagnosticDisclosure::class => ApiStatus::Public,
+        DiagnosticField::class => ApiStatus::Public,
+        DiagnosticFieldSchema::class => ApiStatus::Public,
+        DiagnosticValueKind::class => ApiStatus::Public,
+        DiagnosticsDiagnostic::class => ApiStatus::Internal,
+        DiagnosticsException::class => ApiStatus::Internal,
+        DiagnosticsExceptionInterface::class => ApiStatus::Public,
+        InvalidDiagnosticValueException::class => ApiStatus::Experimental,
         Api::class => ApiStatus::Public,
         ApiStatus::class => ApiStatus::Public,
         LifecycleDiagnostic::class => ApiStatus::Internal,
@@ -78,6 +98,9 @@ final class ApiStatusConventionTest extends TestCase
     public function testProductionDeclarationsExactlyMatchAuthorizedInventoryAndAreAutoloadable(): void
     {
         $types = $this->discoverProductionTypes();
+
+        self::assertFalse(class_exists('Kongono\\Kernel\\Api\\Api'));
+        self::assertFalse(enum_exists('Kongono\\Kernel\\Api\\ApiStatus'));
 
         foreach ($types as $type) {
             self::assertSame($type, $this->autoloadedClassLike($type));
@@ -143,23 +166,35 @@ final class ApiStatusConventionTest extends TestCase
     {
         self::assertFalse(is_a(KernelExceptionInterface::class, GraphExceptionInterface::class, true));
         self::assertFalse(is_a(KernelExceptionInterface::class, DependencyInjectionExceptionInterface::class, true));
+        self::assertFalse(is_a(KernelExceptionInterface::class, DiagnosticsExceptionInterface::class, true));
         self::assertFalse(is_a(GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, true));
+        self::assertFalse(is_a(GraphExceptionInterface::class, DiagnosticsExceptionInterface::class, true));
+        self::assertFalse(is_a(DependencyInjectionExceptionInterface::class, DiagnosticsExceptionInterface::class, true));
 
         self::assertExceptionMarkerMembership(LifecycleException::class, KernelExceptionInterface::class, [
             GraphExceptionInterface::class,
             DependencyInjectionExceptionInterface::class,
+            DiagnosticsExceptionInterface::class,
         ]);
         self::assertExceptionMarkerMembership(InvalidGraphException::class, GraphExceptionInterface::class, [
             KernelExceptionInterface::class,
             DependencyInjectionExceptionInterface::class,
+            DiagnosticsExceptionInterface::class,
         ]);
         self::assertExceptionMarkerMembership(InvalidDefinitionException::class, DependencyInjectionExceptionInterface::class, [
             KernelExceptionInterface::class,
             GraphExceptionInterface::class,
+            DiagnosticsExceptionInterface::class,
         ]);
         self::assertExceptionMarkerMembership(UnknownServiceException::class, DependencyInjectionExceptionInterface::class, [
             KernelExceptionInterface::class,
             GraphExceptionInterface::class,
+            DiagnosticsExceptionInterface::class,
+        ]);
+        self::assertExceptionMarkerMembership(InvalidDiagnosticValueException::class, DiagnosticsExceptionInterface::class, [
+            KernelExceptionInterface::class,
+            GraphExceptionInterface::class,
+            DependencyInjectionExceptionInterface::class,
         ]);
     }
 
@@ -167,19 +202,26 @@ final class ApiStatusConventionTest extends TestCase
     {
         $identifiers = array_map(
             static fn(\BackedEnum $diagnostic): string => $diagnostic->value,
-            [...LifecycleDiagnostic::cases(), ...GraphDiagnostic::cases(), ...DependencyInjectionDiagnostic::cases()],
+            [
+                ...LifecycleDiagnostic::cases(),
+                ...GraphDiagnostic::cases(),
+                ...DependencyInjectionDiagnostic::cases(),
+                ...DiagnosticsDiagnostic::cases(),
+            ],
         );
 
-        self::assertCount(42, $identifiers);
-        self::assertCount(42, array_unique($identifiers));
+        self::assertCount(53, $identifiers);
+        self::assertCount(53, array_unique($identifiers));
         self::assertCount(6, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-KERNEL-1\\d{3}$/D', $identifier)));
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-GRAPH-1\\d{3}$/D', $identifier)));
         self::assertCount(25, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-DI-1\\d{3}$/D', $identifier)));
+        self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-DIAGNOSTICS-1\\d{3}$/D', $identifier)));
 
         foreach ([
             KernelExceptionInterface::class,
             GraphExceptionInterface::class,
             DependencyInjectionExceptionInterface::class,
+            DiagnosticsExceptionInterface::class,
         ] as $marker) {
             $reflection = new ReflectionClass($marker);
             $methods = array_values(array_filter(
@@ -190,10 +232,17 @@ final class ApiStatusConventionTest extends TestCase
             sort($methodNames);
 
             self::assertSame([Throwable::class, \Stringable::class], $reflection->getInterfaceNames());
-            self::assertSame(['diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $methodNames);
+            $expectedMethods = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class], true)
+                ? ['diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle']
+                : ['diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'];
+            self::assertSame($expectedMethods, $methodNames);
 
             foreach ($methods as $method) {
-                self::assertSame('string', (string) $method->getReturnType());
+                $expectedReturnType = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class], true)
+                    && 'diagnosticContext' === $method->getName()
+                    ? DiagnosticContext::class
+                    : 'string';
+                self::assertSame($expectedReturnType, (string) $method->getReturnType());
                 self::assertSame([], $method->getParameters());
             }
         }
@@ -202,6 +251,7 @@ final class ApiStatusConventionTest extends TestCase
             [KernelException::class, LifecycleDiagnostic::class],
             [GraphException::class, GraphDiagnostic::class],
             [DependencyInjectionException::class, DependencyInjectionDiagnostic::class],
+            [DiagnosticsException::class, DiagnosticsDiagnostic::class],
         ] as [$base, $diagnostic]) {
             $reflection = new ReflectionClass($base);
             $properties = array_values(array_filter(
@@ -216,13 +266,30 @@ final class ApiStatusConventionTest extends TestCase
             sort($methodNames);
 
             self::assertTrue($reflection->isAbstract());
-            self::assertCount(1, $properties);
-            self::assertSame('diagnostic', $properties[0]->getName());
-            self::assertTrue($properties[0]->isPrivate());
-            self::assertTrue($properties[0]->isReadOnly());
-            self::assertFalse($properties[0]->isStatic());
-            self::assertSame($diagnostic, (string) $properties[0]->getType());
-            self::assertSame(['__construct', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $methodNames);
+            usort($properties, static fn(\ReflectionProperty $left, \ReflectionProperty $right): int => strcmp($left->getName(), $right->getName()));
+
+            if (in_array($base, [KernelException::class, GraphException::class, DependencyInjectionException::class], true)) {
+                self::assertSame(['diagnostic', 'diagnosticContext'], array_map(
+                    static fn(\ReflectionProperty $property): string => $property->getName(),
+                    $properties,
+                ));
+                self::assertSame([$diagnostic, DiagnosticContext::class], array_map(
+                    static fn(\ReflectionProperty $property): string => (string) $property->getType(),
+                    $properties,
+                ));
+                self::assertSame(['__construct', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $methodNames);
+            } else {
+                self::assertCount(1, $properties);
+                self::assertSame('diagnostic', $properties[0]->getName());
+                self::assertSame($diagnostic, (string) $properties[0]->getType());
+                self::assertSame(['__construct', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $methodNames);
+            }
+
+            foreach ($properties as $property) {
+                self::assertTrue($property->isPrivate());
+                self::assertTrue($property->isReadOnly());
+                self::assertFalse($property->isStatic());
+            }
 
             foreach ($methods as $method) {
                 self::assertTrue($method->isFinal());
@@ -231,12 +298,86 @@ final class ApiStatusConventionTest extends TestCase
 
             $parameters = $reflection->getConstructor()?->getParameters();
             self::assertNotNull($parameters);
-            self::assertCount(3, $parameters);
+            self::assertCount(in_array($base, [KernelException::class, GraphException::class, DependencyInjectionException::class], true) ? 4 : 3, $parameters);
             self::assertSame($diagnostic, (string) $parameters[0]->getType());
             self::assertSame('string', (string) $parameters[1]->getType());
-            self::assertSame('?Throwable', (string) $parameters[2]->getType());
-            self::assertTrue($parameters[2]->isDefaultValueAvailable());
-            self::assertNull($parameters[2]->getDefaultValue());
+
+            $previousParameter = $parameters[2];
+
+            if (in_array($base, [KernelException::class, GraphException::class, DependencyInjectionException::class], true)) {
+                self::assertSame('array', (string) $parameters[2]->getType());
+                $previousParameter = $parameters[3];
+            }
+
+            self::assertSame('?Throwable', (string) $previousParameter->getType());
+            self::assertTrue($previousParameter->isDefaultValueAvailable());
+            self::assertNull($previousParameter->getDefaultValue());
+        }
+
+        $graphManifest = json_decode(
+            (string) file_get_contents(dirname(__DIR__, 2) . '/packages/application-graph/composer.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($graphManifest);
+        self::assertArrayHasKey('require', $graphManifest);
+        self::assertIsArray($graphManifest['require']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5',
+        ], $graphManifest['require']);
+
+        $kernelManifest = json_decode(
+            (string) file_get_contents(dirname(__DIR__, 2) . '/packages/kernel/composer.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($kernelManifest);
+        self::assertArrayHasKey('require', $kernelManifest);
+        self::assertIsArray($kernelManifest['require']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5',
+        ], $kernelManifest['require']);
+
+        $dependencyInjectionManifest = json_decode(
+            (string) file_get_contents(dirname(__DIR__, 2) . '/packages/dependency-injection/composer.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($dependencyInjectionManifest);
+        self::assertArrayHasKey('require', $dependencyInjectionManifest);
+        self::assertIsArray($dependencyInjectionManifest['require']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5',
+        ], $dependencyInjectionManifest['require']);
+
+        $diagnosticsManifest = json_decode(
+            (string) file_get_contents(dirname(__DIR__, 2) . '/packages/diagnostics/composer.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($diagnosticsManifest);
+        self::assertArrayHasKey('require', $diagnosticsManifest);
+        self::assertIsArray($diagnosticsManifest['require']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'php' => '>=8.5',
+        ], $diagnosticsManifest['require']);
+
+        $diagnosticsSourceFiles = glob(dirname(__DIR__, 2) . '/packages/diagnostics/src/*/*.php');
+        self::assertIsArray($diagnosticsSourceFiles);
+
+        foreach ($diagnosticsSourceFiles as $diagnosticsSourceFile) {
+            $source = file_get_contents($diagnosticsSourceFile);
+            self::assertIsString($source);
+            self::assertStringNotContainsString('Kongono\\ApplicationGraph', $source);
+            self::assertStringNotContainsString('Kongono\\DependencyInjection', $source);
+            self::assertStringNotContainsString('Kongono\\Kernel', $source);
         }
     }
 
@@ -250,6 +391,7 @@ final class ApiStatusConventionTest extends TestCase
         }
 
         sort($packageSourceDirectories);
+        self::assertCount(5, $packageSourceDirectories);
         $types = [];
 
         foreach ($packageSourceDirectories as $sourceDirectory) {

@@ -1,0 +1,19 @@
+{
+  "name": "kongono/diagnostics",
+  "description": "Presentation-neutral bounded diagnostic values for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Diagnostics\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\Diagnostics\\Tests\\": "tests/"
+    }
+  }
+}

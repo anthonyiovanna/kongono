@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Kongono\Kernel\Exception;
 
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
+use Kongono\Diagnostics\Context\DiagnosticContext;
 use Kongono\Kernel\Diagnostic\LifecycleDiagnostic;
 use RuntimeException;
 use Throwable;
@@ -19,12 +20,24 @@ use Throwable;
 #[Api(ApiStatus::Internal)]
 abstract class KernelException extends RuntimeException implements ExceptionInterface
 {
+    private readonly LifecycleDiagnostic $diagnostic;
+    private readonly DiagnosticContext $diagnosticContext;
+
+    /** @param array<string, string|int|bool> $contextValues */
     final public function __construct(
-        private readonly LifecycleDiagnostic $diagnostic,
+        LifecycleDiagnostic $diagnostic,
         string $message,
+        array $contextValues,
         ?Throwable $previous = null,
     ) {
+        $this->diagnostic = $diagnostic;
+        $this->diagnosticContext = $diagnostic->context($contextValues);
         parent::__construct($message, 0, $previous);
+    }
+
+    final public function diagnosticContext(): DiagnosticContext
+    {
+        return $this->diagnosticContext;
     }
 
     final public function diagnosticId(): string

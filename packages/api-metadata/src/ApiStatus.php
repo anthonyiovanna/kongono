@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kongono\Kernel\Api;
+namespace Kongono\ApiMetadata;
 
 /**
  * Defines the compatibility and supported-use classification of a Kongono type.

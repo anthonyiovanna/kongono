@@ -3,15 +3,37 @@
 ## Status and scope
 
 This document is an index of Kongono's authorized architectural direction.
-Kongono is pre-alpha. Phase 0M implements package-local runtime diagnostic
-metadata for current deliberate package failures. Current production behavior
-otherwise remains the Phase 0J implementation: the PHP quality toolchain, the narrow
+Kongono is pre-alpha. Phase 0U adds the exact acyclic DI-to-Diagnostics
+edge and integrates all 25 Dependency Injection diagnostics across 26 throw
+sites. Phase 0T integrates all six Kernel lifecycle failures, and Phase 0Q
+integrates all 11 Application Graph failures, with exact package-owned bounded
+diagnostic context on the presentation-neutral
+`kongono/diagnostics` value foundation: bounded immutable schemas and values,
+deterministic byte-safe text representation, structural closed-schema capture,
+and package-local construction failures. All 42 original failures now own exact
+bounded context as 6 Kernel, 11 Graph, and 25 DI schemas. Diagnostics
+construction failures remain context-free. Current production behavior otherwise remains the
+Phase 0J implementation: the PHP quality toolchain, the narrow
 `kongono/kernel` lifecycle package, the immutable structural core with exact
 direct-relation and whole-snapshot kind selectors in
 `kongono/application-graph`, and explicit typed constructor resolution in
 `kongono/dependency-injection`. Other statements about framework behavior
 describe planned architecture unless explicitly identified as current
 repository behavior.
+
+## Package dependency topology
+
+The current Phase 0U runtime has five packages. `kongono/api-metadata` requires
+PHP only and owns `Kongono\ApiMetadata\Api` and `ApiStatus`. Kernel,
+Diagnostics, and Dependency Injection each require API Metadata; Kernel,
+Application Graph, and Dependency Injection also require Diagnostics. The root consumes all five. This
+graph is acyclic, and no package depends on Kernel merely for compatibility
+metadata.
+
+The former `Kongono\Kernel\Api\*` identities are unavailable and no alias or
+forwarder exists. Graph and Kernel retain their diagnostic integrations exactly.
+DI now independently requires Diagnostics for its 25 schemas. Phase 0U adds no
+renderer, error page, transport, or other runtime capability.
 
 Kongono Framework targets PHP 8.5+ and is designed for three first-class consumption surfaces: Human Experience, Software/API Experience, and Agent Experience. The framework is not a Laravel clone. It aims to preserve strong developer productivity while favoring explicit, typed, deterministic, observable, modular, persistent-runtime-safe, and AI-native architecture.
 
@@ -35,6 +57,28 @@ production error surface, HTTP or CLI mapping, logging, telemetry, retry,
 cleanup orchestration, incident system, or localization exists. See the [error-handling engineering
 guide](docs/engineering/error-handling.md) and the [ADR
 index](docs/adr/README.md).
+
+The presentation-neutral `kongono/diagnostics` package now owns Public
+`DiagnosticContext`, `DiagnosticField`, their closed schema types, and the exact
+Safe/Protected and text/integer/boolean vocabularies. It validates structural
+schemas and creates eager, ordered, detached snapshots with at most 16 fields.
+Text is represented deterministically as bounded ASCII tokens with an exact
+512-byte ceiling and visible `...[truncated]` marker. Construction uses no ambient
+state or I/O and retains no global per-failure values. Diagnostics has its own
+fourth package-local marker and 11 construction diagnostic IDs.
+
+Originating packages retain identifier meaning, exact catalog schemas,
+throw-site values, and separate Public markers; structural schema validity does
+not confer semantic ownership. Phase 0Q makes Graph the first semantic consumer:
+its Internal catalog owns all 11 schemas, its throw sites supply only approved
+values, and its Public marker adds `diagnosticContext()`. Graph messages and
+catch ownership remain local. Phase 0T makes Kernel the second semantic consumer
+for its six lifecycle failures. Phase 0U makes DI the third semantic consumer
+for 25 schemas across 26 throw sites. Kernel, Graph, and DI markers independently
+expose context; Diagnostics construction failures expose no recursive context.
+Forbidden-material detection or redaction, renderers, trusted developer mode,
+production allowlists, transport, serialization, source and documentation lookup,
+logging, telemetry, and incidents remain future decisions.
 
 ## Boundaries
 

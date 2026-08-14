@@ -14,16 +14,20 @@
          beStrictAboutOutputDuringTests="true">
     <testsuites>
         <testsuite name="Kongono">
+            <directory>packages/api-metadata/tests</directory>
             <directory>packages/application-graph/tests</directory>
             <directory>packages/dependency-injection/tests</directory>
+            <directory>packages/diagnostics/tests</directory>
             <directory>packages/kernel/tests</directory>
             <directory>tests</directory>
         </testsuite>
     </testsuites>
     <source>
         <include>
+            <directory>packages/api-metadata/src</directory>
             <directory>packages/application-graph/src</directory>
             <directory>packages/dependency-injection/src</directory>
+            <directory>packages/diagnostics/src</directory>
             <directory>packages/kernel/src</directory>
         </include>
     </source>

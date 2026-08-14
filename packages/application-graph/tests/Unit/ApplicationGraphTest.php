@@ -12,6 +12,7 @@ use Kongono\ApplicationGraph\Model\NodeKey;
 use Kongono\ApplicationGraph\Model\NodeKind;
 use Kongono\ApplicationGraph\Model\Relation;
 use Kongono\ApplicationGraph\Model\RelationKind;
+use Kongono\Diagnostics\Context\DiagnosticDisclosure;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionMethod;
@@ -600,36 +601,58 @@ final class ApplicationGraphTest extends TestCase
             static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance(['node' => $node], []),
             GraphDiagnostic::NodesNotList,
             'Nodes must be supplied as a zero-based consecutive list.',
+            [['entry_count', 'Entry count', 'integer', 1, 'safe', null]],
         );
         $this->assertGraphDiagnostic(
             static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance([$node], [1 => new Relation(new NodeKey('node'), new RelationKind('kind'), new NodeKey('node'))]),
             GraphDiagnostic::RelationsNotList,
             'Relations must be supplied as a zero-based consecutive list.',
+            [
+                ['entry_count', 'Entry count', 'integer', 1, 'safe', null],
+                ['first_unexpected_key', 'First unexpected key', 'text', '1', 'protected', false],
+            ],
         );
         $this->assertGraphDiagnostic(
             static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance(['not-a-node'], []),
             GraphDiagnostic::InvalidNodeEntry,
             'Nodes list entry at index 0 must be a Node.',
+            [
+                ['entry_position', 'Entry position', 'integer', 0, 'safe', null],
+                ['actual_value_kind', 'Actual value kind', 'text', 'string', 'safe', false],
+            ],
         );
         $this->assertGraphDiagnostic(
             static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance([$node], ['not-a-relation']),
             GraphDiagnostic::InvalidRelationEntry,
             'Relations list entry at index 0 must be a Relation.',
+            [
+                ['entry_position', 'Entry position', 'integer', 0, 'safe', null],
+                ['actual_value_kind', 'Actual value kind', 'text', 'string', 'safe', false],
+            ],
         );
         $this->assertGraphDiagnostic(
             fn(): ApplicationGraph => new ApplicationGraph([$this->node('duplicate'), $this->node('duplicate')], []),
             GraphDiagnostic::DuplicateNodeKey,
             'Duplicate node key "duplicate" is not allowed.',
+            [['node_key', 'Node key', 'text', 'duplicate', 'protected', false]],
         );
         $this->assertGraphDiagnostic(
             fn(): ApplicationGraph => new ApplicationGraph([$this->node('target')], [$this->relation('missing', 'kind', 'target')]),
             GraphDiagnostic::MissingRelationSource,
             'Relation source key "missing" does not reference an existing node.',
+            [
+                ['relation_position', 'Relation position', 'integer', 0, 'safe', null],
+                ['source_key', 'Source key', 'text', 'missing', 'protected', false],
+            ],
         );
         $this->assertGraphDiagnostic(
             fn(): ApplicationGraph => new ApplicationGraph([$this->node('source')], [$this->relation('source', 'kind', 'missing')]),
             GraphDiagnostic::MissingRelationTarget,
             'Relation target key "missing" does not reference an existing node.',
+            [
+                ['relation_position', 'Relation position', 'integer', 0, 'safe', null],
+                ['target_key', 'Target key', 'text', 'missing', 'protected', false],
+            ],
         );
         $this->assertGraphDiagnostic(
             fn(): ApplicationGraph => new ApplicationGraph(
@@ -638,14 +661,163 @@ final class ApplicationGraphTest extends TestCase
             ),
             GraphDiagnostic::DuplicateRelationTriple,
             'Duplicate relation triple "source" -> "kind" -> "target" is not allowed.',
+            [
+                ['source_key', 'Source key', 'text', 'source', 'protected', false],
+                ['relation_kind', 'Relation kind', 'text', 'kind', 'protected', false],
+                ['target_key', 'Target key', 'text', 'target', 'protected', false],
+            ],
         );
     }
 
-    /** @param callable(): object $operation */
+    public function testNonListContextCapturesOnlyTheFirstSafeUnexpectedKey(): void
+    {
+        $node = $this->node('node');
+
+        foreach ([
+            [[2 => $node], '2'],
+            [[0 => $node, 2 => $node], '2'],
+            [[-1 => $node], '-1'],
+        ] as [$nodes, $expectedKey]) {
+            $exception = $this->graphFailure(
+                static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance($nodes, []),
+            );
+            $fields = $exception->diagnosticContext()->fields();
+
+            self::assertSame(GraphDiagnostic::NodesNotList->value, $exception->diagnosticId());
+            self::assertSame(['entry_count', 'first_unexpected_key'], array_map(static fn($field): string => $field->key(), $fields));
+            self::assertSame(count($nodes), $fields[0]->value());
+            self::assertSame($expectedKey, $fields[1]->value());
+            self::assertSame(DiagnosticDisclosure::Protected, $fields[1]->disclosure());
+        }
+
+        foreach ([['secret' => $node], [0 => $node, 'secret' => $node, 2 => $node]] as $nodes) {
+            $exception = $this->graphFailure(
+                static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance($nodes, []),
+            );
+            $fields = $exception->diagnosticContext()->fields();
+
+            self::assertSame(['entry_count'], array_map(static fn($field): string => $field->key(), $fields));
+            self::assertSame(count($nodes), $fields[0]->value());
+            self::assertStringNotContainsString('secret', implode('|', array_map(
+                static fn($field): string => (string) $field->value(),
+                $fields,
+            )));
+        }
+    }
+
+    public function testInvalidEntryValueKindTokensAreClosedAndNonIdentifying(): void
+    {
+        $resource = fopen('php://memory', 'r');
+        self::assertIsResource($resource);
+        $closedResource = fopen('php://memory', 'r');
+        self::assertIsResource($closedResource);
+        fclose($closedResource);
+        $object = new class {};
+        $objectClass = $object::class;
+        $samples = [
+            [null, 'null'],
+            [true, 'boolean'],
+            [1, 'integer'],
+            [1.5, 'float'],
+            ['value', 'string'],
+            [[], 'array'],
+            [$object, 'object'],
+            [$resource, 'resource'],
+            [$closedResource, 'closed_resource'],
+        ];
+
+        foreach ($samples as [$value, $expectedToken]) {
+            $exception = $this->graphFailure(
+                static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance([$value], []),
+            );
+            $fields = $exception->diagnosticContext()->fields();
+
+            self::assertSame(GraphDiagnostic::InvalidNodeEntry->value, $exception->diagnosticId());
+            self::assertSame('actual_value_kind', $fields[1]->key());
+            self::assertSame($expectedToken, $fields[1]->value());
+            self::assertSame(DiagnosticDisclosure::Safe, $fields[1]->disclosure());
+            self::assertStringNotContainsString($objectClass, $fields[1]->value());
+        }
+
+        fclose($resource);
+    }
+
+    public function testMissingEndpointContextUsesCallerRelationPositionBeforeSorting(): void
+    {
+        $nodes = [$this->node('a'), $this->node('z')];
+        $sourceFailure = $this->graphFailure(fn(): ApplicationGraph => new ApplicationGraph($nodes, [
+            $this->relation('z', 'z', 'a'),
+            $this->relation('missing', 'a', 'a'),
+        ]));
+        $targetFailure = $this->graphFailure(fn(): ApplicationGraph => new ApplicationGraph($nodes, [
+            $this->relation('z', 'z', 'a'),
+            $this->relation('a', 'a', 'missing'),
+        ]));
+
+        self::assertSame(1, $sourceFailure->diagnosticContext()->fields()[0]->value());
+        self::assertSame('missing', $sourceFailure->diagnosticContext()->fields()[1]->value());
+        self::assertSame(1, $targetFailure->diagnosticContext()->fields()[0]->value());
+        self::assertSame('missing', $targetFailure->diagnosticContext()->fields()[1]->value());
+    }
+
+    public function testGraphStructuralTextContextUsesBoundedByteRepresentation(): void
+    {
+        $longKey = str_repeat('k', 600);
+        $longFailure = $this->graphFailure(fn(): ApplicationGraph => new ApplicationGraph([
+            $this->node($longKey),
+            $this->node($longKey),
+        ], []));
+        $longField = $longFailure->diagnosticContext()->fields()[0];
+        $binaryKey = "key\0\xFF";
+        $binaryFailure = $this->graphFailure(fn(): ApplicationGraph => new ApplicationGraph([
+            $this->node($binaryKey),
+            $this->node($binaryKey),
+        ], []));
+        $binaryField = $binaryFailure->diagnosticContext()->fields()[0];
+
+        self::assertSame(512, strlen((string) $longField->value()));
+        self::assertStringEndsWith('...[truncated]', (string) $longField->value());
+        self::assertTrue($longField->textWasTruncated());
+        self::assertSame('key\\x00\\xFF', $binaryField->value());
+        self::assertFalse($binaryField->textWasTruncated());
+        self::assertStringContainsString($longKey, $longFailure->getMessage());
+        self::assertStringContainsString($binaryKey, $binaryFailure->getMessage());
+    }
+
+    public function testMultipleInvalidInputsRetainExistingFailurePriority(): void
+    {
+        $node = $this->node('node');
+        $relation = $this->relation('missing', 'kind', 'also-missing');
+
+        self::assertSame(GraphDiagnostic::NodesNotList->value, $this->graphFailure(
+            static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance(['node' => 'invalid'], ['relation' => 'invalid']),
+        )->diagnosticId());
+        self::assertSame(GraphDiagnostic::RelationsNotList->value, $this->graphFailure(
+            static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance(['invalid'], ['relation' => 'invalid']),
+        )->diagnosticId());
+        self::assertSame(GraphDiagnostic::InvalidNodeEntry->value, $this->graphFailure(
+            static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance(['invalid'], ['invalid']),
+        )->diagnosticId());
+        self::assertSame(GraphDiagnostic::InvalidRelationEntry->value, $this->graphFailure(
+            static fn(): object => (new ReflectionClass(ApplicationGraph::class))->newInstance([$node], ['invalid']),
+        )->diagnosticId());
+        self::assertSame(GraphDiagnostic::DuplicateNodeKey->value, $this->graphFailure(
+            fn(): ApplicationGraph => new ApplicationGraph([$this->node('duplicate'), $this->node('duplicate')], [$relation]),
+        )->diagnosticId());
+        self::assertSame(GraphDiagnostic::MissingRelationSource->value, $this->graphFailure(
+            fn(): ApplicationGraph => new ApplicationGraph([$node], [$relation]),
+        )->diagnosticId());
+    }
+
+    /**
+     * @param callable(): object                                                $operation
+     * @param list<array{string, string, string, string|int|bool, string, ?bool}> $expectedFields
+     */
     private function assertGraphDiagnostic(
         callable $operation,
         GraphDiagnostic $diagnostic,
         string $message,
+        array $expectedFields,
     ): void {
         try {
             $operation();
@@ -657,6 +829,30 @@ final class ApplicationGraphTest extends TestCase
             self::assertSame($message, $exception->getMessage());
             self::assertSame(0, $exception->getCode());
             self::assertNull($exception->getPrevious());
+            self::assertSame($diagnostic->contextSchema()->operation(), $exception->diagnosticContext()->operation());
+            self::assertSame($diagnostic->contextSchema()->violatedInvariant(), $exception->diagnosticContext()->violatedInvariant());
+            self::assertSame($expectedFields, array_map(
+                static fn($field): array => [
+                    $field->key(),
+                    $field->label(),
+                    $field->kind()->value,
+                    $field->value(),
+                    $field->disclosure()->value,
+                    $field->textWasTruncated(),
+                ],
+                $exception->diagnosticContext()->fields(),
+            ));
+        }
+    }
+
+    /** @param callable(): object $operation */
+    private function graphFailure(callable $operation): InvalidGraphException
+    {
+        try {
+            $operation();
+            self::fail('Invalid graph construction must fail.');
+        } catch (InvalidGraphException $exception) {
+            return $exception;
         }
     }
 

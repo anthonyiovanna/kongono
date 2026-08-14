@@ -43,6 +43,7 @@ use Kongono\DependencyInjection\Tests\Fixture\SelfCycleInterface;
 use Kongono\DependencyInjection\Tests\Fixture\SelfCycleService;
 use Kongono\DependencyInjection\Tests\Fixture\ThrowingService;
 use Kongono\DependencyInjection\Tests\Fixture\ThrowingServiceInterface;
+use Kongono\Diagnostics\Context\DiagnosticContext;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use ReflectionMethod;
@@ -245,6 +246,8 @@ final class DependencyResolverTest extends TestCase
                 self::assertSame($diagnostic->value, $exception->diagnosticId());
                 self::assertSame($diagnostic->title(), $exception->diagnosticTitle());
                 self::assertSame($diagnostic->remediation(), $exception->diagnosticRemediation());
+                self::assertInstanceOf(DiagnosticContext::class, $exception->diagnosticContext());
+                self::assertSame($exception->diagnosticContext(), $exception->diagnosticContext());
                 self::assertSame(0, $exception->getCode());
                 self::assertNull($exception->getPrevious());
             }
@@ -364,6 +367,8 @@ final class DependencyResolverTest extends TestCase
             self::assertSame($diagnostic->value, $exception->diagnosticId());
             self::assertSame($diagnostic->title(), $exception->diagnosticTitle());
             self::assertSame($diagnostic->remediation(), $exception->diagnosticRemediation());
+            self::assertInstanceOf(DiagnosticContext::class, $exception->diagnosticContext());
+            self::assertSame($exception->diagnosticContext(), $exception->diagnosticContext());
             self::assertSame(0, $exception->getCode());
             self::assertNull($exception->getPrevious());
         }

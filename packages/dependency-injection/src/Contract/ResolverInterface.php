@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kongono\DependencyInjection\Contract;
 
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 use Kongono\DependencyInjection\Exception\InvalidDefinitionException;
 use Kongono\DependencyInjection\Exception\UnknownServiceException;
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
 
 /**
  * Resolves explicitly defined top-level service contracts at a composition root.

@@ -56,7 +56,8 @@ call.
 
 `Kongono\DependencyInjection\Exception\ExceptionInterface` is the Public catch
 boundary for failures deliberately raised by this package. It exposes
-`diagnosticId()`, `diagnosticTitle()`, and `diagnosticRemediation()` as strings.
+`diagnosticId()`, `diagnosticTitle()`, and `diagnosticRemediation()` as strings
+plus one Public presentation-neutral `diagnosticContext()` value.
 The abstract base is
 Internal; definitions, resolver contracts and implementations, and concrete
 package failures are Experimental. Public does not mean Stable or
@@ -79,14 +80,36 @@ not be exposed directly to an untrusted production surface. See [ADR
 0027](../../docs/adr/0027-package-local-runtime-diagnostic-metadata.md), and the
 [error-handling engineering guide](../../docs/engineering/error-handling.md).
 
+Phase 0U integrates all 25 DI diagnostics across the existing 26 throw sites.
+DI-owned Safe fields are
+`subject_role`, `entry_count`,
+`dependency_position`, `actual_value_kind`, `dependency_count`,
+`expected_parameter_count`, `actual_parameter_count`, `parameter_position`,
+`unsupported_mode`, `actual_type_shape`, `definition_position`, and
+`rejection_reason`. Protected fields are `contract_name`,
+`implementation_name`, optional `first_unexpected_key`, `expected_contract`,
+`actual_contract`, `owner_contract`, `missing_dependency`, `cycle_contract`, and
+`requested_contract`. The exact 25 ordered schemas are normative in the
+error-handling guide; both 1025 defenses retain one identifier and schema. DI
+owns those schema instances and exact values, independently requires Diagnostics,
+and eagerly owns one detached context per deliberate exception. No renderer,
+logging, telemetry, or transport behavior exists.
+
 ## Package separation and non-goals
 
-Production source depends on `kongono/kernel` only for `Api` and `ApiStatus`
-metadata. The package supplies no special or preconfigured Kernel binding and
+Production source depends on `kongono/api-metadata` for `Api` and `ApiStatus`
+metadata and on `kongono/diagnostics` only for bounded presentation-neutral
+values. It has no Kernel source dependency. The package supplies no special or preconfigured Kernel binding and
 has no boot, shutdown, operation-scope, cleanup, or other Kernel lifecycle
 behavior. A consumer may explicitly define a Kernel interface as an ordinary
 service contract if every general definition rule passes; that creates no
 framework-owned integration.
+
+Phase 0S completed the atomic import migration to
+`Kongono\ApiMetadata\Api` and `ApiStatus` and removed the metadata-only Kernel
+edge without a shim. Phase 0U adds the one-way DI-to-Diagnostics edge and exact
+contexts without adding a universal exception boundary, renderer, transport,
+logging, or telemetry.
 
 The package has no dependency on `kongono/application-graph`, and Phase 0F adds
 no Graph schema, service/dependency kinds, discovery, compilation, metadata, or
@@ -103,5 +126,6 @@ capability.
 
 - [Dependency-injection engineering guide](../../docs/engineering/dependency-injection.md)
 - [ADR 0023](../../docs/adr/0023-explicit-typed-dependency-resolution.md)
+- [ADR 0033](../../docs/adr/0033-dependency-injection-diagnostic-context-integration.md)
 - [Kernel package](../kernel/README.md)
 - [Application Graph package](../application-graph/README.md)

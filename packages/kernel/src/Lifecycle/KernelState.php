@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kongono\Kernel\Lifecycle;
 
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 
 /**
  * Represents the three terminally ordered states of one Kernel instance.

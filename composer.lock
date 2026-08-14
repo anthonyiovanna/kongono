@@ -4,18 +4,46 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4dce8caebff4e3aac307ba71d3675cb5",
+    "content-hash": "c1bc54e0fddbf2a65dc77fbbc0b3757b",
     "packages": [
+        {
+            "name": "kongono/api-metadata",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/api-metadata",
+                "reference": "c6c5a7fa936bcabe1f3bd27b04085274a0448d6a"
+            },
+            "require": {
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ApiMetadata\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ApiMetadata\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral API compatibility metadata for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
         {
             "name": "kongono/application-graph",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "packages/application-graph",
-                "reference": "787a43279599e075108d1acda8d5017490b226df"
+                "reference": "7b4d04bb722d18a5a620bec29f39d238a0da2a16"
             },
             "require": {
-                "kongono/kernel": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
                 "php": ">=8.5"
             },
             "type": "library",
@@ -40,10 +68,11 @@
             "dist": {
                 "type": "path",
                 "url": "packages/dependency-injection",
-                "reference": "c8caf9f6ce369801bf4f603f50e99e23d1172a0f"
+                "reference": "4b85c50871a783ec10d88c37d088db892fc33fd5"
             },
             "require": {
-                "kongono/kernel": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
                 "php": ">=8.5"
             },
             "type": "library",
@@ -63,14 +92,44 @@
             }
         },
         {
+            "name": "kongono/diagnostics",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/diagnostics",
+                "reference": "6e56597decf138ed187daea1ab888bee52dede0a"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Diagnostics\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Diagnostics\\Tests\\": "tests/"
+                }
+            },
+            "description": "Presentation-neutral bounded diagnostic values for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "kongono/kernel",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "packages/kernel",
-                "reference": "41fa4dcc762a32fa3a4c89ba9a1ab52839d2c524"
+                "reference": "8d45884c90f12d7a725de10763f48a262fc48aa4"
             },
             "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
                 "php": ">=8.5"
             },
             "type": "library",
@@ -4888,8 +4947,10 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
+        "kongono/api-metadata": 20,
         "kongono/application-graph": 20,
         "kongono/dependency-injection": 20,
+        "kongono/diagnostics": 20,
         "kongono/kernel": 20
     },
     "prefer-stable": false,

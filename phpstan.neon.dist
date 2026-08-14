@@ -5,10 +5,14 @@ parameters:
     level: max
     phpVersion: 80500
     paths:
+        - packages/api-metadata/src
+        - packages/api-metadata/tests
         - packages/application-graph/src
         - packages/application-graph/tests
         - packages/dependency-injection/src
         - packages/dependency-injection/tests
+        - packages/diagnostics/src
+        - packages/diagnostics/tests
         - packages/kernel/src
         - packages/kernel/tests
         - tests/Architecture

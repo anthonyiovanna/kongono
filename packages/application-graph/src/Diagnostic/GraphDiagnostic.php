@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Kongono\ApplicationGraph\Diagnostic;
 
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
+use Kongono\Diagnostics\Context\DiagnosticContext;
+use Kongono\Diagnostics\Context\DiagnosticContextSchema;
+use Kongono\Diagnostics\Context\DiagnosticDisclosure;
+use Kongono\Diagnostics\Context\DiagnosticFieldSchema;
+use Kongono\Diagnostics\Context\DiagnosticValueKind;
 
 /**
  * Owns the fixed metadata for deliberate Application Graph failures.
@@ -27,6 +32,200 @@ enum GraphDiagnostic: string
     case MissingRelationSource = 'KGN-GRAPH-1009';
     case MissingRelationTarget = 'KGN-GRAPH-1010';
     case DuplicateRelationTriple = 'KGN-GRAPH-1011';
+
+    public function contextSchema(): DiagnosticContextSchema
+    {
+        return match ($this) {
+            self::EmptyNodeKey => new DiagnosticContextSchema(
+                'Create node key',
+                'Node-key value must be non-empty',
+                [
+                    new DiagnosticFieldSchema(
+                        'actual_length',
+                        'Actual length',
+                        DiagnosticValueKind::Integer,
+                        DiagnosticDisclosure::Safe,
+                    ),
+                ],
+            ),
+            self::EmptyNodeKind => new DiagnosticContextSchema(
+                'Create node kind',
+                'Node-kind value must be non-empty',
+                [
+                    new DiagnosticFieldSchema(
+                        'actual_length',
+                        'Actual length',
+                        DiagnosticValueKind::Integer,
+                        DiagnosticDisclosure::Safe,
+                    ),
+                ],
+            ),
+            self::EmptyRelationKind => new DiagnosticContextSchema(
+                'Create relation kind',
+                'Relation-kind value must be non-empty',
+                [
+                    new DiagnosticFieldSchema(
+                        'actual_length',
+                        'Actual length',
+                        DiagnosticValueKind::Integer,
+                        DiagnosticDisclosure::Safe,
+                    ),
+                ],
+            ),
+            self::NodesNotList => new DiagnosticContextSchema(
+                'Construct Application Graph',
+                'Nodes input must be a PHP list',
+                [
+                    new DiagnosticFieldSchema(
+                        'entry_count',
+                        'Entry count',
+                        DiagnosticValueKind::Integer,
+                        DiagnosticDisclosure::Safe,
+                    ),
+                    new DiagnosticFieldSchema(
+                        'first_unexpected_key',
+                        'First unexpected key',
+                        DiagnosticValueKind::Text,
+                        DiagnosticDisclosure::Protected,
+                        false,
+                    ),
+                ],
+            ),
+            self::RelationsNotList => new DiagnosticContextSchema(
+                'Construct Application Graph',
+                'Relations input must be a PHP list',
+                [
+                    new DiagnosticFieldSchema(
+                        'entry_count',
+                        'Entry count',
+                        DiagnosticValueKind::Integer,
+                        DiagnosticDisclosure::Safe,
+                    ),
+                    new DiagnosticFieldSchema(
+                        'first_unexpected_key',
+                        'First unexpected key',
+                        DiagnosticValueKind::Text,
+                        DiagnosticDisclosure::Protected,
+                        false,
+                    ),
+                ],
+            ),
+            self::InvalidNodeEntry => new DiagnosticContextSchema(
+                'Validate node entry',
+                'Every nodes-list entry must be a Node',
+                [
+                    new DiagnosticFieldSchema(
+                        'entry_position',
+                        'Entry position',
+                        DiagnosticValueKind::Integer,
+                        DiagnosticDisclosure::Safe,
+                    ),
+                    new DiagnosticFieldSchema(
+                        'actual_value_kind',
+                        'Actual value kind',
+                        DiagnosticValueKind::Text,
+                        DiagnosticDisclosure::Safe,
+                    ),
+                ],
+            ),
+            self::InvalidRelationEntry => new DiagnosticContextSchema(
+                'Validate relation entry',
+                'Every relations-list entry must be a Relation',
+                [
+                    new DiagnosticFieldSchema(
+                        'entry_position',
+                        'Entry position',
+                        DiagnosticValueKind::Integer,
+                        DiagnosticDisclosure::Safe,
+                    ),
+                    new DiagnosticFieldSchema(
+                        'actual_value_kind',
+                        'Actual value kind',
+                        DiagnosticValueKind::Text,
+                        DiagnosticDisclosure::Safe,
+                    ),
+                ],
+            ),
+            self::DuplicateNodeKey => new DiagnosticContextSchema(
+                'Validate node uniqueness',
+                'Node keys must be unique within a snapshot',
+                [
+                    new DiagnosticFieldSchema(
+                        'node_key',
+                        'Node key',
+                        DiagnosticValueKind::Text,
+                        DiagnosticDisclosure::Protected,
+                    ),
+                ],
+            ),
+            self::MissingRelationSource => new DiagnosticContextSchema(
+                'Validate relation source',
+                'Relation source must reference an existing node',
+                [
+                    new DiagnosticFieldSchema(
+                        'relation_position',
+                        'Relation position',
+                        DiagnosticValueKind::Integer,
+                        DiagnosticDisclosure::Safe,
+                    ),
+                    new DiagnosticFieldSchema(
+                        'source_key',
+                        'Source key',
+                        DiagnosticValueKind::Text,
+                        DiagnosticDisclosure::Protected,
+                    ),
+                ],
+            ),
+            self::MissingRelationTarget => new DiagnosticContextSchema(
+                'Validate relation target',
+                'Relation target must reference an existing node',
+                [
+                    new DiagnosticFieldSchema(
+                        'relation_position',
+                        'Relation position',
+                        DiagnosticValueKind::Integer,
+                        DiagnosticDisclosure::Safe,
+                    ),
+                    new DiagnosticFieldSchema(
+                        'target_key',
+                        'Target key',
+                        DiagnosticValueKind::Text,
+                        DiagnosticDisclosure::Protected,
+                    ),
+                ],
+            ),
+            self::DuplicateRelationTriple => new DiagnosticContextSchema(
+                'Validate relation uniqueness',
+                'Source/kind/target triples must be unique',
+                [
+                    new DiagnosticFieldSchema(
+                        'source_key',
+                        'Source key',
+                        DiagnosticValueKind::Text,
+                        DiagnosticDisclosure::Protected,
+                    ),
+                    new DiagnosticFieldSchema(
+                        'relation_kind',
+                        'Relation kind',
+                        DiagnosticValueKind::Text,
+                        DiagnosticDisclosure::Protected,
+                    ),
+                    new DiagnosticFieldSchema(
+                        'target_key',
+                        'Target key',
+                        DiagnosticValueKind::Text,
+                        DiagnosticDisclosure::Protected,
+                    ),
+                ],
+            ),
+        };
+    }
+
+    /** @param array<string, string|int|bool> $values */
+    public function context(array $values): DiagnosticContext
+    {
+        return new DiagnosticContext($this->contextSchema(), $values);
+    }
 
     public function title(): string
     {

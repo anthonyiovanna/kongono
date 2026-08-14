@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Kongono\ApplicationGraph\Model;
 
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 use Kongono\ApplicationGraph\Diagnostic\GraphDiagnostic;
 use Kongono\ApplicationGraph\Exception\InvalidGraphException;
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
 
 /**
  * Owns one immutable, structurally validated Application Graph snapshot.
@@ -53,11 +53,12 @@ final readonly class ApplicationGraph
                         'Duplicate node key "%s" is not allowed.',
                         $nodes[$index]->key()->value(),
                     ),
+                    ['node_key' => $nodes[$index]->key()->value()],
                 );
             }
         }
 
-        foreach ($relations as $relation) {
+        foreach ($relations as $position => $relation) {
             if (null === self::findNode($nodes, $relation->source())) {
                 throw new InvalidGraphException(
                     GraphDiagnostic::MissingRelationSource,
@@ -65,6 +66,10 @@ final readonly class ApplicationGraph
                         'Relation source key "%s" does not reference an existing node.',
                         $relation->source()->value(),
                     ),
+                    [
+                        'relation_position' => $position,
+                        'source_key' => $relation->source()->value(),
+                    ],
                 );
             }
 
@@ -75,6 +80,10 @@ final readonly class ApplicationGraph
                         'Relation target key "%s" does not reference an existing node.',
                         $relation->target()->value(),
                     ),
+                    [
+                        'relation_position' => $position,
+                        'target_key' => $relation->target()->value(),
+                    ],
                 );
             }
         }
@@ -105,6 +114,11 @@ final readonly class ApplicationGraph
                         $duplicate->kind()->value(),
                         $duplicate->target()->value(),
                     ),
+                    [
+                        'source_key' => $duplicate->source()->value(),
+                        'relation_kind' => $duplicate->kind()->value(),
+                        'target_key' => $duplicate->target()->value(),
+                    ],
                 );
             }
         }
@@ -198,16 +212,32 @@ final readonly class ApplicationGraph
     private static function assertRuntimeInputs(array $nodes, array $relations): void
     {
         if (!array_is_list($nodes)) {
+            $contextValues = ['entry_count' => count($nodes)];
+            $firstUnexpectedKey = self::firstUnexpectedListKey($nodes);
+
+            if (null !== $firstUnexpectedKey) {
+                $contextValues['first_unexpected_key'] = $firstUnexpectedKey;
+            }
+
             throw new InvalidGraphException(
                 GraphDiagnostic::NodesNotList,
                 'Nodes must be supplied as a zero-based consecutive list.',
+                $contextValues,
             );
         }
 
         if (!array_is_list($relations)) {
+            $contextValues = ['entry_count' => count($relations)];
+            $firstUnexpectedKey = self::firstUnexpectedListKey($relations);
+
+            if (null !== $firstUnexpectedKey) {
+                $contextValues['first_unexpected_key'] = $firstUnexpectedKey;
+            }
+
             throw new InvalidGraphException(
                 GraphDiagnostic::RelationsNotList,
                 'Relations must be supplied as a zero-based consecutive list.',
+                $contextValues,
             );
         }
 
@@ -216,6 +246,10 @@ final readonly class ApplicationGraph
                 throw new InvalidGraphException(
                     GraphDiagnostic::InvalidNodeEntry,
                     sprintf('Nodes list entry at index %s must be a Node.', $index),
+                    [
+                        'entry_position' => $index,
+                        'actual_value_kind' => self::valueKind($node),
+                    ],
                 );
             }
         }
@@ -228,9 +262,45 @@ final readonly class ApplicationGraph
                         'Relations list entry at index %s must be a Relation.',
                         $index,
                     ),
+                    [
+                        'entry_position' => $index,
+                        'actual_value_kind' => self::valueKind($relation),
+                    ],
                 );
             }
         }
+    }
+
+    /** @param array<array-key, mixed> $values */
+    private static function firstUnexpectedListKey(array $values): ?string
+    {
+        $expected = 0;
+
+        foreach ($values as $key => $_value) {
+            if ($key !== $expected) {
+                return is_int($key) ? (string) $key : null;
+            }
+
+            ++$expected;
+        }
+
+        return null;
+    }
+
+    private static function valueKind(mixed $value): string
+    {
+        return match (gettype($value)) {
+            'NULL' => 'null',
+            'boolean' => 'boolean',
+            'integer' => 'integer',
+            'double' => 'float',
+            'string' => 'string',
+            'array' => 'array',
+            'object' => 'object',
+            'resource' => 'resource',
+            'resource (closed)' => 'closed_resource',
+            default => 'unknown',
+        };
     }
 
     /** @param list<Node> $nodes */

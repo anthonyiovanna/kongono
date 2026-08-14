@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kongono\Kernel\Contract;
 
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 
 /**
  * Combines the minimal Kernel and operation lifecycle contracts.

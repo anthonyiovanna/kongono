@@ -89,6 +89,23 @@ Registered-autoloader, native engine, and consumer-constructor failures propagat
 unchanged. A failed constructor leaves no cached or partial service and a later
 call begins a fresh construction attempt.
 
+All 25 DI diagnostics now own exact closed bounded schemas across the existing
+26 deliberate throw statements. The Public marker exposes one eager immutable
+`DiagnosticContext`; messages, zero codes, optional causes, selection priority,
+and package-local catch ownership remain unchanged. Safe fields are bounded
+counts, positions, and closed role, kind, mode, type-shape, or rejection tokens.
+Protected fields are exact already-available contract and implementation names.
+Neither classification authorizes disclosure.
+
+For non-list definitions or dependencies, validation records the entry count and
+stops at the first strict key mismatch. An integer mismatch becomes canonical
+base-10 Protected text; a string mismatch is omitted. Invalid entries expose
+only broad native-kind tokens. Constructor mode tokens use fixed
+`optional+defaulted+variadic+by_reference` ordering for the predicates that are
+true, and type-shape tokens use missing, union, intersection, nullable, builtin,
+then defensive non-interface precedence. Context creation adds no reflection,
+autoloading, traversal, sorting, instantiation, ambient state, or I/O.
+
 The resolver is immutable and retains definitions only, so overlapping calls
 share no resolved instances. It is safe to retain across persistent operations
 under that narrow guarantee. Consumer constructor side effects and thread safety
@@ -99,10 +116,11 @@ The resolver performs no filesystem, network, environment, time, randomness,
 process, logging, telemetry, or global-state access. Normal autoloading and
 consumer constructors may perform external work outside that guarantee.
 
-Production source uses the Kernel package only for API-status metadata. It has no
-special Kernel lifecycle binding or behavior, and an explicitly consumer-chosen
-Kernel interface is treated only as an ordinary contract. The Application Graph
-has no Phase 0F dependency, schema, discovery, or integration relationship.
+Production source uses `kongono/api-metadata` for API-status metadata and has no
+Kernel source dependency. It has no special Kernel lifecycle binding or
+behavior, and an explicitly consumer-chosen Kernel interface is treated only as
+an ordinary contract. The Application Graph has no Phase 0F dependency, schema,
+discovery, or integration relationship.
 
 ## Security and stability
 

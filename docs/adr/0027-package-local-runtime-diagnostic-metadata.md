@@ -151,6 +151,13 @@ All 42 current mappings are covered by production and architecture tests. The
 two defensive DI post-construction invariant sites intentionally share
 `KGN-DI-1025` because they represent the same semantic reason.
 
+Phase 0U implementation note: Kernel, Graph, and DI now mirror the accepted
+bounded-context ownership pattern independently for all 42 original diagnostics.
+DI adds 25 exact schemas across 26 existing throw sites without changing any
+catalog string, native message, code, cause, validation or resolution behavior,
+or package-local recovery boundary. Those three markers expose context;
+Diagnostics retains three string methods and remains context-free.
+
 ## Rejected alternatives
 
 - One universal Kongono exception or diagnostic interface is rejected because
@@ -178,8 +185,8 @@ two defensive DI post-construction invariant sites intentionally share
 
 ## What remains open
 
-Safe structured context and redaction types; documentation lookup and version
-selection; renderer and package ownership; HTTP and CLI mappings; incident
+Disclosure and redaction policy; documentation lookup and version selection;
+renderer and package ownership; HTTP and CLI mappings; incident
 references and storage; localization; source-excerpt providers; logging and
 telemetry integration; retry and cancellation types; and cleanup-failure
 representation remain open. No API or implementation for those mechanisms is

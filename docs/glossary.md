@@ -11,8 +11,10 @@ A planned explicit application operation or use case that coordinates business b
 A package- or capability-owned explanation of one deliberate Kongono failure
 that identifies what failed, why and where it failed, and what the developer can
 do next. For current Kernel, Graph, and DI failures, the owning package marker
-exposes the exact ID, title, and remediation strings. Safe structured context and
-a renderer remain unimplemented.
+exposes the exact ID, title, remediation, and bounded context. Phase 0Q integrates
+all 11 Graph failures, Phase 0T integrates all six Kernel lifecycle failures, and
+Phase 0U integrates all 25 DI diagnostics across 26 throw sites. Diagnostics construction failures
+remain context-free, and no renderer exists.
 
 ## Agent Experience / AX
 
@@ -32,7 +34,15 @@ The Phase 0D immutable in-memory model of nodes and directed relations. It valid
 
 ## API Status
 
-Machine-readable compatibility and supported-use metadata attached to each production class-like type. Phase 0C defines Internal, Experimental, and Public. A type's status applies to its public and protected members; it is not authorization, package visibility, an Application Graph node, or a security boundary.
+Machine-readable compatibility and supported-use metadata attached to each production class-like type. Phase 0C defines Internal, Experimental, and Public; Phase 0S moves the unchanged bootstrap types atomically from the former `Kongono\Kernel\Api\` ownership to `Kongono\ApiMetadata\`. The old FQCNs are unavailable without a shim. A type's status applies to its public and protected members; it is not authorization, package visibility, an Application Graph node, or a security boundary.
+
+## API Metadata Package
+
+The implemented `kongono/api-metadata` package that neutrally owns
+`Kongono\ApiMetadata\Api` and `ApiStatus` after the atomic Phase 0S pre-alpha migration.
+It is a precise two-type compatibility-metadata boundary, not a runtime service,
+generic metadata bag, Kernel capability, or authorization mechanism. It requires
+PHP only and provides no registry, cache, I/O, diagnostic context, or transport.
 
 ## Application Profile
 
@@ -60,7 +70,7 @@ A governed grant of authority from one Principal to another, constrained by capa
 
 ## Dependency Injection
 
-Phase 0F dependency injection means only construction from explicit immutable definitions: a canonical interface contract, an explicit concrete implementation, and an ordered list of interface dependencies. It does not imply autowiring, PSR-11, a complete container, configuration injection, or a service-lifetime system.
+Phase 0F dependency injection means only construction from explicit immutable definitions: a canonical interface contract, an explicit concrete implementation, and an ordered list of interface dependencies. Phase 0U adds exact bounded failure context without changing definition or resolution behavior. It does not imply autowiring, PSR-11, a complete container, configuration injection, or a service-lifetime system.
 
 ## Dependency Resolver
 
@@ -79,6 +89,63 @@ operation/request/trace ID, incident reference, URL, database key, or transport
 code. Current package exceptions emit their assigned identity through
 `diagnosticId()`; titles and remediation are diagnostic prose rather than stable
 machine identity.
+
+## Diagnostic Context
+
+A Public final readonly presentation-neutral value containing operation and
+violated-invariant prose plus zero or more schema-approved fields. It is
+constructed eagerly in schema order with detached values and hard bounds. All 11
+Graph, six Kernel, and 25 DI diagnostics return one same-object context through
+their separate package markers; the 25 DI schemas cover 26 throw sites.
+
+## Diagnostic Field
+
+A Public final readonly context fact with a canonical key, fixed label, bounded
+`text`, `integer`, or `boolean` value, fixed disclosure, and a truncation flag
+only for text. It copies schema metadata and does not retain its schema object.
+
+## Context Schema
+
+The closed definition of fixed operation, violated invariant, allowed field keys
+and labels, scalar kinds, disclosures, canonical order, and required/optional
+status. `DiagnosticContextSchema` and `DiagnosticFieldSchema` implement structural
+validation. Originating packages still own which schemas are semantically correct
+for diagnostic identifiers. Graph implements its 11 exact catalog schemas,
+Kernel its six lifecycle schemas, and DI its 25 schemas across 26 throw sites.
+
+## Safe Disclosure
+
+The Public `DiagnosticDisclosure::Safe` classification for a schema-approved
+semantic category eligible for intentional disclosure after a separate
+presentation or transport policy allows it. Safe never means automatically
+public. Phase 0Q stores Safe Graph lengths, counts, positions, and broad kind
+tokens; Phase 0T stores only closed Safe Kernel state names, counts, and the
+conservative scope-condition token; Phase 0U stores bounded DI counts, positions,
+and closed role/kind/mode/type/rejection tokens. None performs disclosure.
+
+## Protected Disclosure
+
+The Public `DiagnosticDisclosure::Protected` classification for diagnostic
+information restricted to a trusted developer or protected operational boundary.
+Protected values are excluded from untrusted production output by default.
+Phase 0Q stores exact bounded Graph keys and kinds plus optional numeric
+unexpected-key text; no renderer or trusted mode exists.
+
+## Forbidden Capture
+
+Secret-bearing, unbounded, uncertain, or otherwise prohibited material that
+must not enter diagnostic context at all. It is not a third disclosure class;
+Kongono does not detect or redact it. Graph deliberately omits an arbitrary
+string key when it is the first non-list mismatch and never inspects later keys;
+this is conservative omission, not sanitization. A future boundary may record
+only that forbidden material was omitted.
+
+## Trusted Developer Mode
+
+A future expanded diagnostic-disclosure mode enabled only by trusted server
+configuration. Query parameters, headers, cookies, route values, user input,
+and AI output can never activate it. No such mode or renderer exists in Phase
+0P.
 
 ## Documentation ID
 
@@ -111,7 +178,7 @@ The planned governance boundary for extension permissions, capabilities, lifecyc
 
 ## Graph Exception Boundary
 
-The Public `Kongono\ApplicationGraph\Exception\ExceptionInterface` marker implemented by failures deliberately thrown by the Application Graph package. It is separate from the Kernel exception marker; native engine errors are not wrapped merely to enter it.
+The Public `Kongono\ApplicationGraph\Exception\ExceptionInterface` marker implemented by failures deliberately thrown by the Application Graph package. It exposes ID, title, remediation, and one exact bounded `DiagnosticContext`. It is separate from Kernel, DI, and Diagnostics markers; native engine errors are not wrapped merely to enter it.
 
 ## Experimental API
 
@@ -146,11 +213,11 @@ A planned language-neutral representation from which the Application Graph deriv
 
 ## Kernel
 
-The small, runtime-independent core whose Phase 0C implementation owns boot and shutdown state, operation-scope identity and completion, active-operation accounting, lifecycle misuse detection, the Kernel exception family, and API-status metadata. Responsibilities beyond this Experimental boundary remain unspecified.
+The small, runtime-independent core whose Phase 0C implementation owns boot and shutdown state, operation-scope identity and completion, active-operation accounting, lifecycle misuse detection, and the Kernel exception family. Phase 0S completed neutral extraction of API-status metadata, so it is not a Kernel lifecycle responsibility. Phase 0T adds six exact lifecycle diagnostic contexts without adding state or scope metadata. Responsibilities beyond the implemented Experimental boundary remain unspecified.
 
 ## Kernel Exception Boundary
 
-The Public `Kongono\Kernel\Exception\ExceptionInterface` marker implemented by every failure deliberately thrown by the Phase 0C Kernel package. Native engine errors are not wrapped merely to enter this boundary, and concrete lifecycle exception behavior remains Experimental.
+The Public `Kongono\Kernel\Exception\ExceptionInterface` marker implemented by every failure deliberately thrown by the Phase 0C Kernel package. Phase 0T adds one exact bounded `DiagnosticContext` accessor while preserving its separation from Graph, DI, and Diagnostics markers. Native engine errors are not wrapped merely to enter this boundary, and concrete lifecycle exception behavior remains Experimental.
 
 ## Kernel Lifecycle
 

@@ -21,7 +21,7 @@ composer quality
 The gate stops on the first failure and runs in this order:
 
 1. `composer validate:composer` executes `composer validate --no-check-publish` and checks that the root manifest is structurally valid. Composer's built-in `composer validate` remains unchanged. Publication-readiness checks are intentionally excluded from the repository script because Kongono has not selected a license.
-2. `composer validate:packages` validates the Application Graph, Dependency Injection, and Kernel manifests in lexicographic package-directory order without publication-readiness checks.
+2. `composer validate:packages` validates the API Metadata, Application Graph, Dependency Injection, Diagnostics, and Kernel manifests in lexicographic package-directory order without publication-readiness checks.
 3. `composer audit:locked` executes `composer audit --locked` and checks the lock-file dependency graph against Composer's advisory, malware, and abandoned-package policies. Composer's built-in `composer audit` command remains available for auditing installed dependencies.
 4. `composer platform` verifies that installed packages can run on the actual PHP runtime and extensions, complementing dependency resolution against PHP 8.5.0.
 5. `composer cs` checks approved formatting without modifying files and prints a useful diff.

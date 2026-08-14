@@ -13,6 +13,8 @@ use Kongono\ApplicationGraph\Model\NodeKey;
 use Kongono\ApplicationGraph\Model\NodeKind;
 use Kongono\ApplicationGraph\Model\Relation;
 use Kongono\ApplicationGraph\Model\RelationKind;
+use Kongono\Diagnostics\Context\DiagnosticDisclosure;
+use Kongono\Diagnostics\Context\DiagnosticValueKind;
 use Kongono\Kernel\Exception\ExceptionInterface as KernelExceptionInterface;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -58,7 +60,7 @@ final class StructuralValueTest extends TestCase
         ));
 
         self::assertSame($expected, $actual);
-        self::assertSame(['remediation', 'title'], $this->sortedMethodNames($declaredMethods));
+        self::assertSame(['context', 'contextSchema', 'remediation', 'title'], $this->sortedMethodNames($declaredMethods));
         self::assertSame(
             ['name', 'value'],
             array_map(static fn(\ReflectionProperty $property): string => $property->getName(), $declaredProperties),
@@ -66,7 +68,7 @@ final class StructuralValueTest extends TestCase
         self::assertFalse($reflection->hasMethod('__toString'));
 
         $cause = new RuntimeException('cause');
-        $exception = new InvalidGraphException(GraphDiagnostic::EmptyNodeKey, 'message', $cause);
+        $exception = new InvalidGraphException(GraphDiagnostic::EmptyNodeKey, 'message', ['actual_length' => 0], $cause);
 
         self::assertSame('KGN-GRAPH-1001', $exception->diagnosticId());
         self::assertSame(GraphDiagnostic::EmptyNodeKey->title(), $exception->diagnosticTitle());
@@ -206,6 +208,20 @@ final class StructuralValueTest extends TestCase
             self::assertSame($message, $exception->getMessage());
             self::assertSame(0, $exception->getCode());
             self::assertNull($exception->getPrevious());
+
+            $context = $exception->diagnosticContext();
+            $fields = $context->fields();
+
+            self::assertSame($diagnostic->contextSchema()->operation(), $context->operation());
+            self::assertSame($diagnostic->contextSchema()->violatedInvariant(), $context->violatedInvariant());
+            self::assertCount(1, $fields);
+            self::assertSame('actual_length', $fields[0]->key());
+            self::assertSame('Actual length', $fields[0]->label());
+            self::assertSame(DiagnosticValueKind::Integer, $fields[0]->kind());
+            self::assertSame(0, $fields[0]->value());
+            self::assertSame(DiagnosticDisclosure::Safe, $fields[0]->disclosure());
+            self::assertNull($fields[0]->textWasTruncated());
+            self::assertSame($context, $exception->diagnosticContext());
         }
     }
 

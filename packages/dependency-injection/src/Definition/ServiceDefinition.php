@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace Kongono\DependencyInjection\Definition;
 
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 use Kongono\DependencyInjection\Contract\ResolverInterface;
 use Kongono\DependencyInjection\Diagnostic\DependencyInjectionDiagnostic;
 use Kongono\DependencyInjection\Exception\InvalidDefinitionException;
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
 use ReflectionClass;
+use ReflectionIntersectionType;
 use ReflectionNamedType;
+use ReflectionUnionType;
 
 /**
  * Defines one canonical interface contract and its explicit constructor graph.
@@ -43,7 +45,7 @@ final readonly class ServiceDefinition
     {
         $detachedDependencies = self::detachRuntimeDependencies($dependencies);
 
-        $validatedContract = self::validatedServiceContract($contract, 'Service contract');
+        $validatedContract = self::validatedServiceContract($contract, 'Service contract', 'service_contract');
         $validatedImplementation = self::validatedImplementation($implementation, $validatedContract);
         $validatedDependencies = [];
 
@@ -51,6 +53,7 @@ final readonly class ServiceDefinition
             $validatedDependencies[] = self::validatedServiceContract(
                 $dependency,
                 sprintf('Dependency at position %d', $position),
+                'dependency_contract',
             );
         }
 
@@ -80,12 +83,13 @@ final readonly class ServiceDefinition
     }
 
     /** @return class-string */
-    private static function validatedServiceContract(string $contract, string $label): string
+    private static function validatedServiceContract(string $contract, string $label, string $subjectRole): string
     {
         if (!interface_exists($contract)) {
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::ContractDoesNotExist,
                 sprintf('%s "%s" must name an existing interface.', $label, $contract),
+                ['subject_role' => $subjectRole, 'contract_name' => $contract],
             );
         }
 
@@ -95,6 +99,7 @@ final readonly class ServiceDefinition
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::ContractNotCanonical,
                 sprintf('%s "%s" is not a canonical interface name.', $label, $contract),
+                ['subject_role' => $subjectRole, 'contract_name' => $contract],
             );
         }
 
@@ -102,6 +107,7 @@ final readonly class ServiceDefinition
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::ResolverContractForbidden,
                 sprintf('%s "%s" must not be the resolver contract or its subinterface.', $label, $contract),
+                ['subject_role' => $subjectRole, 'contract_name' => $contract],
             );
         }
 
@@ -118,6 +124,7 @@ final readonly class ServiceDefinition
                     'Implementation "%s" must name an existing concrete class.',
                     $implementation,
                 ),
+                ['implementation_name' => $implementation],
             );
         }
 
@@ -127,6 +134,7 @@ final readonly class ServiceDefinition
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::ImplementationNotCanonical,
                 sprintf('Implementation "%s" is not a canonical class name.', $implementation),
+                ['implementation_name' => $implementation],
             );
         }
 
@@ -134,6 +142,7 @@ final readonly class ServiceDefinition
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::ImplementationNotInstantiable,
                 sprintf('Implementation "%s" must be publicly instantiable.', $implementation),
+                ['implementation_name' => $implementation],
             );
         }
 
@@ -145,6 +154,7 @@ final readonly class ServiceDefinition
                     $implementation,
                     $contract,
                 ),
+                ['contract_name' => $contract, 'implementation_name' => $implementation],
             );
         }
 
@@ -152,6 +162,7 @@ final readonly class ServiceDefinition
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::ImplementationExposesResolver,
                 sprintf('Implementation "%s" must not implement the resolver contract.', $implementation),
+                ['implementation_name' => $implementation],
             );
         }
 
@@ -166,9 +177,17 @@ final readonly class ServiceDefinition
     private static function detachRuntimeDependencies(array $dependencies): array
     {
         if (!array_is_list($dependencies)) {
+            $contextValues = ['entry_count' => count($dependencies)];
+            $firstUnexpectedKey = self::firstUnexpectedListKey($dependencies);
+
+            if (null !== $firstUnexpectedKey) {
+                $contextValues['first_unexpected_key'] = $firstUnexpectedKey;
+            }
+
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::DependenciesNotList,
                 'Dependencies must be supplied as a zero-based consecutive list.',
+                $contextValues,
             );
         }
 
@@ -182,6 +201,21 @@ final readonly class ServiceDefinition
                         'Dependency at position %d must be a canonical interface name string.',
                         $position,
                     ),
+                    [
+                        'dependency_position' => $position,
+                        'actual_value_kind' => match (gettype($dependency)) {
+                            'NULL' => 'null',
+                            'boolean' => 'boolean',
+                            'integer' => 'integer',
+                            'double' => 'float',
+                            'string' => 'string',
+                            'array' => 'array',
+                            'object' => 'object',
+                            'resource' => 'resource',
+                            'resource (closed)' => 'closed_resource',
+                            default => 'unknown',
+                        },
+                    ],
                 );
             }
 
@@ -201,13 +235,16 @@ final readonly class ServiceDefinition
 
         if (null === $constructor) {
             if ([] !== $dependencies) {
+                $dependencyCount = count($dependencies);
+
                 throw new InvalidDefinitionException(
                     DependencyInjectionDiagnostic::DependenciesWithoutConstructor,
                     sprintf(
                         'Implementation "%s" has no constructor but declares %d dependencies.',
                         $implementation,
-                        count($dependencies),
+                        $dependencyCount,
                     ),
+                    ['implementation_name' => $implementation, 'dependency_count' => $dependencyCount],
                 );
             }
 
@@ -218,23 +255,54 @@ final readonly class ServiceDefinition
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::ConstructorNotPublic,
                 sprintf('Implementation "%s" must have a public constructor.', $implementation),
+                ['implementation_name' => $implementation],
             );
         }
 
         $parameters = $constructor->getParameters();
+        $expectedParameterCount = count($dependencies);
+        $actualParameterCount = count($parameters);
 
-        if (count($parameters) !== count($dependencies)) {
+        if ($actualParameterCount !== $expectedParameterCount) {
             throw new InvalidDefinitionException(
                 DependencyInjectionDiagnostic::ConstructorArityMismatch,
                 sprintf(
                     'Implementation "%s" constructor parameter count does not match its dependency count.',
                     $implementation,
                 ),
+                [
+                    'implementation_name' => $implementation,
+                    'expected_parameter_count' => $expectedParameterCount,
+                    'actual_parameter_count' => $actualParameterCount,
+                ],
             );
         }
 
         foreach ($parameters as $position => $parameter) {
-            if ($parameter->isOptional() || $parameter->isDefaultValueAvailable() || $parameter->isVariadic() || $parameter->isPassedByReference()) {
+            $isOptional = $parameter->isOptional();
+            $isDefaulted = $parameter->isDefaultValueAvailable();
+            $isVariadic = $parameter->isVariadic();
+            $isPassedByReference = $parameter->isPassedByReference();
+
+            if ($isOptional || $isDefaulted || $isVariadic || $isPassedByReference) {
+                $unsupportedModes = [];
+
+                if ($isOptional) {
+                    $unsupportedModes[] = 'optional';
+                }
+
+                if ($isDefaulted) {
+                    $unsupportedModes[] = 'defaulted';
+                }
+
+                if ($isVariadic) {
+                    $unsupportedModes[] = 'variadic';
+                }
+
+                if ($isPassedByReference) {
+                    $unsupportedModes[] = 'by_reference';
+                }
+
                 throw new InvalidDefinitionException(
                     DependencyInjectionDiagnostic::UnsupportedConstructorParameterMode,
                     sprintf(
@@ -242,12 +310,26 @@ final readonly class ServiceDefinition
                         $implementation,
                         $position,
                     ),
+                    [
+                        'implementation_name' => $implementation,
+                        'parameter_position' => $position,
+                        'unsupported_mode' => implode('+', $unsupportedModes),
+                    ],
                 );
             }
 
             $type = $parameter->getType();
 
             if (!$type instanceof ReflectionNamedType || $type->isBuiltin() || $type->allowsNull()) {
+                $actualTypeShape = match (true) {
+                    null === $type => 'missing',
+                    $type instanceof ReflectionUnionType => 'union',
+                    $type instanceof ReflectionIntersectionType => 'intersection',
+                    $type instanceof ReflectionNamedType && $type->allowsNull() => 'nullable',
+                    $type instanceof ReflectionNamedType && $type->isBuiltin() => 'builtin',
+                    default => 'non_interface',
+                };
+
                 throw new InvalidDefinitionException(
                     DependencyInjectionDiagnostic::UnsupportedConstructorParameterType,
                     sprintf(
@@ -255,21 +337,51 @@ final readonly class ServiceDefinition
                         $implementation,
                         $position,
                     ),
+                    [
+                        'implementation_name' => $implementation,
+                        'parameter_position' => $position,
+                        'actual_type_shape' => $actualTypeShape,
+                    ],
                 );
             }
 
-            if ($type->getName() !== $dependencies[$position]) {
+            $actualContract = $type->getName();
+            $expectedContract = $dependencies[$position];
+
+            if ($actualContract !== $expectedContract) {
                 throw new InvalidDefinitionException(
                     DependencyInjectionDiagnostic::ConstructorDependencyTypeMismatch,
                     sprintf(
                         'Implementation "%s" constructor parameter %d type "%s" does not match dependency "%s".',
                         $implementation,
                         $position,
-                        $type->getName(),
-                        $dependencies[$position],
+                        $actualContract,
+                        $expectedContract,
                     ),
+                    [
+                        'implementation_name' => $implementation,
+                        'parameter_position' => $position,
+                        'expected_contract' => $expectedContract,
+                        'actual_contract' => $actualContract,
+                    ],
                 );
             }
         }
+    }
+
+    /** @param array<array-key, mixed> $values */
+    private static function firstUnexpectedListKey(array $values): ?string
+    {
+        $expectedKey = 0;
+
+        foreach ($values as $key => $_value) {
+            if ($key !== $expectedKey) {
+                return is_int($key) ? (string) $key : null;
+            }
+
+            ++$expectedKey;
+        }
+
+        return null;
     }
 }

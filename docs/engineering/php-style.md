@@ -2,7 +2,7 @@
 
 ## Purpose and scope
 
-Kongono uses the current `@PER-CS` ruleset so first-party PHP has a consistent community-based baseline instead of a project-specific style dialect. The formatter scans root tests plus the source and test trees for Application Graph, Dependency Injection, and Kernel.
+Kongono uses the current `@PER-CS` ruleset so first-party PHP has a consistent community-based baseline instead of a project-specific style dialect. The formatter scans exactly 113 PHP files across root tests and the source and test trees for API Metadata, Application Graph, Dependency Injection, Diagnostics, and Kernel.
 
 Every first-party PHP source, test, and PHP-based repository configuration file uses `declare(strict_types=1);` where PHP syntax permits it. Native types should express contracts whenever possible; PHPDoc adds information that PHP cannot express and must not hide a weak native API. `mixed` remains available for genuine boundaries but is not a substitute for modeling.
 

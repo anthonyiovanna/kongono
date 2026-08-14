@@ -63,6 +63,33 @@ Graph ID, Documentation ID, database ID, URI, UUID, package coordinate, or PHP
 symbol. Open node and relation kinds likewise do not establish a domain schema or
 compatibility vocabulary.
 
+## Implemented Phase 0Q diagnostic context
+
+All 11 deliberate Graph failures retain their package-local identifiers, titles,
+remediation, native messages, zero codes, and optional causes while also
+returning one eager immutable `DiagnosticContext` through the Public Graph
+exception marker. The Internal Graph catalog owns the exact closed schemas and
+throw sites provide values only. Diagnostics owns structural value mechanics and
+has no reverse Graph dependency or Graph semantic ownership.
+
+Safe fields are counts, positions, lengths, and broad non-identifying PHP value-
+kind tokens. Protected fields are Graph keys, relation kinds, and an optional
+numeric first-unexpected-key representation. For a non-list input, only the
+first mismatching key is inspected: an integer is captured as canonical base-10
+text, while an arbitrary string key is omitted entirely. Invalid value-kind
+tokens are exactly `null`, `boolean`, `integer`, `float`, `string`, `array`,
+`object`, `resource`, `closed_resource`, or defensive `unknown`; they never
+expose a class or resource type.
+
+Context is exception-owned, detached, schema ordered, bounded, and free of I/O,
+ambient state, caches, or per-operation accumulation. It observes failure only
+and changes no successful construction, lookup, selector, ordering, identity,
+validation priority, or complexity behavior. Safe and Protected classifications
+do not render or disclose anything. Phase 0T independently adds Kernel exception
+context, and Phase 0U independently adds DI context. Diagnostics recursive
+context, renderers, disclosure policy, transports, logging, telemetry,
+source access, and documentation lookup remain future.
+
 ## Planned coverage
 
 The Graph is intended to describe relationships among modules, services, dependencies, routes, actions, models or entities, schemas, events, jobs, workflows, policies, permissions, principals, agents, delegations, capabilities, extension contributions, frontend contracts, external APIs, and documentation.
@@ -79,7 +106,7 @@ The IR and Graph must represent Kongono concepts independently of PHP surface sy
 
 ## Stability
 
-**EXPERIMENTAL.** Phase 0J selects only the structural snapshot, the two exact direct-relation selectors, and the two exact whole-snapshot kind selectors described above. It does not select stable identifiers, kind vocabularies, domain schemas, arbitrary metadata, provenance, visibility or security filtering, serialization or schema versions, persistence, caching, hashing, diffs, discovery, source frontends, PHP Graph attributes, compilation, contributions, merging, mutation, combined or generic queries, neighbors, traversal, query planning, performance budgets, framework integration, or the complete authoritative representation. The conceptual authority and language-neutral foundation are locked; those exact mechanisms require later architect approval.
+**EXPERIMENTAL.** Phase 0J selects only the structural snapshot and four exact selectors described above; Phase 0Q adds only exact bounded context to its existing failures. Phase 0T changes no Graph behavior or dependency. None of these phases selects stable Graph identifiers, kind vocabularies, domain schemas, arbitrary metadata, provenance, visibility or security filtering, serialization or schema versions, persistence, caching, hashing, diffs, discovery, source frontends, PHP Graph attributes, compilation, contributions, merging, mutation, combined or generic queries, neighbors, traversal, query planning, performance budgets, framework integration, or the complete authoritative representation. The conceptual authority and language-neutral foundation are locked; those exact mechanisms require later architect approval.
 
 ## Documentation relationship
 

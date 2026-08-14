@@ -49,16 +49,25 @@ abstract `RuntimeException` base, and Experimental final invalid-definition and
 unknown-service exceptions. Native, autoloader, and consumer-constructor failures
 are not broadly wrapped.
 
-The package temporarily requires `kongono/kernel: *` only for `Api` and
-`ApiStatus` metadata while the packages are unreleased and developed atomically.
-The Kernel remains a separate lifecycle component with no Kongono-supplied,
+The Phase 0F package temporarily required `kongono/kernel: *` only for `Api` and
+`ApiStatus` metadata while the packages were unreleased and developed atomically.
+Phase 0S replaces that edge with `kongono/api-metadata: *`; DI now has no Kernel
+source dependency. The Kernel remains a separate lifecycle component with no Kongono-supplied,
 special, or preconfigured binding or resolution behavior. A consumer may
 explicitly choose a Kernel interface as an ordinary contract without creating a
-framework-owned integration.
+framework-owned integration. Resolver behavior is unchanged.
 
 Phase 0F creates no dependency on or from `kongono/application-graph` and defines
 no Graph service/dependency schema, metadata, discovery, compilation, or resolved
 instance relationship.
+
+Phase 0U adds a direct `kongono/diagnostics: *` dependency solely for exact
+package-owned failure context. All 25 DI diagnostics own closed schemas across
+the existing 26 throw statements, and the Public package marker exposes one
+eager `DiagnosticContext`. Explicit definitions, validation order, deterministic
+graph selection, native failure propagation, and transient-per-edge resolution
+remain unchanged. This adds no Graph or Kernel integration, scope, autowiring,
+locator, or PSR-11 behavior.
 
 ## Rationale
 

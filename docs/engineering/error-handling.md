@@ -7,15 +7,36 @@ Every deliberate framework failure must say what failed, why, where, and what
 the developer can do next while preserving package ownership and safe
 disclosure.
 
-Phase 0M implements the smallest runtime subset of the Phase 0L doctrine. Every
-current deliberate Kernel, Application Graph, and Dependency Injection failure
-exposes its exact package-owned identifier, title, and remediation. Three
-Internal backed-enum catalogs own the 42 mappings, and the three Public package
-exception markers remain separate recovery boundaries. Existing messages remain
-unchanged protected detail. No universal diagnostic interface, safe structured
-context, HTTP or CLI mapping, logger, telemetry integration, retry engine,
-cleanup runner, incident system, development error page, or production renderer
-is implemented.
+Phase 0M implements package-local ID, title, and remediation for every current
+deliberate Kernel, Application Graph, and Dependency Injection failure. Three
+Internal backed-enum catalogs own those 42 mappings. Phase 0P additionally
+implements a presentation-neutral Diagnostics package with closed bounded
+schemas and immutable values plus 11 package-local construction diagnostics.
+Phase 0Q integrates all 11 Graph failures, Phase 0T integrates all six Kernel
+lifecycle failures, and Phase 0U integrates all 25 DI diagnostics across 26 throw
+sites. Those three packages own exact catalog schemas, capture exact throw-site
+values, and expose one eager immutable context through their separate markers.
+Diagnostics construction failures
+remain context-free. The four Public package exception markers remain separate
+recovery boundaries, and all 42 existing messages remain unchanged protected
+detail.
+No universal diagnostic interface, HTTP or CLI mapping, logger, telemetry
+integration, retry engine, cleanup runner, incident system, development error
+page, or production renderer is implemented.
+
+Phase 0S implements the ownership topology accepted in Phase 0R.
+`kongono/api-metadata` now owns `Kongono\ApiMetadata\Api` and `ApiStatus` and
+requires PHP only. Kernel, Diagnostics, Graph, and DI depend directly on it;
+Graph, Kernel, and DI also require Diagnostics independently. The old metadata-only Kernel edges and
+`Kongono\Kernel\Api\*` FQCNs are absent without a shim. Phase 0T adds the exact
+acyclic Kernel-to-Diagnostics edge and six Kernel contexts without changing the
+metadata extraction. Phase 0U adds the exact acyclic DI-to-Diagnostics edge and
+25 DI contexts without changing resolver behavior.
+
+All 53 current diagnostic IDs and the 42 Kernel/Graph/DI assignments remain
+unchanged. All 42 original failures now expose context: six Kernel, 11 Graph,
+and 25 DI. The clean development-renderer information architecture below remains
+future work.
 
 ## Choose the correct failure category
 
@@ -73,13 +94,14 @@ These separate Public markers own deliberate package failures:
 - Application Graph: `Kongono\ApplicationGraph\Exception\ExceptionInterface`
 - Dependency Injection:
   `Kongono\DependencyInjection\Exception\ExceptionInterface`
+- Diagnostics: `Kongono\Diagnostics\Exception\ExceptionInterface`
 
 Their abstract bases remain Internal and concrete failures remain Experimental.
 There is no universal Kongono exception marker. Native engine, autoloader,
 consumer-constructor, and provider failures are not broadly wrapped to enter a
 package family.
 
-Each Public marker declares exactly:
+The Diagnostics marker declares exactly:
 
 ```php
 public function diagnosticId(): string;
@@ -87,15 +109,25 @@ public function diagnosticTitle(): string;
 public function diagnosticRemediation(): string;
 ```
 
-The owning Internal abstract base stores one private readonly enum case and
-implements those methods. The Internal catalogs are
+The Kernel, Graph, and DI markers independently declare the same three string methods plus:
+
+```php
+public function diagnosticContext(): DiagnosticContext;
+```
+
+The Diagnostics Internal base stores one private readonly enum case. The Kernel,
+Graph, and DI bases additionally store one private readonly
+`DiagnosticContext`, constructed eagerly from package-approved values. The
+Internal catalogs are
 `Kongono\Kernel\Diagnostic\LifecycleDiagnostic`,
-`Kongono\ApplicationGraph\Diagnostic\GraphDiagnostic`, and
-`Kongono\DependencyInjection\Diagnostic\DependencyInjectionDiagnostic`.
-Public methods return strings and do not expose the Internal enums. Every
+`Kongono\ApplicationGraph\Diagnostic\GraphDiagnostic`,
+`Kongono\DependencyInjection\Diagnostic\DependencyInjectionDiagnostic`, and
+`Kongono\Diagnostics\Diagnostic\DiagnosticsDiagnostic`.
+Public methods do not expose the Internal enums. Every
 package exception retains native behavior: `getCode()` is zero,
 `getMessage()` is the exact supplied message, and `getPrevious()` is the exact
 optional supplied cause. No current production throw adds a wrapping cause.
+Diagnostics construction failures intentionally expose no context accessor.
 
 Catch only the owning marker a boundary can handle:
 
@@ -109,12 +141,13 @@ try {
     $id = $failure->diagnosticId();
     $title = $failure->diagnosticTitle();
     $remediation = $failure->diagnosticRemediation();
+    $context = $failure->diagnosticContext();
 
     throw $failure;
 }
 ```
 
-Reading metadata is current behavior. The example deliberately rethrows because
+Reading Graph metadata and context is current behavior. The example deliberately rethrows because
 it does not invent recovery, logging, rendering, or transport policy.
 
 ## Diagnostic identifier contract
@@ -144,8 +177,9 @@ Diagnostic identifiers are not Graph IDs, Documentation IDs, operation IDs,
 trace IDs, request IDs, incident references, database keys, URLs, or transport
 error codes.
 
-The implemented current domains are `KERNEL`, `GRAPH`, and `DI`. A new domain needs
-an explicit owning package or capability and documented allocation.
+The implemented current domains are `KERNEL`, `GRAPH`, `DI`, and `DIAGNOSTICS`.
+A new domain needs an explicit owning package or capability and documented
+allocation.
 
 ### Kernel catalog: `LifecycleDiagnostic` (6 cases)
 
@@ -209,6 +243,442 @@ Current deliberate throws emit them through their package marker accessors. The
 two defensive DI post-construction checks share `KGN-DI-1025` because they
 represent the same semantic reason.
 
+## Implemented Phase 0P value foundation
+
+`kongono/diagnostics` owns presentation-neutral structural values and depends on
+API Metadata only. Graph, Kernel, and DI independently depend on it as semantic
+consumers; Diagnostics has no reverse dependency or originating-package
+ownership.
+
+The exact Public construction surface is:
+
+```php
+new DiagnosticFieldSchema(
+    string $key,
+    string $label,
+    DiagnosticValueKind $kind,
+    DiagnosticDisclosure $disclosure,
+    bool $required = true,
+)
+
+new DiagnosticContextSchema(
+    string $operation,
+    string $violatedInvariant,
+    array $fields = [],
+)
+
+new DiagnosticField(DiagnosticFieldSchema $schema, string|int|bool $value)
+new DiagnosticContext(DiagnosticContextSchema $schema, array $values = [])
+```
+
+Field-schema accessors are `key()`, `label()`, `kind()`, `disclosure()`, and
+`isRequired()`. Context-schema accessors are `operation()`,
+`violatedInvariant()`, and `fields()`. Field accessors are `key()`, `label()`,
+`kind()`, `value()`, `disclosure()`, and `textWasTruncated()`. Context accessors
+are `operation()`, `violatedInvariant()`, and `fields()`.
+
+Keys are non-empty lowercase ASCII snake case matching
+`^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$` and at most 64 bytes. Labels are non-empty
+valid UTF-8 and at most 96 bytes. Operation and invariant prose are non-empty
+valid UTF-8 and at most 160 and 256 bytes. A context schema is a detached PHP
+list of at most 16 field schemas with exact binary-unique keys in supplied order.
+Kinds are exactly Text (`text`), Integer (`integer`), and Boolean (`boolean`);
+disclosures are exactly Safe (`safe`) and Protected (`protected`).
+
+Context values use only exact schema-approved string keys. Integer and unknown
+string keys fail before missing or kind checks; deterministic selection prefers
+the numerically smallest integer, then the binary-smallest unknown string.
+Required fields must be present, absent optional fields are omitted, native kinds
+must match exactly, and fields are constructed in schema order. Schemas, caller
+arrays and reference slots, stored snapshots, and returned arrays are detached.
+
+Text accepts arbitrary bytes and stores only a deterministic ASCII
+representation. Printable bytes `0x20` through `0x7E` except backslash remain
+literal. Backslash, tab, line feed, and carriage return become `\\`, `\t`, `\n`,
+and `\r`. Every other byte becomes `\xHH` with uppercase hexadecimal. Complete
+tokens are accumulated only until the first token would exceed 512 represented
+bytes. Truncation retains the longest complete-token prefix that leaves room for
+the exact 14-byte `...[truncated]` marker. The original string is not retained.
+This is binary-safe representation, not secret detection, redaction,
+sanitization, HTML/JSON/shell escaping, or transport encoding.
+
+The Diagnostics construction catalog is exact:
+
+| Case | Identifier | Title | Remediation |
+| --- | --- | --- | --- |
+| `InvalidFieldKey` | `KGN-DIAGNOSTICS-1001` | Diagnostic field key violates the canonical key contract | Use non-empty lowercase ASCII snake case containing at most 64 bytes |
+| `InvalidFieldLabel` | `KGN-DIAGNOSTICS-1002` | Diagnostic field label violates the fixed-label contract | Use non-empty valid UTF-8 containing at most 96 bytes |
+| `InvalidOperation` | `KGN-DIAGNOSTICS-1003` | Diagnostic context operation violates its prose contract | Use non-empty valid UTF-8 containing at most 160 bytes |
+| `InvalidInvariant` | `KGN-DIAGNOSTICS-1004` | Diagnostic context invariant violates its prose contract | Use non-empty valid UTF-8 containing at most 256 bytes |
+| `FieldSchemasNotList` | `KGN-DIAGNOSTICS-1005` | Diagnostic field schemas are not a zero-based consecutive list | Reindex field schemas as a PHP list |
+| `InvalidFieldSchemaEntry` | `KGN-DIAGNOSTICS-1006` | Diagnostic schema list contains a non-field-schema entry | Replace the reported entry with a DiagnosticFieldSchema |
+| `TooManyFieldSchemas` | `KGN-DIAGNOSTICS-1007` | Diagnostic context schema exceeds the field limit | Define at most 16 field schemas |
+| `DuplicateFieldSchemaKey` | `KGN-DIAGNOSTICS-1008` | Diagnostic context schema contains a duplicate field key | Keep each canonical field key exactly once |
+| `InvalidContextValueKey` | `KGN-DIAGNOSTICS-1009` | Diagnostic context values contain an unapproved field key | Supply values only for exact keys in the closed schema |
+| `MissingRequiredContextValue` | `KGN-DIAGNOSTICS-1010` | Diagnostic context is missing a required field value | Supply every value required by the closed schema |
+| `ContextValueKindMismatch` | `KGN-DIAGNOSTICS-1011` | Diagnostic field value does not match its schema kind | Supply the exact string, integer, or boolean type required by the field schema |
+
+These failures implement only the fourth Diagnostics marker and expose no
+recursive context accessor. Across all four catalogs there are exactly 53 unique
+IDs: 6 Kernel, 11 Graph, 25 DI, and 11 Diagnostics.
+
+Structural validation does not prove that a schema belongs to an identifier.
+Originating packages still own semantic schema authorization and forbidden-data
+exclusion. Safe remains eligibility, not actual disclosure. Construction is
+eager, immutable, bounded, performs no I/O or ambient lookup, and retains no
+mutable global state.
+
+## Implemented Kernel, Graph, and DI existing-exception integration
+
+All 11 Graph, six Kernel, and 25 DI schema instances and exact throw-site values
+are implemented. Their separate markers add
+`diagnosticContext(): DiagnosticContext`; each Internal base eagerly owns one
+context and repeated access returns the same object. IDs, titles, remediation,
+messages, codes, causes, failure priority, success behavior, lifecycle state,
+ordering, selectors, definition validation, and resolver behavior remain
+unchanged. Diagnostics construction failures remain context-free.
+
+### Ownership and conceptual values
+
+A presentation-neutral `kongono/diagnostics` package now owns these Public value
+concepts and their schema and kind companions:
+
+```text
+Kongono\Diagnostics\Context\DiagnosticContext
+Kongono\Diagnostics\Context\DiagnosticField
+Kongono\Diagnostics\Context\DiagnosticDisclosure
+```
+
+The shared package does not own Kernel, Graph, or DI diagnostic meaning and
+will not define a universal exception or catch marker. Each originating package
+continues to own its identifiers, title and remediation prose, context schema,
+throw-site values, and Public exception marker. Kernel, Graph, and DI catch
+boundaries remain pairwise unrelated.
+
+`DiagnosticDisclosure` has exactly two semantic cases:
+
+- `Safe` is catalog-approved information eligible for intentional disclosure
+  only after a future presentation or transport policy permits it.
+- `Protected` is diagnostic information available only within a trusted
+  developer or protected operational boundary.
+
+There is no `Secret` case. Forbidden material is not captured.
+
+A `DiagnosticContext` is an immutable, ordered, bounded structural snapshot. An
+integrated Kernel, Graph, or DI deliberate exception constructs it eagerly. It contains
+one fixed catalog operation, one fixed catalog violated invariant or expectation,
+and zero or more ordered fields. A `DiagnosticField` contains a canonical key, a
+fixed catalog label, a bounded scalar value, its fixed disclosure, and whether a
+text representation was truncated. Phase 0P fixes the direct constructors and
+accessors above; package marker integrations are now complete for the original
+three semantic families.
+
+### Schema, key, value, and bound contract
+
+Context is not an arbitrary map or bag. For every diagnostic identifier, the
+owning Internal catalog defines fixed operation and invariant prose plus the
+exact allowed field keys, labels, scalar kinds, disclosures, canonical order,
+and required/optional status. Graph implements this ownership for its 11 cases,
+Kernel for its six lifecycle cases, and DI for its 25 cases across 26 throw
+sites. A throw site supplies only approved values. It
+cannot invent a key, label, disclosure, or order. An unavailable optional field
+is omitted; no `null` placeholder is used.
+
+Field keys must be unique within one context, use lowercase ASCII snake case,
+match `^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$`, and contain at most 64 bytes. A reused
+key retains one semantic meaning. Keys never encode values, indexes, locales,
+versions, or environments. Fixed English catalog labels contain at most 96
+UTF-8 bytes. Labels are not stable machine identity and may be localized only
+under a later decision.
+
+Allowed semantic scalar kinds are exactly `text`, `integer`, and `boolean`.
+The stored representation uses `string|int|bool`. Floats, `null`, arrays, maps, lists,
+objects, enums, resources, callables, closures, `Throwable` values, lazy
+suppliers, serialized values, raw JSON, arbitrary stringified objects, and
+nested context are prohibited. Multiple facts require multiple approved fields;
+a list cannot be smuggled into delimited text.
+
+The Phase 0P runtime contract enforces:
+
+- at most 16 fields in one context;
+- at most 64 bytes in a key;
+- at most 96 UTF-8 bytes in a fixed label;
+- at most 512 bytes in the bounded representation of a text value;
+- exactly one truncation flag for each text field;
+- no truncation flag for integer or boolean fields; and
+- deterministic truncation with an explicit visible marker.
+
+The exact byte-oriented representation and truncation algorithm is implemented
+as specified above.
+Integers must fit PHP's native integer range on the supported 64-bit platform.
+Counts are non-negative wherever their schema describes a count.
+
+Field order is schema order, never caller insertion, hash, reflection, locale,
+or alphabetical order unless the schema explicitly chooses it. Context and
+fields are immutable detached snapshots: no reference, object identity,
+closure, mutable collection, ambient service, or later state lookup can affect
+them. Repeated access to one Graph exception returns the same context object with
+semantically identical operation, invariant, fields, order, values, disclosures,
+and truncation flags.
+
+### Disclosure and forbidden capture
+
+Safe fields include catalog-controlled lifecycle states, non-negative counts,
+zero-based positions, broad non-identifying PHP value-kind tokens, fixed
+expected values, and fixed rejection-reason tokens. Safe is eligibility, not an
+instruction to expose. Every future production surface still needs an explicit
+allowlist and transport policy.
+
+Protected fields may reveal application structure or caller-controlled data,
+including Graph keys and open kind labels, service interface and implementation
+names, dependency-cycle contracts, arbitrary array keys, provider or adapter
+identifiers, and source or configuration locations. They may be used only by a
+trusted developer surface or protected record and are excluded from untrusted
+production output by default.
+
+Never capture any of the following, even as Protected:
+
+- passwords, password hashes, passphrases, or PINs;
+- API keys, access tokens, refresh tokens, or bearer tokens;
+- cookies, session identifiers, CSRF values, authorization headers, or other
+  credentials;
+- private, signing, or encryption keys and recovery codes;
+- database connection strings containing credentials;
+- complete environment or configuration dumps;
+- complete request or response bodies and arbitrary headers;
+- raw SQL with bound values and full provider payloads;
+- file contents, source excerpts, serialized objects, or memory dumps; and
+- any value whose secrecy is uncertain and whose capture is not required by an
+  Accepted schema.
+
+A future boundary may record that forbidden material was omitted; it may never
+record the material itself. Disclosure belongs to the schema, not a throw-site
+caller, renderer, request, environment value, or AI system. Opaque consumer
+text defaults to Protected and cannot be promoted because it resembles a class,
+path, key, route, or identifier. AI may explain or suggest remediation but may
+not classify a field, override disclosure, recover forbidden data, or become
+necessary to interpret a known diagnostic.
+
+### Persistent-runtime and failure contract
+
+Graph capture is synchronous and eager at the deliberate failure site and
+reads only explicit arguments and already-owned immutable framework state. It
+consults no global request, superglobal, container, current user, thread-local,
+fiber-local, environment, clock, random source, filesystem, network, database,
+logger, tracer, or AI call. Context creation performs no I/O.
+
+Per-failure values live no longer than their owning exception. No static
+registry accumulates them, and no global cache retains them. Schema metadata may
+later be immutable process-wide data. Capture has bounded memory and work
+proportional to at most 16 fields. A context-capture failure must never silently
+replace the primary deliberate failure; simultaneous-failure representation
+remains an explicit later decision.
+
+Phase 0P selects no PHP exception serialization, process or queue transfer,
+worker-restart behavior, or cross-language representation.
+
+## Accepted context schemas
+
+This table is the implemented normative 42-schema contract. Its six Kernel, 11
+Graph, and 25 DI rows are current. The operation and violated
+invariant are fixed catalog prose. All fields are required unless marked
+`optional`, and their written order is canonical schema order. The syntax is
+`key:value kind:disclosure:requirement`.
+
+| Diagnostic | Fixed operation | Fixed violated invariant or expectation | Ordered fields |
+| --- | --- | --- | --- |
+| `KGN-KERNEL-1001` | Boot Kernel | Boot requires `Unbooted` | `actual_state:text:Safe`; `expected_state:text:Safe` |
+| `KGN-KERNEL-1002` | Shut down Kernel | Shutdown requires `Booted` | `actual_state:text:Safe`; `expected_state:text:Safe` |
+| `KGN-KERNEL-1003` | Shut down Kernel | Shutdown requires zero active operations | `active_operation_count:integer:Safe`; `expected_active_operation_count:integer:Safe` |
+| `KGN-KERNEL-1004` | Begin operation | Beginning work requires `Booted` | `actual_state:text:Safe`; `expected_state:text:Safe` |
+| `KGN-KERNEL-1005` | End operation | Ending a scope requires `Booted` | `actual_state:text:Safe`; `expected_state:text:Safe` |
+| `KGN-KERNEL-1006` | End operation | Scope must be active and owned by this Kernel | `scope_condition:text:Safe` |
+| `KGN-GRAPH-1001` | Create node key | Node-key value must be non-empty | `actual_length:integer:Safe` |
+| `KGN-GRAPH-1002` | Create node kind | Node-kind value must be non-empty | `actual_length:integer:Safe` |
+| `KGN-GRAPH-1003` | Create relation kind | Relation-kind value must be non-empty | `actual_length:integer:Safe` |
+| `KGN-GRAPH-1004` | Construct Application Graph | Nodes input must be a PHP list | `entry_count:integer:Safe`; `first_unexpected_key:text:Protected:optional` |
+| `KGN-GRAPH-1005` | Construct Application Graph | Relations input must be a PHP list | `entry_count:integer:Safe`; `first_unexpected_key:text:Protected:optional` |
+| `KGN-GRAPH-1006` | Validate node entry | Every nodes-list entry must be a `Node` | `entry_position:integer:Safe`; `actual_value_kind:text:Safe` |
+| `KGN-GRAPH-1007` | Validate relation entry | Every relations-list entry must be a `Relation` | `entry_position:integer:Safe`; `actual_value_kind:text:Safe` |
+| `KGN-GRAPH-1008` | Validate node uniqueness | Node keys must be unique within a snapshot | `node_key:text:Protected` |
+| `KGN-GRAPH-1009` | Validate relation source | Relation source must reference an existing node | `relation_position:integer:Safe`; `source_key:text:Protected` |
+| `KGN-GRAPH-1010` | Validate relation target | Relation target must reference an existing node | `relation_position:integer:Safe`; `target_key:text:Protected` |
+| `KGN-GRAPH-1011` | Validate relation uniqueness | Source/kind/target triples must be unique | `source_key:text:Protected`; `relation_kind:text:Protected`; `target_key:text:Protected` |
+| `KGN-DI-1001` | Validate service contract | Contract must name an existing interface | `subject_role:text:Safe`; `contract_name:text:Protected` |
+| `KGN-DI-1002` | Validate service contract | Contract must use its canonical declared name | `subject_role:text:Safe`; `contract_name:text:Protected` |
+| `KGN-DI-1003` | Validate service contract | Resolver contract cannot enter the service graph | `subject_role:text:Safe`; `contract_name:text:Protected` |
+| `KGN-DI-1004` | Validate implementation | Implementation must name an existing class | `implementation_name:text:Protected` |
+| `KGN-DI-1005` | Validate implementation | Implementation must use its canonical declared name | `implementation_name:text:Protected` |
+| `KGN-DI-1006` | Validate implementation | Implementation must be publicly instantiable | `implementation_name:text:Protected` |
+| `KGN-DI-1007` | Validate implementation | Implementation must satisfy the declared contract | `contract_name:text:Protected`; `implementation_name:text:Protected` |
+| `KGN-DI-1008` | Validate implementation | Implementation must not expose the resolver contract | `implementation_name:text:Protected` |
+| `KGN-DI-1009` | Validate dependency list | Dependencies must be a PHP list | `entry_count:integer:Safe`; `first_unexpected_key:text:Protected:optional` |
+| `KGN-DI-1010` | Validate dependency entry | Dependency entry must be a contract-name string | `dependency_position:integer:Safe`; `actual_value_kind:text:Safe` |
+| `KGN-DI-1011` | Validate constructor dependencies | Dependency declarations require a constructor | `implementation_name:text:Protected`; `dependency_count:integer:Safe` |
+| `KGN-DI-1012` | Validate constructor | Constructor must be public | `implementation_name:text:Protected` |
+| `KGN-DI-1013` | Validate constructor arity | Constructor and definition arity must match exactly | `implementation_name:text:Protected`; `expected_parameter_count:integer:Safe`; `actual_parameter_count:integer:Safe` |
+| `KGN-DI-1014` | Validate constructor parameter mode | Parameter must be required, by-value, non-variadic, and non-defaulted | `implementation_name:text:Protected`; `parameter_position:integer:Safe`; `unsupported_mode:text:Safe` |
+| `KGN-DI-1015` | Validate constructor parameter type | Parameter must have one non-nullable interface type | `implementation_name:text:Protected`; `parameter_position:integer:Safe`; `actual_type_shape:text:Safe` |
+| `KGN-DI-1016` | Validate constructor dependency type | Parameter type must equal the ordered dependency contract | `implementation_name:text:Protected`; `parameter_position:integer:Safe`; `expected_contract:text:Protected`; `actual_contract:text:Protected` |
+| `KGN-DI-1017` | Validate definition list | Definitions must be a PHP list | `entry_count:integer:Safe`; `first_unexpected_key:text:Protected:optional` |
+| `KGN-DI-1018` | Validate definition entry | Every definitions-list entry must be a `ServiceDefinition` | `definition_position:integer:Safe`; `actual_value_kind:text:Safe` |
+| `KGN-DI-1019` | Validate definition uniqueness | Each service contract may have one definition | `contract_name:text:Protected` |
+| `KGN-DI-1020` | Validate definition graph completeness | Every dependency contract must have a definition | `owner_contract:text:Protected`; `missing_dependency:text:Protected` |
+| `KGN-DI-1021` | Validate definition graph acyclicity | Definition graph must be acyclic | `cycle_contract:text:Protected` |
+| `KGN-DI-1022` | Resolve service | Requested service must name an existing interface | `requested_contract:text:Protected` |
+| `KGN-DI-1023` | Resolve service | Requested contract must be canonical and not the resolver contract | `requested_contract:text:Protected`; `rejection_reason:text:Safe` |
+| `KGN-DI-1024` | Resolve service | Requested service must have a definition | `requested_contract:text:Protected` |
+| `KGN-DI-1025` | Construct service | Constructed object must satisfy the validated contract | `contract_name:text:Protected`; `implementation_name:text:Protected` |
+
+Every current identifier appears once in this table: 6 Kernel, 11 Graph, and 25
+DI schemas. No identifier is added, removed, renamed, or repurposed. Context
+does not change identity. The two DI post-construction invariant defenses retain
+one identifier and one schema. Optional `first_unexpected_key` is omitted when
+no single key can be identified safely and deterministically. Protected names
+retain exact diagnostic value before bounded representation but are not claimed
+safe for production. Kernel, Graph, and DI exceptions expose their respective
+exact rows now.
+
+### Controlled Safe tokens
+
+Safe text fields are closed tokens, not arbitrary strings:
+
+- `actual_state` and `expected_state` use exact Kernel state names;
+- `scope_condition` is `inactive`, `already_ended`, `foreign_owner`, or
+  `inactive_or_foreign` until a later semantic split is authorized;
+- `subject_role` is `service_contract` or `dependency_contract`;
+- Graph and DI `actual_value_kind` are exactly `null`, `boolean`, `integer`, `float`,
+  `string`, `array`, `object`, `resource`, `closed_resource`, or defensive
+  `unknown`, never a class or resource-type name;
+- `unsupported_mode` is a deterministic combination of `optional`, `defaulted`,
+  `variadic`, and `by_reference`;
+- `actual_type_shape` is `missing`, `builtin`, `union`, `intersection`,
+  `nullable`, or `non_interface`; and
+- `rejection_reason` is `noncanonical` or `resolver_contract`.
+
+Graph's token algorithm, Kernel's exact state/scope tokens, and DI's mode,
+type-shape, role, kind, and requested-contract rejection algorithms are
+implemented.
+
+### Implemented Kernel throw-site values
+
+Kernel captures only these exact values before any state mutation:
+
+- boot outside `Unbooted`: current `KernelState` case name and expected
+  `Unbooted`;
+- shutdown outside `Booted`: current state name and expected `Booted`;
+- shutdown with active work: one exact `SplObjectStorage` count used by the
+  condition, unchanged message, and context, plus expected count `0`;
+- operation begin or end outside `Booted`: current state name and expected
+  `Booted`; and
+- inactive, ended, or foreign scope: `scope_condition = inactive_or_foreign`.
+
+Kernel intentionally retains no owner or ended-scope metadata and therefore does
+not split the conservative scope token. Every field is required and Safe, which
+means eligible for later policy rather than automatically disclosed. Context
+construction failure propagates as a Diagnostics-package integration defect.
+
+### Implemented Graph throw-site values
+
+Graph captures only these exact values:
+
+- empty key or kind: `actual_length = strlen($value)`;
+- non-list nodes or relations: exact `entry_count` and optional
+  `first_unexpected_key`;
+- invalid node or relation entry: zero-based `entry_position` and closed
+  `actual_value_kind` token;
+- duplicate node: exact canonically selected `node_key` bytes;
+- missing endpoint: caller-list `relation_position` before sorting plus exact
+  `source_key` or `target_key` bytes; and
+- duplicate relation: exact canonically selected `source_key`, `relation_kind`,
+  and `target_key` bytes.
+
+For a non-list input, Graph walks keys in insertion order from expected integer
+zero and stops at the first mismatch. An integer mismatch becomes canonical
+base-10 text. A string mismatch is omitted entirely; Graph does not retain,
+hash, redact, truncate before capture, or inspect later keys. Numeric strings
+already normalized by PHP to integers use the integer branch.
+
+The broad kind algorithm maps native `NULL`, boolean, integer, double, string,
+array, object, resource, and closed resource to the exact tokens above. It does
+not call `get_debug_type()` and does not expose value content. These algorithms
+make context construction total for every reachable deliberate Graph failure;
+Diagnostics construction failures are not caught or replaced.
+
+### Implemented Dependency Injection throw-site values
+
+DI captures only facts already used by each existing failure: explicit
+`service_contract` or `dependency_contract` roles; exact contract and
+implementation names; bounded counts and zero-based positions; deterministic
+duplicate, missing, and cycle contracts; requested contracts and closed
+rejection reasons; and both definition contract and implementation names at the
+two shared `KGN-DI-1025` invariant guards.
+
+Dependency and definition non-list inputs use the same first-mismatch algorithm
+as Graph: capture `entry_count`, inspect keys in insertion order, represent the
+first integer mismatch as canonical base-10 Protected text, omit a string
+mismatch, and inspect no later key. Invalid entries use the exact broad native
+kind tokens without class or resource-type names.
+
+Constructor parameter mode predicates are each evaluated once, and every true
+token is joined without spaces in fixed `optional`, `defaulted`, `variadic`,
+`by_reference` order. Type-shape failures use exact missing, union,
+intersection, nullable, builtin, then defensive non-interface precedence.
+Noncanonical requested contracts take priority over `resolver_contract`. Context
+capture adds no traversal, sorting, reflection, autoloading, instantiation,
+state, or side effect beyond work already performed by the existing failure.
+Registered-autoloader and consumer-constructor failures remain native and
+context-free.
+
+### Implemented structural example
+
+The following describes current Graph context returned through
+`diagnosticContext()`. Its combined visual or transport rendering remains future.
+
+```text
+diagnostic KGN-GRAPH-1009
+operation: Validate relation source
+invariant: Relation source must reference an existing node
+fields in schema order:
+  relation_position = 4 [integer, Safe]
+  source_key = "orders.write" [text, Protected]
+```
+
+Safe does not make `relation_position` automatically public, and the Protected
+Graph key is available only under a future trusted policy.
+
+Forbidden values are omitted at capture, not copied into a field and labeled
+redacted:
+
+```text
+explicit approved field: requested_contract = "Example\\Contract" [text, Protected]
+forbidden input: authorization header
+captured context: requested_contract only
+boundary record: forbidden credential material omitted
+```
+
+No header value, hash, prefix, suffix, redacted copy, or reversible derivative
+enters diagnostic context.
+
+## Future disclosure-aware presentation
+
+A future trusted developer presentation may combine the diagnostic ID, title,
+fixed operation, fixed invariant, Safe fields, Protected fields only when
+server-controlled trusted disclosure is enabled, remediation, protected native
+message and cause chain under a separate decision, bounded source/location
+information under a future provider contract, and version-matched documentation.
+
+A future production surface must use an explicit transport policy rather than
+infer disclosure from developer context. Safe fields are eligible, not
+automatically emitted. Protected fields, messages, traces, paths, source,
+headers, bodies, and environment values remain excluded by default. Trusted
+developer mode can never be activated by a query parameter, request header,
+cookie, route value, user input, or AI response.
+
+Phase 0Q does not select HTML, CSS, templates, JSON, Markdown, HTTP status, RFC
+9457 problem details, CLI formatting or exit codes, localization, source
+excerpts, stack-frame grouping, copy actions, or incident references.
+
 ## Required actionable content
 
 The complete actionable-diagnostic doctrine requires every implemented
@@ -229,8 +699,12 @@ version-matched registry:
 Phase 0M directly implements identifier, title, remediation, package ownership,
 and optional native cause preservation for the current 42 reasons. Existing
 reason-specific messages continue to identify operation, invariant, state, or
-location where already present. Safe structured actual/expected context,
-redaction types, and version-matched runtime documentation lookup remain open.
+location where already present. Phase 0P implements the bounded structural value
+foundation, Phase 0Q implements the 11 Graph schema instances, throw-site
+context, and Graph marker accessor, Phase 0T implements the equivalent six
+Kernel lifecycle integrations, and Phase 0U implements all 25 DI schemas across
+26 throw sites. A sanitizer and version-matched documentation lookup are not
+implemented.
 
 Do not ship a deliberate diagnostic that says only `Invalid value`, `Invalid
 configuration`, `Operation failed`, `Unexpected error`, `Something went wrong`,
@@ -250,15 +724,15 @@ Precise future rendered diagnostic:
 ```text
 KGN-GRAPH-1004 - Nodes input is not a PHP list
 Application Graph construction could not validate the nodes input because its
-keys were not zero-based and consecutive. Expected list keys 0..2; received a
-safe representation of keys 0, 2, 3. Reindex the node array as a PHP list.
+keys were not zero-based and consecutive. Expected 3 zero-based consecutive
+entries; first unexpected key 2. Reindex the node array as a PHP list.
 ```
 
-`KGN-GRAPH-1004`, its title, and its remediation are now emitted as runtime
-metadata. The combined rendering, safe key representation, and formatting shown
-above remain future work.
+`KGN-GRAPH-1004`, its title, remediation, Safe entry-count field, and optional
+Protected numeric first-unexpected-key field are current runtime values. The
+combined prose formatting shown above remains future rendering work.
 
-## Safe context, escaping, truncation, and redaction
+## Current safety rule for unstructured detail
 
 - Prefer field names, types, positions, counts, states, or safely represented
   identifiers over raw values.
@@ -272,7 +746,9 @@ above remain future work.
 - Retain richer protected diagnostics when operationally necessary, but expose
   them only under an explicit disclosure policy.
 
-There is no authorized arbitrary context bag or exact redaction API yet.
+There is no authorized arbitrary context bag or sanitizer. Closed structural
+values, exact byte representation, and the 11 Graph schemas are implemented;
+they do not detect forbidden material or authorize disclosure.
 
 ## Catch and wrapping guidance
 
@@ -390,32 +866,46 @@ base shapes; every reachable deliberate throw mapping; both DI-1025 source
 sites; unchanged messages and state; optional-cause identity and zero code; and
 unchanged native, autoloader, and consumer-constructor propagation.
 
-Later safe-context and presentation work must additionally verify
-reason-specific actual/expected or location information, escaping, bounds,
-truncation markers, redaction, production non-disclosure, trusted debug-mode
-selection, version-matched documentation, and single final recording. Those
-mechanisms and tests are not implemented by Phase 0M.
+Phase 0P tests the six Public structural types, exact bounds and scalar kinds,
+canonical order, immutability, byte representation and truncation, 11 package
+construction diagnostics, four-way marker separation, and 53-ID uniqueness.
+Phase 0Q tests the exact 11 Graph schemas and throw-site values, optional string-
+key omission, numeric-key capture, closed kind tokens, message and behavior
+preservation, same-object context access, detachment, bounds, Graph-to-Diagnostics
+dependency, and marker/base shapes. Phase 0T tests the exact six Kernel schemas
+and maps, closed state and scope tokens, lifecycle/message preservation,
+same-object context access, detachment, marker/base shapes, and the independent
+Kernel-to-Diagnostics edge. Phase 0U tests all 25 DI schemas, 26 throw-site maps,
+list omission, closed token algorithms, same-object ownership, detachment,
+native propagation, marker/base shapes, and the independent DI-to-Diagnostics
+edge. Later presentation work must verify production non-disclosure, trusted
+debug-mode selection, version-matched documentation, and single final recording.
 
 ## Non-goals and open decisions
 
-Beyond the exact package-local metadata implemented by Phase 0M, this guide does
-not authorize a shared diagnostic interface or package, a universal exception
-marker, a generic outcome type, a renderer, transport mapping, HTTP problem
-format, CLI behavior, logger,
-telemetry hook, incident store, retry or cancellation type, cleanup runner,
-source reader, arbitrary context bag, localization, or Application Graph
-diagnostic metadata.
+Beyond the package-local metadata, structural value foundation, and all 42
+original package-owned context integrations, this guide does not authorize a
+shared diagnostic interface, universal
+exception marker, generic outcome type, renderer, transport mapping, HTTP
+problem format, CLI behavior, logger, telemetry hook, incident store, retry or
+cancellation type, cleanup runner, source reader, arbitrary context bag,
+localization, or Application Graph diagnostic metadata.
 
-Open decisions include exact context and redaction types; renderer and package
-ownership; HTTP/problem and CLI mapping;
-incident storage; logging and telemetry integration; documentation URL and
-version selection; localization; source excerpt provider; retry and
-cancellation types; and primary-plus-cleanup failure representation.
+Open decisions include simultaneous context-capture failure representation;
+renderer ownership and APIs;
+HTTP/problem and CLI mapping; production allowlists; incident storage; logging
+and telemetry; documentation lookup and version selection; localization; source
+and stack-frame providers; retry, cancellation, and cleanup failure; and
+serialization or cross-process and cross-language form.
 
 ## Related documentation
 
 - [ADR 0026](../adr/0026-actionable-diagnostics-and-error-boundaries.md)
 - [ADR 0027](../adr/0027-package-local-runtime-diagnostic-metadata.md)
+- [ADR 0028](../adr/0028-bounded-diagnostic-context-and-disclosure.md)
+- [ADR 0029](../adr/0029-presentation-neutral-diagnostic-value-foundation.md)
+- [ADR 0030](../adr/0030-application-graph-diagnostic-context-integration.md)
+- [ADR 0033](../adr/0033-dependency-injection-diagnostic-context-integration.md)
 - [Kernel package](../../packages/kernel/README.md)
 - [Application Graph package](../../packages/application-graph/README.md)
 - [Dependency Injection package](../../packages/dependency-injection/README.md)

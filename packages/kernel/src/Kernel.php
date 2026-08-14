@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kongono\Kernel;
 
-use Kongono\Kernel\Api\Api;
-use Kongono\Kernel\Api\ApiStatus;
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
 use Kongono\Kernel\Contract\KernelInterface;
 use Kongono\Kernel\Diagnostic\LifecycleDiagnostic;
 use Kongono\Kernel\Exception\LifecycleException;
@@ -50,6 +50,10 @@ final class Kernel implements KernelInterface
             throw new LifecycleException(
                 LifecycleDiagnostic::BootWhenNotUnbooted,
                 sprintf('Cannot boot Kernel while in %s state.', $this->state->name),
+                [
+                    'actual_state' => $this->state->name,
+                    'expected_state' => KernelState::Unbooted->name,
+                ],
             );
         }
 
@@ -62,16 +66,26 @@ final class Kernel implements KernelInterface
             throw new LifecycleException(
                 LifecycleDiagnostic::ShutdownWhenNotBooted,
                 sprintf('Cannot shut down Kernel while in %s state.', $this->state->name),
+                [
+                    'actual_state' => $this->state->name,
+                    'expected_state' => KernelState::Booted->name,
+                ],
             );
         }
 
-        if (0 !== $this->activeOperations->count()) {
+        $activeOperationCount = $this->activeOperations->count();
+
+        if (0 !== $activeOperationCount) {
             throw new LifecycleException(
                 LifecycleDiagnostic::ShutdownWithActiveOperations,
                 sprintf(
                     'Cannot shut down Kernel while %d operation(s) remain active.',
-                    $this->activeOperations->count(),
+                    $activeOperationCount,
                 ),
+                [
+                    'active_operation_count' => $activeOperationCount,
+                    'expected_active_operation_count' => 0,
+                ],
             );
         }
 
@@ -87,6 +101,10 @@ final class Kernel implements KernelInterface
                     'Cannot begin an operation while Kernel is in %s state.',
                     $this->state->name,
                 ),
+                [
+                    'actual_state' => $this->state->name,
+                    'expected_state' => KernelState::Booted->name,
+                ],
             );
         }
 
@@ -105,6 +123,10 @@ final class Kernel implements KernelInterface
                     'Cannot end an operation while Kernel is in %s state.',
                     $this->state->name,
                 ),
+                [
+                    'actual_state' => $this->state->name,
+                    'expected_state' => KernelState::Booted->name,
+                ],
             );
         }
 
@@ -112,6 +134,7 @@ final class Kernel implements KernelInterface
             throw new LifecycleException(
                 LifecycleDiagnostic::InactiveOrForeignOperationScope,
                 'Cannot end an operation that is not active and owned by this Kernel.',
+                ['scope_condition' => 'inactive_or_foreign'],
             );
         }
 

@@ -47,7 +47,7 @@ final class KernelTest extends TestCase
         ));
 
         self::assertSame($expected, $actual);
-        self::assertSame(['remediation', 'title'], $this->sortedMethodNames($declaredMethods));
+        self::assertSame(['context', 'contextSchema', 'remediation', 'title'], $this->sortedMethodNames($declaredMethods));
         self::assertSame(
             ['name', 'value'],
             array_map(static fn(\ReflectionProperty $property): string => $property->getName(), $declaredProperties),
@@ -55,7 +55,12 @@ final class KernelTest extends TestCase
         self::assertFalse($reflection->hasMethod('__toString'));
 
         $cause = new RuntimeException('cause');
-        $exception = new LifecycleException(LifecycleDiagnostic::BootWhenNotUnbooted, 'message', $cause);
+        $exception = new LifecycleException(
+            LifecycleDiagnostic::BootWhenNotUnbooted,
+            'message',
+            ['actual_state' => 'Booted', 'expected_state' => 'Unbooted'],
+            $cause,
+        );
 
         self::assertSame('KGN-KERNEL-1001', $exception->diagnosticId());
         self::assertSame(LifecycleDiagnostic::BootWhenNotUnbooted->title(), $exception->diagnosticTitle());
@@ -89,6 +94,7 @@ final class KernelTest extends TestCase
             },
             LifecycleDiagnostic::BootWhenNotUnbooted,
             'Cannot boot Kernel while in Booted state.',
+            ['actual_state' => 'Booted', 'expected_state' => 'Unbooted'],
         );
         $this->assertLifecycleDiagnostic(
             static function (): void {
@@ -96,6 +102,7 @@ final class KernelTest extends TestCase
             },
             LifecycleDiagnostic::ShutdownWhenNotBooted,
             'Cannot shut down Kernel while in Unbooted state.',
+            ['actual_state' => 'Unbooted', 'expected_state' => 'Booted'],
         );
         $this->assertLifecycleDiagnostic(
             static function () use ($active): void {
@@ -103,6 +110,7 @@ final class KernelTest extends TestCase
             },
             LifecycleDiagnostic::ShutdownWithActiveOperations,
             'Cannot shut down Kernel while 1 operation(s) remain active.',
+            ['active_operation_count' => 1, 'expected_active_operation_count' => 0],
         );
         $this->assertLifecycleDiagnostic(
             static function (): void {
@@ -110,6 +118,7 @@ final class KernelTest extends TestCase
             },
             LifecycleDiagnostic::BeginOperationWhenNotBooted,
             'Cannot begin an operation while Kernel is in Unbooted state.',
+            ['actual_state' => 'Unbooted', 'expected_state' => 'Booted'],
         );
         $this->assertLifecycleDiagnostic(
             static function () use ($shutdown, $ended): void {
@@ -117,6 +126,7 @@ final class KernelTest extends TestCase
             },
             LifecycleDiagnostic::EndOperationWhenNotBooted,
             'Cannot end an operation while Kernel is in Shutdown state.',
+            ['actual_state' => 'Shutdown', 'expected_state' => 'Booted'],
         );
         $this->assertLifecycleDiagnostic(
             static function () use ($foreign, $foreignScope): void {
@@ -124,6 +134,7 @@ final class KernelTest extends TestCase
             },
             LifecycleDiagnostic::InactiveOrForeignOperationScope,
             'Cannot end an operation that is not active and owned by this Kernel.',
+            ['scope_condition' => 'inactive_or_foreign'],
         );
     }
 
@@ -343,11 +354,15 @@ final class KernelTest extends TestCase
         self::assertSame(KernelState::Shutdown, $kernel->state());
     }
 
-    /** @param callable(): void $operation */
+    /**
+     * @param callable(): void                    $operation
+     * @param array<string, string|int|bool>      $contextValues
+     */
     private function assertLifecycleDiagnostic(
         callable $operation,
         LifecycleDiagnostic $diagnostic,
         string $message,
+        array $contextValues,
     ): void {
         try {
             $operation();
@@ -359,6 +374,15 @@ final class KernelTest extends TestCase
             self::assertSame($message, $exception->getMessage());
             self::assertSame(0, $exception->getCode());
             self::assertNull($exception->getPrevious());
+            self::assertSame($contextValues, array_reduce(
+                $exception->diagnosticContext()->fields(),
+                static function (array $values, \Kongono\Diagnostics\Context\DiagnosticField $field): array {
+                    $values[$field->key()] = $field->value();
+
+                    return $values;
+                },
+                [],
+            ));
         }
     }
 
