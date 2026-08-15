@@ -17,12 +17,17 @@ lifecycle failures, and Phase 0U integrates all 25 DI diagnostics across 26 thro
 sites. Those three packages own exact catalog schemas, capture exact throw-site
 values, and expose one eager immutable context through their separate markers.
 Diagnostics construction failures
-remain context-free. The four Public package exception markers remain separate
+remain context-free. The five Public package exception markers remain separate
 recovery boundaries, and all 42 existing messages remain unchanged protected
 detail.
 No universal diagnostic interface, HTTP or CLI mapping, logger, telemetry
 integration, retry engine, cleanup runner, incident system, development error
 page, or production renderer is implemented.
+
+Phase 0X implements the separate Diagnostic Presentation leaf, four immutable
+Experimental developer concepts, pure three-marker projector, and 15 context-
+free package failures. It adds no renderer, trusted-mode selector, production
+model, transport, service binding, or other runtime integration.
 
 Phase 0S implements the ownership topology accepted in Phase 0R.
 `kongono/api-metadata` now owns `Kongono\ApiMetadata\Api` and `ApiStatus` and
@@ -33,10 +38,12 @@ acyclic Kernel-to-Diagnostics edge and six Kernel contexts without changing the
 metadata extraction. Phase 0U adds the exact acyclic DI-to-Diagnostics edge and
 25 DI contexts without changing resolver behavior.
 
-All 53 current diagnostic IDs and the 42 Kernel/Graph/DI assignments remain
-unchanged. All 42 original failures now expose context: six Kernel, 11 Graph,
-and 25 DI. The clean development-renderer information architecture below remains
-future work.
+All 53 prior diagnostic IDs and the 42 Kernel/Graph/DI assignments remain
+unchanged. Presentation adds 15 unique IDs for 68 repository-wide. All 42
+original failures expose context: six Kernel, 11 Graph, and 25 DI. The pure
+trusted-developer projection and trusted HTML renderer are implemented;
+Phase 1A accepts their fail-closed two-gate activation architecture, but
+activation enforcement, transport, and production rendering remain future.
 
 ## Choose the correct failure category
 
@@ -95,6 +102,8 @@ These separate Public markers own deliberate package failures:
 - Dependency Injection:
   `Kongono\DependencyInjection\Exception\ExceptionInterface`
 - Diagnostics: `Kongono\Diagnostics\Exception\ExceptionInterface`
+- Diagnostic Presentation:
+  `Kongono\DiagnosticPresentation\Exception\ExceptionInterface`
 
 Their abstract bases remain Internal and concrete failures remain Experimental.
 There is no universal Kongono exception marker. Native engine, autoloader,
@@ -122,7 +131,8 @@ Internal catalogs are
 `Kongono\Kernel\Diagnostic\LifecycleDiagnostic`,
 `Kongono\ApplicationGraph\Diagnostic\GraphDiagnostic`,
 `Kongono\DependencyInjection\Diagnostic\DependencyInjectionDiagnostic`, and
-`Kongono\Diagnostics\Diagnostic\DiagnosticsDiagnostic`.
+`Kongono\Diagnostics\Diagnostic\DiagnosticsDiagnostic`, and
+`Kongono\DiagnosticPresentation\Diagnostic\DiagnosticPresentationDiagnostic`.
 Public methods do not expose the Internal enums. Every
 package exception retains native behavior: `getCode()` is zero,
 `getMessage()` is the exact supplied message, and `getPrevious()` is the exact
@@ -319,8 +329,9 @@ The Diagnostics construction catalog is exact:
 | `ContextValueKindMismatch` | `KGN-DIAGNOSTICS-1011` | Diagnostic field value does not match its schema kind | Supply the exact string, integer, or boolean type required by the field schema |
 
 These failures implement only the fourth Diagnostics marker and expose no
-recursive context accessor. Across all four catalogs there are exactly 53 unique
-IDs: 6 Kernel, 11 Graph, 25 DI, and 11 Diagnostics.
+recursive context accessor. Before Presentation, the four catalogs contain 53
+unique IDs: 6 Kernel, 11 Graph, 25 DI, and 11 Diagnostics. The Presentation
+catalog adds 15 context-free IDs for 68 repository-wide.
 
 Structural validation does not prove that a schema belongs to an identifier.
 Originating packages still own semantic schema authorization and forbidden-data
@@ -633,7 +644,8 @@ context-free.
 ### Implemented structural example
 
 The following describes current Graph context returned through
-`diagnosticContext()`. Its combined visual or transport rendering remains future.
+`diagnosticContext()`. Phase 0Z can render its trusted projection as the fixed
+HTML document; transport rendering remains future.
 
 ```text
 diagnostic KGN-GRAPH-1009
@@ -660,24 +672,95 @@ boundary record: forbidden credential material omitted
 No header value, hash, prefix, suffix, redacted copy, or reversible derivative
 enters diagnostic context.
 
-## Future disclosure-aware presentation
+## Implemented trusted developer projection
 
-A future trusted developer presentation may combine the diagnostic ID, title,
-fixed operation, fixed invariant, Safe fields, Protected fields only when
-server-controlled trusted disclosure is enabled, remediation, protected native
-message and cause chain under a separate decision, bounded source/location
-information under a future provider contract, and version-matched documentation.
+Phase 0X implements the leaf Composer package
+`kongono/diagnostic-presentation` and namespace
+`Kongono\DiagnosticPresentation\`. The leaf may depend directly on API Metadata,
+Diagnostics, Kernel, Application Graph, and Dependency Injection. No existing
+package may depend on it, and there is no reverse edge, registration, binding,
+Graph node, or ambient discovery. Diagnostics remains
+presentation-neutral.
 
-A future production surface must use an explicit transport policy rather than
-infer disclosure from developer context. Safe fields are eligible, not
-automatically emitted. Protected fields, messages, traces, paths, source,
-headers, bodies, and environment values remain excluded by default. Trusted
-developer mode can never be activated by a query parameter, request header,
-cookie, route value, user input, or AI response.
+The first pure Experimental boundary implements exactly:
 
-Phase 0Q does not select HTML, CSS, templates, JSON, Markdown, HTTP status, RFC
-9457 problem details, CLI formatting or exit codes, localization, source
-excerpts, stack-frame grouping, copy actions, or incident references.
+```text
+Kongono\DiagnosticPresentation\Developer\DeveloperDiagnosticOwner
+Kongono\DiagnosticPresentation\Developer\TrustedDeveloperDiagnostic
+Kongono\DiagnosticPresentation\Developer\TrustedDeveloperDiagnosticField
+Kongono\DiagnosticPresentation\Developer\TrustedDeveloperDiagnosticProjector
+```
+
+The owner tokens are exactly `kernel`, `application_graph`, and
+`dependency_injection`. The projector accepts exactly one of:
+
+```text
+Kongono\Kernel\Exception\ExceptionInterface
+Kongono\ApplicationGraph\Exception\ExceptionInterface
+Kongono\DependencyInjection\Exception\ExceptionInterface
+```
+
+This union creates no universal marker and excludes arbitrary `Throwable`, the
+context-free Diagnostics marker, raw strings, arrays, maps, and generic objects.
+A trusted diagnostic's direct constructor is an Experimental implementation
+surface, not a Public supported extension or authorization boundary.
+A source satisfying more than one accepted marker is ambiguous and must be
+rejected before any metadata or context accessor is called. The package-local
+context-free catalog implements exactly `KGN-PRESENTATION-1001` through
+`KGN-PRESENTATION-1015`.
+
+One `TrustedDeveloperDiagnostic` contains only the exact derived owner;
+stable identifier; projected title; fixed context operation; fixed violated
+invariant or expectation; projected remediation; and fields in canonical schema
+order. One `TrustedDeveloperDiagnosticField` contains only canonical
+key, fixed label, exact `DiagnosticValueKind`, already-bounded
+`string|int|bool` value, exact Safe or Protected disclosure, and nullable text-
+truncation state exactly as supplied by `DiagnosticField`.
+
+Projection copies an immutable detached snapshot and retains no originating
+exception, context, field, list, cache, registry, or cross-operation state.
+Returned lists are detached. Both Safe and Protected fields are present because
+this is expressly trusted-developer data, but classification is preserved
+exactly: projection may not promote, reclassify, merge, omit, redact, sanitize,
+or infer disclosure.
+
+The marker determines the exact allowed identifier prefix `KGN-KERNEL-`,
+`KGN-GRAPH-`, or `KGN-DI-`, followed by exactly four ASCII decimal digits.
+Title must be non-empty valid UTF-8 of at most 160 bytes; remediation must be
+non-empty valid UTF-8 of at most 256 bytes. Operation and invariant retain the
+implemented Diagnostics bounds of 160 and 256 bytes. Fields remain limited to
+16 and text remains the implemented deterministic ASCII representation of at
+most 512 bytes. Owner, identifier, title, remediation, context, and every field
+are each read at most once into local values before construction. Catalog prose
+is validated before storage, every list is detached, no catch-all wrapper is
+used, and a native `Throwable` raised by an accessor propagates unchanged.
+
+All 42 current Kernel, Graph, and DI catalog entries fit these bounds. The
+checks guard the presentation boundary from unsupported custom marker
+implementations; structurally valid consumer metadata does not become a
+Kongono-owned catalog entry.
+
+The projection performs no I/O, secret detection, redaction, sanitization, or
+output escaping. It contains no native message, cause, trace, class name, source
+path or excerpt, stack frame, request or operation envelope, header, body,
+environment or configuration value, SQL, provider payload, log data, telemetry
+attribute, incident reference, documentation URL, localization key, arbitrary
+extension metadata, or transport data. Forbidden material remains excluded at
+schema ownership and capture time.
+
+Trust is a future outer-runtime composition decision supplied by explicit
+server-controlled configuration before Protected data is projected or rendered.
+The pure projector neither activates trust nor proves authorization, and calling
+it is not authorization. Query, route, body, header, cookie, session, form,
+user, database, provider, exception, context, environment string, hostname,
+heuristic, AI output, global, superglobal, container, service locator, thread-
+local, fiber-local, static, mutable process-wide, or previous-operation state
+cannot enable or widen trust.
+
+Production must use a separately designed deny-by-default model with explicit
+allowlists; it may not reuse this trusted developer model and redact afterward.
+Projection remains separate from concrete rendering. Phase 0X implements no output
+grammar or runtime integration.
 
 ## Required actionable content
 
@@ -815,33 +898,128 @@ implemented. The current Kernel and `OperationScope` behavior is unchanged.
 
 ## Development and production presentation
 
-### Future development renderer
+### Implemented projection and trusted-developer HTML renderer
 
-The intended information architecture is:
+The implemented trusted developer projection maps exactly:
 
 ```text
-+--------------------------------------------------------------------+
-| KGN-DOMAIN-NNNN | Precise title                                    |
-+--------------------------------------------------------------------+
-| What happened                                                     |
-| Why it happened                                                   |
-| How to fix it                                                     |
-+--------------------------------------------------------------------+
-| Safely escaped application location and bounded source excerpt     |
-| Exception and cause chain                                          |
-| Available sanitized operation/request context                      |
-| Application frames; collapsible framework/vendor frames            |
-+--------------------------------------------------------------------+
-| Copy sanitized Markdown/JSON | Version-matched local documentation |
-+--------------------------------------------------------------------+
+Diagnostic header     identifier + precise title + owning package
+What happened         fixed operation
+Why it happened       fixed violated invariant or expectation
+Context               ordered labeled fields with disclosure and truncation state
+How to fix it          projected remediation
 ```
 
-The future renderer must be readable and accessible, useful without mandatory
-client-side JavaScript, deterministic on the server, escaped and bounded, and
-safe against secret disclosure even in development. It must explain known
-diagnostics without a remote call, AI request, or internet lookup. Developer
-mode must come from trusted server configuration, never a request header, query
-parameter, cookie, or other client-controlled input.
+Projection produces no markup and does not pre-escape values. Phase 0Z
+implements the Experimental pure renderer accepted by ADR 0036:
+`Kongono\DiagnosticPresentation\Developer\Html\TrustedDeveloperHtmlRenderer`.
+Its sole method accepts one `TrustedDeveloperDiagnostic` and returns a
+complete standalone HTML5 document. It performs no authorization, projection,
+transport, I/O, logging, runtime integration, or production presentation.
+
+The implemented page grammar uses exactly the five visible regions above. Its owner labels
+are `Kernel`, `Application Graph`, and `Dependency Injection` for the exact
+tokens `kernel`, `application_graph`, and `dependency_injection`. An empty
+context displays exactly `No additional diagnostic context was captured.` Every
+field remains in canonical order and visibly shows its fixed label, canonical
+key, exact `text`/`integer`/`boolean` kind, `Safe` or `Protected` disclosure,
+formatted value, and `Truncated` only when the text truncation state is true.
+
+Dynamic data may enter only escaped character data in ordinary element text or
+the `<title>` RCDATA context. It never enters an attribute, CSS, URL, script,
+comment, raw HTML branch, or active behavior. Each dynamic string is escaped at
+the final grammar boundary using exactly:
+
+```php
+htmlspecialchars(
+    $value,
+    ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5,
+    'UTF-8',
+    true,
+)
+```
+
+Text uses its exact represented string, integers use canonical locale-
+independent base-10 decimal text, and booleans use the lowercase token `true` or
+`false`; all three then pass through the same escaping call. Escaping prevents
+HTML injection but does not authorize disclosure or declassify Protected data.
+
+The implemented English document uses native semantic structure, exactly one `h1`, an
+ordered non-skipped `h2` hierarchy, a keyboard-visible skip link, visible focus,
+meaning independent of color, sufficient light/dark/forced-colors contrast,
+reflow at 320 CSS pixels and 200 percent zoom, aggressive text wrapping,
+selectable text, readable print output, and no motion. It requires no JavaScript,
+remote asset, network, AI, source crawl, or reflection and uses exactly one
+embedded static stylesheet.
+
+For the same model and installed renderer implementation, output is byte-
+identical. Input is bounded to 16 fields, the static template plus stylesheet to
+16 KiB, complete returned HTML to 96 KiB, and work to
+`O(field count + dynamic input bytes)`, with no retained state after return. No
+renderer-specific failure family or fallback page is selected.
+
+The exact static HTML/CSS bytes, renderer implementation, and full and empty
+golden fixtures are current. Trusted server-controlled activation, HTTP or other
+adapter, production model, optional providers, and other formats remain future.
+No trusted selector, served route, adapter, or production surface exists.
+
+### Accepted fail-closed trusted diagnostic activation
+
+[ADR 0038](../adr/0038-fail-closed-trusted-developer-diagnostic-activation.md)
+accepts the policy that must govern any future adapter. It implements no
+activation type, configuration reader, adapter, HTTP behavior, served page, or
+runtime enforcement.
+
+Trusted presentation requires two independent affirmative permissions:
+
+1. **Trusted bootstrap permission** is an already validated, typed, immutable,
+   server-owned decision supplied when a future adapter instance is constructed
+   before it serves work.
+2. **Adapter-controlled delivery permission** is the outer adapter's separate
+   decision that the current delivery boundary is eligible for trusted output.
+
+One permission never implies the other. The exact truth table is:
+
+| Bootstrap permission | Delivery permission | Trusted projection/rendering |
+| --- | --- | --- |
+| denied or absent | any value | prohibited |
+| allowed | denied or uncertain | prohibited |
+| allowed | allowed | eligible, subject to the later adapter contract |
+| invalid or evaluation failure | any value | prohibited; never default to allowed |
+
+Both permissions are evaluated before the adapter reads package exception
+metadata or context for presentation, invokes the projector, copies Safe or
+Protected fields, invokes the renderer, or delivers, stores, logs, or transmits
+the HTML. An exception may already own its eager immutable bounded context;
+denial leaves that existing package-local value unchanged while prohibiting
+later presentation access and copying. Projecting or rendering optimistically
+and discarding after denial is prohibited.
+
+Absence is disabled. Invalid or ambiguous raw bootstrap configuration is
+rejected before serving rather than coerced into enabled behavior. Diagnostic
+Presentation reads no raw configuration, and raw environment labels or truthy
+strings are not authority. Query parameters, routes, paths, headers, cookies,
+forms, bodies, sessions, user-supplied tokens, and other client-controlled
+values cannot authorize delivery or upgrade denied bootstrap permission.
+Database or provider values, arbitrary callbacks, extensions, plugins, agents,
+ambient state, and previous-operation state cannot self-authorize. Uncertainty
+takes the separately designed non-trusted path; its exact response, incident,
+logging, and transport behavior remains open.
+
+The projector and renderer remain low-level pure Experimental APIs. Direct PHP
+calls, their API status, output escaping, or a package-local token do not prove
+authorization and cannot substitute for the future outer boundary. The
+bootstrap decision is immutable for one adapter-instance lifetime; changed raw
+configuration requires explicit restart or construction of a new instance.
+Delivery permission is isolated to the current delivery and is never stored in
+static, ambient, or prior-operation state. Recursive trusted rendering,
+fallback activation, and replacing the primary failure with activation failure
+are prohibited; exact multi-failure representation remains future.
+
+This Accepted policy does not select the typed bootstrap API, configuration
+source or loader, validation failure, reload lifecycle, adapter package,
+listener or operator identity, transport authentication, HTTP contract,
+production model, operational integration, or cleanup behavior.
 
 ### Future production surface
 
@@ -855,8 +1033,9 @@ An incident reference is not the stable diagnostic identifier. HTTP status and
 problem formats, response negotiation, localization, CLI output and exit codes,
 templates, and rendering APIs remain open.
 
-Both presentation models are requirements for future work, not current
-capabilities.
+The production model and every production renderer remain future work, not
+current capabilities. Production must not consume the trusted developer
+projection or its HTML renderer.
 
 ## Testing expectations
 
@@ -881,21 +1060,42 @@ native propagation, marker/base shapes, and the independent DI-to-Diagnostics
 edge. Later presentation work must verify production non-disclosure, trusted
 debug-mode selection, version-matched documentation, and single final recording.
 
+Phase 0X Diagnostic Presentation tests cover all
+three marker families; exact owner and identifier-prefix mapping; rejection of
+an ambiguous multi-marker source before any accessor call; at-most-once accessor
+reads; exact projected properties; canonical order and full detachment; all
+title, remediation, operation, invariant, field-count, and text bounds; exact
+Safe/Protected and truncation-state preservation; native accessor-failure
+propagation; absence of ambient state, I/O, caches, and cross-operation
+retention; and continued separation of all four current package markers.
+
+Phase 0Z adds exactly ten renderer tests covering exact class shape and
+Experimental status, full and empty golden documents, owner labels,
+final-boundary escaping, field kinds/disclosures/truncation/order, deterministic
+stateless rendering, 16-field and byte bounds, semantic accessibility grammar,
+and absence of active or external surfaces. These tests do not claim browser,
+assistive-technology, HTTP, CSP, trusted-activation, or production integration
+coverage.
+
 ## Non-goals and open decisions
 
 Beyond the package-local metadata, structural value foundation, and all 42
 original package-owned context integrations, this guide does not authorize a
 shared diagnostic interface, universal
-exception marker, generic outcome type, renderer, transport mapping, HTTP
+exception marker, generic outcome type, additional renderer, transport mapping, HTTP
 problem format, CLI behavior, logger, telemetry hook, incident store, retry or
 cancellation type, cleanup runner, source reader, arbitrary context bag,
 localization, or Application Graph diagnostic metadata.
 
-Open decisions include simultaneous context-capture failure representation;
-renderer ownership and APIs;
-HTTP/problem and CLI mapping; production allowlists; incident storage; logging
-and telemetry; documentation lookup and version selection; localization; source
-and stack-frame providers; retry, cancellation, and cleanup failure; and
+The two-gate fail-closed semantics are Accepted. Open decisions include the
+exact typed bootstrap-decision API and ownership; server configuration source,
+schema, loader, validation failure, and reload lifecycle; outer adapter package
+and composition contract; delivery-authorization mechanism, listener or
+operator identity; simultaneous primary, activation, projection, rendering,
+transport, and cleanup failure representation; other renderer APIs and formats;
+HTTP/problem and CLI mapping; production model and allowlists; incident storage;
+logging and telemetry; documentation lookup and version selection; localization;
+cause, source, and stack-frame providers; retry and cancellation; and
 serialization or cross-process and cross-language form.
 
 ## Related documentation
@@ -906,9 +1106,15 @@ serialization or cross-process and cross-language form.
 - [ADR 0029](../adr/0029-presentation-neutral-diagnostic-value-foundation.md)
 - [ADR 0030](../adr/0030-application-graph-diagnostic-context-integration.md)
 - [ADR 0033](../adr/0033-dependency-injection-diagnostic-context-integration.md)
+- [ADR 0034](../adr/0034-trusted-developer-diagnostic-projection.md)
+- [ADR 0035](../adr/0035-trusted-developer-diagnostic-projection-implementation.md)
+- [ADR 0036](../adr/0036-accessible-trusted-developer-html-diagnostic-page.md)
+- [ADR 0037](../adr/0037-trusted-developer-html-diagnostic-renderer-implementation.md)
+- [ADR 0038](../adr/0038-fail-closed-trusted-developer-diagnostic-activation.md)
 - [Kernel package](../../packages/kernel/README.md)
 - [Application Graph package](../../packages/application-graph/README.md)
 - [Dependency Injection package](../../packages/dependency-injection/README.md)
+- [Diagnostic Presentation package](../../packages/diagnostic-presentation/README.md)
 - [Runtime model](../architecture/runtime-model.md)
 - [Security policy](../../SECURITY.md)
 - [Documentation standard](../documentation-standard.md)

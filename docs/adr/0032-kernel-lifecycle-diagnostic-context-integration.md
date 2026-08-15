@@ -74,6 +74,13 @@ Context construction failure propagates unchanged as a Diagnostics-package
 internal integration defect. It is not caught, wrapped, replaced, suppressed,
 or combined with the intended Kernel failure.
 
+Phase 0Y architecture note: [ADR 0036](0036-accessible-trusted-developer-html-diagnostic-page.md)
+selects the planned trusted-developer HTML page for the already-implemented
+projection of Kernel context. Every Kernel schema and runtime fact remains
+unchanged. Phase 0Z implements the pure renderer outside Kernel. Trusted
+activation, production presentation, transports, and optional providers remain
+future.
+
 ## Compatibility impact
 
 The Public Kernel marker gains one method and the Internal base constructor
@@ -111,10 +118,11 @@ lookup, static registry, renderer, transport, logger, or telemetry path.
 ## What remains open
 
 Exactly these areas remain open: simultaneous construction-failure
-representation; disclosure policy; trusted
-developer mode; rendering and transports; serialization, localization, source,
-stack, and documentation providers; logging, telemetry, and incidents; retry,
-cancellation, cleanup, and recovery; and later framework capabilities.
+representation; disclosure policy; trusted activation; other renderers and
+transports; serialization,
+localization, source, stack, and documentation providers; logging, telemetry,
+and incidents; retry, cancellation, cleanup, and recovery; and later framework
+capabilities.
 
 ## Related decisions
 

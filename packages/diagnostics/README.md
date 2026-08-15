@@ -15,6 +15,14 @@ identifier, schema, or throw-site meaning. Graph's 11, Kernel's six, and DI's 25
 failures are integrated. Originating
 packages own each diagnostic identifier's semantic schema and throw-site values.
 
+[ADR 0034](../../docs/adr/0034-trusted-developer-diagnostic-projection.md)
+assigns presentation to the separate leaf `kongono/diagnostic-presentation`,
+and [ADR 0035](../../docs/adr/0035-trusted-developer-diagnostic-projection-implementation.md)
+implements its pure trusted-developer projection core. The leaf consumes
+Diagnostics, but Diagnostics has no reverse dependency and owns no developer
+view model, projector, renderer, trusted-mode logic, HTML, JSON, CLI formatting,
+or transport policy.
+
 Phase 0S completed the atomic migration to `Kongono\ApiMetadata\Api` and
 `ApiStatus`. The former Kernel FQCNs and metadata-only dependency are absent
 without an alias or forwarder. Diagnostics behavior and its package-local
@@ -107,4 +115,5 @@ or redact forbidden material, render an error page, enable trusted developer
 mode, select production disclosure allowlists, serialize values, provide source
 or documentation lookup, log, emit telemetry, or store incidents. Graph's 11,
 Kernel's six, and DI's 25 schemas and values remain owned entirely by their
-originating packages.
+originating packages. Implemented projection ownership in the separate leaf
+does not change this package's presentation-neutral role.

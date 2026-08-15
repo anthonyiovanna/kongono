@@ -34,6 +34,10 @@ Phase 0U independently adds `dependency-injection -> diagnostics` for exact
 DI-owned bounded failure context. It adds no Kernel binding, service locator,
 container lifetime, autowiring, PSR-11 surface, or shared exception boundary.
 
+Phase 0X adds `diagnostic-presentation` only as a leaf consuming the five prior
+packages. Its pure projector creates no Kernel hook, service binding, container
+definition, Graph node, runtime adapter, renderer, or transport.
+
 ## Rejected alternatives
 
 A feature-heavy monolithic kernel and an uncoordinated collection of unrelated packages are rejected.
@@ -41,6 +45,6 @@ A feature-heavy monolithic kernel and an uncoordinated collection of unrelated p
 ## What remains open
 
 Kernel responsibilities beyond the implemented lifecycle and its exact diagnostic
-context, package boundaries beyond the five implemented packages, capability
+context, package boundaries beyond the six implemented packages, capability
 metadata, composition, service lifetimes, PSR-11 interoperability, Graph
 integration, and broader public APIs remain experimental or open.

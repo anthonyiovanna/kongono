@@ -33,7 +33,12 @@ does not alter the original Phase 0C through Phase 0F package history.
 Phase 0R amendment: [ADR 0031](0031-neutral-api-metadata-ownership-and-acyclic-package-dependencies.md)
 accepts a fifth `kongono/api-metadata` package boundary and atomic namespace
 migration. Phase 0S implements that exact boundary and migration. The current
-physical package count is five; boundaries beyond these five remain open.
+physical package count becomes five.
+
+Phase 0X amendment: [ADR 0035](0035-trusted-developer-diagnostic-projection-implementation.md)
+implements the sixth `kongono/diagnostic-presentation` leaf accepted by ADR
+0034. It contains only the pure trusted-developer projection core; package
+boundaries beyond these six remain open.
 
 ## Rejected alternatives
 

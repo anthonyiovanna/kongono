@@ -1,0 +1,23 @@
+{
+  "name": "kongono/diagnostic-presentation",
+  "description": "Trusted developer diagnostic projection values for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/application-graph": "*",
+    "kongono/dependency-injection": "*",
+    "kongono/diagnostics": "*",
+    "kongono/kernel": "*",
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\DiagnosticPresentation\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\DiagnosticPresentation\\Tests\\": "tests/"
+    }
+  }
+}

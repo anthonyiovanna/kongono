@@ -2,11 +2,11 @@
 
 ## Purpose and current scope
 
-Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root, API Metadata, Kernel, Application Graph, Dependency Injection, and Diagnostics work. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
+Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root, API Metadata, Kernel, Application Graph, Dependency Injection, Diagnostic Presentation, and Diagnostics work. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
 
-Phase 0U expands the automatically discovered Dependency Injection coverage by
-one exact ten-method diagnostic-context test. The quality configuration and
-policy remain unchanged.
+Phase 0X expands the automatically discovered inventory with eight Diagnostic
+Presentation declarations and six focused package tests. Existing quality rules
+and policy remain unchanged.
 
 The root command is:
 
@@ -14,7 +14,7 @@ The root command is:
 composer quality
 ```
 
-It validates the root and all five package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
+It validates the root and all six package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
 
 ## Guides
 

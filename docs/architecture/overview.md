@@ -34,19 +34,26 @@ to gain Kongono metadata.
 
 No stable Graph identity, domain schema, metadata, serialization, persistence,
 mutation, discovery, compiler, Graph/framework integration, runtime adapter,
-renderer, HTTP or CLI mapping, development error
+HTTP or CLI mapping, development error
 page, production error surface, logging, telemetry, retry, cleanup, incident
 system, extension host, agent runtime, query plan, performance budget, or CLI
 executable is implemented.
 
-The current package topology has five packages. `kongono/api-metadata` owns
+The current package topology has six packages. `kongono/api-metadata` owns
 `Kongono\ApiMetadata\Api` and `ApiStatus` and requires PHP only. Kernel,
 Diagnostics, Application Graph, and Dependency Injection depend directly on it;
-the framework root consumes all five packages and Graph retains its Diagnostics
+the framework root consumes all six packages and Graph retains its Diagnostics
 dependency. Phase 0T also makes Kernel, and Phase 0U makes DI, depend directly
 on Diagnostics. The graph is acyclic, and those three consumers have no
 dependency on each other. The former
 `Kongono\Kernel\Api\*` FQCNs are absent without a shim.
+
+Phase 0X implements the leaf above the five originating packages:
+`kongono/diagnostic-presentation`, namespace
+`Kongono\DiagnosticPresentation\`. It depends directly on all five; no existing
+package depends on it. The directory, manifest, four Experimental developer
+concepts, and package-local context-free failure foundation exist. Phase 0X
+added no renderer, trusted-mode selector, service binding, or runtime adapter.
 
 `kongono/diagnostics` implements closed schemas, immutable context
 and field snapshots, Safe/Protected disclosure vocabulary, exact scalar kinds,
@@ -60,6 +67,46 @@ all four catch markers remain unrelated, and Diagnostics construction failures r
 context-free. Capture performs no ambient lookup or I/O and retains no global
 per-failure state. Safe and Protected perform no rendering or disclosure;
 presentation and transport policy remain future.
+
+The leaf's first implemented Experimental boundary is a pure trusted-developer
+projection over exactly one contextual Kernel, Graph, or DI marker. It derives
+the owner token, validates and copies catalog ID/title/remediation, fixed
+operation and invariant, and canonically ordered bounded fields with exact kind,
+Safe/Protected disclosure, and truncation state. It rejects an ambiguous multi-
+marker source before accessor calls and excludes arbitrary failures, messages,
+causes, traces, source, requests, environment, and transport data. The snapshot
+is immutable and detached, performs no I/O, uses no ambient state or cache, and
+retains nothing across operations.
+
+Phase 0Z implements the Experimental
+`Kongono\DiagnosticPresentation\Developer\Html\TrustedDeveloperHtmlRenderer`
+directly below that projector in the same leaf. The pure renderer accepts only
+the detached trusted model and returns one complete accessible, escaped,
+bounded HTML5 document. This accepted presentation architecture adds no package
+edge or runtime integration. The class, exact local stylesheet, and two golden
+fixtures are implemented; trusted activation, an adapter, a served page, and a
+production surface are not.
+
+Phase 1A accepts the outer activation policy but implements no enforcement. A
+future composition boundary must provide affirmative **trusted bootstrap permission**
+fixed for one adapter instance, and the adapter must independently provide
+affirmative **adapter-controlled delivery permission** for the current delivery. Missing,
+invalid, ambiguous, failed, denied, or uncertain decisions prohibit the trusted
+path. Client data, raw environment labels, heuristics, AI output, and ambient or
+previous-operation state cannot activate or widen either permission.
+
+The conceptual presentation sequence is:
+
+```text
+trusted bootstrap permission AND adapter-controlled delivery permission
+    -> presentation access -> pure projection -> pure rendering -> future delivery
+```
+
+The two permissions and future delivery remain outside Diagnostic Presentation.
+The policy is Accepted, while its typed decisions, raw-configuration validation,
+adapter, HTTP behavior, served page, and runtime enforcement are absent.
+Projection remains separate from rendering, and production requires its own
+deny-by-default model rather than redaction of the trusted developer model.
 
 ## Intended architecture
 
@@ -101,7 +148,7 @@ Only the structural core is implemented. The surrounding flow expresses intended
 
 ## Framework shape
 
-The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. The exact Graph-, Kernel-, and DI-to-Diagnostics dependencies create neither a universal exception nor cross-package lifecycle integration. Capabilities such as HTTP, data, authorization, events, workflows, agents, and frontend integration remain planned. The monorepo retains atomic root validation across all five currently implemented packages.
+The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. Diagnostic Presentation owns the implemented pure trusted-developer projection core and pure HTML renderer, but neither trusted bootstrap permission nor adapter-controlled delivery permission. The exact Graph-, Kernel-, and DI-to-Diagnostics dependencies create neither a universal exception nor cross-package lifecycle integration. Phase 1A adds no package edge, service, configuration mechanism, or adapter. Capabilities such as HTTP, data, authorization, events, workflows, agents, and frontend integration remain planned. The monorepo retains atomic root validation across all six currently implemented packages.
 
 ## Interoperability boundaries
 

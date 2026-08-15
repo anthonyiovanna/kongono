@@ -85,10 +85,12 @@ markers. The 42 exact mappings live in three Internal catalogs; messages remain
 unchanged protected detail. Phase 0Q integrates all 11 Graph failures, Phase 0T
 integrates all six Kernel lifecycle failures, and Phase 0U integrates all 25 DI
 diagnostics across 26 throw sites. Documentation may show
-`diagnosticContext()` for those three packages but must not imply rendering or
-universal access. Diagnostics construction failures remain
-context-free. Redaction, renderers, error pages, and transport representations
-remain planned and must be labeled as such.
+`diagnosticContext()` for those three packages but must not imply universal
+access. Diagnostics construction failures remain context-free. The pure
+Experimental trusted-developer HTML renderer is implemented with exact escaping
+and golden fixtures. Redaction, served error pages, trusted activation,
+production output, and transport representations remain planned and must be
+labeled as such.
 Documentation ID remains a separate concept from a diagnostic identifier.
 
 For a deliberate diagnostic that uses structured context, documentation must
@@ -98,6 +100,7 @@ value kind, Safe or Protected disclosure, canonical order, required or optional
 status, applicable bounds, and forbidden-capture constraints. It must identify
 the owning package and keep its catch boundary distinct. Structurally valid
 `DiagnosticContextSchema` and `DiagnosticFieldSchema` instances do not establish
-that semantic ownership. Examples may show direct structural construction and
-current Graph, Kernel, or DI context access. Sanitization and presentation
-examples must remain labeled future pseudocode.
+that semantic ownership. Examples may show direct structural construction,
+current Graph, Kernel, or DI context access, and direct use of the implemented
+pure trusted renderer. Sanitization, activation, transport, and production-
+presentation examples must remain labeled future pseudocode.

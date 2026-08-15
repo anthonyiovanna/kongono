@@ -17,6 +17,7 @@
             <directory>packages/api-metadata/tests</directory>
             <directory>packages/application-graph/tests</directory>
             <directory>packages/dependency-injection/tests</directory>
+            <directory>packages/diagnostic-presentation/tests</directory>
             <directory>packages/diagnostics/tests</directory>
             <directory>packages/kernel/tests</directory>
             <directory>tests</directory>
@@ -27,6 +28,7 @@
             <directory>packages/api-metadata/src</directory>
             <directory>packages/application-graph/src</directory>
             <directory>packages/dependency-injection/src</directory>
+            <directory>packages/diagnostic-presentation/src</directory>
             <directory>packages/diagnostics/src</directory>
             <directory>packages/kernel/src</directory>
         </include>

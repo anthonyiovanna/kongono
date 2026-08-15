@@ -2,7 +2,7 @@
 
 ## Status
 
-The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the Application Graph structural snapshot, Phase 0H adds only its exact outgoing and incoming direct-relation selectors, and Phase 0J adds only exact whole-snapshot node-kind and relation-kind selectors. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction. Phase 0L accepts actionable-diagnostic and error-boundary doctrine; Phase 0M implements package-local runtime ID, title, and remediation metadata for current deliberate failures; Phase 0P implements presentation-neutral bounded structural diagnostic values and package-local construction failures; Phase 0Q integrates exact bounded context for the 11 Graph failures. Phase 0R accepts neutral API-metadata ownership and an acyclic package graph; Phase 0S implements that exact fifth-package extraction and namespace migration without changing runtime behavior. Phase 0T adds the one-way Kernel-to-Diagnostics edge and exact context for all six Kernel lifecycle failures. Phase 0U adds the independent DI-to-Diagnostics edge and exact context for all 25 DI diagnostics across 26 throw sites. Other planned mechanisms do not yet exist unless this document says otherwise.
+The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the Application Graph structural snapshot, Phase 0H adds only its exact outgoing and incoming direct-relation selectors, and Phase 0J adds only exact whole-snapshot node-kind and relation-kind selectors. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction. Phase 0L accepts actionable-diagnostic and error-boundary doctrine; Phase 0M implements package-local runtime ID, title, and remediation metadata for current deliberate failures; Phase 0P implements presentation-neutral bounded structural diagnostic values and package-local construction failures; Phase 0Q integrates exact bounded context for the 11 Graph failures. Phase 0R accepts neutral API-metadata ownership and an acyclic package graph; Phase 0S implements that exact fifth-package extraction and namespace migration without changing runtime behavior. Phase 0T adds the one-way Kernel-to-Diagnostics edge and exact context for all six Kernel lifecycle failures. Phase 0U adds the independent DI-to-Diagnostics edge and exact context for all 25 DI diagnostics across 26 throw sites. Phase 0W accepts the `kongono/diagnostic-presentation` leaf architecture, Phase 0X implements its pure trusted-developer projection core, Phase 0Z implements its pure trusted-developer HTML renderer, and Phase 1A accepts the fail-closed two-gate activation architecture. The current runtime has six packages and the projector, detached values, renderer, fixed local stylesheet, and golden HTML fixtures exist; no activation enforcement, trusted-mode selector, configuration reader, production model, transport, or runtime adapter exists. Other planned mechanisms do not yet exist unless this document says otherwise.
 
 ## Product philosophy
 
@@ -120,8 +120,45 @@ forbidden material, or become authoritative for interpretation.
 The value types, structural validation, all 42 original Kernel/Graph/DI catalog
 schemas, their three package-local marker accessors, and exact throw-site capture
 are implemented. Diagnostics construction failures remain context-free. No
-forbidden-data detection, sanitizer, renderer, transport, logger, or telemetry
-hook is implemented. Safe and Protected classifications authorize no presentation.
+forbidden-data detection, sanitizer, transport, logger, or telemetry hook is
+implemented. Safe and Protected classifications authorize no presentation.
+
+Diagnostic presentation belongs to the separate implemented leaf package,
+never to presentation-neutral Diagnostics or an originating semantic package.
+Its first implemented model is a pure bounded projection over exactly one Kernel,
+Graph, or DI contextual marker. It preserves package ownership, catalog prose,
+fixed operation and invariant, canonical field order, value kind, Safe or
+Protected disclosure, and truncation state without messages, causes, traces,
+source, requests, environment, transport data, I/O, caches, or retained source
+objects. It does not create a universal exception marker.
+
+Trusted diagnostic activation is governed by a locked two-gate fail-closed
+rule. A future outer composition boundary must provide affirmative
+**trusted bootstrap permission** as an immutable decision for one adapter instance,
+and the adapter must independently provide affirmative
+**adapter-controlled delivery permission** for the current delivery. Both precede presentation access, projection, copying,
+rendering, and delivery. Absence, invalidity, ambiguity, evaluation failure,
+denial, or uncertainty prohibits the trusted path. No request or other client
+input, raw environment label, truthy string, heuristic, AI output, ambient
+global or service state, or prior operation may enable or widen either
+permission. Permission mechanisms remain future and unimplemented. API status,
+package-local tokens, output escaping, and direct projector or renderer
+callability are not authorization. The trusted developer model is prohibited as
+a production model; production needs a separate deny-by-default policy and
+explicit allowlists. Projection and concrete rendering remain distinct
+implemented responsibilities.
+
+Phase 0Z implements the first concrete presentation architecture accepted in
+Phase 0Y. Actionable developer failures are deliberately structured into
+fixed, scannable regions that state what happened, why, bounded context, and how
+to fix it. Output encoding belongs to the final grammar boundary: the implemented
+HTML renderer escapes every dynamic text value there and never accepts raw
+markup. Its exact template and CSS are fixture-backed and it retains no state.
+Escaping and disclosure authorization are separate controls; escaped Protected
+data remains Protected. Diagnostic presentation must remain useful without
+remote assets, network access, or AI services. Trusted activation, transport,
+and production presentation remain future outer-boundary concerns. Phase 1A
+accepts activation semantics only; enforcement remains future.
 
 ## Agents and interoperability
 

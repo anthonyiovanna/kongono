@@ -160,6 +160,29 @@ Safe tokens plus already-available Protected contract and implementation names.
 The Public DI marker exposes `diagnosticContext()` without authorizing disclosure
 or creating a universal recovery boundary.
 
+Phase 0W amendment: [ADR 0034](0034-trusted-developer-diagnostic-projection.md)
+resolves future presentation ownership in favor of the separate planned leaf
+`kongono/diagnostic-presentation`. Its first planned model is a pure trusted-
+developer projection over exactly one Kernel, Graph, or DI contextual marker.
+It preserves canonical field order and exact Safe/Protected classification,
+includes Protected fields only after a future server-controlled outer
+integration authorizes trusted use, and is prohibited as a production model.
+Diagnostics remains presentation-neutral with no reverse dependency. Concrete
+renderers, formats, transport integration, and production allowlists remain
+open, and Phase 0W implements no package or runtime behavior.
+
+Phase 0X implementation note: [ADR 0035](0035-trusted-developer-diagnostic-projection-implementation.md)
+creates the leaf and implements the pure detached trusted-developer projection.
+It preserves both disclosure classifications exactly and adds no trusted-mode
+selector, renderer, production model, transport, or reverse Diagnostics edge.
+
+Phase 0Y architecture note: [ADR 0036](0036-accessible-trusted-developer-html-diagnostic-page.md)
+selects a planned pure HTML page that visibly preserves every Safe and Protected
+classification. The page neither authorizes nor reclassifies a field. Exact
+HTML escaping prevents markup injection but does not declassify Protected data;
+production remains a separate deny-by-default model. Phase 0Z implements only
+that pure renderer and exact escaping; it does not authorize disclosure.
+
 ## Security considerations
 
 Disclosure is fixed by the owning schema, not selected by a throw site,
@@ -190,17 +213,14 @@ decision.
   policy remains explicit.
 - Lazy or ambient capture is rejected because later state and cross-operation
   data would undermine immutability and persistent-runtime isolation.
-- Implementing a renderer before the context and transport contracts exist is
-  rejected as premature coupling.
+- Implementing a renderer in Phase 0O, before the context foundation and
+  presentation ownership existed, was rejected as premature coupling.
 
 ## What remains open
 
-- Exact PHP constructors, factories, accessors, and package manifests.
-- Exact dependency direction for the implementation phase.
-- Exact text encoding, escaping, and truncation algorithm.
 - Representation of simultaneous primary and context-capture failure.
 - Version-matched documentation lookup.
-- Renderer package and presentation APIs.
+- Other renderer formats.
 - Source excerpt and stack-frame providers.
 - HTTP and CLI mappings, production allowlists, and localization.
 - Incident storage and references.

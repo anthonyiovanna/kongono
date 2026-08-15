@@ -24,6 +24,16 @@ Phase 0U adds the exact independent
 DI schemas across 26 throw sites. The graph remains acyclic and no reverse or
 universal-exception edge is introduced.
 
+Phase 0X adds `kongono/diagnostic-presentation` as a leaf that directly consumes
+all five existing packages. No existing package gains a reverse dependency, and
+API Metadata remains the neutral compatibility owner.
+
+Phase 0Y accepts the first planned HTML renderer inside that existing leaf. It
+adds no package, dependency, reverse edge, binding, or implementation.
+
+Phase 0Z implements that renderer inside the same leaf without changing any
+Composer requirement, package edge, binding, or reverse dependency.
+
 ## Context
 
 When this decision was accepted in Phase 0R, Kongono had four physical packages. `kongono/kernel` owned
@@ -124,8 +134,9 @@ because the two declarations moved and were renamed rather than duplicated.
 
 Consumers import `Kongono\ApiMetadata\Api` and
 `Kongono\ApiMetadata\ApiStatus`; the old Kernel FQCNs are unavailable. Kernel,
-Graph, and DI now independently expose bounded diagnostic context, and no renderer,
-error page, transport, logger, telemetry hook, or incident system is introduced.
+Graph, and DI now independently expose bounded diagnostic context. Phase 0Z
+introduces one pure renderer in the existing Diagnostic Presentation leaf, with
+no error-page route, transport, logger, telemetry hook, or incident system.
 
 The accepted topology does not select an external dependency, Composer plugin,
 package version, license, release mechanism, repository split, or publishing
@@ -148,8 +159,8 @@ This decision changes no authorization or disclosure behavior. API status
 continues to describe compatibility and supported use only. Existing bounded
 Graph context, Safe and Protected classifications, forbidden-capture rules, and
 package-local exception boundaries remain unchanged. No diagnostic field,
-ambient state, I/O, disclosure policy, trusted mode, renderer, or transport is
-added.
+ambient state, I/O, disclosure policy, trusted mode, or transport is added.
+Phase 0Z's pure renderer adds no package edge and does not alter this decision.
 
 ## Performance implications
 
@@ -187,7 +198,7 @@ reflection optimization, runtime services, or a new execution path.
 - Cross-language representation of API status.
 - Context-construction failure handling at existing exception throw sites.
 - Production disclosure allowlists and trusted developer-mode selection.
-- Renderer ownership and APIs.
+- Other renderer APIs and formats.
 - HTTP, CLI, and other transport mappings.
 - Serialization, localization, source providers, stack providers, and version-
   matched documentation lookup.

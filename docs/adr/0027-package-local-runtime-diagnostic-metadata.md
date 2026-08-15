@@ -158,6 +158,18 @@ catalog string, native message, code, cause, validation or resolution behavior,
 or package-local recovery boundary. Those three markers expose context;
 Diagnostics retains three string methods and remains context-free.
 
+Phase 0Y architecture note: Diagnostic Presentation owns the
+Experimental `TrustedDeveloperHtmlRenderer`, and [ADR 0036](0036-accessible-trusted-developer-html-diagnostic-page.md)
+selected its first accessible HTML API and format. Phase 0Y did not implement
+the renderer; trusted activation, transport, production presentation, optional
+providers, and runtime integration remain future.
+
+Phase 0Z implementation note: [ADR 0037](0037-trusted-developer-html-diagnostic-renderer-implementation.md)
+implements that pure renderer and its exact fixture-backed grammar without
+rendering from exceptions or changing package-owned metadata. Trusted
+activation, transport, production presentation, and optional providers remain
+future.
+
 ## Rejected alternatives
 
 - One universal Kongono exception or diagnostic interface is rejected because
@@ -180,14 +192,15 @@ Diagnostics retains three string methods and remains context-free.
   another runtime source of truth.
 - Logging or rendering from exceptions is rejected because exceptions do not
   own recording or presentation.
-- Implementing the development error page in this phase is rejected because
-  renderer and transport ownership remain open.
+- Implementing the development error page in this metadata phase is rejected.
+  Diagnostic Presentation owns the renderer; Phase 0Z implements it separately
+  while every transport integration remains future.
 
 ## What remains open
 
-Disclosure and redaction policy; documentation lookup and version selection;
-renderer and package ownership; HTTP and CLI mappings; incident
-references and storage; localization; source-excerpt providers; logging and
-telemetry integration; retry and cancellation types; and cleanup-failure
-representation remain open. No API or implementation for those mechanisms is
-authorized by this decision.
+Trusted activation; production allowlists; HTTP, CLI, and other transport
+mappings; safe copy/export formats;
+documentation lookup and version selection; cause, source, and stack providers;
+incident references and storage; localization; logging and telemetry; retry and
+cancellation types; and cleanup-failure representation remain open. The first
+HTML renderer API, format, and pure implementation are complete.

@@ -13,8 +13,8 @@ that identifies what failed, why and where it failed, and what the developer can
 do next. For current Kernel, Graph, and DI failures, the owning package marker
 exposes the exact ID, title, remediation, and bounded context. Phase 0Q integrates
 all 11 Graph failures, Phase 0T integrates all six Kernel lifecycle failures, and
-Phase 0U integrates all 25 DI diagnostics across 26 throw sites. Diagnostics construction failures
-remain context-free, and no renderer exists.
+Phase 0U integrates all 25 DI diagnostics across 26 throw sites. Diagnostics
+construction failures remain context-free. Phase 0M itself added no renderer.
 
 ## Agent Experience / AX
 
@@ -80,6 +80,14 @@ The final readonly Phase 0F composition-root component that validates a complete
 
 The experience of building, understanding, testing, operating, and evolving a Kongono application. Kongono aims for high productivity through explicit and inspectable mechanisms rather than hidden magic.
 
+## Developer Diagnostic Owner
+
+The implemented Phase 0X `DeveloperDiagnosticOwner` string-backed enum that identifies the
+single contextual source family of a trusted developer projection. Its exact
+tokens are `kernel`, `application_graph`, and `dependency_injection`. It is an
+Experimental projection value, not a universal exception owner or authorization
+decision.
+
 ## Diagnostic Identifier
 
 A stable, case-sensitive semantic identifier using
@@ -89,6 +97,15 @@ operation/request/trace ID, incident reference, URL, database key, or transport
 code. Current package exceptions emit their assigned identity through
 `diagnosticId()`; titles and remediation are diagnostic prose rather than stable
 machine identity.
+
+## Diagnostic Presentation
+
+The implemented leaf integration boundary `kongono/diagnostic-presentation`,
+namespace `Kongono\DiagnosticPresentation\`. Phase 0X provides its trusted-
+developer projection core, and Phase 0Z provides the first pure HTML renderer;
+later presentation models and other renderers remain owned here but
+unimplemented. It consumes all five originating packages, while none depends on
+it. Diagnostics stays presentation-neutral.
 
 ## Diagnostic Context
 
@@ -118,7 +135,9 @@ Kernel its six lifecycle schemas, and DI its 25 schemas across 26 throw sites.
 The Public `DiagnosticDisclosure::Safe` classification for a schema-approved
 semantic category eligible for intentional disclosure after a separate
 presentation or transport policy allows it. Safe never means automatically
-public. Phase 0Q stores Safe Graph lengths, counts, positions, and broad kind
+public. The implemented trusted developer projection preserves Safe classification
+exactly; it does not itself disclose, sanitize, or authorize a value. Phase 0Q
+stores Safe Graph lengths, counts, positions, and broad kind
 tokens; Phase 0T stores only closed Safe Kernel state names, counts, and the
 conservative scope-condition token; Phase 0U stores bounded DI counts, positions,
 and closed role/kind/mode/type/rejection tokens. None performs disclosure.
@@ -129,7 +148,11 @@ The Public `DiagnosticDisclosure::Protected` classification for diagnostic
 information restricted to a trusted developer or protected operational boundary.
 Protected values are excluded from untrusted production output by default.
 Phase 0Q stores exact bounded Graph keys and kinds plus optional numeric
-unexpected-key text; no renderer or trusted mode exists.
+unexpected-key text. The trusted developer projection includes Protected fields
+unchanged; both trusted bootstrap permission and adapter-controlled delivery
+permission must be affirmative before presentation access, projection,
+rendering, or delivery. The pure HTML renderer exists, but no activation
+enforcement, trusted-mode selector, or production disclosure policy exists.
 
 ## Forbidden Capture
 
@@ -140,12 +163,67 @@ string key when it is the first non-list mismatch and never inspects later keys;
 this is conservative omission, not sanitization. A future boundary may record
 only that forbidden material was omitted.
 
+## Trusted Developer Diagnostic Projection
+
+The implemented Phase 0X pure, deterministic, immutable, and detached model of one
+Kernel, Application Graph, or Dependency Injection contextual failure for a
+trusted developer boundary. It contains only exact owner, identifier, title,
+fixed operation and invariant, remediation, and canonically ordered bounded
+fields with unchanged kind, Safe/Protected disclosure, and truncation state. It
+contains no message, cause, trace, source, request, environment, transport, or
+arbitrary metadata and is prohibited as a production model. The projector and
+model types and the pure HTML renderer exist. Their direct callability is not
+authorization, and no activation enforcement exists.
+
+## Trusted Bootstrap Permission
+
+The Accepted Phase 1A server-owned decision that a future composition boundary
+must validate and fix immutably for one adapter instance before it serves work.
+Absence is disabled, invalid or ambiguous raw configuration is rejected before
+serving, and a changed decision requires explicit restart or a new adapter
+instance. Its exact type, owner, configuration source, validation, and reload
+mechanism are unimplemented.
+
+## Adapter-Controlled Delivery Permission
+
+The Accepted Phase 1A decision, independent of trusted bootstrap permission,
+that a future outer adapter must make for the current delivery boundary from
+server-controlled transport ownership. Client assertions cannot grant it,
+uncertainty is denial, and one operation's decision cannot authorize another.
+Its exact transport, listener, identity, and authorization mechanism is
+unimplemented.
+
+## Trusted Diagnostic Activation
+
+The Accepted Phase 1A fail-closed rule that trusted bootstrap permission and
+adapter-controlled delivery permission must both be affirmative before
+presentation access, projection, copying Safe or Protected fields, rendering,
+or delivery. Missing, invalid, ambiguous, failed, denied, or uncertain decisions
+prohibit the trusted path. The architecture is Accepted; its activation type,
+configuration reader, adapter, transport, served page, and enforcement are
+unimplemented.
+
+## Trusted Developer HTML Diagnostic Page
+
+The implemented Phase 0Z pure renderer in Diagnostic Presentation that consumes
+only one implemented `TrustedDeveloperDiagnostic` and returns a complete,
+accessible, deterministic, escaped HTML5 document with five fixed visible
+regions and one exact local stylesheet. It performs no authorization,
+projection, transport, or production presentation. The renderer and golden
+fixtures are implemented, but no served route, trusted activation boundary,
+adapter, or production model exists.
+
 ## Trusted Developer Mode
 
-A future expanded diagnostic-disclosure mode enabled only by trusted server
-configuration. Query parameters, headers, cookies, route values, user input,
-and AI output can never activate it. No such mode or renderer exists in Phase
-0P.
+Legacy shorthand for the future enforcement of Trusted Diagnostic Activation,
+not a single switch or environment label. Phase 1A requires both trusted
+bootstrap permission and independent adapter-controlled delivery permission
+before presentation access, projection, rendering, or delivery. Query, route,
+path, body, header, cookie, session, form, user, database, provider, raw
+environment string, heuristic, AI, ambient, or previous-operation state can
+never activate or widen either decision. Calling the projector or renderer is
+not authorization. No selector, configuration mechanism, or runtime adapter
+exists.
 
 ## Documentation ID
 

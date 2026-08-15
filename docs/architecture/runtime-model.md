@@ -63,6 +63,57 @@ definition/resolver/service state, static registry, or global accumulation.
 Diagnostics construction failure propagates unchanged; simultaneous-failure
 representation remains unresolved.
 
+## Trusted diagnostic projection lifetime
+
+Phase 0X implements a pure trusted-developer projection in the leaf
+`kongono/diagnostic-presentation`; it implements no runtime adapter. The
+projector reads one accepted Kernel, Graph, or DI exception through local values,
+calls each source accessor at most once, copies bounded metadata and fields into
+an immutable detached snapshot, and retains no exception, context, field, input
+list, registry, or cache. Returned lists are detached and preserve canonical
+schema order.
+
+Projection performs no I/O and consults no global, superglobal, container,
+service locator, thread-local, fiber-local, static, mutable process-wide, or
+previous-operation state. It stores no cross-operation value. An accessor-thrown
+native `Throwable` propagates unchanged. These rules make projection bounded and
+persistent-runtime-safe but do not authorize its caller.
+
+Phase 1A accepts two independent decisions outside Diagnostic Presentation. A
+future server-controlled composition boundary supplies an already validated,
+typed, immutable trusted bootstrap permission when constructing one adapter
+instance. Raw configuration cannot mutate that live shared decision; changed
+bootstrap permission requires explicit restart or construction of a new adapter
+instance. The exact source, validation, type, reload lifecycle, and adapter are
+unselected and unimplemented.
+
+The future adapter separately evaluates delivery permission for the current
+delivery boundary. That decision is not stored in a static, ambient current
+context or previous-operation value, and one request, job, message, command,
+tenant, user, fiber, worker operation, or concurrent delivery cannot authorize
+another. Denial or uncertainty takes the future non-trusted path before
+presentation access; it does not project or render and discard the result.
+
+The required evaluation order is:
+
+```text
+immutable trusted bootstrap permission is affirmative
+    AND current adapter-controlled delivery permission is affirmative
+        -> presentation access
+        -> projector creates detached trusted model
+        -> pure HTML renderer creates complete escaped document
+        -> future adapter owns delivery
+```
+
+An exception may already own its eager bounded context; denial leaves that
+exception unchanged while prohibiting later presentation accessor reads and
+Protected-field copying. The implemented renderer is stateless, retains nothing
+after return, and consults no ambient or runtime state. Calling the projector or
+renderer directly is explicit low-level composition, not authorization or a
+runtime hook. Activation enforcement and every adapter remain unimplemented.
+This sequence implies no Kernel lifecycle, container, DI, HTTP, Application
+Graph, configuration, cleanup, logging, or telemetry integration.
+
 ## Stability
 
 Persistent-runtime-first design, runtime-independent Kernel boundaries, and the

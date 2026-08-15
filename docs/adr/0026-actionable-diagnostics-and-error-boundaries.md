@@ -244,31 +244,28 @@ catalog owns its exact schemas and throw sites supply only approved bounded
 values. IDs, messages, causes, behavior, package ownership, and marker separation
 remain unchanged. Diagnostics' own construction failures remain context-free.
 
-### Future development and production experience
+### Implemented trusted-developer HTML renderer and future production experience
 
-A future development renderer should present, in this order:
+[ADR 0036](0036-accessible-trusted-developer-html-diagnostic-page.md) selects
+the first developer renderer and its exact visible order; [ADR
+0037](0037-trusted-developer-html-diagnostic-renderer-implementation.md)
+implements it:
 
 ```text
-Diagnostic ID and precise title
-What happened
-Why it happened
-How to fix it
-Relevant application location and safely escaped source excerpt
-Exception/cause chain
-Operation and request context when available
-Application frames emphasized
-Framework and vendor frames collapsible
-Sanitized copyable Markdown or JSON diagnostic report
-Version-matched local documentation reference
+Diagnostic header     identifier + precise title + owning package
+What happened         fixed operation
+Why it happened       fixed violated invariant or expectation
+Context               ordered labeled fields with disclosure and truncation state
+How to fix it          projected remediation
 ```
 
-It must be clean, readable, accessible, useful without mandatory client-side
-JavaScript, deterministic on the server, escaped and bounded, and safe against
-secret disclosure even in development. It must not require a remote call, AI
-request, or internet lookup to explain a known diagnostic. Framework/version
-information may appear; full environment dumps may not. Developer mode comes
-from trusted server configuration, never a request header, query parameter,
-cookie, or other client-controlled value.
+The implemented document is complete accessible server-rendered HTML5 with
+no mandatory JavaScript or remote asset. Dynamic data appears only as escaped
+text content. Its renderer consumes only the implemented trusted projection and
+does not discover source, traces, causes, requests, environment, documentation,
+or copy/export content. Those providers and formats remain future work under
+separate disclosure design. Phase 1A accepts the two-gate fail-closed policy;
+its outer enforcement remains future and can never be client-controlled.
 
 Future production surfaces expose only an intentionally generic response
 appropriate to the transport and, when protected recording exists, an opaque
@@ -278,9 +275,56 @@ environment or configuration values, credentials, cookies, headers, request
 bodies, SQL, provider payloads, or internal topology. The incident reference is
 distinct from the stable diagnostic identifier.
 
-The development renderer and production surface are accepted requirements, not
-implemented capabilities. No renderer, universal diagnostic API, transport
-mapping, incident storage, or error page exists in Phase 0M.
+The pure development renderer is implemented, while activation enforcement and
+a production surface are not. No served error page, universal diagnostic API,
+transport mapping, or incident storage exists.
+
+### Phase 0W amendment
+
+[ADR 0034](0034-trusted-developer-diagnostic-projection.md) resolves future
+presentation ownership in favor of a separate planned
+`kongono/diagnostic-presentation` leaf and accepts the first pure bounded
+trusted-developer projection. The planned projection consumes exactly one
+Kernel, Graph, or DI contextual marker and copies only package owner, catalog
+ID/title/remediation, fixed operation and invariant, and canonically ordered
+classified fields. It excludes messages, causes, traces, source, request,
+environment, and transport data. Trust remains a server-controlled outer-
+runtime decision, and production requires a separate deny-by-default model.
+
+This amendment changes architecture only. Concrete renderer APIs and formats,
+runtime integration, transports, production policy, and all other deferred
+capabilities remain open; no presentation package or behavior exists in Phase
+0W.
+
+Phase 0X implementation note: [ADR 0035](0035-trusted-developer-diagnostic-projection-implementation.md)
+creates the leaf package and implements only the four immutable Experimental
+developer concepts, exact three-marker pure projector, and 15 package-local
+context-free failures. Projection preserves Safe and Protected fields but is not
+authorization. Rendering, trusted activation, production policy, transport,
+logging, and telemetry remain absent.
+
+Phase 0Y architecture note: [ADR 0036](0036-accessible-trusted-developer-html-diagnostic-page.md)
+selects the first planned pure HTML consumer, its five-region information
+architecture, exact final-boundary escaping rule, accessibility contract, and
+resource bounds. Trusted activation, implementation, production behavior,
+providers, adapters, and transports remain future.
+
+Phase 0Z implementation note: [ADR 0037](0037-trusted-developer-html-diagnostic-renderer-implementation.md)
+implements the exact pure HTML consumer, static template/CSS bytes,
+final-boundary escaping, golden fixtures, and focused tests. Trusted activation,
+serving, production policy, providers, adapters, and other transports remain
+future.
+
+Phase 1A architecture note: [ADR
+0038](0038-fail-closed-trusted-developer-diagnostic-activation.md) accepts the
+two-gate fail-closed policy. A future outer boundary must hold affirmative
+**trusted bootstrap permission** for its immutable adapter instance and
+separately grant **adapter-controlled delivery permission** before presentation
+access, projection, copying, rendering, or delivery. Missing, invalid,
+ambiguous, failed, denied, or uncertain decisions prohibit the trusted path. This changes no exception,
+context, projector, renderer, or runtime behavior; exact activation,
+configuration, adapter, transport, production, operational, and multi-failure
+mechanisms remain open.
 
 ## Rationale
 
@@ -332,15 +376,17 @@ propagation, and valid-state guarantees remain unchanged.
   expand disclosure.
 - A framework-wide `Result` abstraction in this phase is rejected because
   expected outcome types require capability-specific evidence and design.
-- Implementing the error page before a transport boundary exists is rejected
-  because renderer and transport ownership remain unresolved.
+- Implementing the error page in Phase 0L was rejected because renderer and
+  transport ownership had not yet been resolved.
 
 ## What remains open
 
-Redaction and disclosure policy; renderer and package ownership; HTTP and
-problem-detail mapping; CLI
-output and exit codes; incident storage; logging and OpenTelemetry integration;
-documentation URL and version-selection mechanism; localization; source-excerpt
-provider; retry and cancellation types; and representation of simultaneous
-primary and cleanup failures remain open. No public API or implementation for
-those mechanisms is authorized by this decision.
+Exact typed bootstrap-decision ownership; server configuration source, schema,
+loader, validation failure and reload lifecycle; outer adapter composition and
+delivery authorization; production allowlists; HTTP, problem-detail, CLI, and
+other transport mappings; safe copy/export formats; incident storage; logging
+and OpenTelemetry integration; documentation version selection; localization;
+source, stack, and cause providers; retry and cancellation types; and
+simultaneous activation, projection, rendering, transport, and cleanup failure
+representation remain open. The two-gate fail-closed semantics are Accepted by
+ADR 0038, but no enforcement mechanism is implemented.

@@ -86,9 +86,11 @@ ambient state, caches, or per-operation accumulation. It observes failure only
 and changes no successful construction, lookup, selector, ordering, identity,
 validation priority, or complexity behavior. Safe and Protected classifications
 do not render or disclose anything. Phase 0T independently adds Kernel exception
-context, and Phase 0U independently adds DI context. Diagnostics recursive
-context, renderers, disclosure policy, transports, logging, telemetry,
-source access, and documentation lookup remain future.
+context, and Phase 0U independently adds DI context. Phase 0Z implements one
+pure trusted HTML renderer outside Graph; Graph owns no renderer, activation,
+or transport behavior. Diagnostics recursive context, disclosure policy, other
+renderers, transports, logging, telemetry, source access, and documentation
+lookup remain future.
 
 ## Planned coverage
 

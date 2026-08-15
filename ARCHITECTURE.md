@@ -3,7 +3,8 @@
 ## Status and scope
 
 This document is an index of Kongono's authorized architectural direction.
-Kongono is pre-alpha. Phase 0U adds the exact acyclic DI-to-Diagnostics
+Kongono is pre-alpha. Phase 0X adds the exact Diagnostic Presentation leaf and
+pure trusted-developer projection above Phase 0U, which adds the exact acyclic DI-to-Diagnostics
 edge and integrates all 25 Dependency Injection diagnostics across 26 throw
 sites. Phase 0T integrates all six Kernel lifecycle failures, and Phase 0Q
 integrates all 11 Application Graph failures, with exact package-owned bounded
@@ -23,12 +24,18 @@ repository behavior.
 
 ## Package dependency topology
 
-The current Phase 0U runtime has five packages. `kongono/api-metadata` requires
+The current runtime has six packages. `kongono/api-metadata` requires
 PHP only and owns `Kongono\ApiMetadata\Api` and `ApiStatus`. Kernel,
 Diagnostics, and Dependency Injection each require API Metadata; Kernel,
 Application Graph, and Dependency Injection also require Diagnostics. The root consumes all five. This
 graph is acyclic, and no package depends on Kernel merely for compatibility
 metadata.
+
+Phase 0X implements `kongono/diagnostic-presentation` as a leaf above this
+graph. It depends directly on API Metadata, Diagnostics, Kernel, Application
+Graph, and Dependency Injection. No existing package depends on it, and it
+creates no binding, service registration, Graph node, ambient discovery, or
+reverse edge. The framework root consumes all six packages.
 
 The former `Kongono\Kernel\Api\*` identities are unavailable and no alias or
 forwarder exists. Graph and Kernel retain their diagnostic integrations exactly.
@@ -76,9 +83,50 @@ catch ownership remain local. Phase 0T makes Kernel the second semantic consumer
 for its six lifecycle failures. Phase 0U makes DI the third semantic consumer
 for 25 schemas across 26 throw sites. Kernel, Graph, and DI markers independently
 expose context; Diagnostics construction failures expose no recursive context.
-Forbidden-material detection or redaction, renderers, trusted developer mode,
-production allowlists, transport, serialization, source and documentation lookup,
-logging, telemetry, and incidents remain future decisions.
+Forbidden-material detection, redaction, activation enforcement, production
+allowlists, transport, serialization, source and documentation lookup, logging,
+telemetry, and incidents remain future decisions.
+
+The implemented Presentation boundary provides a pure Experimental trusted-
+developer projection over exactly the Kernel, Graph, or DI contextual marker.
+It derives the exact owner `kernel`, `application_graph`, or
+`dependency_injection` and copies only identifier, title, operation, invariant,
+remediation, and canonically ordered bounded fields with their unchanged kind,
+Safe/Protected disclosure, and truncation state. Multi-marker sources are
+rejected before accessor use; arbitrary `Throwable`, the Diagnostics marker,
+messages, causes, traces, source, requests, environment, transports, and
+metadata bags are excluded. The projection retains no source object, cache, or
+cross-operation state and performs no I/O.
+
+Phase 1A accepts the fail-closed activation policy outside Diagnostic
+Presentation. A future outer composition boundary must hold an explicit
+immutable trusted bootstrap permission for its adapter instance and the adapter
+must independently authorize the current delivery. Both must be affirmative
+before presentation access, projection, rendering, or delivery; absence,
+invalidity, ambiguity, evaluation failure, denial, and uncertainty prohibit the
+trusted path. Client input, raw environment labels, heuristics, AI output, and
+ambient or previous-operation state cannot enable either permission. The
+trusted developer model cannot be reused and redacted for production;
+production requires a separate deny-by-default model. Projection and rendering
+remain separate. Phase 0Z implements the Experimental
+`Kongono\DiagnosticPresentation\Developer\Html\TrustedDeveloperHtmlRenderer`
+in the existing Diagnostic Presentation leaf. It consumes only the trusted
+projection and returns one complete escaped HTML5 document without adding a
+package edge, runtime binding, Graph participation, or reverse dependency. It
+is stateless and fixed by two golden fixtures.
+
+The accepted conceptual composition is:
+
+```text
+trusted bootstrap permission [Accepted policy; enforcement unimplemented]
+    AND adapter-controlled delivery permission [Accepted policy; enforcement unimplemented]
+        -> presentation access -> projection -> rendering -> future adapter delivery
+```
+
+Both permissions remain outside Diagnostic Presentation. Phase 1A adds no
+package edge, service, runtime integration, configuration mechanism, activation
+type, adapter, served page, or production surface; the current six-package
+graph is unchanged.
 
 ## Boundaries
 

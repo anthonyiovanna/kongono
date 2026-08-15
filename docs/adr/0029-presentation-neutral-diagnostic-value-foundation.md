@@ -76,6 +76,25 @@ state. No per-failure global state or mutable cache is retained. Work is linear 
 the schema count plus the represented input bytes, bounded to 16 schemas or fields
 and 512 represented text bytes.
 
+Phase 0W amendment: [ADR 0034](0034-trusted-developer-diagnostic-projection.md)
+assigns future presentation to the separate planned leaf
+`kongono/diagnostic-presentation`. Diagnostics remains presentation-neutral and
+has no reverse dependency. The planned trusted-developer projection copies the
+already-bounded scalar values, exact kind, Safe/Protected classification, and
+nullable truncation state without retaining Diagnostics objects or adding
+rendering, trust selection, or production policy here. Phase 0W adds no package,
+type, or runtime behavior.
+
+Phase 0X implementation note: the separate Diagnostic Presentation leaf now
+exists and copies the six Diagnostics value properties into its own immutable
+developer fields. Diagnostics source and behavior remain unchanged and retain
+no reverse dependency, presentation model, projector, renderer, or trust logic.
+
+Phase 0Y architecture note: [ADR 0036](0036-accessible-trusted-developer-html-diagnostic-page.md)
+selects the concrete trusted-developer HTML API and format in Diagnostic
+Presentation. Phase 0Z implements it in that leaf. Diagnostics remains presentation-neutral
+and owns no HTML grammar, escaping, authorization, or transport behavior.
+
 The six value types are Public under Kongono's pre-alpha release maturity. The
 package marker is Public, the concrete invalid-value failure is Experimental, and
 the catalog and exception base are Internal. This phase does not change the 42
@@ -107,7 +126,7 @@ through this package.
 
 All 42 original Kernel, Graph, and DI diagnostics now integrate independently
 with this foundation. The following remain open: representation of simultaneous
-primary and context-capture failure; renderer and
-transport APIs; production allowlists; serialization and cross-process
-representation; localization; source providers; documentation lookup; logging
-and telemetry; and incident storage.
+primary and context-capture failure; other renderer and transport APIs;
+production allowlists;
+serialization and cross-process representation; localization; source providers;
+documentation lookup; logging and telemetry; and incident storage.

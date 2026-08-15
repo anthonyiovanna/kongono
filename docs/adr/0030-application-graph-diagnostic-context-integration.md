@@ -140,6 +140,13 @@ cycle. Phase 0T then adds the exact one-way Kernel-to-Diagnostics dependency,
 all six Kernel context schemas and throw-site values, and the Kernel marker
 accessor accepted by [ADR 0032](0032-kernel-lifecycle-diagnostic-context-integration.md).
 
+Phase 0Y architecture note: [ADR 0036](0036-accessible-trusted-developer-html-diagnostic-page.md)
+selects the planned trusted-developer HTML page for the already-implemented
+projection of Graph context. The Graph schemas, values, classifications, and
+throw sites remain unchanged. Phase 0Z implements the pure renderer outside
+Graph. Trusted activation, production presentation, transports, and optional
+providers remain future.
+
 ## Rejected alternatives
 
 - Arbitrary context maps or consumer-selected schemas are rejected because they
@@ -154,16 +161,16 @@ accessor accepted by [ADR 0032](0032-kernel-lifecycle-diagnostic-context-integra
 - Secret detection, redaction, sanitization, classification inference, and
   automatic disclosure are rejected because Phase 0Q captures only the exact
   Accepted fields and selects no policy.
-- Renderers, transports, logging, telemetry, incident storage, source access,
-  documentation lookup, serialization, and ambient capture are rejected as
-  later capability decisions.
+- Renderer integration and other formats, transports, logging, telemetry, incident storage,
+  source access, documentation lookup, serialization, and ambient capture are
+  rejected as later capability decisions.
 
 ## What remains open
 
-Disclosure and production allowlist policy; trusted developer mode; renderers
-and development or production surfaces; HTTP, CLI,
-and other transports; serialization; source and stack providers;
-version-matched documentation lookup; logging and telemetry; incidents; retry,
+Disclosure and production allowlists; trusted activation; other development or
+production surfaces; HTTP,
+CLI, and other transports; serialization; source and stack providers; version-
+matched documentation lookup; logging and telemetry; incidents; retry,
 cancellation, cleanup, and simultaneous-failure representation all remain
 future work.
 

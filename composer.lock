@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c1bc54e0fddbf2a65dc77fbbc0b3757b",
+    "content-hash": "46bff50527caa6e28efe26b28b20a63f",
     "packages": [
         {
             "name": "kongono/api-metadata",
@@ -87,6 +87,38 @@
                 }
             },
             "description": "Explicit typed dependency resolution for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/diagnostic-presentation",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/diagnostic-presentation",
+                "reference": "086ab79629ab57680f6099a48e42185c6e117621"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph": "*",
+                "kongono/dependency-injection": "*",
+                "kongono/diagnostics": "*",
+                "kongono/kernel": "*",
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DiagnosticPresentation\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DiagnosticPresentation\\Tests\\": "tests/"
+                }
+            },
+            "description": "Trusted developer diagnostic projection values for Kongono Framework.",
             "transport-options": {
                 "relative": true
             }
@@ -4950,6 +4982,7 @@
         "kongono/api-metadata": 20,
         "kongono/application-graph": 20,
         "kongono/dependency-injection": 20,
+        "kongono/diagnostic-presentation": 20,
         "kongono/diagnostics": 20,
         "kongono/kernel": 20
     },

@@ -10,16 +10,16 @@ Run tests with:
 composer test
 ```
 
-The root suite discovers repository tooling and architecture tests beneath `tests/`, plus package tests beneath the API Metadata, Kernel, Application Graph, Dependency Injection, and Diagnostics trees. Each package declares its own development test namespace, which the root repeats in `autoload-dev` because dependency development mappings are not imported. The exact test inventory is 73 PHP files. Root architecture owns the exact 40-type API-status inventory, four-way exception-marker separation, and 53 globally unique diagnostic IDs split 6 Kernel, 11 Graph, 25 DI, and 11 Diagnostics across every `packages/*/src` tree; its token scanner remains test-only infrastructure rather than a Graph or dependency-discovery frontend.
+The root suite discovers repository tooling and architecture tests beneath `tests/`, plus package tests beneath the API Metadata, Kernel, Application Graph, Dependency Injection, Diagnostic Presentation, and Diagnostics trees. Each package declares its own development test namespace, which the root repeats in `autoload-dev` because dependency development mappings are not imported. The exact test inventory is 80 PHP files. Root architecture owns the exact 49-type API-status inventory, five-way exception-marker separation, and 68 globally unique diagnostic IDs split 6 Kernel, 11 Graph, 25 DI, 15 Presentation, and 11 Diagnostics across every `packages/*/src` tree; its token scanner remains test-only infrastructure rather than a Graph or dependency-discovery frontend.
 
-The 40 production PHP files plus 73 test PHP files form an exact 113-file
+The 49 production PHP files plus 80 test PHP files form an exact 129-file
 source-and-test inventory. With `.php-cs-fixer.dist.php`, syntax validation has
-114 entries; style checks cover the 113 PHP files.
+130 entries; style checks cover the 129 PHP files.
 
 Phase 0S adds one focused five-method API Metadata test covering the exact enum
 vocabulary, attribute shape, bootstrap exemptions, removal of the legacy Kernel
 FQCNs, and the two-source-file package boundary. Root enforcement discovers all
-five package source trees while preserving the 40-type inventory.
+six package source trees after Phase 0Z expands the inventory to 49 types.
 
 Phase 0M tests cover all 42 package-local catalog cases, exact enum case names,
 identifiers, titles, remediation strings, global uniqueness and domain syntax;
@@ -46,7 +46,17 @@ same-object ownership, detachment, reflection shapes, marker separation, and the
 one-way Kernel-to-Diagnostics dependency. Phase 0U adds one exact ten-method DI
 diagnostic-context test covering all 25 schemas, 26 throw-site maps, bounded token
 algorithms, context ownership, native propagation, and the independent
-DI-to-Diagnostics edge. The canonical suite contains exactly 204 tests.
+DI-to-Diagnostics edge. Phase 0X adds six focused Diagnostic Presentation test
+files covering the exact owner and catalog vocabularies, package-local exception
+boundary, immutable field and diagnostic validation, pure three-marker
+projection, ambiguity-before-access, exact single reads, detachment, disclosure
+preservation, native failure propagation, and absence of retained state. Phase
+0Z adds ten focused renderer tests covering exact class shape, full and empty
+golden documents, owner labels, final-boundary escaping, field semantics,
+determinism, maximum bounds, semantic accessibility grammar, and absence of
+active or external surfaces. These are string/DOM contract tests, not browser,
+assistive-technology, HTTP, CSP, or production-integration tests. The canonical
+suite contains exactly 241 tests.
 
 ## Failure behavior
 
