@@ -101,22 +101,61 @@ machine identity.
 ## Diagnostic Activation
 
 The implemented `kongono/diagnostic-activation` package, namespace
-`Kongono\DiagnosticActivation\`, owns exactly the Experimental unbacked
+`Kongono\DiagnosticActivation\`, owns the two Experimental unbacked
 `TrustedDeveloperBootstrapPermission` and
-`AdapterControlledDeliveryPermission` values. It depends on API Metadata alone.
-It is not an authorization engine or security boundary and implements no raw
-configuration, delivery evidence evaluation, combined gate, adapter, or
+`AdapterControlledDeliveryPermission` values plus the Experimental final
+readonly `TrustedDeveloperPresentationEligibility` pure conjunction. It depends
+on API Metadata alone. It is not an authorization engine or security boundary
+and implements no raw configuration, delivery evidence evaluation, adapter, or
 presentation access.
 
 ## Diagnostic Presentation
 
-The implemented leaf integration boundary `kongono/diagnostic-presentation`,
+The implemented lower-layer integration boundary `kongono/diagnostic-presentation`,
 namespace `Kongono\DiagnosticPresentation\`. Phase 0X provides its trusted-
 developer projection core, and Phase 0Z provides the first pure HTML renderer;
 later presentation models and other renderers remain owned here but
-unimplemented. It consumes all five originating packages, while none depends on
-it. Diagnostic Presentation does not depend on the separate Diagnostic
-Activation package. Diagnostics stays presentation-neutral.
+unimplemented. It consumes all five originating packages, while only Diagnostic
+Handler depends on it. Diagnostic Presentation does not depend on the separate
+Diagnostic Activation or Handler packages. Diagnostics stays presentation-neutral.
+
+## Diagnostic Handler
+
+The implemented Phase 1H leaf integration boundary
+`kongono/diagnostic-handler`, namespace `Kongono\DiagnosticHandler\`. It
+sequences an already-created trusted-presentation eligibility value with the
+existing projector and HTML renderer. It depends on API Metadata, Diagnostic
+Activation, Diagnostic Presentation, Kernel, Application Graph, and Dependency
+Injection, but not directly on Diagnostics; no package depends on it. It is the
+only current package depending on both Diagnostic Activation and Diagnostic
+Presentation.
+
+## Trusted Diagnostic Handler
+
+The implemented Experimental final readonly
+`TrustedDeveloperDiagnosticHtmlPresenter`, the sole first production declaration
+of Diagnostic Handler. It checks eligibility before accessing its contextual
+Kernel, Graph, or Dependency Injection source. False returns `null` immediately;
+true invokes the existing projector and renderer and returns the exact HTML
+unchanged. It catches nothing, proves no authority, and owns no evidence,
+authentication, non-trusted response, transport, or delivery. Direct use does
+not prove authorization, and every failure propagates unchanged.
+
+## `renderIfEligible`
+
+The Trusted Diagnostic Handler's sole method. Its two inputs are one
+`TrustedDeveloperPresentationEligibility` for the current delivery and one
+source implementing exactly one of the Kernel, Application Graph, or Dependency
+Injection exception markers. Passing the source argument is not source access.
+The Experimental method is directly callable but is not authorization.
+
+## Denied Trusted Presentation Result
+
+The handler's `null` result when combined eligibility is false. It means
+only that trusted developer HTML was not produced for that reason. It does not
+mean handled, successful, retryable, empty output, fallback selected, incident
+recorded, logged, or any particular response, status, model, or transport. The
+future outer adapter owns the still-unselected non-trusted path.
 
 ## Diagnostic Context
 
@@ -215,11 +254,11 @@ The Accepted Phase 1A fail-closed rule that trusted bootstrap permission and
 adapter-controlled delivery permission must both be affirmative before
 presentation access, projection, copying Safe or Protected fields, rendering,
 or delivery. Missing, invalid, ambiguous, failed, denied, or uncertain decisions
-prohibit the trusted path. The architecture and both typed inputs are
-implemented; the configuration reader, delivery-evidence evaluation, adapter,
-transport, served page, and enforcement are unimplemented. Phase 1E implements
-only the pure `TrustedDeveloperPresentationEligibility` AND calculation for one
-current delivery. Direct construction or a true result is not authorization.
+prohibit the trusted path. The architecture, both typed inputs, their pure AND
+calculation, and the Handler's denial-before-access sequencing are implemented;
+the configuration reader, delivery-evidence evaluation, outer-adapter
+composition, transport, served page, and delivery are unimplemented. Direct
+construction or a true result is not authorization.
 
 ## Trusted Developer HTML Diagnostic Page
 
@@ -228,12 +267,13 @@ only one implemented `TrustedDeveloperDiagnostic` and returns a complete,
 accessible, deterministic, escaped HTML5 document with five fixed visible
 regions and one exact local stylesheet. It performs no authorization,
 projection, transport, or production presentation. The renderer and golden
-fixtures are implemented, but no served route, trusted activation boundary,
-adapter, or production model exists.
+fixtures are implemented, and Diagnostic Handler provides neutral eligibility-
+first sequencing. No served route, evidence evaluator, adapter, transport,
+delivery, response, or production model exists.
 
 ## Trusted Developer Mode
 
-Legacy shorthand for the future enforcement of Trusted Diagnostic Activation,
+Legacy shorthand for future outer-adapter enforcement of Trusted Diagnostic Activation,
 not a single switch or environment label. Phase 1A requires both trusted
 bootstrap permission and independent adapter-controlled delivery permission
 before presentation access, projection, rendering, or delivery. Query, route,

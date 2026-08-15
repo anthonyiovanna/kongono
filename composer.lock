@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "519203705afcc19d3cbd109d1248f0d7",
+    "content-hash": "bbdabd04715b1f806e7552b5aa1e4bad",
     "packages": [
         {
             "name": "kongono/api-metadata",
@@ -115,6 +115,39 @@
                 }
             },
             "description": "Typed trusted-bootstrap diagnostic permission values for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/diagnostic-handler",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/diagnostic-handler",
+                "reference": "3c53f93e0adc057e45db050f9244da05be2b37b2"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph": "*",
+                "kongono/dependency-injection": "*",
+                "kongono/diagnostic-activation": "*",
+                "kongono/diagnostic-presentation": "*",
+                "kongono/kernel": "*",
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DiagnosticHandler\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DiagnosticHandler\\Tests\\": "tests/"
+                }
+            },
+            "description": "Eligibility-gated trusted diagnostic presentation orchestration for Kongono Framework.",
             "transport-options": {
                 "relative": true
             }
@@ -5011,6 +5044,7 @@
         "kongono/application-graph": 20,
         "kongono/dependency-injection": 20,
         "kongono/diagnostic-activation": 20,
+        "kongono/diagnostic-handler": 20,
         "kongono/diagnostic-presentation": 20,
         "kongono/diagnostics": 20,
         "kongono/kernel": 20

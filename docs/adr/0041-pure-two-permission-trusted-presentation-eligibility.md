@@ -72,8 +72,15 @@ side effect.
 ## Consequences
 
 The pure calculation half of the combined boundary is resolved. Diagnostic
-Activation now owns two permission enums and one eligibility class. External
-provenance validation, presentation access, and enforcement remain absent.
+Activation owns two permission enums and one eligibility class. External
+provenance validation remains absent.
+
+Phase 1H implements the transport-neutral Diagnostic Handler as the first
+consumer of this value. Its presenter checks eligibility before any source
+accessor, returns `null` immediately when false, and only when true invokes the
+existing projector and renderer and returns the exact HTML. Failures propagate
+unchanged. The handler evaluates no evidence and delivers no output, so outer-
+adapter composition and non-trusted behavior remain open.
 
 ## Rejected alternatives
 
@@ -92,8 +99,9 @@ provenance validation, presentation access, and enforcement remain absent.
 ## What remains open
 
 - Outer adapter package, construction, and composition contract.
-- Where and how the eligibility object is created and consumed.
-- Enforcement before exception, diagnostic, or presentation access.
+- Outer-adapter construction of the eligibility object and composition with the
+  implemented Diagnostic Handler.
+- Adapter enforcement through that composition and its non-trusted path.
 - Trusted-delivery evidence and its evaluation mechanism.
 - Bootstrap configuration source, parser, validation failure, and reload.
 - Non-trusted and activation-failure behavior.

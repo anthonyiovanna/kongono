@@ -13,6 +13,8 @@ parameters:
         - packages/dependency-injection/tests
         - packages/diagnostic-activation/src
         - packages/diagnostic-activation/tests
+        - packages/diagnostic-handler/src
+        - packages/diagnostic-handler/tests
         - packages/diagnostic-presentation/src
         - packages/diagnostic-presentation/tests
         - packages/diagnostics/src

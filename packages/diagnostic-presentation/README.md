@@ -9,7 +9,7 @@ construction failures; it did not render or disclose the projection. Phase 0Z
 adds the pure trusted-developer HTML renderer without adding disclosure policy.
 
 The package depends directly on API Metadata, Diagnostics, Kernel, Application
-Graph, and Dependency Injection. No existing package depends on it. Diagnostics
+Graph, and Dependency Injection. Only Diagnostic Handler depends on it. Diagnostics
 remains presentation-neutral, and the three originating packages retain their
 identifiers, schemas, throw-site values, semantics, and separate recovery
 markers.
@@ -17,8 +17,9 @@ markers.
 Phase 1C adds the separate `kongono/diagnostic-activation` package and its typed
 trusted-bootstrap permission; Phase 1D adds that package's typed
 adapter-controlled delivery permission. Diagnostic Presentation does not depend
-on either value, inspect them, or enforce them. A future adapter may consume both
-packages only under a later authorized composition boundary.
+on either value, inspect them, or enforce them. The implemented Diagnostic
+Handler consumes both packages through one-way dependencies; a future adapter
+must still own permission evidence, composition, and delivery.
 
 Phase 1E adds Diagnostic Activation's pure final readonly
 `TrustedDeveloperPresentationEligibility`, which returns true only when both
@@ -48,14 +49,15 @@ Accepted permissions below before calling the projector or exposing its result.
 
 [ADR 0038](../../docs/adr/0038-fail-closed-trusted-developer-diagnostic-activation.md)
 accepts a fail-closed outer policy that this package neither owns nor enforces.
-Its enforcement is unimplemented. [ADR
+Phase 1H implements the neutral eligibility-first Handler sequencing, while
+outer-adapter evidence and composition remain unimplemented. [ADR
 0039](../../docs/adr/0039-typed-trusted-developer-bootstrap-permission-foundation.md)
 implements the first typed input in the separate Diagnostic Activation package.
 [ADR
 0040](../../docs/adr/0040-typed-adapter-controlled-delivery-permission-foundation.md)
 implements the second typed input there. Neither value evaluates its underlying
 evidence or grants presentation access by itself, and combined enforcement
-remains unimplemented.
+occurs only through the directly callable Handler presenter.
 
 Before a future adapter accesses source metadata or context for presentation,
 calls the projector, copies Safe or Protected fields, calls the renderer, or
@@ -165,5 +167,6 @@ deny-by-default model rather than redact the trusted developer projection.
 - [ADR 0040](../../docs/adr/0040-typed-adapter-controlled-delivery-permission-foundation.md)
 - [ADR 0041](../../docs/adr/0041-pure-two-permission-trusted-presentation-eligibility.md)
 - [Diagnostic Activation package](../diagnostic-activation/README.md)
+- [Diagnostic Handler package](../diagnostic-handler/README.md)
 - [Error-handling guide](../../docs/engineering/error-handling.md)
 - [Security policy](../../SECURITY.md)

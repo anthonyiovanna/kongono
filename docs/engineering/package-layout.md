@@ -3,7 +3,7 @@
 ## Purpose and convention
 
 Kongono's initial monorepo gives each authorized framework package explicit
-source ownership beneath `packages/`. Phase 1C contains exactly seven production
+source ownership beneath `packages/`. Phase 1H contains exactly eight production
 packages:
 
 ```text
@@ -24,6 +24,11 @@ packages/
 |   |-- src/
 |   `-- tests/
 |-- diagnostic-activation/
+|   |-- composer.json
+|   |-- README.md
+|   |-- src/
+|   `-- tests/
+|-- diagnostic-handler/
 |   |-- composer.json
 |   |-- README.md
 |   |-- src/
@@ -66,8 +71,11 @@ context. `kongono/diagnostics` owns `Kongono\Diagnostics\` and requires
 Kernel requires API Metadata and Diagnostics. `kongono/diagnostic-presentation`
 owns `Kongono\DiagnosticPresentation\` and directly requires all five
 originating packages as an acyclic leaf. `kongono/diagnostic-activation` owns
-`Kongono\DiagnosticActivation\`, requires only API Metadata, and has no reverse
-edge from another package. Diagnostic Presentation does not depend on it. These
+`Kongono\DiagnosticActivation\` and requires only API Metadata. Diagnostic
+Handler owns `Kongono\DiagnosticHandler\` and requires API Metadata, Activation,
+Presentation, Kernel, Application Graph, and Dependency Injection, but not
+Diagnostics. Handler is the only current package depending on Activation and
+Presentation; neither lower layer depends on Handler or on the other. These
 unbounded internal constraints
 are authorized while the packages are unreleased and developed atomically;
 inter-package version policy remains open. Dependency Injection and Application
@@ -77,13 +85,13 @@ universal exception boundary. Package manifests duplicate no root tool
 dependencies.
 
 Composer does not import a dependency's `autoload-dev` mapping into the consuming
-root project. The monorepo root therefore maps all seven package test namespaces in
+root project. The monorepo root therefore maps all eight package test namespaces in
 its own `autoload-dev`, alongside the root `Kongono\Tests\` mapping. This makes
 package tests directly autoloadable during root development without exposing
 them through production `autoload`.
 
 The root manifest uses one canonical Composer path repository at `packages/*`
-and requires all seven local packages with exact `@dev` constraints. These per-package
+and requires all eight local packages with exact `@dev` constraints. These per-package
 stability flags permit untagged local packages without changing repository-wide
 minimum stability or inventing versions. Composer generates the lock and root
 autoload metadata; manual lock edits and custom autoloaders remain prohibited.
@@ -95,7 +103,7 @@ composer validate:packages
 ```
 
 The command validates API Metadata, Application Graph, Dependency Injection,
-Diagnostic Activation, Diagnostic Presentation, Diagnostics, and Kernel in
+Diagnostic Activation, Diagnostic Handler, Diagnostic Presentation, Diagnostics, and Kernel in
 deterministic lexicographic package-directory order and is part of `composer quality`
 immediately after root-manifest validation. Source uses package-owned production
 namespaces, package tests use package development namespaces, and all package
@@ -105,15 +113,15 @@ root architecture suite rather than any package.
 
 ## Boundaries and stability
 
-The seven physical package boundaries and the Phase 1C dependency graph are
-implemented. Further package boundaries and dependency rules remain open. Independent publishing,
-splitting, versioning, and release automation also remain open and require
-authorization.
+The eight physical package boundaries and the Phase 1H dependency graph are
+implemented. Other package boundaries and dependency
+rules remain open. Independent publishing, splitting, versioning, and release
+automation also remain open and require authorization.
 
 **Stability:** Internal engineering convention implementing the Accepted
 monorepo decision.
 
-## Implemented Phase 1D dependency graph
+## Implemented Phase 1H dependency graph
 
 Phase 0S created this fifth package directory:
 
@@ -137,21 +145,27 @@ application-graph -> diagnostics
 dependency-injection -> api-metadata
 dependency-injection -> diagnostics
 diagnostic-activation -> api-metadata
+diagnostic-handler -> api-metadata
+diagnostic-handler -> application-graph
+diagnostic-handler -> dependency-injection
+diagnostic-handler -> diagnostic-activation
+diagnostic-handler -> diagnostic-presentation
+diagnostic-handler -> kernel
 diagnostic-presentation -> api-metadata
 diagnostic-presentation -> application-graph
 diagnostic-presentation -> dependency-injection
 diagnostic-presentation -> diagnostics
 diagnostic-presentation -> kernel
-framework root -> all seven packages
+framework root -> all eight packages
 ```
 
-The six API Metadata consuming package-manifest constraints are
+The seven API Metadata consuming package-manifest constraints are
 `"kongono/api-metadata": "*"`; the root constraint is
 `"kongono/api-metadata": "@dev"`. Cycles, overlapping production namespaces,
 self-dependencies, and undeclared package dependencies remain prohibited.
 The former `Kongono\Kernel\Api\*` namespace is absent and no compatibility shim
 exists. Kernel, Graph, and DI independently require Diagnostics; none requires
-another semantic consumer. Current Composer/autoload behavior implements the seven-package graph
+another semantic consumer. Current Composer/autoload behavior implements the eight-package graph
 documented above.
 
 ## Implemented Diagnostic Activation foundation
@@ -169,8 +183,8 @@ Phase 1E adds the Experimental final readonly
 two typed decisions and computes their pure AND truth table for one current
 delivery without changing the package graph or manifest.
 
-No existing package depends on Diagnostic Activation. Diagnostic Presentation
-remains a separate leaf, and the root consumes both independently for monorepo
+Only Diagnostic Handler depends on Diagnostic Activation. Diagnostic Presentation
+remains an independent lower layer, and the root consumes all three for monorepo
 validation. Diagnostic Activation owns the two neutral permission types and
 their pure combined eligibility value, not raw configuration, delivery evidence
 or evaluation, enforcement, an adapter,
@@ -186,7 +200,7 @@ packages/diagnostic-presentation/
 
 Its Composer name is `kongono/diagnostic-presentation` and its production
 namespace is `Kongono\DiagnosticPresentation\`. The directory and manifest are
-part of the current seven-package tree and eight-manifest count.
+part of the current eight-package tree and nine-manifest count.
 
 The leaf depends directly on:
 
@@ -198,11 +212,59 @@ diagnostic-presentation -> application-graph
 diagnostic-presentation -> dependency-injection
 ```
 
-No existing package may depend on Diagnostic Presentation. There is no reverse
-edge, service registration, Kernel binding, DI definition, Graph node, or
+Only Diagnostic Handler depends on Diagnostic Presentation. There is no reverse
+Handler edge, service registration, Kernel binding, DI definition, Graph node, or
 ambient discovery, so the graph remains acyclic. The root consumes the leaf for
 monorepo testing. Phase 0X adds its manifest, autoload/tooling integration,
 eight production declarations, six package tests, README, and pure projection
 behavior. Phase 0Z adds the ninth production declaration, one focused ten-test
 PHP file, and two test-only golden HTML fixtures. The renderer creates no new
 package edge or runtime binding; no trusted selector or production model exists.
+
+## Implemented Diagnostic Handler leaf
+
+Phase 1H implements this package boundary:
+
+```text
+packages/diagnostic-handler/
+```
+
+Its Composer name is `kongono/diagnostic-handler`, its production namespace is
+`Kongono\DiagnosticHandler\`, and it requires PHP 8.5
+or later. Its direct package dependencies are exactly:
+
+```text
+diagnostic-handler -> api-metadata
+diagnostic-handler -> diagnostic-activation
+diagnostic-handler -> diagnostic-presentation
+diagnostic-handler -> kernel
+diagnostic-handler -> application-graph
+diagnostic-handler -> dependency-injection
+```
+
+Kernel, Application Graph, and Dependency Injection are direct dependencies
+because their three separate exception markers form the presenter's
+accepted source union. Diagnostic Handler has no direct dependency on
+Diagnostics. No package depends on Diagnostic Handler, so it remains a leaf;
+the framework root consumes it with the other seven packages.
+
+The sole production declaration is the Experimental final
+readonly `Kongono\DiagnosticHandler\TrustedDeveloperDiagnosticHtmlPresenter`.
+It has no properties, explicit constructor, interface, trait, parent, factory,
+alias, helper, exception family, diagnostic identifier, service registration,
+DI definition, Graph node, Kernel binding, or ambient discovery. Its exact
+method is:
+
+```php
+public function renderIfEligible(
+    TrustedDeveloperPresentationEligibility $eligibility,
+    KernelExceptionInterface|GraphExceptionInterface|DependencyInjectionExceptionInterface $source,
+): ?string;
+```
+
+The presenter checks eligibility before any source accessor. False returns
+`null`; true sequences the existing projector and renderer and returns the exact
+HTML unchanged. Every failure propagates unchanged. The package has no adapter,
+configuration reader, evidence evaluator, transport, delivery, response, or
+production model. Kongono has eight implemented production packages and nine
+Composer manifests including the root.

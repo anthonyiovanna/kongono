@@ -99,7 +99,7 @@ previous-operation value, and one request, job, message, command, tenant, user,
 fiber, worker operation, or concurrent delivery cannot authorize another.
 Denial or uncertainty takes the future non-trusted path before presentation
 access; it does not project or render and discard the result. The evidence
-sources, evaluation mechanism, and combined enforcement remain unimplemented.
+sources, evaluation mechanism, and outer-adapter composition remain unimplemented.
 
 Phase 1E adds the pure final readonly
 `TrustedDeveloperPresentationEligibility` for one current delivery. It stores
@@ -107,17 +107,36 @@ only the two typed decisions and returns true only when both permit trusted
 presentation. A future adapter must construct and consume it within that
 delivery's explicit flow; it must not retain or reuse the object or its result
 as ambient, static, cached, thread-local, fiber-local, or previous-operation
-authority. Evidence evaluation and enforcement remain unimplemented.
+authority. Evidence evaluation and outer-adapter composition remain unimplemented.
+
+Phase 1H implements a stateless Diagnostic Handler for this exact per-delivery
+sequence:
+
+```text
+eligibility is checked before any source accessor
+    false -> return null immediately
+    true -> project source -> render trusted HTML -> return exact HTML unchanged
+```
+
+The handler retains neither the eligibility value, source, projection,
+HTML, nor any derived result. It catches nothing, so every `Throwable` propagates
+unchanged. `null` means only that trusted developer HTML was not produced because
+combined eligibility was false; it does not select a response, status, fallback,
+incident, retry, or transport. The future outer adapter still establishes both
+permissions, validates evidence, creates the eligibility value, invokes the
+handler for one current delivery, and owns the non-trusted path and delivery.
+The handler evaluates no evidence and performs no transport or delivery.
 
 The required evaluation order is:
 
 ```text
-immutable trusted bootstrap permission is affirmative
-    AND current adapter-controlled delivery permission is affirmative
-        -> presentation access
-        -> projector creates detached trusted model
-        -> pure HTML renderer creates complete escaped document
-        -> future adapter owns delivery
+future outer adapter establishes both typed permissions
+    -> TrustedDeveloperPresentationEligibility
+        -> Diagnostic Handler checks eligibility first
+            false -> null without source access
+            true -> projector creates detached trusted model
+                -> pure HTML renderer creates complete escaped document
+                    -> exact HTML unchanged to future adapter
 ```
 
 An exception may already own its eager bounded context; denial leaves that
@@ -125,8 +144,8 @@ exception unchanged while prohibiting later presentation accessor reads and
 Protected-field copying. The implemented renderer is stateless, retains nothing
 after return, and consults no ambient or runtime state. Calling the projector or
 renderer directly is explicit low-level composition, not authorization or a
-runtime hook. Delivery permission, combined activation enforcement, and every
-adapter remain unimplemented.
+runtime hook. External evidence evaluation, adapter composition, transport,
+delivery, response behavior, and every adapter remain unimplemented.
 This sequence implies no Kernel lifecycle, container, DI, HTTP, Application
 Graph, configuration, cleanup, logging, or telemetry integration.
 

@@ -13,6 +13,7 @@
     "kongono/application-graph": "@dev",
     "kongono/dependency-injection": "@dev",
     "kongono/diagnostic-activation": "@dev",
+    "kongono/diagnostic-handler": "@dev",
     "kongono/diagnostic-presentation": "@dev",
     "kongono/diagnostics": "@dev",
     "kongono/kernel": "@dev",
@@ -30,6 +31,7 @@
       "Kongono\\ApplicationGraph\\Tests\\": "packages/application-graph/tests/",
       "Kongono\\DependencyInjection\\Tests\\": "packages/dependency-injection/tests/",
       "Kongono\\DiagnosticActivation\\Tests\\": "packages/diagnostic-activation/tests/",
+      "Kongono\\DiagnosticHandler\\Tests\\": "packages/diagnostic-handler/tests/",
       "Kongono\\DiagnosticPresentation\\Tests\\": "packages/diagnostic-presentation/tests/",
       "Kongono\\Diagnostics\\Tests\\": "packages/diagnostics/tests/",
       "Kongono\\Kernel\\Tests\\": "packages/kernel/tests/",
@@ -74,6 +76,7 @@
       "composer --working-dir=packages/application-graph validate --no-check-publish",
       "composer --working-dir=packages/dependency-injection validate --no-check-publish",
       "composer --working-dir=packages/diagnostic-activation validate --no-check-publish",
+      "composer --working-dir=packages/diagnostic-handler validate --no-check-publish",
       "composer --working-dir=packages/diagnostic-presentation validate --no-check-publish",
       "composer --working-dir=packages/diagnostics validate --no-check-publish",
       "composer --working-dir=packages/kernel validate --no-check-publish"

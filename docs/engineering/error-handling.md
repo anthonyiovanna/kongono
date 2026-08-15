@@ -45,12 +45,16 @@ trusted-developer projection and trusted HTML renderer are implemented;
 Phase 1A accepts their fail-closed two-gate activation architecture, but
 Phase 1C implements the typed trusted-bootstrap permission value and Phase 1D
 adds the typed adapter-controlled delivery-permission value. Delivery-evidence
-evaluation, combined activation enforcement, transport, and production rendering
-remain future.
+evaluation, adapter composition, transport, delivery, response behavior, and
+production rendering remain future.
 
 Phase 1E implements only the pure two-permission eligibility calculation. The
-four-row AND truth table is executable, but external provenance validation,
-presentation access, and enforcement remain future outer-adapter work.
+four-row AND truth table is executable, but external provenance validation and
+adapter composition remain future outer-adapter work.
+
+Phase 1H implements the transport-neutral trusted diagnostic handler and tests
+its exact eligibility-first sequencing. It adds no binding, adapter, evidence
+evaluation, transport, delivery, response, or production model.
 
 ## Choose the correct failure category
 
@@ -981,8 +985,8 @@ implements the first typed input as the Experimental unbacked
 implements the second as the Experimental unbacked
 `Kongono\DiagnosticActivation\AdapterControlledDeliveryPermission` enum. These
 values represent already-made decisions and evaluate no underlying evidence. No
-raw configuration reader, delivery-evidence evaluator, combined gate, adapter,
-HTTP behavior, served page, or runtime enforcement exists.
+raw configuration reader, delivery-evidence evaluator, adapter, HTTP behavior,
+served page, transport authorization, or delivery exists.
 
 Phase 1E adds the final readonly Experimental
 `TrustedDeveloperPresentationEligibility`. It receives the two decisions for
@@ -990,6 +994,44 @@ one current delivery and returns true only for `Allowed` plus `Allowed`. Direct
 construction and a true result prove no authority. The value does not access a
 diagnostic, projector, renderer, request, adapter, transport, configuration, or
 external evidence, and it performs no side effect or enforcement.
+
+[ADR 0042](../adr/0042-transport-neutral-trusted-diagnostic-handler.md) defines
+the implemented eighth leaf, `kongono/diagnostic-handler`, and its sole
+production declaration:
+
+```php
+use Kongono\ApplicationGraph\Exception\ExceptionInterface as GraphExceptionInterface;
+use Kongono\DependencyInjection\Exception\ExceptionInterface as DependencyInjectionExceptionInterface;
+use Kongono\DiagnosticActivation\TrustedDeveloperPresentationEligibility;
+use Kongono\Kernel\Exception\ExceptionInterface as KernelExceptionInterface;
+
+final readonly class TrustedDeveloperDiagnosticHtmlPresenter
+{
+    public function renderIfEligible(
+        TrustedDeveloperPresentationEligibility $eligibility,
+        KernelExceptionInterface|GraphExceptionInterface|DependencyInjectionExceptionInterface $source,
+    ): ?string;
+}
+```
+
+The method checks eligibility before any source accessor. False returns
+`null` immediately; passing the source argument itself is not source access.
+True invokes the existing trusted projector and then the existing HTML renderer,
+returning the renderer's exact string unchanged. `null` means only that trusted
+developer HTML was not produced because combined eligibility was false. It is
+not a response, status, production model, incident or logging instruction,
+handled-failure proof, retry signal, empty document, fallback, or success result.
+The presenter catches nothing: projector, renderer, and every other `Throwable`
+propagate unchanged without wrapping, logging, retry, fallback, or recursion.
+
+This handler sequences already-created inputs only. It does not establish input
+provenance, authenticate, authorize, evaluate evidence, select the non-trusted
+path, or own transport or delivery. It is stateless and per delivery, with no
+ambient, retained, cached, static, thread-local, fiber-local, or cross-delivery
+state. Direct calls to the Experimental handler or current lower-level APIs do
+not prove authority. Diagnostic Handler is the only current package depending
+on both independent lower layers, Diagnostic Activation and Diagnostic
+Presentation.
 
 Trusted presentation requires two independent affirmative permissions:
 
@@ -1112,6 +1154,12 @@ Phase 1E tests all four eligibility rows and the exact immutable Experimental
 class shape. They prove the pure calculation only, not external validation or
 enforcement.
 
+Phase 1H tests the exact presenter shape, every denied permission combination
+before source access, exact existing-pipeline HTML for real Kernel, Graph, and DI
+failures, unchanged sentinel `Throwable` identity, and repeated/interleaved call
+isolation. These tests prove neutral sequencing, not adapter evidence,
+authorization, transport, delivery, or production behavior.
+
 ## Non-goals and open decisions
 
 Beyond the package-local metadata, structural value foundation, and all 42
@@ -1150,6 +1198,7 @@ serialization or cross-process and cross-language form.
 - [ADR 0039](../adr/0039-typed-trusted-developer-bootstrap-permission-foundation.md)
 - [ADR 0040](../adr/0040-typed-adapter-controlled-delivery-permission-foundation.md)
 - [ADR 0041](../adr/0041-pure-two-permission-trusted-presentation-eligibility.md)
+- [ADR 0042](../adr/0042-transport-neutral-trusted-diagnostic-handler.md)
 - [Diagnostic Activation package](../../packages/diagnostic-activation/README.md)
 - [Kernel package](../../packages/kernel/README.md)
 - [Application Graph package](../../packages/application-graph/README.md)

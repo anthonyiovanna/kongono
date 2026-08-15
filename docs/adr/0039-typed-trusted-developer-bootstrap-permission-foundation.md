@@ -150,8 +150,8 @@ or presentation dependency.
 - Construction or composition API that chooses the enum.
 - Adapter package, composition contract, and lifecycle ownership.
 - Adapter-controlled delivery evidence and evaluation mechanism.
-- Outer-adapter composition and enforcement using the Phase 1E pure eligibility
-  result before any presentation access.
+- Outer-adapter evidence, eligibility construction, and composition with the
+  implemented Diagnostic Handler boundary.
 - Non-trusted failure behavior.
 - HTTP, CLI, and other transport behavior.
 - Production diagnostic model and explicit allowlists.
@@ -162,9 +162,20 @@ or presentation dependency.
 ADR 0040 narrowly supersedes only this ADR's broad rejection of a delivery-
 permission value in Diagnostic Activation. The original bootstrap API decision,
 adapter ownership of delivery evidence and mechanism, separation of the two
-permissions, and absence of combined evaluation or enforcement remain in force.
+permissions, and absence of evidence evaluation or enforcement inside the
+bootstrap enum remain in force.
 
 Phase 1E implementation note: [ADR
 0041](0041-pure-two-permission-trusted-presentation-eligibility.md) resolves the
-pure combined truth-table calculation only. External evidence evaluation,
-outer-adapter composition, and enforcement remain absent and open.
+pure combined truth-table calculation only. External evidence evaluation and
+outer-adapter composition remain absent and open.
+
+Phase 1H implementation note: [ADR
+0042](0042-transport-neutral-trusted-diagnostic-handler.md) implements the
+Diagnostic Handler as the eligibility consumer. It accepts only the already-
+created typed value, denies before source access, returns exact renderer HTML
+when allowed, and propagates failures unchanged. It neither parses bootstrap
+configuration nor upgrades a denied decision, evaluates evidence, or delivers
+output. The future adapter still owns configuration validation, permission
+construction, evidence, authentication, composition, the non-trusted path,
+transport, and delivery.

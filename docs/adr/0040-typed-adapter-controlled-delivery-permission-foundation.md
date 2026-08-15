@@ -142,13 +142,13 @@ serialization, caching, projection, rendering, or delivery.
 
 ## Consequences
 
-Both inputs to the Accepted fail-closed policy now have exact Experimental
-types, while their combined evaluation and enforcement remain absent. Future
-adapter work can receive an already-determined per-delivery value without
+Both inputs to the Accepted fail-closed policy have exact Experimental types,
+and the pure combined evaluation and neutral Handler sequencing are implemented.
+Future adapter work can receive an already-determined per-delivery value without
 moving transport evidence or authority into Diagnostic Activation.
 
-The current runtime remains seven packages with the unchanged dependency graph.
-Diagnostic Presentation remains separate, directly callable, and unable to
+The current runtime has eight packages with the one-way Handler dependencies.
+Diagnostic Presentation remains an independent lower layer, directly callable, and unable to
 authorize its caller. No configuration loader, adapter, request, response,
 transport, served page, production model, runtime integration, failure family,
 or diagnostic identifier is created.
@@ -187,8 +187,8 @@ or diagnostic identifier is created.
 - Exact outer adapter package and composition contract.
 - Trusted-delivery evidence and evaluation mechanism.
 - Authentication, listener, connection, proxy, and transport trust policy.
-- Outer-adapter composition and enforcement using the Phase 1E pure eligibility
-  result before any presentation access.
+- Outer-adapter evidence, eligibility construction, and composition with the
+  implemented Diagnostic Handler boundary.
 - Non-trusted and activation-failure behavior.
 - Raw bootstrap configuration source, parser, validation failure, and reload.
 - HTTP, CLI, and other transport behavior.
@@ -206,3 +206,12 @@ Phase 1E implementation note: [ADR
 0041](0041-pure-two-permission-trusted-presentation-eligibility.md) adds the
 final readonly pure combined eligibility value. It evaluates only the two typed
 decisions; evidence evaluation and all enforcement remain outer-adapter work.
+
+Phase 1H implementation note: [ADR
+0042](0042-transport-neutral-trusted-diagnostic-handler.md) implements the
+Diagnostic Handler as the eligibility consumer. It receives only the adapter's
+already-established per-delivery decision through the combined value, denies
+before source access, and returns exact renderer HTML only when allowed. It does
+not inspect, validate, or retain delivery evidence, catch failures, or deliver
+output. The future adapter still owns evidence, authentication, permission
+construction, composition, the non-trusted path, transport, and delivery.

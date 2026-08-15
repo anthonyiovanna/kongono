@@ -109,10 +109,10 @@ Experimental unbacked `AdapterControlledDeliveryPermission` enum with `Denied`,
 `Allowed`, and `allowsTrustedPresentation(): bool`. It represents only a future
 outer adapter's already-determined permission for one current delivery. The
 adapter still owns all evidence, evaluation, and authority; missing, failed,
-uncertain, or unverified evidence must fail closed. Both typed inputs now exist,
-but neither `Allowed` case suffices alone, and no combined gate, enforcement,
-adapter, request inspection, configuration loader, transport, or served page is
-implemented.
+uncertain, or unverified evidence must fail closed. Both typed inputs exist and
+neither `Allowed` case suffices alone. Their pure conjunction and neutral Handler
+sequencing are implemented; no adapter, request inspection, evidence evaluator,
+configuration loader, transport, delivery, response, or served page is implemented.
 
 Phase 1E adds the pure Experimental final readonly
 `TrustedDeveloperPresentationEligibility`. It stores the two typed decisions
@@ -120,8 +120,21 @@ for one current delivery and returns true only for `Allowed` plus `Allowed`.
 This calculation validates no external evidence, proves no authority, and
 performs no enforcement, diagnostic access, adapter, transport, or side effect.
 
+Phase 1H implements the eighth leaf, `kongono/diagnostic-handler`, and its
+Experimental final readonly
+`Kongono\DiagnosticHandler\TrustedDeveloperDiagnosticHtmlPresenter`. Its sole
+`renderIfEligible(...)` method checks the supplied
+`TrustedDeveloperPresentationEligibility` before any source accessor, return
+`null` immediately when ineligible, and otherwise project the contextual Kernel,
+Graph, or Dependency Injection failure, render it, and return the exact HTML
+unchanged. It catches nothing, validates no evidence, proves no authority, and
+chooses no adapter, transport, or non-trusted response. Diagnostic Handler is
+the only current package depending on both independent lower layers, Diagnostic
+Activation and Diagnostic Presentation. It adds no binding, served page,
+configuration, evidence evaluation, delivery, response, or production model.
+
 The broader originating-package behavior remains the accepted Phase 0U implementation:
-the PHP quality toolchain and seven packages, including neutral API metadata,
+the PHP quality toolchain and eight packages, including neutral API metadata,
 both typed diagnostic permission inputs, Kernel lifecycle, the Application Graph structural
 snapshot, and explicit typed dependency resolution. The Graph supports exact
 `outgoingRelations(NodeKey): array` and `incomingRelations(NodeKey): array`
@@ -169,6 +182,7 @@ Nothing is Stable. Public API status means supported consumer use under Kongono'
 - [Dependency Injection package](packages/dependency-injection/README.md)
 - [Diagnostics package](packages/diagnostics/README.md)
 - [Diagnostic Presentation package](packages/diagnostic-presentation/README.md)
+- [Diagnostic Handler package](packages/diagnostic-handler/README.md)
 - [Documentation standard](docs/documentation-standard.md)
 - [Engineering toolchain](docs/engineering/README.md)
 - [Dependency Injection engineering guide](docs/engineering/dependency-injection.md)

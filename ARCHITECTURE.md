@@ -7,6 +7,9 @@ Kongono is pre-alpha. Phase 1C adds the exact Diagnostic Activation package and
 typed trusted-bootstrap permission value. Phase 1D adds the neutral typed
 adapter-controlled delivery permission for one current delivery, still without
 configuration, evidence evaluation, combined enforcement, or an adapter.
+Phase 1H implements the transport-neutral trusted diagnostic handler as the
+eighth leaf package and its exact Experimental eligibility-first sequencing
+contract, without adding an adapter, transport, delivery, or production model.
 Phase 0X adds the exact Diagnostic Presentation leaf and
 pure trusted-developer projection above Phase 0U, which adds the exact acyclic DI-to-Diagnostics
 edge and integrates all 25 Dependency Injection diagnostics across 26 throw
@@ -28,10 +31,10 @@ repository behavior.
 
 ## Package dependency topology
 
-The current runtime has seven packages. `kongono/api-metadata` requires
+The current runtime has eight packages. `kongono/api-metadata` requires
 PHP only and owns `Kongono\ApiMetadata\Api` and `ApiStatus`. Kernel,
 Diagnostics, and Dependency Injection each require API Metadata; Kernel,
-Application Graph, and Dependency Injection also require Diagnostics. The root consumes all five. This
+Application Graph, and Dependency Injection also require Diagnostics. The root consumes all eight. This
 graph is acyclic, and no package depends on Kernel merely for compatibility
 metadata.
 
@@ -43,15 +46,25 @@ unbacked permission enums:
 ordered `Denied`, `Allowed` cases and `allowsTrustedPresentation(): bool`. The
 first represents an already-validated decision fixed for a future adapter
 instance; the second represents the future adapter's already-determined
-permission for one current delivery. No existing package depends on Diagnostic
-Activation, and the framework root consumes all seven packages.
+permission for one current delivery. Only Diagnostic Handler depends on
+Diagnostic Activation, and the framework root consumes all eight packages.
 
 Phase 0X implements `kongono/diagnostic-presentation` as a leaf above this
 graph. It depends directly on API Metadata, Diagnostics, Kernel, Application
-Graph, and Dependency Injection. No existing package depends on it, and it
+Graph, and Dependency Injection. Only Diagnostic Handler depends on it, and it
 creates no binding, service registration, Graph node, ambient discovery, or
 reverse edge. Diagnostic Presentation does not depend on Diagnostic Activation;
 the framework root consumes both independently.
+
+Phase 1H implements `kongono/diagnostic-handler` as the eighth leaf package under
+`Kongono\DiagnosticHandler\`. It requires PHP 8.5 or later and depends
+directly only on API Metadata, Diagnostic Activation, Diagnostic Presentation,
+Kernel, Application Graph, and Dependency Injection. The three originating
+packages are direct dependencies because their marker interfaces form the
+handler's accepted source union; it has no direct dependency on Diagnostics.
+No package depends on Diagnostic Handler. The root consumes it, and Handler is
+the only current package depending on both Diagnostic Activation and Diagnostic
+Presentation. The implemented topology remains acyclic.
 
 The former `Kongono\Kernel\Api\*` identities are unavailable and no alias or
 forwarder exists. Graph and Kernel retain their diagnostic integrations exactly.
@@ -134,9 +147,12 @@ is stateless and fixed by two golden fixtures.
 The accepted conceptual composition is:
 
 ```text
-trusted bootstrap permission [Accepted policy; enforcement unimplemented]
-    AND adapter-controlled delivery permission [Accepted policy; enforcement unimplemented]
-        -> presentation access -> projection -> rendering -> future adapter delivery
+future outer adapter establishes both typed permissions
+    -> TrustedDeveloperPresentationEligibility
+        -> Diagnostic Handler checks eligibility
+            false -> null to the future adapter's still-unselected non-trusted path
+            true -> projector -> trusted HTML renderer -> exact HTML unchanged
+                -> future adapter owns delivery
 ```
 
 Both permissions remain outside Diagnostic Presentation. Phase 1A added no
@@ -155,6 +171,23 @@ It stores both typed decisions for one current delivery and returns true only
 when both are `Allowed`. Direct construction or a true result does not prove
 authority. Evidence evaluation, presentation access, and enforcement remain
 future outer-adapter responsibilities; the package graph is unchanged.
+
+Phase 1H implements the Experimental final readonly
+`Kongono\DiagnosticHandler\TrustedDeveloperDiagnosticHtmlPresenter` as the
+transport-neutral consumer of that eligibility value. Its sole method,
+`renderIfEligible(TrustedDeveloperPresentationEligibility,
+KernelExceptionInterface|GraphExceptionInterface|DependencyInjectionExceptionInterface):
+?string`, checks eligibility before any source accessor. A false result returns
+`null` immediately. A true result invokes the existing projector and then the
+existing HTML renderer and returns the renderer's string unchanged. It catches
+nothing; every `Throwable` propagates unchanged. `null` says only that trusted
+developer HTML was not produced because combined eligibility was false. The
+handler validates no evidence, proves no authority, chooses no transport or
+non-trusted response, and retains no ambient or cross-delivery state. Direct use
+of it or the lower-level presentation APIs is not authorization. Diagnostic
+Activation and Diagnostic Presentation remain directly callable independent
+lower layers. No adapter, configuration reader, evidence evaluator, transport,
+delivery, response, or production model exists.
 
 ## Boundaries
 

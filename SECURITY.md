@@ -91,17 +91,33 @@ self-authorize or leak permission to another delivery.
 The implemented projector and renderer remain low-level pure Experimental APIs
 that cannot determine whether their caller is trusted. Direct PHP callability,
 API status, a package-local token, output escaping, or successful rendering is
-not authorization. Phases 1C and 1D implement the two decision types only; no
+not authorization. Phases 1C and 1D implement the two decision types, and Phase
+1H implements only their neutral eligibility-first presentation sequencing; no
 configuration reader, delivery-evidence evaluator, adapter, HTTP behavior,
-served page, combined gate, or enforcement exists. The permission
+served page, transport, delivery, response, or production model exists. The permission
 names are **trusted bootstrap permission** and **adapter-controlled delivery permission**;
-their enforcement is unimplemented.
+their provenance and outer-adapter enforcement remain unimplemented.
 
 Phase 1E implements the pure `TrustedDeveloperPresentationEligibility`
 conjunction: only `Allowed` plus `Allowed` returns true. The value is scoped to
 one current delivery, validates no external evidence, and is neither an
 authorization proof nor enforcement. Its result must not be retained, cached,
 serialized, transmitted, logged, persisted, or reused as a capability.
+
+Phase 1H implements the transport-neutral Diagnostic Handler boundary. Its
+Experimental `renderIfEligible(...)` operation evaluates the supplied
+eligibility object first. False returns `null` immediately without any source
+access; true alone permits the handler to invoke the existing projector and
+renderer and return their exact HTML result unchanged. The handler catches
+nothing and every `Throwable` propagates unchanged. It does not establish either
+permission, validate evidence or provenance, authenticate a caller, select a
+transport, or define the non-trusted path. Direct construction of allowed values,
+direct use of the handler, and direct use of the low-level projector or renderer
+therefore remain possible but prove no authorization. A future outer adapter
+still owns evidence, permission construction, per-delivery composition, the
+non-trusted path, transport, and delivery. Diagnostic Handler is the only
+current package depending on both Diagnostic Activation and Diagnostic
+Presentation; neither lower layer depends on Handler.
 
 Trust may never be enabled, widened, or inferred from exception messages, class
 names, context fields, hostnames, filesystem presence, network reachability,
@@ -125,7 +141,10 @@ Phase 0Z implements the trusted-developer HTML renderer and its final HTML
 escaping. Phase 1A accepts two independent outer permissions: trusted bootstrap
 permission and adapter-controlled delivery permission must both be affirmative
 before presentation access, projection, rendering, or delivery. Phases 1C and
-1D implement the two typed inputs; enforcement remains unimplemented.
+1D implement the two typed inputs, Phase 1E implements their conjunction, and
+Phase 1H implements denial-before-access sequencing. External evidence
+evaluation, adapter composition, transport authorization, and delivery remain
+unimplemented.
 The final HTML grammar boundary escapes each
 dynamic text value with
 `htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8',

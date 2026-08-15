@@ -7,7 +7,8 @@ pure combined eligibility value used by Kongono's Accepted fail-closed
 diagnostic-activation architecture.
 It depends on API Metadata for compatibility classification and has no dependency
 on Diagnostic Presentation, Diagnostics, Kernel, Application Graph, or Dependency
-Injection. No existing package depends on Diagnostic Activation.
+Injection. Only Diagnostic Handler depends on Diagnostic Activation; Activation
+does not depend on Handler.
 
 The package is not an authorization engine, access-control system, capability
 system, or security boundary. It does not decide whether a transport audience is
@@ -104,3 +105,4 @@ telemetry, localization, or serialization.
 - [Error handling and actionable diagnostics](../../docs/engineering/error-handling.md)
 - [Package layout](../../docs/engineering/package-layout.md)
 - [Diagnostic Presentation package](../diagnostic-presentation/README.md)
+- [Diagnostic Handler package](../diagnostic-handler/README.md)

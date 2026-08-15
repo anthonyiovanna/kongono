@@ -185,6 +185,15 @@ pure combined eligibility calculation. Only two `Allowed` inputs return true.
 External evidence evaluation, enforcement before presentation access, adapter
 composition, transport, and delivery remain unimplemented.
 
+Phase 1H implementation note: [ADR
+0042](0042-transport-neutral-trusted-diagnostic-handler.md) is implemented by
+the transport-neutral Diagnostic Handler. Its presenter checks eligibility
+before any source accessor, returns `null` immediately on denial, and otherwise
+returns the existing projector-and-renderer HTML unchanged. It catches no
+failure. The package evaluates no evidence and delivers no output; the outer
+adapter still owns evidence, permission construction, authentication,
+composition, the non-trusted path, transport, and delivery.
+
 ## Rejected alternatives
 
 - A single bootstrap or delivery switch is rejected because neither decision
