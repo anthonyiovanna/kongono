@@ -3,7 +3,11 @@
 ## Status and scope
 
 This document is an index of Kongono's authorized architectural direction.
-Kongono is pre-alpha. Phase 0X adds the exact Diagnostic Presentation leaf and
+Kongono is pre-alpha. Phase 1C adds the exact Diagnostic Activation package and
+typed trusted-bootstrap permission value. Phase 1D adds the neutral typed
+adapter-controlled delivery permission for one current delivery, still without
+configuration, evidence evaluation, combined enforcement, or an adapter.
+Phase 0X adds the exact Diagnostic Presentation leaf and
 pure trusted-developer projection above Phase 0U, which adds the exact acyclic DI-to-Diagnostics
 edge and integrates all 25 Dependency Injection diagnostics across 26 throw
 sites. Phase 0T integrates all six Kernel lifecycle failures, and Phase 0Q
@@ -24,18 +28,30 @@ repository behavior.
 
 ## Package dependency topology
 
-The current runtime has six packages. `kongono/api-metadata` requires
+The current runtime has seven packages. `kongono/api-metadata` requires
 PHP only and owns `Kongono\ApiMetadata\Api` and `ApiStatus`. Kernel,
 Diagnostics, and Dependency Injection each require API Metadata; Kernel,
 Application Graph, and Dependency Injection also require Diagnostics. The root consumes all five. This
 graph is acyclic, and no package depends on Kernel merely for compatibility
 metadata.
 
+Phase 1C implements `kongono/diagnostic-activation` as an acyclic package that
+depends only on API Metadata and PHP. Phase 1D gives it exactly two Experimental
+unbacked permission enums:
+`Kongono\DiagnosticActivation\TrustedDeveloperBootstrapPermission` and
+`Kongono\DiagnosticActivation\AdapterControlledDeliveryPermission`. Each has
+ordered `Denied`, `Allowed` cases and `allowsTrustedPresentation(): bool`. The
+first represents an already-validated decision fixed for a future adapter
+instance; the second represents the future adapter's already-determined
+permission for one current delivery. No existing package depends on Diagnostic
+Activation, and the framework root consumes all seven packages.
+
 Phase 0X implements `kongono/diagnostic-presentation` as a leaf above this
 graph. It depends directly on API Metadata, Diagnostics, Kernel, Application
 Graph, and Dependency Injection. No existing package depends on it, and it
 creates no binding, service registration, Graph node, ambient discovery, or
-reverse edge. The framework root consumes all six packages.
+reverse edge. Diagnostic Presentation does not depend on Diagnostic Activation;
+the framework root consumes both independently.
 
 The former `Kongono\Kernel\Api\*` identities are unavailable and no alias or
 forwarder exists. Graph and Kernel retain their diagnostic integrations exactly.
@@ -123,10 +139,22 @@ trusted bootstrap permission [Accepted policy; enforcement unimplemented]
         -> presentation access -> projection -> rendering -> future adapter delivery
 ```
 
-Both permissions remain outside Diagnostic Presentation. Phase 1A adds no
+Both permissions remain outside Diagnostic Presentation. Phase 1A added no
 package edge, service, runtime integration, configuration mechanism, activation
-type, adapter, served page, or production surface; the current six-package
-graph is unchanged.
+type, adapter, served page, or production surface. Phase 1C implemented only
+the first typed input in the separate Diagnostic Activation package. Phase 1D
+implements only the second neutral typed input. Both values now exist, but no
+configuration reader, delivery-evidence evaluation, combined enforcement,
+adapter, transport, or production surface exists. `Allowed` on either enum is
+insufficient by itself, and direct case selection or presentation calls do not
+prove authority.
+
+Phase 1E implements only the pure combined calculation as the final readonly
+Experimental `TrustedDeveloperPresentationEligibility` in Diagnostic Activation.
+It stores both typed decisions for one current delivery and returns true only
+when both are `Allowed`. Direct construction or a true result does not prove
+authority. Evidence evaluation, presentation access, and enforcement remain
+future outer-adapter responsibilities; the package graph is unchanged.
 
 ## Boundaries
 

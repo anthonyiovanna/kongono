@@ -2,7 +2,7 @@
 
 ## Status
 
-The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the Application Graph structural snapshot, Phase 0H adds only its exact outgoing and incoming direct-relation selectors, and Phase 0J adds only exact whole-snapshot node-kind and relation-kind selectors. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction. Phase 0L accepts actionable-diagnostic and error-boundary doctrine; Phase 0M implements package-local runtime ID, title, and remediation metadata for current deliberate failures; Phase 0P implements presentation-neutral bounded structural diagnostic values and package-local construction failures; Phase 0Q integrates exact bounded context for the 11 Graph failures. Phase 0R accepts neutral API-metadata ownership and an acyclic package graph; Phase 0S implements that exact fifth-package extraction and namespace migration without changing runtime behavior. Phase 0T adds the one-way Kernel-to-Diagnostics edge and exact context for all six Kernel lifecycle failures. Phase 0U adds the independent DI-to-Diagnostics edge and exact context for all 25 DI diagnostics across 26 throw sites. Phase 0W accepts the `kongono/diagnostic-presentation` leaf architecture, Phase 0X implements its pure trusted-developer projection core, Phase 0Z implements its pure trusted-developer HTML renderer, and Phase 1A accepts the fail-closed two-gate activation architecture. The current runtime has six packages and the projector, detached values, renderer, fixed local stylesheet, and golden HTML fixtures exist; no activation enforcement, trusted-mode selector, configuration reader, production model, transport, or runtime adapter exists. Other planned mechanisms do not yet exist unless this document says otherwise.
+The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the Application Graph structural snapshot, Phase 0H adds only its exact outgoing and incoming direct-relation selectors, and Phase 0J adds only exact whole-snapshot node-kind and relation-kind selectors. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction. Phase 0L accepts actionable-diagnostic and error-boundary doctrine; Phase 0M implements package-local runtime ID, title, and remediation metadata for current deliberate failures; Phase 0P implements presentation-neutral bounded structural diagnostic values and package-local construction failures; Phase 0Q integrates exact bounded context for the 11 Graph failures. Phase 0R accepts neutral API-metadata ownership and an acyclic package graph; Phase 0S implements that exact fifth-package extraction and namespace migration without changing runtime behavior. Phase 0T adds the one-way Kernel-to-Diagnostics edge and exact context for all six Kernel lifecycle failures. Phase 0U adds the independent DI-to-Diagnostics edge and exact context for all 25 DI diagnostics across 26 throw sites. Phase 0W accepts the `kongono/diagnostic-presentation` leaf architecture, Phase 0X implements its pure trusted-developer projection core, Phase 0Z implements its pure trusted-developer HTML renderer, Phase 1A accepts the fail-closed two-gate activation architecture, Phase 1C implements its typed trusted-bootstrap permission foundation, Phase 1D implements its typed adapter-controlled delivery-permission foundation, and Phase 1E implements their pure combined eligibility calculation. The current runtime has seven packages, both neutral typed permission values, their one-delivery final readonly eligibility value, projector, detached values, renderer, fixed local stylesheet, and golden HTML fixtures; no delivery-evidence evaluator, activation enforcement, trusted-mode selector, configuration reader, production model, transport, or runtime adapter exists. Other planned mechanisms do not yet exist unless this document says otherwise.
 
 ## Product philosophy
 
@@ -23,7 +23,8 @@ AI may suggest interpretations and changes, but correctness-critical application
 Kongono will use a small microkernel with independently installable components that contribute coherent capabilities. Potential capabilities include HTTP, Data, ORM, Migrations, Authentication, Authorization, Events, Queues, Workflows, Cache, Storage, Mail, Notifications, Realtime, Scheduling, AI, Agents, Delegation, MCP, A2A, Frontend integration, Testing, and Developer tooling.
 
 This list is direction, not a package map. The implemented production packages
-are API Metadata, Kernel, Application Graph, Dependency Injection, and Diagnostics. The
+are API Metadata, Diagnostic Activation, Kernel, Application Graph, Dependency
+Injection, Diagnostics, and Diagnostic Presentation. The
 resolver is not a general capability platform and implies none of the other
 listed packages.
 
@@ -141,12 +142,21 @@ rendering, and delivery. Absence, invalidity, ambiguity, evaluation failure,
 denial, or uncertainty prohibits the trusted path. No request or other client
 input, raw environment label, truthy string, heuristic, AI output, ambient
 global or service state, or prior operation may enable or widen either
-permission. Permission mechanisms remain future and unimplemented. API status,
+permission. Phase 1C implements the Experimental unbacked
+`TrustedDeveloperBootstrapPermission` value and Phase 1D adds the Experimental
+unbacked `AdapterControlledDeliveryPermission` value in the separate Diagnostic
+Activation package. They are neutral typed inputs, not evidence evaluators or
+authorization by themselves. Raw configuration, delivery evidence and its
+evaluation, combined enforcement, and adapters remain future and unimplemented. API status,
 package-local tokens, output escaping, and direct projector or renderer
 callability are not authorization. The trusted developer model is prohibited as
 a production model; production needs a separate deny-by-default policy and
 explicit allowlists. Projection and concrete rendering remain distinct
 implemented responsibilities.
+
+Phase 1E's pure conjunction returns true only when both typed permissions are
+`Allowed`. The eligibility object is limited to one current delivery, proves no
+external authority, and performs no enforcement or presentation access.
 
 Phase 0Z implements the first concrete presentation architecture accepted in
 Phase 0Y. Actionable developer failures are deliberately structured into
@@ -156,9 +166,10 @@ HTML renderer escapes every dynamic text value there and never accepts raw
 markup. Its exact template and CSS are fixture-backed and it retains no state.
 Escaping and disclosure authorization are separate controls; escaped Protected
 data remains Protected. Diagnostic presentation must remain useful without
-remote assets, network access, or AI services. Trusted activation, transport,
-and production presentation remain future outer-boundary concerns. Phase 1A
-accepts activation semantics only; enforcement remains future.
+remote assets, network access, or AI services. Both typed permission decisions
+now exist, while raw-input validation, delivery-evidence evaluation, combined
+activation enforcement, transport, and production presentation remain future
+outer-boundary concerns.
 
 ## Agents and interoperability
 

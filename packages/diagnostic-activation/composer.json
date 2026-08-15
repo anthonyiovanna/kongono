@@ -1,0 +1,19 @@
+{
+  "name": "kongono/diagnostic-activation",
+  "description": "Typed trusted-bootstrap diagnostic permission values for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\DiagnosticActivation\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\DiagnosticActivation\\Tests\\": "tests/"
+    }
+  }
+}

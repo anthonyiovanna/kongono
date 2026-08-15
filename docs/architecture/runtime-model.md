@@ -79,20 +79,35 @@ previous-operation state. It stores no cross-operation value. An accessor-thrown
 native `Throwable` propagates unchanged. These rules make projection bounded and
 persistent-runtime-safe but do not authorize its caller.
 
-Phase 1A accepts two independent decisions outside Diagnostic Presentation. A
-future server-controlled composition boundary supplies an already validated,
-typed, immutable trusted bootstrap permission when constructing one adapter
-instance. Raw configuration cannot mutate that live shared decision; changed
-bootstrap permission requires explicit restart or construction of a new adapter
-instance. The exact source, validation, type, reload lifecycle, and adapter are
+Phase 1A accepts two independent decisions outside Diagnostic Presentation.
+Phase 1C implements the first decision value as the Experimental unbacked
+`Kongono\DiagnosticActivation\TrustedDeveloperBootstrapPermission` enum. A
+future server-controlled composition boundary must choose the already-validated,
+immutable value when constructing one adapter instance. Raw configuration cannot
+mutate that live shared decision; changed bootstrap permission requires explicit
+restart or construction of a new adapter instance. The exact raw source,
+validation failure, composition API, reload lifecycle, and adapter remain
 unselected and unimplemented.
 
-The future adapter separately evaluates delivery permission for the current
-delivery boundary. That decision is not stored in a static, ambient current
-context or previous-operation value, and one request, job, message, command,
-tenant, user, fiber, worker operation, or concurrent delivery cannot authorize
-another. Denial or uncertainty takes the future non-trusted path before
-presentation access; it does not project or render and discard the result.
+Phase 1D implements the second decision value as the Experimental unbacked
+`Kongono\DiagnosticActivation\AdapterControlledDeliveryPermission` enum. A
+future adapter must select this value from its already-evaluated evidence for
+the current delivery boundary. The enum evaluates no evidence, proves no
+freshness or boundary identity, and cannot authorize presentation by itself.
+The decision is not stored in a static, ambient current context or
+previous-operation value, and one request, job, message, command, tenant, user,
+fiber, worker operation, or concurrent delivery cannot authorize another.
+Denial or uncertainty takes the future non-trusted path before presentation
+access; it does not project or render and discard the result. The evidence
+sources, evaluation mechanism, and combined enforcement remain unimplemented.
+
+Phase 1E adds the pure final readonly
+`TrustedDeveloperPresentationEligibility` for one current delivery. It stores
+only the two typed decisions and returns true only when both permit trusted
+presentation. A future adapter must construct and consume it within that
+delivery's explicit flow; it must not retain or reuse the object or its result
+as ambient, static, cached, thread-local, fiber-local, or previous-operation
+authority. Evidence evaluation and enforcement remain unimplemented.
 
 The required evaluation order is:
 
@@ -110,7 +125,8 @@ exception unchanged while prohibiting later presentation accessor reads and
 Protected-field copying. The implemented renderer is stateless, retains nothing
 after return, and consults no ambient or runtime state. Calling the projector or
 renderer directly is explicit low-level composition, not authorization or a
-runtime hook. Activation enforcement and every adapter remain unimplemented.
+runtime hook. Delivery permission, combined activation enforcement, and every
+adapter remain unimplemented.
 This sequence implies no Kernel lifecycle, container, DI, HTTP, Application
 Graph, configuration, cleanup, logging, or telemetry integration.
 

@@ -20,6 +20,9 @@ use Kongono\DependencyInjection\Exception\DependencyInjectionException;
 use Kongono\DependencyInjection\Exception\ExceptionInterface as DependencyInjectionExceptionInterface;
 use Kongono\DependencyInjection\Exception\InvalidDefinitionException;
 use Kongono\DependencyInjection\Exception\UnknownServiceException;
+use Kongono\DiagnosticActivation\AdapterControlledDeliveryPermission;
+use Kongono\DiagnosticActivation\TrustedDeveloperBootstrapPermission;
+use Kongono\DiagnosticActivation\TrustedDeveloperPresentationEligibility;
 use Kongono\DiagnosticPresentation\Developer\DeveloperDiagnosticOwner;
 use Kongono\DiagnosticPresentation\Developer\Html\TrustedDeveloperHtmlRenderer;
 use Kongono\DiagnosticPresentation\Developer\TrustedDeveloperDiagnostic;
@@ -74,6 +77,9 @@ final class ApiStatusConventionTest extends TestCase
         DependencyInjectionException::class => ApiStatus::Internal,
         InvalidDefinitionException::class => ApiStatus::Experimental,
         UnknownServiceException::class => ApiStatus::Experimental,
+        AdapterControlledDeliveryPermission::class => ApiStatus::Experimental,
+        TrustedDeveloperBootstrapPermission::class => ApiStatus::Experimental,
+        TrustedDeveloperPresentationEligibility::class => ApiStatus::Experimental,
         DeveloperDiagnosticOwner::class => ApiStatus::Experimental,
         TrustedDeveloperDiagnostic::class => ApiStatus::Experimental,
         TrustedDeveloperDiagnosticField::class => ApiStatus::Experimental,
@@ -409,6 +415,19 @@ final class ApiStatusConventionTest extends TestCase
             'php' => '>=8.5',
         ], $diagnosticsManifest['require']);
 
+        $diagnosticActivationManifest = json_decode(
+            (string) file_get_contents(dirname(__DIR__, 2) . '/packages/diagnostic-activation/composer.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($diagnosticActivationManifest);
+        self::assertArrayHasKey('require', $diagnosticActivationManifest);
+        self::assertIsArray($diagnosticActivationManifest['require']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'php' => '>=8.5',
+        ], $diagnosticActivationManifest['require']);
+
         $diagnosticPresentationManifest = json_decode(
             (string) file_get_contents(dirname(__DIR__, 2) . '/packages/diagnostic-presentation/composer.json'),
             true,
@@ -438,6 +457,7 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/api-metadata' => '@dev',
             'kongono/application-graph' => '@dev',
             'kongono/dependency-injection' => '@dev',
+            'kongono/diagnostic-activation' => '@dev',
             'kongono/diagnostic-presentation' => '@dev',
             'kongono/diagnostics' => '@dev',
             'kongono/kernel' => '@dev',
@@ -467,7 +487,7 @@ final class ApiStatusConventionTest extends TestCase
         }
 
         sort($packageSourceDirectories);
-        self::assertCount(6, $packageSourceDirectories);
+        self::assertCount(7, $packageSourceDirectories);
         $types = [];
 
         foreach ($packageSourceDirectories as $sourceDirectory) {

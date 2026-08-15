@@ -98,6 +98,16 @@ code. Current package exceptions emit their assigned identity through
 `diagnosticId()`; titles and remediation are diagnostic prose rather than stable
 machine identity.
 
+## Diagnostic Activation
+
+The implemented `kongono/diagnostic-activation` package, namespace
+`Kongono\DiagnosticActivation\`, owns exactly the Experimental unbacked
+`TrustedDeveloperBootstrapPermission` and
+`AdapterControlledDeliveryPermission` values. It depends on API Metadata alone.
+It is not an authorization engine or security boundary and implements no raw
+configuration, delivery evidence evaluation, combined gate, adapter, or
+presentation access.
+
 ## Diagnostic Presentation
 
 The implemented leaf integration boundary `kongono/diagnostic-presentation`,
@@ -105,7 +115,8 @@ namespace `Kongono\DiagnosticPresentation\`. Phase 0X provides its trusted-
 developer projection core, and Phase 0Z provides the first pure HTML renderer;
 later presentation models and other renderers remain owned here but
 unimplemented. It consumes all five originating packages, while none depends on
-it. Diagnostics stays presentation-neutral.
+it. Diagnostic Presentation does not depend on the separate Diagnostic
+Activation package. Diagnostics stays presentation-neutral.
 
 ## Diagnostic Context
 
@@ -179,10 +190,12 @@ authorization, and no activation enforcement exists.
 
 The Accepted Phase 1A server-owned decision that a future composition boundary
 must validate and fix immutably for one adapter instance before it serves work.
-Absence is disabled, invalid or ambiguous raw configuration is rejected before
-serving, and a changed decision requires explicit restart or a new adapter
-instance. Its exact type, owner, configuration source, validation, and reload
-mechanism are unimplemented.
+Phase 1C implements its exact Experimental unbacked type as
+`Kongono\DiagnosticActivation\TrustedDeveloperBootstrapPermission`, with
+`Denied`, `Allowed`, and `allowsTrustedPresentation(): bool`. Absence requires
+future composition of `Denied`; invalid or ambiguous raw configuration is
+rejected before serving. The configuration source, validation failure,
+composition API, reload mechanism, and adapter remain unimplemented.
 
 ## Adapter-Controlled Delivery Permission
 
@@ -190,8 +203,11 @@ The Accepted Phase 1A decision, independent of trusted bootstrap permission,
 that a future outer adapter must make for the current delivery boundary from
 server-controlled transport ownership. Client assertions cannot grant it,
 uncertainty is denial, and one operation's decision cannot authorize another.
-Its exact transport, listener, identity, and authorization mechanism is
-unimplemented.
+Phase 1D implements its neutral Experimental unbacked representation as
+`Kongono\DiagnosticActivation\AdapterControlledDeliveryPermission`, with
+`Denied`, `Allowed`, and `allowsTrustedPresentation(): bool`. Its exact evidence,
+transport, listener, identity, authentication, and authorization mechanism is
+unimplemented and remains owned by the future adapter.
 
 ## Trusted Diagnostic Activation
 
@@ -199,9 +215,11 @@ The Accepted Phase 1A fail-closed rule that trusted bootstrap permission and
 adapter-controlled delivery permission must both be affirmative before
 presentation access, projection, copying Safe or Protected fields, rendering,
 or delivery. Missing, invalid, ambiguous, failed, denied, or uncertain decisions
-prohibit the trusted path. The architecture is Accepted; its activation type,
-configuration reader, adapter, transport, served page, and enforcement are
-unimplemented.
+prohibit the trusted path. The architecture and both typed inputs are
+implemented; the configuration reader, delivery-evidence evaluation, adapter,
+transport, served page, and enforcement are unimplemented. Phase 1E implements
+only the pure `TrustedDeveloperPresentationEligibility` AND calculation for one
+current delivery. Direct construction or a true result is not authorization.
 
 ## Trusted Developer HTML Diagnostic Page
 

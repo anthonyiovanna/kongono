@@ -137,9 +137,24 @@ for the future immutable adapter instance and independent
 **adapter-controlled delivery permission** for the current delivery must both be
 affirmative before presentation access, projection, rendering, or
 delivery. The renderer remains unchanged, pure, low-level, and Experimental;
-direct calls and escaped output do not establish authorization. No enforcement,
-activation type, configuration reader, adapter, served page, or production
-behavior is implemented.
+direct calls and escaped output do not establish authorization. Phase 1C
+implements only the typed bootstrap value in the separate Diagnostic Activation
+package through [ADR
+0039](0039-typed-trusted-developer-bootstrap-permission-foundation.md). This
+renderer does not depend on that package. No delivery permission, combined
+enforcement, configuration reader, adapter, served page, or production behavior
+is implemented.
+
+Phase 1D implementation note: [ADR
+0040](0040-typed-adapter-controlled-delivery-permission-foundation.md) adds the
+neutral typed delivery-decision value in Diagnostic Activation. The renderer
+does not depend on or inspect it. Evidence evaluation, the combined gate,
+serving, and production behavior remain unimplemented.
+
+Phase 1E implementation note: [ADR
+0041](0041-pure-two-permission-trusted-presentation-eligibility.md) adds the pure
+combined AND calculation in Diagnostic Activation. This renderer remains
+unchanged, directly callable, and unable to enforce eligibility.
 
 ## Rejected alternatives
 
@@ -165,8 +180,8 @@ behavior is implemented.
 
 ## What remains open
 
-- Exact typed bootstrap decision, server configuration validation and reload,
-  outer adapter, and delivery-authorization mechanisms.
+- Server configuration validation and reload, outer adapter, delivery-
+  authorization, and combined enforcement mechanisms.
 - HTTP response ownership, status, content type, cache, and CSP headers.
 - Safe copy and export formats.
 - Optional cause-chain, source, stack-frame, and version-matched documentation

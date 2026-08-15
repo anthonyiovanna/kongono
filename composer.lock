@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "46bff50527caa6e28efe26b28b20a63f",
+    "content-hash": "519203705afcc19d3cbd109d1248f0d7",
     "packages": [
         {
             "name": "kongono/api-metadata",
@@ -87,6 +87,34 @@
                 }
             },
             "description": "Explicit typed dependency resolution for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/diagnostic-activation",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/diagnostic-activation",
+                "reference": "5caab5493cf851ec089617f2c628efd818001af4"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "php": ">=8.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DiagnosticActivation\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DiagnosticActivation\\Tests\\": "tests/"
+                }
+            },
+            "description": "Typed trusted-bootstrap diagnostic permission values for Kongono Framework.",
             "transport-options": {
                 "relative": true
             }
@@ -4982,6 +5010,7 @@
         "kongono/api-metadata": 20,
         "kongono/application-graph": 20,
         "kongono/dependency-injection": 20,
+        "kongono/diagnostic-activation": 20,
         "kongono/diagnostic-presentation": 20,
         "kongono/diagnostics": 20,
         "kongono/kernel": 20

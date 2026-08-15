@@ -43,7 +43,14 @@ unchanged. Presentation adds 15 unique IDs for 68 repository-wide. All 42
 original failures expose context: six Kernel, 11 Graph, and 25 DI. The pure
 trusted-developer projection and trusted HTML renderer are implemented;
 Phase 1A accepts their fail-closed two-gate activation architecture, but
-activation enforcement, transport, and production rendering remain future.
+Phase 1C implements the typed trusted-bootstrap permission value and Phase 1D
+adds the typed adapter-controlled delivery-permission value. Delivery-evidence
+evaluation, combined activation enforcement, transport, and production rendering
+remain future.
+
+Phase 1E implements only the pure two-permission eligibility calculation. The
+four-row AND truth table is executable, but external provenance validation,
+presentation access, and enforcement remain future outer-adapter work.
 
 ## Choose the correct failure category
 
@@ -966,9 +973,23 @@ No trusted selector, served route, adapter, or production surface exists.
 ### Accepted fail-closed trusted diagnostic activation
 
 [ADR 0038](../adr/0038-fail-closed-trusted-developer-diagnostic-activation.md)
-accepts the policy that must govern any future adapter. It implements no
-activation type, configuration reader, adapter, HTTP behavior, served page, or
-runtime enforcement.
+accepts the policy that must govern any future adapter. [ADR
+0039](../adr/0039-typed-trusted-developer-bootstrap-permission-foundation.md)
+implements the first typed input as the Experimental unbacked
+`Kongono\DiagnosticActivation\TrustedDeveloperBootstrapPermission` enum. [ADR
+0040](../adr/0040-typed-adapter-controlled-delivery-permission-foundation.md)
+implements the second as the Experimental unbacked
+`Kongono\DiagnosticActivation\AdapterControlledDeliveryPermission` enum. These
+values represent already-made decisions and evaluate no underlying evidence. No
+raw configuration reader, delivery-evidence evaluator, combined gate, adapter,
+HTTP behavior, served page, or runtime enforcement exists.
+
+Phase 1E adds the final readonly Experimental
+`TrustedDeveloperPresentationEligibility`. It receives the two decisions for
+one current delivery and returns true only for `Allowed` plus `Allowed`. Direct
+construction and a true result prove no authority. The value does not access a
+diagnostic, projector, renderer, request, adapter, transport, configuration, or
+external evidence, and it performs no side effect or enforcement.
 
 Trusted presentation requires two independent affirmative permissions:
 
@@ -1016,10 +1037,14 @@ static, ambient, or prior-operation state. Recursive trusted rendering,
 fallback activation, and replacing the primary failure with activation failure
 are prohibited; exact multi-failure representation remains future.
 
-This Accepted policy does not select the typed bootstrap API, configuration
-source or loader, validation failure, reload lifecycle, adapter package,
-listener or operator identity, transport authentication, HTTP contract,
-production model, operational integration, or cleanup behavior.
+The exact typed bootstrap and delivery APIs and Diagnostic Activation ownership
+are now implemented. The delivery value alone proves neither freshness nor
+current-boundary identity and never authorizes presentation without affirmative
+bootstrap permission. The Accepted policy still does not select the raw
+configuration source or loader, validation failure, reload lifecycle, delivery
+evidence sources or evaluator, adapter package, listener or operator identity,
+transport authentication, HTTP contract, production model, operational
+integration, or cleanup behavior.
 
 ### Future production surface
 
@@ -1077,6 +1102,16 @@ and absence of active or external surfaces. These tests do not claim browser,
 assistive-technology, HTTP, CSP, trusted-activation, or production integration
 coverage.
 
+Phase 1C tests cover the exact trusted-bootstrap enum shape, cases, truth table,
+API status, identity, and absence of scalar coercion. Phase 1D applies the same
+checks to the adapter-controlled delivery enum. These unit tests validate the
+neutral typed values only; they do not claim configuration, evidence evaluation,
+combined enforcement, adapter, transport, or production coverage.
+
+Phase 1E tests all four eligibility rows and the exact immutable Experimental
+class shape. They prove the pure calculation only, not external validation or
+enforcement.
+
 ## Non-goals and open decisions
 
 Beyond the package-local metadata, structural value foundation, and all 42
@@ -1087,11 +1122,12 @@ problem format, CLI behavior, logger, telemetry hook, incident store, retry or
 cancellation type, cleanup runner, source reader, arbitrary context bag,
 localization, or Application Graph diagnostic metadata.
 
-The two-gate fail-closed semantics are Accepted. Open decisions include the
-exact typed bootstrap-decision API and ownership; server configuration source,
-schema, loader, validation failure, and reload lifecycle; outer adapter package
-and composition contract; delivery-authorization mechanism, listener or
-operator identity; simultaneous primary, activation, projection, rendering,
+The two-gate fail-closed semantics and exact typed bootstrap- and
+delivery-decision APIs and ownership are resolved. Open decisions include the
+server configuration source, schema, loader, validation failure, and reload
+lifecycle; outer adapter package and composition contract; delivery-evidence
+sources and evaluation mechanism, listener or operator identity; simultaneous
+primary, activation, projection, rendering,
 transport, and cleanup failure representation; other renderer APIs and formats;
 HTTP/problem and CLI mapping; production model and allowlists; incident storage;
 logging and telemetry; documentation lookup and version selection; localization;
@@ -1111,6 +1147,10 @@ serialization or cross-process and cross-language form.
 - [ADR 0036](../adr/0036-accessible-trusted-developer-html-diagnostic-page.md)
 - [ADR 0037](../adr/0037-trusted-developer-html-diagnostic-renderer-implementation.md)
 - [ADR 0038](../adr/0038-fail-closed-trusted-developer-diagnostic-activation.md)
+- [ADR 0039](../adr/0039-typed-trusted-developer-bootstrap-permission-foundation.md)
+- [ADR 0040](../adr/0040-typed-adapter-controlled-delivery-permission-foundation.md)
+- [ADR 0041](../adr/0041-pure-two-permission-trusted-presentation-eligibility.md)
+- [Diagnostic Activation package](../../packages/diagnostic-activation/README.md)
 - [Kernel package](../../packages/kernel/README.md)
 - [Application Graph package](../../packages/application-graph/README.md)
 - [Dependency Injection package](../../packages/dependency-injection/README.md)

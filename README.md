@@ -95,8 +95,34 @@ Experimental APIs; calling them is not authorization. No activation type,
 configuration reader, adapter, served page, HTTP behavior, or production
 diagnostic presentation is implemented.
 
+Phase 1C implements only the first typed input to that Accepted policy in the
+new seventh package, `kongono/diagnostic-activation`. Its sole production type
+is the Experimental unbacked enum
+`TrustedDeveloperBootstrapPermission`, with `Denied`, `Allowed`, and
+`allowsTrustedPresentation(): bool`. The enum carries an already-validated
+server-bootstrap decision; it reads no raw configuration and does not prove
+delivery authorization. Adapter-controlled delivery permission, combined
+enforcement, adapters, HTTP behavior, and delivery remain unimplemented.
+
+Phase 1D adds the second neutral typed input in the same package: the
+Experimental unbacked `AdapterControlledDeliveryPermission` enum with `Denied`,
+`Allowed`, and `allowsTrustedPresentation(): bool`. It represents only a future
+outer adapter's already-determined permission for one current delivery. The
+adapter still owns all evidence, evaluation, and authority; missing, failed,
+uncertain, or unverified evidence must fail closed. Both typed inputs now exist,
+but neither `Allowed` case suffices alone, and no combined gate, enforcement,
+adapter, request inspection, configuration loader, transport, or served page is
+implemented.
+
+Phase 1E adds the pure Experimental final readonly
+`TrustedDeveloperPresentationEligibility`. It stores the two typed decisions
+for one current delivery and returns true only for `Allowed` plus `Allowed`.
+This calculation validates no external evidence, proves no authority, and
+performs no enforcement, diagnostic access, adapter, transport, or side effect.
+
 The broader originating-package behavior remains the accepted Phase 0U implementation:
-the PHP quality toolchain and six packages for neutral API metadata, Kernel lifecycle, the Application Graph structural
+the PHP quality toolchain and seven packages, including neutral API metadata,
+both typed diagnostic permission inputs, Kernel lifecycle, the Application Graph structural
 snapshot, and explicit typed dependency resolution. The Graph supports exact
 `outgoingRelations(NodeKey): array` and `incomingRelations(NodeKey): array`
 selection over immediately stored relations, plus exact whole-snapshot
@@ -137,6 +163,7 @@ Nothing is Stable. Public API status means supported consumer use under Kongono'
 - [Architectural doctrine](docs/doctrine.md)
 - [Architecture overview](docs/architecture/overview.md)
 - [API Metadata package](packages/api-metadata/README.md)
+- [Diagnostic Activation package](packages/diagnostic-activation/README.md)
 - [Kernel package](packages/kernel/README.md)
 - [Application Graph structural package](packages/application-graph/README.md)
 - [Dependency Injection package](packages/dependency-injection/README.md)

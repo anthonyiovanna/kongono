@@ -197,6 +197,29 @@ authorize its use. Phase 1A implements no activation, configuration, adapter,
 transport, production, or runtime mechanism and changes no projection behavior.
 Enforcement is unimplemented.
 
+### Phase 1C implementation note
+
+[ADR 0039](0039-typed-trusted-developer-bootstrap-permission-foundation.md)
+implements the first permission value in the separate Diagnostic Activation
+package. Diagnostic Presentation does not depend on that package and retains no
+authorization or configuration responsibility. Delivery permission, combined
+enforcement, adapters, transports, and production presentation remain future.
+
+### Phase 1D implementation note
+
+[ADR 0040](0040-typed-adapter-controlled-delivery-permission-foundation.md)
+implements the second neutral typed input in Diagnostic Activation. Diagnostic
+Presentation still does not depend on that package or enforce authorization.
+The future adapter retains delivery evidence and evaluation, and the combined
+gate, transport, and production presentation remain absent.
+
+### Phase 1E implementation note
+
+[ADR 0041](0041-pure-two-permission-trusted-presentation-eligibility.md)
+implements the pure combined AND calculation in Diagnostic Activation. This
+package still does not depend on Diagnostic Activation or enforce eligibility;
+the projector remains directly callable and unchanged.
+
 ## Rationale
 
 A leaf package can integrate the three package-local recovery boundaries without
@@ -249,8 +272,8 @@ policy, transport, or runtime integration.
 
 ## What remains open
 
-- Exact typed bootstrap decision, server configuration validation and reload,
-  outer adapter, and delivery-authorization mechanisms.
+- Server configuration validation and reload, outer adapter, delivery-
+  authorization, and combined enforcement mechanisms.
 - Safe copy and export formats.
 - Native cause-chain policy.
 - Version-matched documentation lookup.

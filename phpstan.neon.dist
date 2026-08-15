@@ -11,6 +11,8 @@ parameters:
         - packages/application-graph/tests
         - packages/dependency-injection/src
         - packages/dependency-injection/tests
+        - packages/diagnostic-activation/src
+        - packages/diagnostic-activation/tests
         - packages/diagnostic-presentation/src
         - packages/diagnostic-presentation/tests
         - packages/diagnostics/src

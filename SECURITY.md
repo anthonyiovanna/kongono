@@ -54,6 +54,24 @@ permission** for the current delivery boundary. Both permissions must be
 affirmative before presentation access, projection, copying Safe or Protected
 fields, rendering, or delivery. One permission never implies the other.
 
+Phase 1C implements only the first typed input as the Experimental unbacked
+`Kongono\DiagnosticActivation\TrustedDeveloperBootstrapPermission` enum.
+`Denied` reports that bootstrap permission does not allow the trusted path;
+`Allowed` reports only that the already-validated bootstrap decision permits it
+to be considered. Directly selecting `Allowed` in PHP does not prove trust or
+delivery authorization. The enum reads no raw configuration and performs no
+presentation access or I/O.
+
+Phase 1D implements the second neutral typed input as the Experimental unbacked
+`Kongono\DiagnosticActivation\AdapterControlledDeliveryPermission` enum.
+`Denied` prohibits the trusted path; `Allowed` records only that a future outer
+adapter has already made an affirmative decision for one current delivery.
+The adapter remains solely responsible for evidence, evaluation, and authority.
+Unknown, unavailable, failed, uncertain, ambiguous, expired, or unverified
+evidence must never become `Allowed`, and an affirmative decision must not be
+reused across deliveries. Directly selecting the PHP case proves no delivery
+identity, freshness, authentication, listener trust, or authorization.
+
 Absence is disabled. Invalid, ambiguous, or failed raw bootstrap configuration
 must be rejected before serving rather than coerced or defaulted to allowed.
 Raw truthy strings and application-environment labels are not permission, and
@@ -73,10 +91,17 @@ self-authorize or leak permission to another delivery.
 The implemented projector and renderer remain low-level pure Experimental APIs
 that cannot determine whether their caller is trusted. Direct PHP callability,
 API status, a package-local token, output escaping, or successful rendering is
-not authorization. Phase 1A implements no activation type, configuration
-reader, adapter, HTTP behavior, served page, or enforcement. The permission
+not authorization. Phases 1C and 1D implement the two decision types only; no
+configuration reader, delivery-evidence evaluator, adapter, HTTP behavior,
+served page, combined gate, or enforcement exists. The permission
 names are **trusted bootstrap permission** and **adapter-controlled delivery permission**;
 their enforcement is unimplemented.
+
+Phase 1E implements the pure `TrustedDeveloperPresentationEligibility`
+conjunction: only `Allowed` plus `Allowed` returns true. The value is scoped to
+one current delivery, validates no external evidence, and is neither an
+authorization proof nor enforcement. Its result must not be retained, cached,
+serialized, transmitted, logged, persisted, or reused as a capability.
 
 Trust may never be enabled, widened, or inferred from exception messages, class
 names, context fields, hostnames, filesystem presence, network reachability,
@@ -99,8 +124,9 @@ data are excluded from the implemented projection.
 Phase 0Z implements the trusted-developer HTML renderer and its final HTML
 escaping. Phase 1A accepts two independent outer permissions: trusted bootstrap
 permission and adapter-controlled delivery permission must both be affirmative
-before presentation access, projection, rendering, or delivery. Their
-enforcement remains unimplemented. The final HTML grammar boundary escapes each
+before presentation access, projection, rendering, or delivery. Phases 1C and
+1D implement the two typed inputs; enforcement remains unimplemented.
+The final HTML grammar boundary escapes each
 dynamic text value with
 `htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8',
 true)`. Escaping prevents markup injection but does not authorize disclosure or

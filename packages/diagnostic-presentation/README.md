@@ -14,6 +14,18 @@ remains presentation-neutral, and the three originating packages retain their
 identifiers, schemas, throw-site values, semantics, and separate recovery
 markers.
 
+Phase 1C adds the separate `kongono/diagnostic-activation` package and its typed
+trusted-bootstrap permission; Phase 1D adds that package's typed
+adapter-controlled delivery permission. Diagnostic Presentation does not depend
+on either value, inspect them, or enforce them. A future adapter may consume both
+packages only under a later authorized composition boundary.
+
+Phase 1E adds Diagnostic Activation's pure final readonly
+`TrustedDeveloperPresentationEligibility`, which returns true only when both
+typed permissions are `Allowed` for one current delivery. Diagnostic
+Presentation does not depend on, inspect, or enforce this value. Its projector
+and renderer remain separate and directly callable low-level APIs.
+
 ## Trusted developer projection
 
 `TrustedDeveloperDiagnosticProjector::project()` accepts exactly one Kernel,
@@ -36,15 +48,22 @@ Accepted permissions below before calling the projector or exposing its result.
 
 [ADR 0038](../../docs/adr/0038-fail-closed-trusted-developer-diagnostic-activation.md)
 accepts a fail-closed outer policy that this package neither owns nor enforces.
-Its enforcement is unimplemented.
+Its enforcement is unimplemented. [ADR
+0039](../../docs/adr/0039-typed-trusted-developer-bootstrap-permission-foundation.md)
+implements the first typed input in the separate Diagnostic Activation package.
+[ADR
+0040](../../docs/adr/0040-typed-adapter-controlled-delivery-permission-foundation.md)
+implements the second typed input there. Neither value evaluates its underlying
+evidence or grants presentation access by itself, and combined enforcement
+remains unimplemented.
 
 Before a future adapter accesses source metadata or context for presentation,
 calls the projector, copies Safe or Protected fields, calls the renderer, or
 delivers its output, both of these independent decisions must already be
 affirmative:
 
-- trusted bootstrap permission, validated and fixed immutably for that future
-  adapter instance before it serves work; and
+- trusted bootstrap permission, validated and fixed immutably as `Allowed` for
+  that future adapter instance before it serves work; and
 - adapter-controlled delivery permission for the current delivery boundary.
 
 Missing, invalid, ambiguous, failed, denied, or uncertain decisions prohibit
@@ -52,7 +71,8 @@ the trusted path. Diagnostic Presentation reads no raw configuration or request
 and cannot infer either permission from environment labels, truthy strings,
 client data, exception data, API status, heuristics, AI, ambient state, or a
 previous operation. It owns no activation token, grant, policy, capability,
-configuration type, adapter, or transport authorization mechanism.
+bootstrap decision, configuration type, adapter, or transport authorization
+mechanism.
 
 The projector and renderer remain directly callable low-level pure Experimental
 APIs. Their exact calling precondition is that the outer caller has already
@@ -127,7 +147,7 @@ does not mean Stable under Kongono's pre-alpha maturity.
 
 ## Explicit non-goals
 
-This package implements no activation enforcement, configuration reader, served
+This package implements no activation decision or enforcement, configuration reader, served
 page, JSON, Markdown, terminal or plaintext grammar, HTTP or CLI adapter,
 trusted-mode selector, production model, allowlist, service binding, Kernel
 hook, Graph integration, logging, telemetry, persistence, serialization,
@@ -141,5 +161,9 @@ deny-by-default model rather than redact the trusted developer projection.
 - [ADR 0036](../../docs/adr/0036-accessible-trusted-developer-html-diagnostic-page.md)
 - [ADR 0037](../../docs/adr/0037-trusted-developer-html-diagnostic-renderer-implementation.md)
 - [ADR 0038](../../docs/adr/0038-fail-closed-trusted-developer-diagnostic-activation.md)
+- [ADR 0039](../../docs/adr/0039-typed-trusted-developer-bootstrap-permission-foundation.md)
+- [ADR 0040](../../docs/adr/0040-typed-adapter-controlled-delivery-permission-foundation.md)
+- [ADR 0041](../../docs/adr/0041-pure-two-permission-trusted-presentation-eligibility.md)
+- [Diagnostic Activation package](../diagnostic-activation/README.md)
 - [Error-handling guide](../../docs/engineering/error-handling.md)
 - [Security policy](../../SECURITY.md)

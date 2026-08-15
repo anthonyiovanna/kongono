@@ -326,6 +326,30 @@ context, projector, renderer, or runtime behavior; exact activation,
 configuration, adapter, transport, production, operational, and multi-failure
 mechanisms remain open.
 
+Phase 1C implementation note: [ADR
+0039](0039-typed-trusted-developer-bootstrap-permission-foundation.md) creates
+the separate Diagnostic Activation package and implements only the Experimental
+unbacked `TrustedDeveloperBootstrapPermission` value. Raw configuration,
+delivery permission, combined enforcement, adapters, transports, production,
+operations, and multi-failure mechanisms remain open. Diagnostic Presentation
+does not depend on Diagnostic Activation.
+
+Phase 1D implementation note: [ADR
+0040](0040-typed-adapter-controlled-delivery-permission-foundation.md) adds only
+the Experimental unbacked `AdapterControlledDeliveryPermission` value to
+Diagnostic Activation. It represents the future adapter's already-made decision
+for one current delivery boundary; it evaluates no evidence and grants no
+presentation access by itself. Delivery-evidence sources and evaluation,
+combined enforcement, adapters, transports, production, operations, and
+multi-failure mechanisms remain open. Diagnostic Presentation still does not
+depend on Diagnostic Activation.
+
+Phase 1E implementation note: [ADR
+0041](0041-pure-two-permission-trusted-presentation-eligibility.md) adds the pure
+final readonly combined eligibility value. The four-row AND calculation now
+exists for one current delivery, but external validation, presentation access,
+and outer-adapter enforcement remain absent.
+
 ## Rationale
 
 Stable package-owned identifiers make one semantic failure searchable,
@@ -381,12 +405,15 @@ propagation, and valid-state guarantees remain unchanged.
 
 ## What remains open
 
-Exact typed bootstrap-decision ownership; server configuration source, schema,
-loader, validation failure and reload lifecycle; outer adapter composition and
+Server configuration source, schema, loader, validation failure and reload
+lifecycle; outer adapter composition and
 delivery authorization; production allowlists; HTTP, problem-detail, CLI, and
 other transport mappings; safe copy/export formats; incident storage; logging
 and OpenTelemetry integration; documentation version selection; localization;
 source, stack, and cause providers; retry and cancellation types; and
 simultaneous activation, projection, rendering, transport, and cleanup failure
 representation remain open. The two-gate fail-closed semantics are Accepted by
-ADR 0038, but no enforcement mechanism is implemented.
+ADR 0038, ADR 0039 resolves the exact typed bootstrap-decision API and
+ownership, and ADR 0040 resolves the exact typed delivery-decision API and
+ownership. No delivery-evidence evaluator or combined enforcement mechanism is
+implemented.

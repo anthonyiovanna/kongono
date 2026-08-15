@@ -25,6 +25,23 @@ affirmative before presentation access, projection, rendering, or delivery.
 This policy has no enforcement implementation and does not change the renderer,
 HTML grammar, fixtures, tests, or production separation.
 
+Phase 1C implements only the typed trusted-bootstrap permission in the separate
+Diagnostic Activation package through [ADR
+0039](0039-typed-trusted-developer-bootstrap-permission-foundation.md). The
+renderer does not depend on that package and gains no authorization, delivery,
+configuration, adapter, or transport behavior.
+
+Phase 1D implements only the neutral typed adapter-controlled delivery decision
+through [ADR
+0040](0040-typed-adapter-controlled-delivery-permission-foundation.md). The
+future adapter still owns evidence and evaluation. The renderer remains
+unchanged, separate, directly callable, and unable to enforce the two-gate rule.
+
+Phase 1E implements the pure two-permission calculation through [ADR
+0041](0041-pure-two-permission-trusted-presentation-eligibility.md). The HTML
+renderer remains unchanged and cannot inspect or enforce that value; evidence,
+adapter composition, transport, and presentation access remain outside it.
+
 ## Context
 
 Phase 0X implements the pure Experimental trusted-developer projection in the
@@ -313,8 +330,8 @@ and production model do not exist.
 
 ## What remains open
 
-- Exact typed bootstrap decision, server configuration validation and reload,
-  outer adapter, and delivery-authorization mechanisms.
+- Server configuration validation and reload, outer adapter, delivery-
+  authorization, and combined enforcement mechanisms.
 - HTTP response ownership, content type, status, cache, and CSP headers.
 - Safe copy and export formats.
 - Optional cause-chain, source, stack-frame, and version-matched documentation

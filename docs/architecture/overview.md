@@ -39,12 +39,16 @@ page, production error surface, logging, telemetry, retry, cleanup, incident
 system, extension host, agent runtime, query plan, performance budget, or CLI
 executable is implemented.
 
-The current package topology has six packages. `kongono/api-metadata` owns
+The current package topology has seven packages. `kongono/api-metadata` owns
 `Kongono\ApiMetadata\Api` and `ApiStatus` and requires PHP only. Kernel,
 Diagnostics, Application Graph, and Dependency Injection depend directly on it;
-the framework root consumes all six packages and Graph retains its Diagnostics
+the framework root consumes all seven packages and Graph retains its Diagnostics
 dependency. Phase 0T also makes Kernel, and Phase 0U makes DI, depend directly
-on Diagnostics. The graph is acyclic, and those three consumers have no
+on Diagnostics. Phase 1C adds `kongono/diagnostic-activation`, which requires
+only API Metadata and PHP and owns the Experimental unbacked typed bootstrap
+permission enum. Phase 1D adds the package's Experimental unbacked typed
+adapter-controlled delivery-permission enum without adding a dependency. The
+graph is acyclic, and those three consumers have no
 dependency on each other. The former
 `Kongono\Kernel\Api\*` FQCNs are absent without a shim.
 
@@ -103,10 +107,20 @@ trusted bootstrap permission AND adapter-controlled delivery permission
 ```
 
 The two permissions and future delivery remain outside Diagnostic Presentation.
-The policy is Accepted, while its typed decisions, raw-configuration validation,
-adapter, HTTP behavior, served page, and runtime enforcement are absent.
+Phase 1C implements the trusted-bootstrap decision value and Phase 1D adds the
+adapter-controlled delivery decision value in the separate Diagnostic Activation
+package. Both are neutral typed inputs: neither evaluates raw configuration or
+delivery evidence, and neither authorizes presentation alone. Raw-configuration
+validation, delivery-evidence evaluation, combined enforcement, adapters, HTTP
+behavior, and a served page remain absent.
 Projection remains separate from rendering, and production requires its own
 deny-by-default model rather than redaction of the trusted developer model.
+
+Phase 1E implements the pure combined calculation as Diagnostic Activation's
+final readonly Experimental `TrustedDeveloperPresentationEligibility`. It holds
+the two decisions for one current delivery and implements only their exact AND
+truth table. It validates no evidence and enforces no presentation access;
+Diagnostic Presentation remains separate and directly callable.
 
 ## Intended architecture
 
@@ -148,7 +162,7 @@ Only the structural core is implemented. The surrounding flow expresses intended
 
 ## Framework shape
 
-The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. Diagnostic Presentation owns the implemented pure trusted-developer projection core and pure HTML renderer, but neither trusted bootstrap permission nor adapter-controlled delivery permission. The exact Graph-, Kernel-, and DI-to-Diagnostics dependencies create neither a universal exception nor cross-package lifecycle integration. Phase 1A adds no package edge, service, configuration mechanism, or adapter. Capabilities such as HTTP, data, authorization, events, workflows, agents, and frontend integration remain planned. The monorepo retains atomic root validation across all six currently implemented packages.
+The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. Diagnostic Activation owns the implemented typed trusted-bootstrap and adapter-controlled delivery permissions. Diagnostic Presentation owns the implemented pure trusted-developer projection core and pure HTML renderer but does not depend on Diagnostic Activation or own activation decisions. The exact Graph-, Kernel-, and DI-to-Diagnostics dependencies create neither a universal exception nor cross-package lifecycle integration. Phases 1C and 1D add no configuration or evidence-evaluation mechanism, enforcement, service, or adapter. Capabilities such as HTTP, data, authorization, events, workflows, agents, and frontend integration remain planned. The monorepo retains atomic root validation across all seven currently implemented packages.
 
 ## Interoperability boundaries
 

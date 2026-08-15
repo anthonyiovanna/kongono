@@ -122,8 +122,27 @@ fail-closed rule that affirmative trusted bootstrap permission and independent
 adapter-controlled delivery permission must precede presentation access,
 projection, copying, rendering, and delivery. The rule is not implemented here.
 The projector remains directly callable as a pure low-level Experimental API,
-which cannot establish authorization. Exact decision types, configuration,
-adapter, transport, production, and operational mechanisms remain open.
+which cannot establish authorization. Exact configuration, delivery permission,
+combined enforcement, adapter, transport, production, and operational mechanisms
+remain open.
+
+Phase 1C implementation note: [ADR
+0039](0039-typed-trusted-developer-bootstrap-permission-foundation.md) creates
+the separate Diagnostic Activation package and its sole Experimental unbacked
+bootstrap-permission enum. This package does not depend on it; projection
+behavior, package edges, exceptions, and direct low-level callability remain
+unchanged.
+
+Phase 1D implementation note: [ADR
+0040](0040-typed-adapter-controlled-delivery-permission-foundation.md) adds the
+neutral typed delivery-decision enum to Diagnostic Activation. Projection
+remains unchanged and directly callable, and no delivery evidence evaluation,
+combined enforcement, adapter, transport, or production behavior is added.
+
+Phase 1E implementation note: [ADR
+0041](0041-pure-two-permission-trusted-presentation-eligibility.md) implements
+only the pure combined eligibility calculation in Diagnostic Activation.
+Projection remains unchanged, directly callable, and unenforced.
 
 ## Rejected alternatives
 
@@ -150,8 +169,8 @@ adapter, transport, production, and operational mechanisms remain open.
 
 ## What remains open
 
-- Exact typed bootstrap decision, server configuration validation and reload,
-  outer adapter, and delivery-authorization mechanisms.
+- Server configuration validation and reload, outer adapter, delivery-
+  authorization, and combined enforcement mechanisms.
 - Safe copy and export formats.
 - Native cause-chain, source, stack-frame, and documentation providers.
 - A separate deny-by-default production model and explicit allowlists.

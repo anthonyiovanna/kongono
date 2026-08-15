@@ -163,6 +163,28 @@ No enforcement exists after Phase 1A. No adapter, configuration mechanism,
 served page, production presentation, logger, telemetry path, incident system,
 or runtime integration is created by this decision.
 
+Phase 1C implementation note: [ADR
+0039](0039-typed-trusted-developer-bootstrap-permission-foundation.md) creates
+the separate Diagnostic Activation package and resolves the first decision as
+the Experimental unbacked
+`Kongono\DiagnosticActivation\TrustedDeveloperBootstrapPermission` enum. This
+implements no raw configuration, delivery permission, combined eligibility,
+enforcement, adapter, transport, or presentation access.
+
+Phase 1D implementation note: [ADR
+0040](0040-typed-adapter-controlled-delivery-permission-foundation.md) resolves
+the second neutral input as the Experimental unbacked
+`Kongono\DiagnosticActivation\AdapterControlledDeliveryPermission` enum. The
+future outer adapter still owns delivery evidence and evaluation. No combined
+eligibility, enforcement, configuration, adapter, transport, or presentation
+access is implemented.
+
+Phase 1E implementation note: [ADR
+0041](0041-pure-two-permission-trusted-presentation-eligibility.md) resolves the
+pure combined eligibility calculation. Only two `Allowed` inputs return true.
+External evidence evaluation, enforcement before presentation access, adapter
+composition, transport, and delivery remain unimplemented.
+
 ## Rejected alternatives
 
 - A single bootstrap or delivery switch is rejected because neither decision
@@ -186,7 +208,6 @@ or runtime integration is created by this decision.
 
 ## What remains open
 
-- Exact typed bootstrap decision API and ownership.
 - Exact server configuration source, schema, loader, validation failure, and
   reload lifecycle.
 - Exact outer adapter package and composition contract.
