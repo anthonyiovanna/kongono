@@ -17,7 +17,7 @@ lifecycle failures, and Phase 0U integrates all 25 DI diagnostics across 26 thro
 sites. Those three packages own exact catalog schemas, capture exact throw-site
 values, and expose one eager immutable context through their separate markers.
 Diagnostics construction failures
-remain context-free. The five Public package exception markers remain separate
+remain context-free. The six Public package exception markers remain separate
 recovery boundaries, and all 42 existing messages remain unchanged protected
 detail.
 No universal diagnostic interface, HTTP or CLI mapping, logger, telemetry
@@ -115,6 +115,17 @@ These separate Public markers own deliberate package failures:
 - Diagnostics: `Kongono\Diagnostics\Exception\ExceptionInterface`
 - Diagnostic Presentation:
   `Kongono\DiagnosticPresentation\Exception\ExceptionInterface`
+- HTTP Message: `Kongono\Http\Message\Exception\ExceptionInterface`
+- Routing: `Kongono\Routing\Exception\ExceptionInterface`
+- HTTP Server: `Kongono\Http\Server\Exception\ExceptionInterface`
+- Web Application: `Kongono\Web\Application\Exception\ExceptionInterface`
+
+The HTTP marker covers only rejected HTTP message arguments and stream/upload
+runtime failures. Its two final Experimental exceptions retain native
+invalid-argument and runtime categories and expose one of 28 bounded
+`KGN-HTTP-1xxx` diagnostics. Raw headers, URI text, request targets, content,
+metadata, paths, server data, attributes, credentials, and secrets never enter
+their context or messages.
 
 Their abstract bases remain Internal and concrete failures remain Experimental.
 There is no universal Kongono exception marker. Native engine, autoloader,
@@ -901,11 +912,14 @@ when application work throws. Apply these rules:
 - cleanup failure is never silently discarded;
 - uncertain runtime state after cleanup means that worker or runtime instance
   must not quietly accept more work; and
-- cancellation and simultaneous primary-plus-cleanup failure representation
-  require explicit future contracts.
+- simultaneous application-plus-Kernel-scope cleanup failure must preserve both
+  objects; and
+- cancellation and broader cleanup failures require explicit future contracts.
 
-No cleanup orchestration, runtime adapter, cancellation API, or recovery API is
-implemented. The current Kernel and `OperationScope` behavior is unchanged.
+Phase 2F implements only Web Application's exact begin/end orchestration around
+one in-memory application call. The current Kernel and `OperationScope` behavior
+is unchanged. Runtime-adapter cleanup, transport resources, cancellation,
+broader resource cleanup, recovery, logging, and telemetry remain unimplemented.
 
 ## Development and production presentation
 
@@ -1104,6 +1118,29 @@ The production model and every production renderer remain future work, not
 current capabilities. Production must not consume the trusted developer
 projection or its HTML renderer.
 
+## Planned Phase 2 outer web error boundary
+
+Phases 2C through 2E implement transport-free request/response values, routing,
+middleware sequencing, and terminal routing, but no adapter, status mapping,
+emitter, or production failure model. Phase 2E delegates unmatched output to an
+explicit handler without choosing status, headers, or body. A normal application
+failure must follow a separately modeled generic
+non-trusted path by default; it must never reuse or redact the trusted developer
+model.
+
+The future outer adapter must establish current-delivery evidence before any
+diagnostic source accessor is used for presentation. Trusted output is eligible
+only when both independent typed permissions are affirmative. Denial must occur
+before source access and must never fall back to trusted output. Authorization,
+evidence, activation, projection, rendering, transport, or cleanup failure must
+not recursively enable trusted rendering or replace the generic non-trusted
+path with Protected output.
+
+The outer boundary also owns response conversion or delivery and the exact-once
+closure of its Kernel operation scope on success and failure. Exact production
+status, headers, body, incident behavior, delivery evidence, cleanup API, and
+simultaneous-failure representation remain open for later explicit decisions.
+
 ## Testing expectations
 
 Phase 0M tests verify all 42 exact catalog cases, identifiers, titles and
@@ -1182,6 +1219,66 @@ logging and telemetry; documentation lookup and version selection; localization;
 cause, source, and stack-frame providers; retry and cancellation; and
 serialization or cross-process and cross-language form.
 
+## Routing failures
+
+Phase 2D adds the separate Routing exception marker, two final Experimental
+invalid-input exceptions, and ten Internal `KGN-ROUTING-1xxx` diagnostics.
+Definition failures cover bounded name, method, template, parameter, table, and
+match-value structure; request failures cover only bounded method and encoded
+path syntax. Context fields are required Safe counts, lengths, positions,
+`method`/`path` components, and closed violation tokens. Raw route names,
+methods, templates, literal segments, parameter names/values, request paths,
+requests, and URIs are excluded from package-owned surfaces.
+
+Getter failures from a consumer PSR request or URI propagate unchanged. An
+ordinary valid unmatched request returns `null`, not an exception. A match
+contains untrusted encoded parameters and establishes neither authentication nor
+authorization. Generic production failure mapping remains deferred to Phase 2G.
+
+## HTTP Server failures
+
+Phase 2E adds the separate HTTP Server marker and one final Experimental native
+`InvalidArgumentException` subtype. Three Internal `KGN-HTTP-SERVER-1xxx`
+diagnostics cover only construction-time composition failures:
+
+- `KGN-HTTP-SERVER-1001`: required Safe integer `middleware_count` and
+  `maximum_middleware` fields;
+- `KGN-HTTP-SERVER-1002`: required Safe integer `route_count`, `handler_count`,
+  `missing_count`, and `unexpected_count` fields; and
+- `KGN-HTTP-SERVER-1003`: required Safe integer `handler_position` and Safe text
+  `violation`, whose closed vocabulary is `not_request_handler`.
+
+Middleware, terminal handler, matcher, request accessor, request decoration, and
+response failures propagate unchanged. The package catches no `Throwable` and
+supplies no error middleware or generic production response. Diagnostic context
+retains no middleware object, handler object, route name, request, response,
+match, exception message, or other caller value. Phase 2F now composes this
+unchanged lower layer with Kernel operation ownership.
+
+## Web Application failures
+
+Phase 2F adds the separate Web Application marker, Internal abstract native
+`RuntimeException` base, and two final Experimental failures. The two Internal
+diagnostics have fixed prose and empty field schemas:
+
+- `KGN-WEB-APPLICATION-1001` reports a later handle or shutdown call on an
+  irreversibly retired application; and
+- `KGN-WEB-APPLICATION-1002` reports simultaneous application work and exact
+  Kernel-scope cleanup failure.
+
+`OperationCleanupException` preserves the exact primary and cleanup objects and
+uses the primary as its native previous exception. Neither failure message,
+class, trace, request, response, route, handler, scope, nor arbitrary caller data
+enters package-owned diagnostic surfaces. A primary-only failure propagates
+unchanged after successful cleanup; cleanup-only failure propagates unchanged
+and retires; simultaneous failure throws the composite and retires. Cleanup is
+never retried. Known Kernel lifecycle rejection during begin or shutdown remains
+non-retiring; an unknown lifecycle failure retires because state is uncertain.
+Retirement refuses later dependency access but does not terminate a worker,
+recover, log, or record an incident. Phase 2G now owns bounded outer failure
+response selection, a delivery send port, and exact adapter-owned transport
+cleanup; concrete emission remains outside the package.
+
 ## Related documentation
 
 - [ADR 0026](../adr/0026-actionable-diagnostics-and-error-boundaries.md)
@@ -1205,6 +1302,31 @@ serialization or cross-process and cross-language form.
 - [Dependency Injection package](../../packages/dependency-injection/README.md)
 - [Diagnostic Presentation package](../../packages/diagnostic-presentation/README.md)
 - [Runtime model](../architecture/runtime-model.md)
+- [Phase 2 roadmap](../architecture/phase-2-roadmap.md)
+- [Routing model](../architecture/routing-model.md)
+- [ADR 0046](../adr/0046-deterministic-route-declaration-and-matching.md)
+- [ADR 0047](../adr/0047-explicit-psr-15-middleware-and-terminal-routing.md)
+- [HTTP server model](../architecture/http-server-model.md)
+- [ADR 0048](../adr/0048-web-application-bootstrap-and-kernel-operation-ownership.md)
+- [Web Application model](../architecture/web-application-model.md)
+- [Web Application package](../../packages/web-application/README.md)
 - [Security policy](../../SECURITY.md)
 - [Documentation standard](../documentation-standard.md)
 - [API status](api-status.md)
+
+## Phase 2 runnable failure proof
+
+The Phase 2H black-box fixture exercises the real Web Runtime failure boundary
+without adding error middleware or changing production diagnostics. Unsupported
+native failure produces only the fixed generic 500 response. A supported
+test-owned Kernel specimen uses reserved fixture identifier `KGN-KERNEL-9001`:
+bootstrap denial skips delivery evidence, delivery denial evaluates it once,
+and only both affirmative permissions produce the existing trusted HTML and
+security headers. The fixture identifier is absent from production enums and
+catalogs.
+
+Request URI, path parameter, scenario, mode, native message, trace, local path,
+credential, and other request-derived values never enter trusted output. Every
+delivery performs one send and close attempt, closes both bodies, and returns to
+zero active Kernel operations. This is deterministic acceptance behavior, not a
+production incident, logging, telemetry, recovery, or authorization system.

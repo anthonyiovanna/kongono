@@ -112,3 +112,11 @@ adapter composition and non-trusted behavior remain open.
   failure representation.
 - Logging, telemetry, incidents, serialization, localization, and persistence.
 - Kernel lifecycle, DI wiring, Application Graph, extensions, frontend, and agents.
+
+## Current implementation note
+
+Phase 2G and ADR 0049 now construct fresh eligibility only for supported failures
+after request-independent evidence evaluation. The existing handler still owns
+denial-before-source-access. Null or any trusted-presentation failure falls back
+once to the separate generic response without recursion. Web Runtime adds no
+authorization system, logging, telemetry, incident model, or runnable server.

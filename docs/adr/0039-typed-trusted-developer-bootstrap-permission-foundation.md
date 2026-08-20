@@ -179,3 +179,12 @@ configuration nor upgrades a denied decision, evaluates evidence, or delivers
 output. The future adapter still owns configuration validation, permission
 construction, evidence, authentication, composition, the non-trusted path,
 transport, and delivery.
+
+## Current implementation note
+
+Phase 2G and ADR 0049 now consume this permission in the Experimental Web Runtime
+adapter. Bootstrap denial skips per-delivery evidence evaluation but normal
+request handling continues; allowance is only one of two typed inputs. The new
+package supplies an integration port, not concrete authentication, a server, or
+an emitter. Web Application retains the sole Kernel scope, and Phase 2H remains
+the first runnable milestone.

@@ -276,3 +276,12 @@ evaluation, response, transport, delivery behavior, or production model.
 - Kernel lifecycle, DI wiring, Application Graph, extension, frontend, and
   agent integration.
 - Future API stabilization and compatibility promotion.
+
+## Current implementation note
+
+Phase 2G and ADR 0049 integrate this handler only for Kernel, Application Graph,
+and Dependency Injection application failures when both typed permissions allow.
+The outer adapter never pre-accesses source data; denial remains before access,
+and any handler/presentation failure selects the fixed generic response once.
+The thirteen-package graph stays acyclic, Web Application owns the sole Kernel
+scope, and no concrete runtime or runnable fixture exists.

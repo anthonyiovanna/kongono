@@ -232,3 +232,12 @@ composition, the non-trusted path, transport, and delivery.
   multi-failure representation.
 - Runtime adapter, Kernel lifecycle, DI wiring, Application Graph, extension,
   CLI, frontend, and agent integration.
+
+## Current implementation note
+
+ADR 0049 and Phase 2G now implement the separate Web Runtime outer adapter and
+fixed non-trusted generic response. Trusted HTML still requires both typed
+permissions and a supported Kernel, Application Graph, or Dependency Injection
+source; server-owned evidence remains request-independent. No concrete transport,
+authorization mechanism, logging, telemetry, incident handling, or runnable
+fixture was added. Phase 2H remains the first runnable milestone.

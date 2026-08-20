@@ -20,6 +20,82 @@ Persistent runtimes require explicit lifecycle and operation scopes so that iden
 
 Phase 0F dependency definitions may invoke registered autoloaders, and resolution executes consumer constructors. Applications must treat supplied definitions and implementations as reviewed executable input. The resolver retains no constructed service instance, exposes no ambient current resolver, and provides no authorization boundary, secret injection, or special Kernel lifecycle behavior.
 
+## Planned Phase 2 web security boundary
+
+These requirements govern Phase 2 work. Phase 2C implements strict header, URI,
+stream, upload, server-request, and bounded diagnostic behavior in the
+first-party HTTP message package. Phase 2D implements a separate routing package
+that validates bounded method/path inputs and matches exact encoded bytes without
+decoding or normalization. Captured path parameters remain untrusted; a match is
+not authentication, authorization, or permission. Routing diagnostics contain
+only bounded Safe structure, never raw route or request values. Phase 2E adds an
+explicit bounded PSR-15 middleware pipeline and terminal routing handler.
+Selected matches are copied to the reserved `RouteMatch::class` request
+attribute, but remain untrusted and non-authorizing; unmatched output is
+delegated rather than hard-coded. Phase 2F adds the transport-free Web
+Application boundary, which validates composition before Kernel boot, owns one
+exact local Kernel scope per application call, retires after uncertain lifecycle
+failure, and retains no request-specific state. Its two fixed diagnostics have
+empty schemas and expose no failure or request data. Kongono still has no
+supplied error middleware, runtime adapter, response emitter, parser, generic
+production web failure surface, trusted diagnostic delivery, or runnable
+application.
+
+The immutable matcher retains no request, URI, method, path, parameters, match,
+principal, tenant, or permission after a call. It reads no headers, body, cookies,
+query parameters, server parameters, uploaded files, attributes, request target,
+SAPI globals, environment, filesystem, or network. Phase 2G adds a separate
+request-independent delivery-evidence port and fail-closed outer adapter; the
+first runnable security proof remains Phase 2H black-box acceptance.
+
+Future header storage must reject carriage return, line feed, NUL, invalid
+field-name characters, and ambiguous line folding rather than repair or
+silently normalize them. Case-insensitive lookup must preserve the originally
+supplied field-name case and repeated-value order. URI syntax and
+canonicalization follow PSR-7 and RFC 3986, but syntactic validity establishes
+no trust and performs no DNS, filesystem, network, or base-URI guessing.
+
+PSR-7 messages use copy-on-change semantics, not deep immutability. A body
+stream remains stateful, and message copies may share it; cursor movement,
+resource mutation, detach, and close behavior can therefore be observable
+through more than one message value. Message, stream, upload, server-parameter,
+cookie, query, parsed-body, and attribute data must remain explicit
+operation-lifetime values rather than ambient or previous-operation state.
+
+The HTTP message package stores already-supplied representations. It
+must not read SAPI globals, parse bodies or uploads, select limits, trust
+proxies, authenticate, authorize, emit headers, or deliver responses. Those
+outer-adapter decisions remain unimplemented. Diagnostic context must exclude
+raw headers, cookies, query strings, bodies, credentials, tokens, uploaded
+content, local file contents, and unbounded URI text.
+
+Every inbound request component is untrusted until validated for its specific
+use. Future parsing must explicitly define normalization, size limits,
+duplicate handling, invalid syntax, and rejection behavior. Header and body
+handling must prevent injection, response splitting, unbounded buffering,
+confused canonicalization, and accidental secret disclosure. Syntactic
+validity alone must never make request data eligible for a diagnostic Safe
+field.
+
+A future outer web boundary must own each delivery explicitly, create one
+Kernel operation scope for it, and close that scope exactly once on success or
+failure. Request, response, route match, middleware state, permissions,
+exceptions, principals, tenants, and application state must not be retained in
+global, static, singleton, container-current, thread-local, fiber-local, or
+previous-operation state. At least two sequential deliveries in one process
+must prove isolation before Phase 2 can be called runnable.
+
+Client-controlled query, path, header, cookie, form, body, session, token, or
+other input cannot enable trusted diagnostics or upgrade either permission.
+The outer adapter must establish current-delivery evidence before diagnostic
+source access. Trusted output requires both independent affirmative typed
+permissions; denial occurs before source access and never falls back to trusted
+output. Failure in authorization, evidence, activation, projection, rendering,
+transport, or cleanup must not recursively enable trusted output. Normal
+application failure follows a separately modeled generic non-trusted path by
+default. Exact request, response, status, header, body, evidence, production
+failure, cleanup, and simultaneous-failure mechanisms remain open.
+
 ## Diagnostic disclosure
 
 Phase 0M exposes fixed package-catalog identifiers, titles, and remediation
@@ -206,3 +282,16 @@ surfaces do not exist.
 ## No security guarantees yet
 
 This repository is not production-ready. Planned security architecture is not implemented security functionality.
+
+The completed Phase 2 fixture does not change that status. It proves fixed
+generic output and trusted HTML only when both typed permissions and a supported
+source are present. Bootstrap denial skips delivery-evidence evaluation; request,
+route, header, cookie, query, body, session, token, and client flags cannot enable
+trusted output. The fixture's delivery permission is operator-owned test setup,
+not a production network authorization mechanism.
+
+Black-box tests prove one request/send/close cycle, closed request and response
+bodies, and zero active Kernel operations after sequential deliveries. No
+listener, SAPI policy, proxy trust, TLS/operator identity, authentication,
+authorization, incident handling, logging, telemetry, or production hardening is
+implemented. See the [Phase 2 fixture model](docs/architecture/phase-2-runnable-fixture.md).

@@ -92,3 +92,12 @@ Experimental.
 - [Package layout](../../docs/engineering/package-layout.md)
 - [Diagnostic Activation package](../diagnostic-activation/README.md)
 - [Diagnostic Presentation package](../diagnostic-presentation/README.md)
+
+## Phase 2G consumer
+
+Web Runtime now calls the presenter once only for supported application failures.
+The handler still enforces eligibility before source access; denial returns
+`null`, and any presentation failure falls back once to the fixed generic
+response without recursion. The package does not emit, authenticate, log, retain
+incidents, or own a Kernel scope. The outer integration remains ports-only and
+Phase 2H remains the first runnable milestone.

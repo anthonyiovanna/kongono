@@ -38,6 +38,30 @@ Phase 0X adds `diagnostic-presentation` only as a leaf consuming the five prior
 packages. Its pure projector creates no Kernel hook, service binding, container
 definition, Graph node, runtime adapter, renderer, or transport.
 
+Phase 2A current-reality amendment: Phase 1H is preserved at local checkpoint
+`d7846f137a1d53f5306f48d19196b916fde44ac2` with exactly eight implemented
+packages. Diagnostic Handler is the eighth leaf and owns only transport-neutral
+eligibility-first sequencing. [ADR 0043](0043-phase-2-runnable-web-framework-milestone.md)
+accepts the bounded Phase 2A-H first-runnable-web milestone. Phase 2A is
+documentation-only: it creates no ninth package and implements no HTTP,
+routing, middleware, bootstrap, adapter, response delivery, or production
+failure behavior.
+
+Phase 2D current-reality amendment: Kongono reached ten implemented packages.
+The new `kongono/routing` package consumes PSR-7 interfaces directly and remains
+separate from both Kernel and `kongono/http-message`. It owns immutable bounded
+route declarations and deterministic encoded method/path matching only. It adds
+no Kernel hook, service binding, Graph node, handler invocation, authorization,
+ambient current-route state, adapter, or runnable application.
+
+Phase 2E current-reality amendment: Kongono now has eleven implemented packages.
+The new `kongono/http-server` package owns an explicit bounded immutable PSR-15
+middleware pipeline and complete canonical route-name terminal mapping. It adds
+no Kernel hook, service binding, Graph node, bootstrap, operation-scope
+ownership, adapter, emission, supplied error middleware, or runnable
+application. Phase 2F is next; Phase 2H remains the first runnable black-box
+milestone.
+
 ## Rejected alternatives
 
 A feature-heavy monolithic kernel and an uncoordinated collection of unrelated packages are rejected.
@@ -45,6 +69,6 @@ A feature-heavy monolithic kernel and an uncoordinated collection of unrelated p
 ## What remains open
 
 Kernel responsibilities beyond the implemented lifecycle and its exact diagnostic
-context, package boundaries beyond the six implemented packages, capability
+context, package boundaries beyond the eleven implemented packages, capability
 metadata, composition, service lifetimes, PSR-11 interoperability, Graph
 integration, and broader public APIs remain experimental or open.

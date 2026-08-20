@@ -106,3 +106,12 @@ telemetry, localization, or serialization.
 - [Package layout](../../docs/engineering/package-layout.md)
 - [Diagnostic Presentation package](../diagnostic-presentation/README.md)
 - [Diagnostic Handler package](../diagnostic-handler/README.md)
+
+## Phase 2G consumer
+
+Web Runtime now consumes both typed permissions. Bootstrap denial skips the
+delivery evaluator; otherwise server-owned, request-independent evidence returns
+the second permission before request conversion. Neither enum authenticates a
+delivery by itself. Trusted HTML also requires a supported Kernel, Application
+Graph, or Dependency Injection failure; all other paths use the separate fixed
+generic model. No concrete evidence mechanism or runnable server was added.

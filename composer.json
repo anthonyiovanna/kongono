@@ -16,7 +16,12 @@
     "kongono/diagnostic-handler": "@dev",
     "kongono/diagnostic-presentation": "@dev",
     "kongono/diagnostics": "@dev",
+    "kongono/http-message": "@dev",
+    "kongono/http-server": "@dev",
     "kongono/kernel": "@dev",
+    "kongono/routing": "@dev",
+    "kongono/web-application": "@dev",
+    "kongono/web-runtime": "@dev",
     "php": ">=8.5"
   },
   "require-dev": {
@@ -34,7 +39,12 @@
       "Kongono\\DiagnosticHandler\\Tests\\": "packages/diagnostic-handler/tests/",
       "Kongono\\DiagnosticPresentation\\Tests\\": "packages/diagnostic-presentation/tests/",
       "Kongono\\Diagnostics\\Tests\\": "packages/diagnostics/tests/",
+      "Kongono\\Http\\Message\\Tests\\": "packages/http-message/tests/",
+      "Kongono\\Http\\Server\\Tests\\": "packages/http-server/tests/",
       "Kongono\\Kernel\\Tests\\": "packages/kernel/tests/",
+      "Kongono\\Routing\\Tests\\": "packages/routing/tests/",
+      "Kongono\\Web\\Application\\Tests\\": "packages/web-application/tests/",
+      "Kongono\\Web\\Runtime\\Tests\\": "packages/web-runtime/tests/",
       "Kongono\\Tests\\": "tests/"
     }
   },
@@ -79,7 +89,12 @@
       "composer --working-dir=packages/diagnostic-handler validate --no-check-publish",
       "composer --working-dir=packages/diagnostic-presentation validate --no-check-publish",
       "composer --working-dir=packages/diagnostics validate --no-check-publish",
-      "composer --working-dir=packages/kernel validate --no-check-publish"
+      "composer --working-dir=packages/http-message validate --no-check-publish",
+      "composer --working-dir=packages/http-server validate --no-check-publish",
+      "composer --working-dir=packages/kernel validate --no-check-publish",
+      "composer --working-dir=packages/routing validate --no-check-publish",
+      "composer --working-dir=packages/web-application validate --no-check-publish",
+      "composer --working-dir=packages/web-runtime validate --no-check-publish"
     ],
     "quality": [
       "@validate:composer",

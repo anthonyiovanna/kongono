@@ -12,6 +12,33 @@ Kongono is a planned modern application framework for applications that must be 
 
 ## Current status
 
+Phase 1 is complete at local checkpoint
+`d7846f137a1d53f5306f48d19196b916fde44ac2`. Kongono currently provides a
+tested component architecture across exactly thirteen first-party packages; it is
+not yet a runnable web framework. Phase 2C implements the accepted PSR-7 message
+roles and selected server-side PSR-17 factories in `kongono/http-message`.
+Phase 2D implements bounded, deterministic, encoded method/path declaration and
+matching in the separate `kongono/routing` package. A match selects a declaration
+and untrusted parameter bytes; it proves neither authentication nor authorization
+and invokes no handler. Phase 2E implements `kongono/http-server` using the
+PSR-15 handler and middleware interfaces: an explicit, bounded, immutable,
+transport-free middleware pipeline and a complete route-name-to-handler map.
+Selected matches are stored under the reserved `RouteMatch::class` request
+attribute but remain untrusted and non-authorizing; unmatched output is
+delegated to an explicit handler. Phase 2F implements
+`kongono/web-application`: explicit validation-before-boot composition, one
+Kernel operation scope per in-memory application call, exact-once scope closure,
+failure-identity preservation, fail-closed retirement, and explicit shutdown.
+Kongono now provides an Experimental outer Web Runtime adapter, a Public
+per-delivery port, and fixed generic or eligible trusted failure responses. It
+still provides no concrete SAPI/server/listener/emitter or runnable application.
+Phase 2H remains the first runnable black-box milestone.
+See the [routing model](docs/architecture/routing-model.md), [HTTP message
+model](docs/architecture/http-message-model.md), [HTTP server
+model](docs/architecture/http-server-model.md), [Web Application
+model](docs/architecture/web-application-model.md), and [Phase 2
+roadmap](docs/architecture/phase-2-roadmap.md).
+
 Kongono is **pre-alpha**. Phase 0M implements package-local runtime diagnostic
 metadata for the deliberate failures currently raised by the Kernel, Application
 Graph, and Dependency Injection packages. Each existing package exception marker
@@ -175,6 +202,9 @@ Nothing is Stable. Public API status means supported consumer use under Kongono'
 - [Architecture](ARCHITECTURE.md)
 - [Architectural doctrine](docs/doctrine.md)
 - [Architecture overview](docs/architecture/overview.md)
+- [Phase 2 roadmap](docs/architecture/phase-2-roadmap.md)
+- [HTTP message model](docs/architecture/http-message-model.md)
+- [Routing model](docs/architecture/routing-model.md)
 - [API Metadata package](packages/api-metadata/README.md)
 - [Diagnostic Activation package](packages/diagnostic-activation/README.md)
 - [Kernel package](packages/kernel/README.md)
@@ -183,6 +213,10 @@ Nothing is Stable. Public API status means supported consumer use under Kongono'
 - [Diagnostics package](packages/diagnostics/README.md)
 - [Diagnostic Presentation package](packages/diagnostic-presentation/README.md)
 - [Diagnostic Handler package](packages/diagnostic-handler/README.md)
+- [HTTP Message package](packages/http-message/README.md)
+- [Routing package](packages/routing/README.md)
+- [HTTP Server package](packages/http-server/README.md)
+- [Web Application package](packages/web-application/README.md)
 - [Documentation standard](docs/documentation-standard.md)
 - [Engineering toolchain](docs/engineering/README.md)
 - [Dependency Injection engineering guide](docs/engineering/dependency-injection.md)
@@ -193,3 +227,15 @@ Nothing is Stable. Public API status means supported consumer use under Kongono'
 - [Security](SECURITY.md)
 
 The official future CLI name is `kongo`; no executable is implemented in this phase.
+
+Phase 2A through 2H are complete across thirteen acyclic production packages and
+one test-owned runnable fixture. Run the bounded proof with
+`php tests/BlackBox/Fixture/run.php production matched-a`; see the
+[fixture model](docs/architecture/phase-2-runnable-fixture.md). The runner is
+test infrastructure, not the future `kongo` CLI or a production server.
+
+The milestone proves the real Kernel, Web Application, routing, middleware, Web
+Runtime, generic failure, trusted diagnostic, and exact cleanup path. It does
+not supply a listener, SAPI integration, production emitter, authentication,
+authorization, deployment, logging, telemetry, full framework, 1.0 release, or
+production-readiness claim.

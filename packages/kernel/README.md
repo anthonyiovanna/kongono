@@ -54,4 +54,10 @@ integration, runtime presentation, and transport remain unimplemented.
 
 ## Explicit non-responsibilities
 
-This package does not provide dependency injection, services, configuration, application discovery, an Application Graph, HTTP or other transports, routing, middleware, commands, events, queues, workflows, data access, authorization, extensions, agents, runtime adapters, telemetry, logging, serialization, caching, or cleanup orchestration. Those capabilities are not scaffolded here.
+This package does not provide dependency injection, services, configuration, application discovery, an Application Graph, HTTP or other transports, routing, middleware, commands, events, queues, workflows, data access, authorization, extensions, agents, runtime adapters, telemetry, logging, serialization, caching, or cleanup orchestration. Phase 2F's separate [Web Application package](../web-application/README.md) calls this unchanged lifecycle contract to own one scope around each application call; broader cleanup remains outside Kernel.
+
+Phase 2G's separate [Web Runtime package](../web-runtime/README.md) is the
+top-level outer delivery leaf. It may recognize Kernel package failures as one
+supported trusted-diagnostic family, but it does not call Kernel or own a scope.
+Web Application retains the sole operation scope. No concrete runtime, logging,
+telemetry, authorization, or runnable fixture was added; Phase 2H remains next.

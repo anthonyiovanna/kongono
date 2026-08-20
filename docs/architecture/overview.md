@@ -2,6 +2,24 @@
 
 ## Current reality
 
+Phase 1 is complete at local checkpoint
+`d7846f137a1d53f5306f48d19196b916fde44ac2`. The current repository has
+exactly thirteen implemented first-party packages and tested component behavior,
+including bounded first-party HTTP messages/factories and deterministic encoded
+method/path routing. A route match is neither handler execution nor an
+authentication or authorization decision. Phase 2E implements an explicit,
+bounded, immutable, transport-free PSR-15 middleware pipeline and complete
+terminal route-name mapping in `kongono/http-server`. Selected matches use the
+reserved `RouteMatch::class` attribute but remain untrusted; unmatched output is
+delegated. Phase 2F implements the explicit Web Application composition root and
+application-call Kernel scope ownership with fail-closed retirement. Phase 2G
+implements the ports-only outer Web Runtime adapter, fixed generic response, and
+eligible trusted response. There is no supplied error middleware, concrete
+runtime delivery implementation, emitter, or runnable application.
+Phase 2A documents the bounded Phase 2A-H first-runnable-web milestone; it adds
+no runtime behavior. Phase 2B accepts the HTTP interoperability and future
+first-party message-package architecture, also without adding runtime behavior.
+
 Kongono's runtime implementation includes the presentation-neutral Diagnostics
 value foundation, Phase 0Q exact bounded context for all 11 Graph failures, and
 Phase 0T exact bounded context for all six Kernel lifecycle failures,
@@ -39,10 +57,10 @@ page, production error surface, logging, telemetry, retry, cleanup, incident
 system, extension host, agent runtime, query plan, performance budget, or CLI
 executable is implemented.
 
-The current package topology has eight packages. `kongono/api-metadata` owns
+The current package topology has thirteen packages. `kongono/api-metadata` owns
 `Kongono\ApiMetadata\Api` and `ApiStatus` and requires PHP only. Kernel,
 Diagnostics, Application Graph, and Dependency Injection depend directly on it;
-the framework root consumes all eight packages and Graph retains its Diagnostics
+the framework root consumes all thirteen packages and Graph retains its Diagnostics
 dependency. Phase 0T also makes Kernel, and Phase 0U makes DI, depend directly
 on Diagnostics. Phase 1C adds `kongono/diagnostic-activation`, which requires
 only API Metadata and PHP and owns the Experimental unbacked typed bootstrap
@@ -52,6 +70,11 @@ graph is acyclic. Diagnostic Handler is the only current package depending on
 both Diagnostic Activation and Diagnostic Presentation; those lower layers do
 not depend on Handler or each other. The former
 `Kongono\Kernel\Api\*` FQCNs are absent without a shim.
+
+`kongono/web-application` is the leaf composition boundary above API Metadata,
+Diagnostics, HTTP Server, Kernel, Routing, and the PSR interfaces. No existing
+package depends on it, and it has no concrete HTTP Message, DI, Graph,
+activation, presentation, handler, adapter, or transport dependency.
 
 Phase 0X implements the leaf above the five originating packages:
 `kongono/diagnostic-presentation`, namespace
@@ -137,6 +160,35 @@ delivery. It propagates all failures unchanged. The presenter is directly
 callable but proves no authorization. No adapter, configuration reader, evidence
 evaluator, transport, delivery, response, or production model exists.
 
+## Planned Phase 2 web flow
+
+The [Phase 2 roadmap](phase-2-roadmap.md) fixes this planned dependency order:
+
+```text
+Phase 2A architecture and acceptance boundary
+    -> Phase 2B HTTP message and interoperability decision
+    -> Phase 2C minimal message foundation (implemented)
+    -> Phase 2D deterministic routing (implemented)
+    -> Phase 2E ordered middleware and terminal handling (implemented)
+    -> Phase 2F bootstrap and Kernel operation ownership (implemented)
+    -> Phase 2G outer web adapter and safe failure delivery
+    -> Phase 2H fixture application, black-box acceptance, and checkpoint
+```
+
+This is not yet a runnable web flow. Phase 2B selects PSR-7 through
+`psr/http-message` 2.x, the server-side PSR-17 factory subset, and PSR-15;
+Phase 2C implements `kongono/http-message`; Phase 2D implements the separate
+`kongono/routing` package. Its immutable bounded declarations and matcher use
+only exact encoded request method/path bytes, select by specificity independent
+of declaration order, return `null` when unmatched, and retain no request state.
+Matches establish no authentication or authorization. Phase 2E maps selected
+route names to explicit PSR-15 handlers and adds the reserved match attribute;
+unmatched output is delegated. Phase 2F validates that composition before Kernel
+boot and owns exact begin/end scope closure for each application call. Adapter
+conversion, response emission, and production failure mechanisms remain later
+explicit decisions. See the [HTTP message model](http-message-model.md),
+[HTTP server model](http-server-model.md), and [Web Application model](web-application-model.md).
+
 ## Intended architecture
 
 Kongono Framework is designed for humans, software clients, and AI agents. Its architecture combines:
@@ -177,11 +229,11 @@ Only the structural core is implemented. The surrounding flow expresses intended
 
 ## Framework shape
 
-The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. Diagnostic Activation owns the implemented typed trusted-bootstrap and adapter-controlled delivery permissions. Diagnostic Presentation owns the implemented pure trusted-developer projection core and pure HTML renderer but does not depend on Diagnostic Activation or own activation decisions. Diagnostic Handler is the only current package depending on both and owns only eligibility-first neutral sequencing. The exact Graph-, Kernel-, and DI-to-Diagnostics dependencies create neither a universal exception nor cross-package lifecycle integration. No configuration or evidence-evaluation mechanism, adapter, transport, delivery, response, or production model exists. Capabilities such as HTTP, data, authorization, events, workflows, agents, and frontend integration remain planned. The monorepo retains atomic root validation across all eight currently implemented packages.
+The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. Diagnostic Activation owns the implemented typed trusted-bootstrap and adapter-controlled delivery permissions. Diagnostic Presentation owns the implemented pure trusted-developer projection core and pure HTML renderer but does not depend on Diagnostic Activation or own activation decisions. Diagnostic Handler is the only lower package depending on both and owns eligibility-first neutral sequencing. HTTP Message owns the selected server-side message and factory roles plus 28 bounded diagnostics. Routing owns bounded route declarations and deterministic matching; HTTP Server owns PSR-15 composition. Web Application owns application-call Kernel scope cleanup. Web Runtime now owns outer request-independent evidence sequencing, fixed generic or eligible trusted response selection, and exact send/close attempts. No concrete SAPI/server/listener/emitter, trusted network authorization mechanism, or runnable application exists. Phase 2H remains the first runnable black-box milestone. The monorepo retains atomic root validation across all thirteen implemented packages.
 
 ## Interoperability boundaries
 
-Composer, PSRs, OpenAPI, OpenTelemetry, OAuth/OIDC, MCP, A2A, and web standards are likely interoperability tools. Their protocols do not supersede Kongono's internal concepts. Kongono-owned abstractions should preserve portability and prevent an exporter, provider, adapter, or runtime from becoming the architecture.
+Composer, PSRs, OpenAPI, OpenTelemetry, OAuth/OIDC, MCP, A2A, and web standards are interoperability tools where explicitly accepted. ADR 0044 accepts PSR-7, selected server-side PSR-17 factories, and PSR-15 as narrow edge contracts while keeping a first-party Kongono HTTP message implementation. ADR 0047 records the bounded first-party PSR-15 server implementation. Their protocols do not supersede Kongono's internal concepts. Kongono-owned abstractions preserve portability and prevent an exporter, provider, adapter, runtime, or third-party message implementation from becoming the architecture.
 
 ## Related documentation
 
@@ -189,6 +241,24 @@ Composer, PSRs, OpenAPI, OpenTelemetry, OAuth/OIDC, MCP, A2A, and web standards 
 - [Microkernel](microkernel.md)
 - [Progressive architecture](progressive-architecture.md)
 - [Runtime model](runtime-model.md)
+- [Phase 2 roadmap](phase-2-roadmap.md)
+- [HTTP message model](http-message-model.md)
+- [HTTP server model](http-server-model.md)
+- [Web Application model](web-application-model.md)
+- [Routing model](routing-model.md)
 - [Agent model](agent-model.md)
 - [Extension platform](extension-platform.md)
 - [Error handling and actionable diagnostics](../engineering/error-handling.md)
+
+## Phase 2 runnable topology
+
+Kongono has exactly thirteen acyclic production packages. `kongono/web-runtime`
+is the top-level leaf for request-independent delivery evidence, one Web
+Application call, fixed generic or eligible trusted failure selection, one send
+attempt, and one close attempt. Web Application retains the sole Kernel scope.
+
+Phase 2H adds no package. Its root-owned [runnable fixture](phase-2-runnable-fixture.md)
+implements the Public delivery port and proves the full path externally in a
+fresh subprocess, including sequential same-process isolation. No production
+SAPI/server/listener/emitter, transport authorization, logging, telemetry,
+incident system, deployment surface, or production-readiness claim exists.

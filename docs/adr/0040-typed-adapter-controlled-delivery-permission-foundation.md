@@ -215,3 +215,11 @@ before source access, and returns exact renderer HTML only when allowed. It does
 not inspect, validate, or retain delivery evidence, catch failures, or deliver
 output. The future adapter still owns evidence, authentication, permission
 construction, composition, the non-trusted path, transport, and delivery.
+
+## Current implementation note
+
+Phase 2G and ADR 0049 now obtain this permission from the Public per-delivery
+port before request conversion. Its evaluator remains server-transport-owned and
+must not use request-controlled data. Denial or evaluation failure selects the
+fixed generic model; only two allowances plus a supported source can select
+trusted HTML. No concrete evidence mechanism or runnable transport was added.

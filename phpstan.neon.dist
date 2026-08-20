@@ -19,8 +19,19 @@ parameters:
         - packages/diagnostic-presentation/tests
         - packages/diagnostics/src
         - packages/diagnostics/tests
+        - packages/http-message/src
+        - packages/http-message/tests
+        - packages/http-server/src
+        - packages/http-server/tests
         - packages/kernel/src
         - packages/kernel/tests
+        - packages/routing/src
+        - packages/routing/tests
+        - packages/web-application/src
+        - packages/web-application/tests
+        - packages/web-runtime/src
+        - packages/web-runtime/tests
         - tests/Architecture
+        - tests/BlackBox
         - tests/Tooling
     tmpDir: .cache/phpstan

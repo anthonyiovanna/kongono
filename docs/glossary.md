@@ -328,6 +328,44 @@ A Principal representing a human actor. Authentication, identity resolution, cre
 
 The experience presented to people using a Kongono application. UX is one of three first-class consumption surfaces alongside Software/API Experience and Agent Experience.
 
+## HTTP Message
+
+A PSR-7 representation of an HTTP server request or response and its headers,
+URI, and stateful body stream. Message `with*()` operations use copy-on-change
+semantics, but a shared stream and mutable consumer values prevent a claim of
+deep immutability. Phase 2C implements the bounded server-side roles.
+
+## HTTP Message Package
+
+The implemented ninth first-party package at `packages/http-message`, Composer name
+`kongono/http-message`, and namespace `Kongono\Http\Message\`. It implements
+the selected server-side PSR-7 and PSR-17 roles while depending only on PHP, API
+Metadata, Diagnostics, and those two interface packages. It contains no router,
+middleware, adapter, emitter, SAPI parser, or client HTTP implementation.
+
+## HTTP Server Package
+
+The implemented eleventh first-party package at `packages/http-server`, Composer
+name `kongono/http-server`, and namespace `Kongono\Http\Server\`. It installs and
+uses the PSR-15 handler and middleware interfaces for an explicit, bounded,
+immutable, transport-free middleware pipeline and complete canonical route-name
+terminal mapping. Selected matches use the reserved `RouteMatch::class`
+attribute but remain untrusted and non-authorizing; unmatched output is
+delegated. It provides no error middleware, bootstrap, Kernel web composition,
+adapter, emission, generic production response, or runnable application.
+
+## Web Application Package
+
+The implemented twelfth first-party package at `packages/web-application`,
+Composer name `kongono/web-application`, and namespace
+`Kongono\Web\Application\`. It validates Routing and HTTP Server composition
+before Kernel boot, exposes one PSR-15 handler, and owns one exact local Kernel
+operation scope around each application call. Cleanup failure retires the
+application, simultaneous work and cleanup failure preserves both objects, and
+shutdown is explicit. It retains no request-specific state and provides no
+outer adapter, response emission, generic production failure mapping, trusted
+diagnostic delivery, or runnable fixture.
+
 ## Intent
 
 A structured expression of the outcome a Principal seeks. Intent may inform authorization, delegation, auditing, or agent interaction, but its schema and enforcement role remain open.
@@ -387,6 +425,36 @@ An opaque object whose identity marks one operation owned by one booted Kernel. 
 
 A runtime in which the process and some resources may outlive one request, job, command, or other operation. Kongono must make operation scope, cleanup, and isolation explicit rather than assume process teardown.
 
+## Phase 2
+
+The planned bounded Phase 2A-H milestone whose finish line is Kongono's first
+runnable server-side web fixture application under the complete black-box
+acceptance boundary. Phase 2A documents that destination, and Phase 2B accepts
+the HTTP interoperability and message-package architecture. Phase 2 is not the
+full framework, a 1.0 release, or production readiness, and no Phase 2 web
+runtime behavior is currently implemented.
+
+## PSR-7
+
+The PHP-FIG HTTP message interfaces supplied by `psr/http-message`. Kongono
+accepts the 2.x interface line for future server request, response, URI, stream,
+and uploaded-file roles. Phase 2C supplies Kongono's bounded implementation and does not
+own Kongono architecture.
+
+## PSR-15
+
+The PHP-FIG server request-handler and middleware interfaces. Kongono installs
+and uses their 1.x interface packages for Phase 2E terminal handling and ordered
+middleware in `kongono/http-server`. PSR-15 supplies interoperability contracts,
+not bootstrap, adapter, transport, emission, or a framework substrate.
+
+## PSR-17
+
+The PHP-FIG factories for PSR-7 objects. Kongono uses the 1.1 interface line
+for exactly the server-request, response, URI, stream, and uploaded-file
+factory roles. The client `RequestFactoryInterface` remains outside Phase 2,
+and Phase 2C supplies the five selected stateless first-party factories.
+
 ## Principal
 
 The planned general identity abstraction for an actor that can be authenticated, authorized, delegated to, constrained, and audited. Principal kinds may include Human, Agent, Service, Organization, and System. Exact data and API models remain open.
@@ -403,6 +471,15 @@ One immutable directed Phase 0D connection whose structure is exactly source Nod
 
 A non-empty, exactly preserved open label carried by a Relation. It establishes no built-in dependency, call, event, module, or security vocabulary.
 
+## Runnable Fixture Application
+
+The planned minimal application used at Phase 2H to prove the complete web path
+from an external entry boundary through explicit bootstrap, request conversion,
+Kernel operation ownership, deterministic routing, ordered middleware, terminal
+handling, response delivery, generic failure behavior, fail-closed trusted
+diagnostics, cleanup, and sequential-operation isolation. No such runnable
+fixture application exists in Phase 2B.
+
 ## Service Principal
 
 A Principal representing a software service or machine workload. Credential, identity, trust, rotation, and authorization semantics remain open.
@@ -410,6 +487,31 @@ A Principal representing a software service or machine workload. Credential, ide
 ## Service Contract
 
 The exact canonical declared fully qualified name of an existing PHP interface used as a Phase 0F service identity. Classes, aliases, case variants, leading-backslash names, and the Kongono resolver contract or its subinterfaces are not service contracts.
+
+## Route Definition
+
+An immutable Experimental Phase 2D declaration with one canonical route name,
+one bounded list of exact uppercase HTTP methods, and one bounded path template.
+Literal segments and whole-segment `{parameter}` forms are implemented; optional,
+wildcard, regex, host, query, handler, middleware, and generation syntax are not.
+
+## Route Match
+
+A fresh immutable Experimental Phase 2D result containing the selected route
+definition and exact encoded, untrusted path parameters in template order. A
+match proves neither authentication nor authorization and invokes no handler.
+Valid unmatched requests return `null` instead.
+
+## Route Matcher
+
+The immutable stateless Phase 2D component that reads only a PSR-7 request method
+and URI path, validates bounded encoded syntax, and selects a conflict-free route
+by lexicographic literal/parameter specificity independent of declaration order.
+It performs no decoding, normalization, I/O, ambient current-route storage, DI,
+Graph, Kernel, middleware, or handler work. Phase 2E separately composes its
+matches with explicit PSR-15 handlers, and Phase 2F wraps that composition in
+the Web Application Kernel-scope boundary. Phase 2G is implemented; Phase 2H remains the
+first runnable black-box milestone.
 
 ## Service Definition
 
@@ -431,6 +533,33 @@ The Phase 0F rule that every top-level resolve call and every occurrence of a de
 
 The evaluated confidence and policy relationship under which a Principal, extension, credential, or system may act. Trust is not a substitute for explicit authorization. Its sources, scoring or categorization, and enforcement semantics remain open.
 
+## Web Runtime Adapter
+
+The implemented outer integration boundary that owns current-delivery evidence,
+one Web Application call, fixed generic or eligible trusted response selection,
+one send attempt, and one close attempt without becoming a Kernel dependency.
+Web Application owns the sole Kernel operation scope. Production SAPI conversion,
+parsing, proxy trust, response emission, and server selection remain outside the
+package.
+
 ## Workflow
 
 A planned coordination of multiple actions or steps, potentially durable and long-running, with explicit state and failure behavior. Definition, persistence, replay, compensation, and Graph contracts remain open.
+
+## Web Runtime
+
+The implemented Phase 2G top-level leaf that coordinates one `WebDeliveryInterface`
+with one `WebApplication` call, fixed generic or eligible trusted failure output,
+one send attempt, and one close attempt. It owns no Kernel scope and provides no
+production SAPI/server/listener/emitter. Phase 2H's concrete implementation is
+root-owned fixture code only. Stability remains Experimental except the Public
+delivery and exception markers.
+
+## Runnable Fixture
+
+The bounded test-owned Phase 2 subprocess composition at
+`tests/BlackBox/Fixture/run.php`. It accepts only fixed modes and scenarios,
+exercises the real thirteen-package web path, emits detached newline-delimited
+JSON, and proves exact cleanup and sequential isolation. It is not a production
+server, framework CLI, supported template, full framework, 1.0 release, or
+production-readiness claim.

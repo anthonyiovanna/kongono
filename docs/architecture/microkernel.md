@@ -23,6 +23,14 @@ Phase 0U makes Dependency Injection consume Diagnostics independently for its 25
 closed failure schemas. That edge does not make the resolver a Kernel service,
 add lifecycle integration, or create a universal exception family.
 
+Phase 2F leaves Kernel production code unchanged. The separate
+`kongono/web-application` leaf validates web composition before calling
+`KernelInterface::boot()`, then begins and ends one exact Kernel scope around
+each accepted application call. It preserves primary and cleanup failures and
+refuses later work after uncertain lifecycle failure. Kernel remains the sole
+owner of lifecycle state and scope identity; broader resource cleanup remains
+unselected.
+
 ## Capability model
 
 Potential capability areas include HTTP, Data, ORM, Migrations, Authentication, Authorization, Events, Queues, Workflows, Cache, Storage, Mail, Notifications, Realtime, Scheduling, AI, Agents, Delegation, MCP, A2A, Frontend integration, Testing, and Developer tooling.
@@ -39,11 +47,12 @@ A framework component is not automatically a third-party extension. Components p
 
 ## Stability
 
-The microkernel-plus-capabilities direction is **LOCKED**. The Phase 0C Kernel lifecycle contract is implemented but **Experimental**. The five current package boundaries and the Phase 0U acyclic dependency graph are implemented; capability metadata, additional component boundaries beyond them, composition mechanics, and all broader Kernel responsibilities remain open.
+The microkernel-plus-capabilities direction is **LOCKED**. The Phase 0C Kernel lifecycle contract is implemented but **Experimental**. The twelve current package boundaries and acyclic dependency graph are implemented; Phase 2F selects only the explicit Web Application composition mechanism. Capability metadata, other composition boundaries, and all broader Kernel responsibilities remain open.
 
 ## Related concepts
 
 - [Architecture overview](overview.md)
 - [Runtime model](runtime-model.md)
+- [Web Application model](web-application-model.md)
 - [Extension platform](extension-platform.md)
 - [ADR 0004](../adr/0004-microkernel-capability-architecture.md)

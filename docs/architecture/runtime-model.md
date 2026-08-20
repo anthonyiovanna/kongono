@@ -30,12 +30,24 @@ Every future operation boundary must guarantee scope and resource cleanup when
 application work throws. Successful cleanup must not erase or replace the
 primary failure, and cleanup failure must not be silently discarded. If cleanup
 leaves runtime state uncertain, that worker or runtime instance must not quietly
-accept further work. These are locked principles, not an implemented mechanism.
+accept further work. Phase 2F now implements those rules for one Web Application
+Kernel scope around an in-memory application call.
 
-The exact cleanup mechanism, runtime adapter, cancellation and control-signal
-types, recovery API, telemetry behavior, and representation of simultaneous
-primary and cleanup failures remain open. No cleanup orchestration exists in the
-current Kernel or `OperationScope` implementation.
+The Kernel and `OperationScope` remain unchanged lower layers. Web Application
+selects exact-once scope end and `OperationCleanupException` for simultaneous
+application and scope-cleanup failure. Runtime adapters, transport and resource
+cleanup, cancellation and control signals, recovery, logging, telemetry, and
+worker termination remain open.
+
+## HTTP message lifetime
+
+Phase 2C message values retain only explicitly supplied operation data. They
+consult no ambient current request, SAPI global, Kernel scope, DI container,
+static registry, thread-local, or fiber-local state. Copy-on-change is shallow:
+body streams and consumer objects may be shared and remain stateful. Factories
+are stateless, and no message or factory is registered globally. Runtime
+adapters, request conversion, cleanup coordination, and delivery remain later
+phase responsibilities.
 
 ## Performance
 
@@ -149,6 +161,68 @@ delivery, response behavior, and every adapter remain unimplemented.
 This sequence implies no Kernel lifecycle, container, DI, HTTP, Application
 Graph, configuration, cleanup, logging, or telemetry integration.
 
+## Current and planned Phase 2 web-delivery ownership
+
+Phases 2A and 2B record requirements for future web work; they implement no web
+delivery or scoped storage. Phases 2C through 2E add explicit transport-free
+message, routing, middleware, and terminal-handler values without an outer
+delivery boundary. A future outer adapter must own each inbound
+delivery explicitly, convert it into one explicit framework request value, and
+open one Kernel operation scope for that delivery. Request, response,
+permission, route-match, middleware, exception, principal, tenant, and
+application state must remain in explicit call flow rather than ambient
+global, static, singleton, container-current, thread-local, fiber-local, or
+previous-operation state.
+
+PSR-7 message `with*()` operations use copy-on-change semantics, but this
+must not be described as deep immutability. A body stream remains stateful, and
+multiple message values may share it. Cursor position, underlying contents,
+detach, and close state are therefore observable resource behavior. Message,
+stream, URI, upload, server-parameter, cookie, query, parsed-body, and attribute
+values must remain within explicit operation call flow and must not be retained
+as scoped-storage substitutes.
+
+The HTTP message factories are explicit composition dependencies, not
+ambient singletons, registries, or service locators. The Kernel remains
+transport-neutral and has no PSR dependency. SAPI conversion, parsing, response
+emission, and resource ownership belong to the future outer adapter rather than
+the message package or Kernel.
+
+Phase 2D routing follows the same explicit-operation rule. A long-lived
+`RouteMatcher` retains only its immutable route table and compiled declaration
+data. Each call receives one PSR-7 request explicitly, reads only its method and
+URI path, and returns a fresh match or `null`. It retains no request, URI,
+method, path, parameters, match, exception, principal, tenant, permission, or
+operation state. Matching is bounded, encoded-byte exact, free of I/O and
+ambient state, and safe for alternating calls under ordinary PHP value
+semantics. A match selects no handler and establishes no authentication or
+authorization.
+
+Phase 2E retains the same rule. A long-lived `MiddlewarePipeline` holds only a
+detached immutable list of at most 128 consumer-supplied middleware objects and
+its compiled PSR-15 handler chain. A long-lived `RoutingRequestHandler` holds
+only its immutable matcher, complete canonical route-name handler map, and
+unmatched handler. Each request and response remains in explicit call flow.
+Selected matches are copied to the request under `RouteMatch::class`, but that
+attribute remains untrusted and non-authorizing; unmatched output is delegated.
+Consumer middleware owns the lifecycle safety of any objects it captures. No
+ambient request cursor or supplied error middleware is implemented. Phase 2F
+wraps each accepted application call in one exact local Kernel scope. Phase 2G
+adds only the outer delivery adapter and fixed failure responses; concrete
+emission remains absent.
+
+Successful and failing Web Application paths close the owned Kernel operation
+scope exactly once. Successful cleanup preserves the exact primary failure;
+cleanup-only failure propagates unchanged; simultaneous failure preserves both
+objects; and uncertain lifecycle failure retires the application object before
+later dependency access. This does not select scoped services, reset hooks,
+transport cleanup, storage, worker termination, or recovery.
+
+End-of-Phase-2 black-box tests must exercise at least two sequential deliveries
+within one process and prove that no request, response, permission, route match,
+middleware, exception, or application state leaks between them. Canonical
+tests must remain deterministic and require no external network listener.
+
 ## Stability
 
 Persistent-runtime-first design, runtime-independent Kernel boundaries, and the
@@ -163,5 +237,25 @@ runtime adapters remain open.
 
 - [Microkernel](microkernel.md)
 - [Architecture overview](overview.md)
+- [Phase 2 roadmap](phase-2-roadmap.md)
+- [Routing model](routing-model.md)
+- [HTTP server model](http-server-model.md)
+- [Web Application model](web-application-model.md)
+- [ADR 0046](../adr/0046-deterministic-route-declaration-and-matching.md)
+- [ADR 0047](../adr/0047-explicit-psr-15-middleware-and-terminal-routing.md)
+- [ADR 0048](../adr/0048-web-application-bootstrap-and-kernel-operation-ownership.md)
 - [ADR 0006](../adr/0006-persistent-runtime-first.md)
 - [Error handling and actionable diagnostics](../engineering/error-handling.md)
+
+## Phase 2 runnable delivery proof
+
+ADR 0049 implements Web Runtime as an Experimental top-level leaf. Phase 2H's
+test-owned delivery now proves its complete path: server-owned permission before
+request access, one Web Application call, fixed generic or eligible trusted
+output, one send, one close, and detached results only after cleanup. The exact
+five-operation sequence proves no request, route, response, permission, failure,
+or Kernel-operation state leaks in a persistent process.
+
+No runtime server or emitter is selected. The CLI runner is bounded black-box
+test infrastructure, not a production runtime or framework CLI. See the
+[fixture model](phase-2-runnable-fixture.md).

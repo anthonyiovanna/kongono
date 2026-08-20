@@ -1,0 +1,28 @@
+{
+  "name": "kongono/web-runtime",
+  "description": "Fail-closed outer web delivery and diagnostic response orchestration for Kongono.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/application-graph": "*",
+    "kongono/dependency-injection": "*",
+    "kongono/diagnostic-activation": "*",
+    "kongono/diagnostic-handler": "*",
+    "kongono/diagnostics": "*",
+    "kongono/http-message": "*",
+    "kongono/kernel": "*",
+    "kongono/web-application": "*",
+    "php": "^8.5",
+    "psr/http-message": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Web\\Runtime\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\Web\\Runtime\\Tests\\": "tests/"
+    }
+  }
+}

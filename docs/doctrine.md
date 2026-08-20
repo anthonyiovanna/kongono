@@ -2,7 +2,18 @@
 
 ## Status
 
-The principles in this document are locked architectural direction. Phase 0C implements the explicitly identified Kernel lifecycle and API-status mechanisms. Phase 0D adds the Application Graph structural snapshot, Phase 0H adds only its exact outgoing and incoming direct-relation selectors, and Phase 0J adds only exact whole-snapshot node-kind and relation-kind selectors. Phase 0F adds only explicit typed constructor resolution through immutable definitions and transient-per-edge construction. Phase 0L accepts actionable-diagnostic and error-boundary doctrine; Phase 0M implements package-local runtime ID, title, and remediation metadata for current deliberate failures; Phase 0P implements presentation-neutral bounded structural diagnostic values and package-local construction failures; Phase 0Q integrates exact bounded context for the 11 Graph failures. Phase 0R accepts neutral API-metadata ownership and an acyclic package graph; Phase 0S implements that exact fifth-package extraction and namespace migration without changing runtime behavior. Phase 0T adds the one-way Kernel-to-Diagnostics edge and exact context for all six Kernel lifecycle failures. Phase 0U adds the independent DI-to-Diagnostics edge and exact context for all 25 DI diagnostics across 26 throw sites. Phase 0W accepts the `kongono/diagnostic-presentation` leaf architecture, Phase 0X implements its pure trusted-developer projection core, Phase 0Z implements its pure trusted-developer HTML renderer, Phase 1A accepts the fail-closed two-gate activation architecture, Phase 1C implements its typed trusted-bootstrap permission foundation, Phase 1D implements its typed adapter-controlled delivery-permission foundation, and Phase 1E implements their pure combined eligibility calculation. The current runtime has seven packages, both neutral typed permission values, their one-delivery final readonly eligibility value, projector, detached values, renderer, fixed local stylesheet, and golden HTML fixtures; no delivery-evidence evaluator, activation enforcement, trusted-mode selector, configuration reader, production model, transport, or runtime adapter exists. Other planned mechanisms do not yet exist unless this document says otherwise.
+The principles in this document are locked architectural direction. Phases 0A through 1H implement the authenticated Kernel, Application Graph, Dependency Injection, diagnostic metadata/context/presentation/activation/handler, API Metadata, and package-topology increments recorded by their Accepted ADRs. Phase 1 is complete at local checkpoint `d7846f137a1d53f5306f48d19196b916fde44ac2`. Phase 2A and 2B accept the bounded runnable-web roadmap and interoperability boundary. Phase 2C implements the ninth package, `kongono/http-message`; Phase 2D implements the tenth, `kongono/routing`; Phase 2E implements the eleventh, `kongono/http-server`; and Phase 2F implements the twelfth, `kongono/web-application`, which owns one local Kernel scope per application call. Phase 2G and ADR 0049 implement the thirteenth package, `kongono/web-runtime`, as the ports-only outer delivery leaf with fixed generic and eligible trusted responses plus exact send/close orchestration. No concrete SAPI/server/listener/emitter, supplied error middleware, trusted network authorization mechanism, or runnable fixture exists. Phase 2H remains the first runnable black-box milestone.
+
+Phase 2B accepts PSR-7, the selected server-side PSR-17 factories, future
+PSR-15, and the first-party `kongono/http-message` package boundary. Phase 2C
+implements that ninth package with the five selected message roles, five
+stateless factories, and bounded package-local diagnostics. Phase 2D implements
+Routing as a separate tenth package consuming only PSR-7 interfaces, API
+Metadata, and Diagnostics. It performs exact encoded method/path matching with
+no normalization, handler execution, authorization, or retained request state.
+Phase 2F now owns application bootstrap and application-call Kernel scope
+cleanup. Adapters, emission, broader resource cleanup, and runnable web behavior
+remain unimplemented.
 
 ## Product philosophy
 
@@ -24,7 +35,8 @@ Kongono will use a small microkernel with independently installable components t
 
 This list is direction, not a package map. The implemented production packages
 are API Metadata, Diagnostic Activation, Kernel, Application Graph, Dependency
-Injection, Diagnostics, and Diagnostic Presentation. The
+Injection, Diagnostics, Diagnostic Presentation, Diagnostic Handler, and HTTP
+Message. The
 resolver is not a general capability platform and implies none of the other
 listed packages.
 
@@ -47,7 +59,7 @@ Flexibility at application architecture layers does not weaken framework invaria
 
 Core lifecycle design must not assume the process or all application state ends after each HTTP request. Future adapters may support FrankenPHP, RoadRunner, OpenSwoole, PHP-FPM, CLI workers, serverless environments, and future runtimes. No runtime may become a hard kernel dependency.
 
-The implemented Kernel lifecycle boots once, permits overlapping opaque operation scopes owned by Kernel-instance object identity, refuses shutdown while work is active, and exposes no ambient current operation. It does not yet define scoped data, cleanup orchestration, context propagation, cancellation, or runtime adapters; those lifecycle contracts remain open.
+The implemented Kernel lifecycle boots once, permits overlapping opaque operation scopes owned by Kernel-instance object identity, refuses shutdown while work is active, and exposes no ambient current operation. Web Application now orchestrates exact begin/end cleanup around one application call without changing Kernel. Scoped data, broader resource cleanup, context propagation, cancellation, and runtime adapters remain open.
 
 ## Platform boundaries
 
@@ -187,6 +199,17 @@ Third-party extensions must not automatically receive unrestricted access to dat
 
 Kongono should use stable open standards when they improve interoperability without surrendering architecture. Likely standards include Composer, PSRs, OpenAPI, OpenTelemetry, OAuth/OIDC, MCP, A2A, and web standards. External protocols must sit behind Kongono-owned abstractions where appropriate.
 
+Phase 2B applies that doctrine by accepting PSR-7 through
+`psr/http-message: ^2.0`, the selected server-side PSR-17 factories through
+`psr/http-factory: ^1.1`, and PSR-15 for Phase 2E handling. These are
+interface-only edge contracts. Kongono retains an implemented first-party
+`kongono/http-message` implementation, rejects framework substrate and runtime
+factory discovery, keeps factories as explicit composition dependencies, and
+keeps the Kernel transport-neutral and PSR-free. Phase 2D routing consumes the
+PSR-7 interface without depending on that concrete package. Phase 2E owns the
+implemented PSR-15 middleware and terminal-handler behavior; Phase 2F owns the
+implemented Web Application bootstrap and Kernel operation-scope composition boundary.
+
 ## Structured CLI
 
 The official future executable is `kongo`. Meaningful commands should eventually support machine-readable and automation-safe behavior such as `--json`, `--dry-run`, and `--no-interaction` where applicable. No CLI architecture or executable exists in Phase 0A.
@@ -194,3 +217,17 @@ The official future executable is `kongo`. Meaningful commands should eventually
 ## Smallest correct implementation
 
 Do not build speculative abstractions or future phases early. Public APIs create compatibility obligations. Prefer explicit, inspectable, deterministic behavior over hidden magic and implement only approved scope.
+
+## Phase 2 runnable milestone
+
+Phase 2A through 2H are implemented. Thirteen production packages remain the
+complete package graph; the runnable fixture is root-owned test infrastructure,
+not a fourteenth package or API. It composes the real Public outer delivery port,
+one Web Application-owned Kernel scope, deterministic routing and middleware,
+fixed generic output, permission-gated trusted HTML, and exact cleanup.
+
+Fixture-runnable does not mean production-ready. The runner selects only fixed
+test modes and scenarios and is not a general CLI, listener, emitter,
+authorization mechanism, deployment surface, or supported application template.
+Production integration and every broader framework capability remain subject to
+explicit architect authority.

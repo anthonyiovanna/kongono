@@ -1,0 +1,26 @@
+{
+  "name": "kongono/web-application",
+  "description": "Explicit web application composition and Kernel operation ownership for Kongono.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "kongono/http-server": "*",
+    "kongono/kernel": "*",
+    "kongono/routing": "*",
+    "php": "^8.5",
+    "psr/http-message": "^2.0",
+    "psr/http-server-handler": "^1.0",
+    "psr/http-server-middleware": "^1.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Web\\Application\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\Web\\Application\\Tests\\": "tests/"
+    }
+  }
+}
