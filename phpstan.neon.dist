@@ -25,12 +25,15 @@ parameters:
         - packages/http-server/tests
         - packages/kernel/src
         - packages/kernel/tests
+        - packages/php-cgi/src
+        - packages/php-cgi/tests
         - packages/routing/src
         - packages/routing/tests
         - packages/web-application/src
         - packages/web-application/tests
         - packages/web-runtime/src
         - packages/web-runtime/tests
+        - tests/External
         - tests/Architecture
         - tests/BlackBox
         - tests/Tooling

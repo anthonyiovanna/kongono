@@ -2,7 +2,7 @@
 
 - Date: 2026-08-12
 - Workspace: `C:\Users\antho\Dev\kongono`
-- Governing directive: `docs/dev_plan/kongono_phase_0A_codex_directive.md`
+- Governing directive: `docs/dev_plan/phase_0/kongono_phase_0A_codex_directive.md`
 
 Phase 0A was completed without implementing framework functionality. Git was initialized, and 33 authorized foundation files were created: root governance/configuration, minimal `composer.json`, doctrine, glossary, documentation standard, seven architecture documents, the ADR index, and ADRs 0001 through 0013.
 

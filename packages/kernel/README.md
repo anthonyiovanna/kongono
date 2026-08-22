@@ -59,5 +59,14 @@ This package does not provide dependency injection, services, configuration, app
 Phase 2G's separate [Web Runtime package](../web-runtime/README.md) is the
 top-level outer delivery leaf. It may recognize Kernel package failures as one
 supported trusted-diagnostic family, but it does not call Kernel or own a scope.
-Web Application retains the sole operation scope. No concrete runtime, logging,
-telemetry, authorization, or runnable fixture was added; Phase 2H remains next.
+Web Application retains the sole operation scope. Phase 2H's root-owned,
+test-owned fixture proves that composition externally without becoming Kernel
+behavior or a production application. Phase 2 is complete at checkpoint
+`647053d4bddc4c76090bca9bf3d693faa5880c52` with exactly thirteen production
+packages.
+
+Phase 3A plans one supported synchronous production HTTP integration profile
+without selecting or implementing it. Kernel remains unchanged and owns no
+SAPI, server, listener, host input, parser, emitter, configuration, deployment,
+transport trust, logging, telemetry, or authorization behavior. See the
+[Phase 3 roadmap](../../docs/architecture/phase-3-roadmap.md).

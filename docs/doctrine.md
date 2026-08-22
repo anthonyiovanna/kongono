@@ -2,7 +2,30 @@
 
 ## Status
 
-The principles in this document are locked architectural direction. Phases 0A through 1H implement the authenticated Kernel, Application Graph, Dependency Injection, diagnostic metadata/context/presentation/activation/handler, API Metadata, and package-topology increments recorded by their Accepted ADRs. Phase 1 is complete at local checkpoint `d7846f137a1d53f5306f48d19196b916fde44ac2`. Phase 2A and 2B accept the bounded runnable-web roadmap and interoperability boundary. Phase 2C implements the ninth package, `kongono/http-message`; Phase 2D implements the tenth, `kongono/routing`; Phase 2E implements the eleventh, `kongono/http-server`; and Phase 2F implements the twelfth, `kongono/web-application`, which owns one local Kernel scope per application call. Phase 2G and ADR 0049 implement the thirteenth package, `kongono/web-runtime`, as the ports-only outer delivery leaf with fixed generic and eligible trusted responses plus exact send/close orchestration. No concrete SAPI/server/listener/emitter, supplied error middleware, trusted network authorization mechanism, or runnable fixture exists. Phase 2H remains the first runnable black-box milestone.
+The principles in this document are locked architectural direction. Phase 2A
+through 2H are complete at checkpoint
+`647053d4bddc4c76090bca9bf3d693faa5880c52`. Exactly fourteen acyclic production
+packages implement the bounded framework path, and a root-owned, test-owned
+fixture proves that path externally. The fixture is not a production
+application, supported template, SAPI adapter, server, listener, emitter,
+deployment entrypoint, or trust mechanism.
+
+Phase 3B selects PHP `cgi-fcgi`, CGI/1.1, and FastCGI `RESPONDER` as the first
+exact production host profile. Phase 3C and ADR 0053 implement bounded explicit
+inbound conversion. Phase 3D and ADR 0054 implement fully staged bounded
+response emission. Phase 3E and ADR 0055 implement explicit typed operator
+selection, fixed native bootstrap validation, and independent current-delivery
+permission evaluation without a general configuration or raw scalar parser.
+Streaming is unsupported, and post-commit failure is uncertain, throws, and is
+never rolled back or retried. The Phase 3F delivery and thin production entry,
+Phase 3G front-controller lifecycle/deployment constraints, and Phase 3H
+test-owned external acceptance are implemented. The acceptance harness is not a
+production listener, server, client, process manager, or deployment artifact.
+Kernel remains
+transport-neutral; Web Application retains one local Kernel scope per accepted
+application call; and Web Runtime retains outer failure and send/close
+orchestration. Phase 3 is complete; no next phase starts automatically. See the
+[PHP CGI profile](architecture/php-cgi-fastcgi-profile.md) and [Phase 3 roadmap](architecture/phase-3-roadmap.md).
 
 Phase 2B accepts PSR-7, the selected server-side PSR-17 factories, future
 PSR-15, and the first-party `kongono/http-message` package boundary. Phase 2C
@@ -11,9 +34,10 @@ stateless factories, and bounded package-local diagnostics. Phase 2D implements
 Routing as a separate tenth package consuming only PSR-7 interfaces, API
 Metadata, and Diagnostics. It performs exact encoded method/path matching with
 no normalization, handler execution, authorization, or retained request state.
-Phase 2F now owns application bootstrap and application-call Kernel scope
-cleanup. Adapters, emission, broader resource cleanup, and runnable web behavior
-remain unimplemented.
+Phase 2F owns application bootstrap and application-call Kernel scope cleanup,
+Phase 2G owns the ports-only outer adapter, and Phase 2H's fixture proves their
+composition. Production host conversion, emission, deployment, and broader
+resource cleanup remain unimplemented.
 
 ## Product philosophy
 
@@ -33,10 +57,10 @@ AI may suggest interpretations and changes, but correctness-critical application
 
 Kongono will use a small microkernel with independently installable components that contribute coherent capabilities. Potential capabilities include HTTP, Data, ORM, Migrations, Authentication, Authorization, Events, Queues, Workflows, Cache, Storage, Mail, Notifications, Realtime, Scheduling, AI, Agents, Delegation, MCP, A2A, Frontend integration, Testing, and Developer tooling.
 
-This list is direction, not a package map. The implemented production packages
-are API Metadata, Diagnostic Activation, Kernel, Application Graph, Dependency
-Injection, Diagnostics, Diagnostic Presentation, Diagnostic Handler, and HTTP
-Message. The
+This list is direction, not a package map. The fourteen implemented production
+packages are API Metadata, Application Graph, Dependency Injection, Diagnostic
+Activation, Diagnostic Handler, Diagnostic Presentation, Diagnostics, HTTP
+Message, HTTP Server, Kernel, PHP CGI, Routing, Web Application, and Web Runtime. The
 resolver is not a general capability platform and implies none of the other
 listed packages.
 
@@ -146,7 +170,7 @@ source, requests, environment, transport data, I/O, caches, or retained source
 objects. It does not create a universal exception marker.
 
 Trusted diagnostic activation is governed by a locked two-gate fail-closed
-rule. A future outer composition boundary must provide affirmative
+rule. At the Phase 1 boundary, a future outer composition boundary had to provide affirmative
 **trusted bootstrap permission** as an immutable decision for one adapter instance,
 and the adapter must independently provide affirmative
 **adapter-controlled delivery permission** for the current delivery. Both precede presentation access, projection, copying,
@@ -158,8 +182,10 @@ permission. Phase 1C implements the Experimental unbacked
 `TrustedDeveloperBootstrapPermission` value and Phase 1D adds the Experimental
 unbacked `AdapterControlledDeliveryPermission` value in the separate Diagnostic
 Activation package. They are neutral typed inputs, not evidence evaluators or
-authorization by themselves. Raw configuration, delivery evidence and its
-evaluation, combined enforcement, and adapters remain future and unimplemented. API status,
+authorization by themselves. Web Runtime now performs the implemented two-gate
+fail-closed response-selection and delivery sequence from explicitly supplied
+decisions. Raw operator configuration, host evidence evaluation, and production
+SAPI integration remain future and unimplemented. API status,
 package-local tokens, output escaping, and direct projector or renderer
 callability are not authorization. The trusted developer model is prohibited as
 a production model; production needs a separate deny-by-default policy and
@@ -179,9 +205,9 @@ markup. Its exact template and CSS are fixture-backed and it retains no state.
 Escaping and disclosure authorization are separate controls; escaped Protected
 data remains Protected. Diagnostic presentation must remain useful without
 remote assets, network access, or AI services. Both typed permission decisions
-now exist, while raw-input validation, delivery-evidence evaluation, combined
-activation enforcement, transport, and production presentation remain future
-outer-boundary concerns.
+and their neutral Web Runtime enforcement now exist, while raw-input validation,
+operator and host evidence evaluation, production SAPI transport, and production
+presentation remain future outer-boundary concerns.
 
 ## Agents and interoperability
 
@@ -220,9 +246,9 @@ Do not build speculative abstractions or future phases early. Public APIs create
 
 ## Phase 2 runnable milestone
 
-Phase 2A through 2H are implemented. Thirteen production packages remain the
-complete package graph; the runnable fixture is root-owned test infrastructure,
-not a fourteenth package or API. It composes the real Public outer delivery port,
+Phase 2A through 2H established thirteen production packages; Phase 3C adds PHP
+CGI as the fourteenth. The runnable fixture remains root-owned Phase 2 test
+infrastructure, not a package or API. It composes the real Public outer delivery port,
 one Web Application-owned Kernel scope, deterministic routing and middleware,
 fixed generic output, permission-gated trusted HTML, and exact cleanup.
 
@@ -231,3 +257,28 @@ test modes and scenarios and is not a general CLI, listener, emitter,
 authorization mechanism, deployment surface, or supported application template.
 Production integration and every broader framework capability remain subject to
 explicit architect authority.
+
+Phase 3's accepted direction is one supported synchronous production HTTP
+integration profile with bounded conversion, exact emission, immutable
+operator-owned bootstrap, independent trust inputs, preserved Web Runtime/Web
+Application/Kernel ownership, deterministic cleanup, deployment documentation,
+and external proof. Phase 3B fixes the first PHP CGI profile's architecture,
+Phase 3C implements its bounded explicit inbound converter, Phase 3D implements
+bounded response emission, and Phase 3E implements immutable typed operator
+bootstrap plus independent current-delivery permission evaluation. Phase 3F
+implements a fresh Internal delivery and Experimental thin entry. The delivery
+keeps native capture bounded, input lazy, emission single-attempt, cleanup
+explicit, and all per-delivery state off ambient framework surfaces. Invalid
+caller input reaches Web Runtime's fixed generic 500; Phase 3 creates no semantic
+client-error mapping. Phase 3G adds one stateless front-controller entry attempt
+followed by one explicit supplied application-shutdown attempt. Its four-way
+matrix uses 1019 when both fail, adds no direct PHP-CGI-to-Web-Application edge,
+and retains no ambient state. Application composition and partial-boot cleanup
+remain caller-owned. `Production` trust remains denied; uncertain emission or
+shutdown requires external process retirement. Phase 3H supplies external,
+test-owned proof for the selected synchronous PHP-CGI FastCGI RESPONDER profile,
+without adding acceptance dependencies to production packages. Process, proxy,
+TLS, credentials, logs, monitoring, incidents, and deployment ownership remain
+external. Production trusted diagnostics remain denied. Phase 3 is complete,
+no next phase starts automatically, and the milestone remains smaller than the full
+framework, Stable API, 1.0, or production-hardening certification.

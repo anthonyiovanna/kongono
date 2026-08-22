@@ -12,32 +12,36 @@ Kongono is a planned modern application framework for applications that must be 
 
 ## Current status
 
-Phase 1 is complete at local checkpoint
-`d7846f137a1d53f5306f48d19196b916fde44ac2`. Kongono currently provides a
-tested component architecture across exactly thirteen first-party packages; it is
-not yet a runnable web framework. Phase 2C implements the accepted PSR-7 message
-roles and selected server-side PSR-17 factories in `kongono/http-message`.
-Phase 2D implements bounded, deterministic, encoded method/path declaration and
-matching in the separate `kongono/routing` package. A match selects a declaration
-and untrusted parameter bytes; it proves neither authentication nor authorization
-and invokes no handler. Phase 2E implements `kongono/http-server` using the
-PSR-15 handler and middleware interfaces: an explicit, bounded, immutable,
-transport-free middleware pipeline and a complete route-name-to-handler map.
-Selected matches are stored under the reserved `RouteMatch::class` request
-attribute but remain untrusted and non-authorizing; unmatched output is
-delegated to an explicit handler. Phase 2F implements
-`kongono/web-application`: explicit validation-before-boot composition, one
-Kernel operation scope per in-memory application call, exact-once scope closure,
-failure-identity preservation, fail-closed retirement, and explicit shutdown.
-Kongono now provides an Experimental outer Web Runtime adapter, a Public
-per-delivery port, and fixed generic or eligible trusted failure responses. It
-still provides no concrete SAPI/server/listener/emitter or runnable application.
-Phase 2H remains the first runnable black-box milestone.
-See the [routing model](docs/architecture/routing-model.md), [HTTP message
+Phase 2A through 2H are complete at checkpoint
+`647053d4bddc4c76090bca9bf3d693faa5880c52`. Kongono has exactly fourteen
+acyclic first-party production packages and is fixture-runnable through
+root-owned black-box test infrastructure. Run
+`php tests/BlackBox/Fixture/run.php production matched-a` to exercise the real
+Web Runtime, Web Application, routing, middleware, HTTP message, and Kernel path.
+The [fixture model](docs/architecture/phase-2-runnable-fixture.md) documents its
+fixed boundary.
+
+The fixture is not a production application, supported template, framework CLI,
+SAPI adapter, server, listener, emitter, deployment entrypoint, or
+production-readiness proof. Phase 3B selects PHP `cgi-fcgi` in the FastCGI
+`RESPONDER` role under CGI/1.1 as Kongono's first production host profile.
+Phase 3C and [ADR 0053](docs/adr/0053-bounded-php-cgi-inbound-conversion.md)
+implement bounded inbound conversion. Phase 3D and [ADR 0054](docs/adr/0054-bounded-php-cgi-response-emission.md)
+implement fully staged, bounded response emission with computed length and no
+streaming. Phase 3E and [ADR 0055](docs/adr/0055-immutable-php-cgi-operator-bootstrap-and-trust-inputs.md)
+implement a code-literal operator profile, fixed PHP CGI process prerequisites,
+and independent per-delivery trust evidence. Phase 3F implements the concrete
+delivery and thin entry into an already-composed Web Runtime. A post-commit
+failure is uncertain, throws, and is never rolled back or retried. Phase 3G adds
+the bounded front-controller lifecycle and deployment constraints. Phase 3H
+completes external test-owned acceptance and the Phase 3 checkpoint without
+adding a production listener, client, process manager, or deployment artifact. See the [PHP
+CGI profile](docs/architecture/php-cgi-fastcgi-profile.md),
+[Phase 3 roadmap](docs/architecture/phase-3-roadmap.md),
+[routing model](docs/architecture/routing-model.md), [HTTP message
 model](docs/architecture/http-message-model.md), [HTTP server
-model](docs/architecture/http-server-model.md), [Web Application
-model](docs/architecture/web-application-model.md), and [Phase 2
-roadmap](docs/architecture/phase-2-roadmap.md).
+model](docs/architecture/http-server-model.md), and [Web Application
+model](docs/architecture/web-application-model.md).
 
 Kongono is **pre-alpha**. Phase 0M implements package-local runtime diagnostic
 metadata for the deliberate failures currently raised by the Kernel, Application
@@ -110,17 +114,23 @@ implemented trusted projection and returns one complete accessible,
 deterministic, escaped, bounded HTML5 document using a fixed local stylesheet.
 Golden fixtures lock the full and empty byte grammar.
 
-Phase 1A accepts a fail-closed activation architecture but implements no
-enforcement. A future outer composition boundary must provide both affirmative
-trusted bootstrap permission for an immutable adapter instance and an
-independent adapter-controlled delivery permission for the current delivery
-before presentation access, projection, rendering, or delivery. Missing,
-invalid, ambiguous, failed, denied, or uncertain decisions do not enable trusted
-output, and no client-controlled value can enable either permission. The
-projector and renderer remain directly callable only as low-level pure
-Experimental APIs; calling them is not authorization. No activation type,
-configuration reader, adapter, served page, HTTP behavior, or production
-diagnostic presentation is implemented.
+At the Phase 1A boundary, Kongono accepted a fail-closed activation architecture
+but had not implemented enforcement. The planned outer composition had to
+provide both affirmative trusted bootstrap permission for an immutable adapter
+instance and an independent adapter-controlled delivery permission for the
+current delivery before presentation access, projection, rendering, or
+delivery. Missing, invalid, ambiguous, failed, denied, or uncertain decisions
+could not enable trusted output, and no client-controlled value could enable
+either permission. The projector and renderer remained directly callable only
+as low-level pure Experimental APIs; calling them was not authorization. Phase
+2G now implements the neutral Web Runtime adapter and delivery port, and Phase
+2H proves that sequence through test-owned infrastructure. Phase 3E implements
+literal operator selection and independent PHP CGI delivery-evidence
+evaluation; Phase 3F implements native capture, conversion, emission, and
+cleanup through the concrete delivery and thin entry. Phase 3G adds the bounded
+front-controller lifecycle and documents fixed operator constraints. General
+configuration, deployed hardening, and external production acceptance remain
+unimplemented.
 
 Phase 1C implements only the first typed input to that Accepted policy in the
 new seventh package, `kongono/diagnostic-activation`. Its sole production type
@@ -128,18 +138,23 @@ is the Experimental unbacked enum
 `TrustedDeveloperBootstrapPermission`, with `Denied`, `Allowed`, and
 `allowsTrustedPresentation(): bool`. The enum carries an already-validated
 server-bootstrap decision; it reads no raw configuration and does not prove
-delivery authorization. Adapter-controlled delivery permission, combined
-enforcement, adapters, HTTP behavior, and delivery remain unimplemented.
+delivery authorization. At the end of Phase 1C, adapter-controlled delivery
+permission, combined enforcement, adapters, HTTP behavior, and delivery remained
+unimplemented.
 
 Phase 1D adds the second neutral typed input in the same package: the
 Experimental unbacked `AdapterControlledDeliveryPermission` enum with `Denied`,
-`Allowed`, and `allowsTrustedPresentation(): bool`. It represents only a future
-outer adapter's already-determined permission for one current delivery. The
-adapter still owns all evidence, evaluation, and authority; missing, failed,
-uncertain, or unverified evidence must fail closed. Both typed inputs exist and
-neither `Allowed` case suffices alone. Their pure conjunction and neutral Handler
-sequencing are implemented; no adapter, request inspection, evidence evaluator,
-configuration loader, transport, delivery, response, or served page is implemented.
+`Allowed`, and `allowsTrustedPresentation(): bool`. It represents only an
+adapter's already-determined permission for one current delivery. The adapter
+owns all evidence, evaluation, and authority; missing, failed, uncertain, or
+unverified evidence must fail closed. Both typed inputs exist and neither
+`Allowed` case suffices alone. Their pure conjunction and neutral Handler
+sequencing are implemented. Phase 2G supplies the neutral adapter and delivery
+sequence from explicitly supplied decisions. Phase 3E supplies PHP CGI's
+literal operator and exact delivery-evidence decisions, and Phase 3F supplies
+native capture plus concrete conversion, emission, and cleanup. A general
+configuration system, listener/process integration, deployment hardening, and
+external production acceptance remain unimplemented.
 
 Phase 1E adds the pure Experimental final readonly
 `TrustedDeveloperPresentationEligibility`. It stores the two typed decisions
@@ -159,6 +174,10 @@ chooses no adapter, transport, or non-trusted response. Diagnostic Handler is
 the only current package depending on both independent lower layers, Diagnostic
 Activation and Diagnostic Presentation. It adds no binding, served page,
 configuration, evidence evaluation, delivery, response, or production model.
+Those are package-local limitations: Web Runtime owns the neutral generic or
+trusted response selection and delivery sequence, while PHP CGI now supplies
+the selected concrete delivery and thin entry. The external host still owns
+listening, process management, deployment, and shutdown policy.
 
 The broader originating-package behavior remains the accepted Phase 0U implementation:
 the PHP quality toolchain and eight packages, including neutral API metadata,
@@ -175,9 +194,9 @@ endpoint and kind filters, traverse the Graph, or form a generic query system.
 The resolver remains explicit and transient per dependency edge. The Graph
 remains a structural prerequisite rather than the complete authoritative
 Application Graph. Development or production error pages, HTTP or CLI mappings,
-logging, telemetry, retry, cleanup orchestration,
-incident storage, runtime adapters, broader capabilities, and a working `kongo`
-CLI remain unimplemented.
+logging, telemetry, retry, broader resource cleanup, incident storage, other
+production SAPI adapters, broader capabilities, and a working `kongo` CLI
+remain unimplemented.
 
 Nothing is Stable. Public API status means supported consumer use under Kongono's pre-1.0 release maturity; it does not imply an unchangeable or production-ready contract. Experimental and open architecture may evolve.
 
@@ -194,8 +213,9 @@ Nothing is Stable. Public API status means supported consumer use under Kongono'
 - Actionable, package-owned diagnostics with implemented presentation-neutral
   bounded structural values and exact Kernel, Graph, and DI exception context,
   plus an implemented pure trusted-developer projection and HTML rendering
-  boundary while activation enforcement, runtime trust integration, transport,
-  and production policy remain future work
+  boundary, fail-closed Web Runtime enforcement, and the selected PHP CGI trust
+  and delivery integration; broader transport profiles and production policy
+  remain future work
 
 ## Documentation
 
@@ -203,6 +223,8 @@ Nothing is Stable. Public API status means supported consumer use under Kongono'
 - [Architectural doctrine](docs/doctrine.md)
 - [Architecture overview](docs/architecture/overview.md)
 - [Phase 2 roadmap](docs/architecture/phase-2-roadmap.md)
+- [Phase 3 roadmap](docs/architecture/phase-3-roadmap.md)
+- [PHP CGI FastCGI profile](docs/architecture/php-cgi-fastcgi-profile.md)
 - [HTTP message model](docs/architecture/http-message-model.md)
 - [Routing model](docs/architecture/routing-model.md)
 - [API Metadata package](packages/api-metadata/README.md)
@@ -239,3 +261,25 @@ Runtime, generic failure, trusted diagnostic, and exact cleanup path. It does
 not supply a listener, SAPI integration, production emitter, authentication,
 authorization, deployment, logging, telemetry, full framework, 1.0 release, or
 production-readiness claim.
+
+Phase 3B selects the exact PHP `cgi-fcgi` FastCGI Responder architecture. Phase
+3C implements bounded explicit inbound conversion, 3D bounded response staging
+and emission, and 3E immutable operator bootstrap plus independent delivery
+permission evaluation. Phase 3F now implements the Internal one-delivery PHP CGI
+adapter and Experimental thin entry. PHP CGI projects the closed server allowlist,
+opens `php://input` only during request conversion, and owns exact body/input
+cleanup; malformed profile input still becomes Web Runtime's generic 500 with no
+semantic 4xx mapping. Its new direct dependency is Web Runtime, not Web
+Application. Phase 3G adds `CgiFrontController`: one entry attempt followed by
+one explicit supplied application-shutdown attempt, with deterministic four-way
+failure handling and diagnostic 1019 when both fail. `Production` still denies
+trusted output; development still needs independent direct, non-forwarded
+canonical loopback evidence. The [deployment
+contract](docs/engineering/php-cgi-deployment.md) records operator constraints
+without supplying a production listener, server configuration, or deployment
+artifact. The [external acceptance guide](docs/architecture/phase-3-external-acceptance.md)
+records test-owned proof through the actual selected host. Application composition and partial-boot cleanup remain caller
+responsibilities; uncertain emission or shutdown requires external process
+retirement. The intrinsic 8,192-byte query ceiling remains unchanged; exact
+target/query composition makes 8,190 bytes the effective external maximum.
+Phase 3 is closed, and no later phase starts automatically.

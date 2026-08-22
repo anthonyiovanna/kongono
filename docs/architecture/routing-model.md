@@ -66,7 +66,7 @@ Consumers may use the Experimental matcher contract but must not implement or de
 
 ## Current versus planned behavior
 
-Phase 2D implements bounded method/path declaration and matching only. Phase 2E implements the separate `kongono/http-server` boundary: an explicit bounded immutable PSR-15 pipeline and complete canonical route-name-to-handler map. A selected `RouteMatch` is placed under the reserved `RouteMatch::class` request attribute but remains untrusted and non-authorizing; unmatched output is delegated. Phase 2F implements the separate `kongono/web-application` validation-before-boot and application-call Kernel scope boundary without changing Routing. Phase 2G implements adapter delivery and generic or eligible trusted failure mapping without a direct Routing dependency. No supplied error middleware, concrete runtime delivery, or runnable application exists; Phase 2H remains the first runnable black-box milestone. See the [Web Application model](web-application-model.md).
+Phase 2D implements bounded method/path declaration and matching only. Phase 2E implements the separate `kongono/http-server` boundary: an explicit bounded immutable PSR-15 pipeline and complete canonical route-name-to-handler map. A selected `RouteMatch` is placed under the reserved `RouteMatch::class` request attribute but remains untrusted and non-authorizing; unmatched output is delegated. Phase 2F implements the separate `kongono/web-application` validation-before-boot and application-call Kernel scope boundary without changing Routing. Phase 2G implements adapter delivery and generic or eligible trusted failure mapping without a direct Routing dependency. Phase 2H's root-owned test fixture proves their complete composition. No supplied error middleware, production host conversion, emitter, supported deployment profile, or production application exists. See the [Web Application model](web-application-model.md) and [Phase 3 roadmap](phase-3-roadmap.md).
 
 ## Related material
 
@@ -82,5 +82,6 @@ Web Runtime has no direct Routing dependency or import. It passes the exact
 converted request to Web Application once; Web Application and HTTP Server retain
 their existing routing composition. The adapter adds no route inspection,
 authorization, Graph traversal, second Kernel scope, or concrete emitter. The
-thirteen-package graph stays acyclic and Phase 2H remains the first runnable
-black-box milestone.
+thirteen-package graph stays acyclic. Phase 2H completes the runnable fixture
+proof, while Phase 3A plans the production integration milestone without
+selecting or implementing it.

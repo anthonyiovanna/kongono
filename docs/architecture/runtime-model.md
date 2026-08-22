@@ -94,32 +94,41 @@ persistent-runtime-safe but do not authorize its caller.
 Phase 1A accepts two independent decisions outside Diagnostic Presentation.
 Phase 1C implements the first decision value as the Experimental unbacked
 `Kongono\DiagnosticActivation\TrustedDeveloperBootstrapPermission` enum. A
-future server-controlled composition boundary must choose the already-validated,
-immutable value when constructing one adapter instance. Raw configuration cannot
-mutate that live shared decision; changed bootstrap permission requires explicit
-restart or construction of a new adapter instance. The exact raw source,
-validation failure, composition API, reload lifecycle, and adapter remain
-unselected and unimplemented.
+Phase 3E PHP CGI bootstrap now derives that value from one literal
+`CgiOperatorProfile` selected in trusted code after exact native prerequisite
+validation under [ADR 0055](../adr/0055-immutable-php-cgi-operator-bootstrap-and-trust-inputs.md).
+`Production` maps to `Denied`; `LoopbackDevelopment` maps to
+`Allowed`. No raw string, file, environment, request parser, reload, or watcher
+exists. The immutable result retains only the typed permission; changing it
+requires explicit construction of a new bootstrap/runtime. Phase 3F now composes
+that runtime with one fresh concrete delivery and retains no permission value on
+the delivery.
 
 Phase 1D implements the second decision value as the Experimental unbacked
 `Kongono\DiagnosticActivation\AdapterControlledDeliveryPermission` enum. A
-future adapter must select this value from its already-evaluated evidence for
-the current delivery boundary. The enum evaluates no evidence, proves no
-freshness or boundary identity, and cannot authorize presentation by itself.
+Phase 3E's Internal PHP CGI evaluator selects this value from one explicit
+current-delivery snapshot. Only exact `cgi-fcgi`, CGI/1.1 RESPONDER, canonical
+`127.0.0.1` or `::1`, all-string keys, and absence of every forwarded marker
+allow; every other input denies without throwing. The enum itself evaluates no
+evidence, proves no freshness or boundary identity, and cannot authorize
+presentation by itself.
 The decision is not stored in a static, ambient current context or
 previous-operation value, and one request, job, message, command, tenant, user,
 fiber, worker operation, or concurrent delivery cannot authorize another.
-Denial or uncertainty takes the future non-trusted path before presentation
-access; it does not project or render and discard the result. The evidence
-sources, evaluation mechanism, and outer-adapter composition remain unimplemented.
+Denial or uncertainty takes Web Runtime's fixed non-trusted path before
+presentation access; it does not project or render and discard the result.
+Phase 3F's concrete PHP CGI delivery captures fresh SAPI/projected-server
+evidence and the thin entry supplies a fresh delivery to an already-composed
+runtime.
 
 Phase 1E adds the pure final readonly
 `TrustedDeveloperPresentationEligibility` for one current delivery. It stores
 only the two typed decisions and returns true only when both permit trusted
-presentation. A future adapter must construct and consume it within that
-delivery's explicit flow; it must not retain or reuse the object or its result
-as ambient, static, cached, thread-local, fiber-local, or previous-operation
-authority. Evidence evaluation and outer-adapter composition remain unimplemented.
+presentation. Web Runtime constructs and consumes it within that delivery's
+explicit flow; neither it nor another adapter may retain or reuse the object or
+its result as ambient, static, cached, thread-local, fiber-local, or
+previous-operation authority. PHP CGI now implements the selected evidence
+evaluation and outer-delivery composition.
 
 Phase 1H implements a stateless Diagnostic Handler for this exact per-delivery
 sequence:
@@ -134,21 +143,22 @@ The handler retains neither the eligibility value, source, projection,
 HTML, nor any derived result. It catches nothing, so every `Throwable` propagates
 unchanged. `null` means only that trusted developer HTML was not produced because
 combined eligibility was false; it does not select a response, status, fallback,
-incident, retry, or transport. The future outer adapter still establishes both
-permissions, validates evidence, creates the eligibility value, invokes the
-handler for one current delivery, and owns the non-trusted path and delivery.
-The handler evaluates no evidence and performs no transport or delivery.
+incident, retry, or transport. For the selected path, PHP CGI establishes fresh
+delivery evidence and Web Runtime combines the supplied permissions, creates
+the eligibility value, invokes the handler for one current delivery, and owns
+the non-trusted path and delivery. The handler evaluates no evidence and
+performs no transport or delivery.
 
 The required evaluation order is:
 
 ```text
-future outer adapter establishes both typed permissions
+PHP CGI supplies independent bootstrap and current-delivery permissions
     -> TrustedDeveloperPresentationEligibility
         -> Diagnostic Handler checks eligibility first
             false -> null without source access
             true -> projector creates detached trusted model
                 -> pure HTML renderer creates complete escaped document
-                    -> exact HTML unchanged to future adapter
+                    -> exact HTML unchanged to Web Runtime
 ```
 
 An exception may already own its eager bounded context; denial leaves that
@@ -156,19 +166,21 @@ exception unchanged while prohibiting later presentation accessor reads and
 Protected-field copying. The implemented renderer is stateless, retains nothing
 after return, and consults no ambient or runtime state. Calling the projector or
 renderer directly is explicit low-level composition, not authorization or a
-runtime hook. External evidence evaluation, adapter composition, transport,
-delivery, response behavior, and every adapter remain unimplemented.
-This sequence implies no Kernel lifecycle, container, DI, HTTP, Application
-Graph, configuration, cleanup, logging, or telemetry integration.
+runtime hook. The selected PHP CGI path now supplies literal bootstrap and exact
+delivery-evidence evaluation, concrete delivery, response emission, and cleanup.
+Other adapters, listener/process integration, deployment hardening, and external
+acceptance remain unimplemented. This sequence implies no new Kernel lifecycle,
+container, DI, Application Graph, general configuration, logging, or telemetry
+integration.
 
-## Current and planned Phase 2 web-delivery ownership
+## Historical Phase 2 web-delivery ownership and current integration
 
-Phases 2A and 2B record requirements for future web work; they implement no web
-delivery or scoped storage. Phases 2C through 2E add explicit transport-free
-message, routing, middleware, and terminal-handler values without an outer
-delivery boundary. A future outer adapter must own each inbound
-delivery explicitly, convert it into one explicit framework request value, and
-open one Kernel operation scope for that delivery. Request, response,
+At the Phase 2A through 2E boundary, the roadmap and transport-free message,
+routing, middleware, and terminal-handler values had no outer delivery boundary.
+Phase 2G later implemented Web Runtime's explicit delivery ownership, and Phase
+3F now supplies the selected concrete PHP CGI delivery. Each integration must
+own its inbound delivery explicitly and pass one explicit framework request
+value into Web Application's sole Kernel operation scope. Request, response,
 permission, route-match, middleware, exception, principal, tenant, and
 application state must remain in explicit call flow rather than ambient
 global, static, singleton, container-current, thread-local, fiber-local, or
@@ -182,11 +194,12 @@ stream, URI, upload, server-parameter, cookie, query, parsed-body, and attribute
 values must remain within explicit operation call flow and must not be retained
 as scoped-storage substitutes.
 
-The HTTP message factories are explicit composition dependencies, not
-ambient singletons, registries, or service locators. The Kernel remains
-transport-neutral and has no PSR dependency. SAPI conversion, parsing, response
-emission, and resource ownership belong to the future outer adapter rather than
-the message package or Kernel.
+The HTTP message factories are explicit composition dependencies, not ambient
+singletons, registries, or service locators. The Kernel remains
+transport-neutral and has no PSR dependency. PHP CGI now owns the selected SAPI
+capture, conversion, parsing, response emission, and resource cleanup; any
+other integration must keep those concerns outside the message package and
+Kernel.
 
 Phase 2D routing follows the same explicit-operation rule. A long-lived
 `RouteMatcher` retains only its immutable route table and compiled declaration
@@ -208,8 +221,9 @@ attribute remains untrusted and non-authorizing; unmatched output is delegated.
 Consumer middleware owns the lifecycle safety of any objects it captures. No
 ambient request cursor or supplied error middleware is implemented. Phase 2F
 wraps each accepted application call in one exact local Kernel scope. Phase 2G
-adds only the outer delivery adapter and fixed failure responses; concrete
-emission remains absent.
+adds the outer delivery adapter and fixed failure responses. At the Phase 2
+boundary concrete emission was absent; Phase 3D added the emitter and Phase 3F
+now calls it from the concrete PHP CGI delivery.
 
 Successful and failing Web Application paths close the owned Kernel operation
 scope exactly once. Successful cleanup preserves the exact primary failure;
@@ -256,6 +270,20 @@ output, one send, one close, and detached results only after cleanup. The exact
 five-operation sequence proves no request, route, response, permission, failure,
 or Kernel-operation state leaks in a persistent process.
 
-No runtime server or emitter is selected. The CLI runner is bounded black-box
-test infrastructure, not a production runtime or framework CLI. See the
-[fixture model](phase-2-runnable-fixture.md).
+Phase 3F selects no runtime server or listener, but it now implements the
+bounded PHP CGI delivery that calls the existing emitter and one thin entry into
+an already-composed Web Runtime. All delivery values remain on one fresh object;
+capture state clears after conversion, cleanup detaches retained references
+before external calls, and no ambient current request is introduced. The CLI
+runner remains bounded black-box test infrastructure, not a production runtime
+or framework CLI. Phase 3G adds a stateless PHP CGI front controller that owns
+one entry attempt followed by one caller-supplied shutdown attempt. It retains
+no runtime state, preserves simultaneous failure through 1019, and does not add
+a direct PHP-CGI-to-Web-Application edge. Application composition and
+partial-boot cleanup remain caller-owned. Uncertain emission or shutdown means
+no reuse claim and requires external process retirement. Phase 3H externally
+proves sequential reuse and direct retirement with test-owned infrastructure;
+no production listener, server configuration, process manager, or deployment
+artifact is added. Production trusted diagnostics remain denied, Phase 3 is
+closed, and no later runtime work starts automatically. See the [fixture
+model](phase-2-runnable-fixture.md).

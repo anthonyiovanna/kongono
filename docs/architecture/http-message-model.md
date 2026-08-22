@@ -9,11 +9,13 @@ PSR-15 defines the Phase 2E handler and middleware edge. These standards
 are contracts at the edge, not an implementation, framework substrate, or owner
 of Kongono architecture.
 
-This is Accepted and implemented Phase 2C behavior. After Phase 2E, Kongono has
-eleven implemented packages. Routing remains a separate package that consumes
+This is Accepted and implemented Phase 2C behavior. The repository has exactly
+fourteen production packages and a root-owned, test-owned runnable
+fixture. Routing remains a separate package that consumes
 the PSR-7 interface boundary without depending on these concrete message
 classes, and HTTP Server uses the PSR-15 interfaces without depending on the
-HTTP Message package.
+HTTP Message package. The fixture is not a production SAPI adapter, parser,
+emitter, server, listener, application, or deployment profile.
 
 ## Standards and package versions
 
@@ -79,7 +81,7 @@ psr/http-factory +
 php 8.5 ---------+
 ```
 
-The exact future constraints are:
+The exact implemented constraints are:
 
 ```text
 php: ^8.5
@@ -169,8 +171,11 @@ explicit per-request call-flow values; they are not ambient context or
 permission upgrades. Mutable consumer values stored in attributes or parsed
 bodies remain consumer-owned and are not deeply immutable.
 
-SAPI conversion, input parsing, limits, and rejection behavior belong to Phase
-2G after separate decisions.
+Phase 3B selects those outer decisions for the PHP `cgi-fcgi` profile without
+changing this package. Phase 3C and ADR 0053 implement `kongono/php-cgi`, which
+projects only a closed caller-supplied host snapshot and caller-owned bounded
+input into these existing values. Neither package reads ambient host globals,
+and the message package has no reverse dependency on the outer leaf.
 
 ## Factories are explicit dependencies
 
@@ -204,8 +209,10 @@ Middleware that produces a response receives an explicit response factory or
 prototype. `kongono/http-server` owns the immutable middleware pipeline and
 complete route-name terminal mapping. Selected matches use the reserved
 `RouteMatch::class` attribute but remain untrusted and non-authorizing;
-unmatched output is delegated. No error middleware, bootstrap, adapter,
-emitter, or runnable runtime is supplied.
+unmatched output is delegated. HTTP Server itself supplies no error middleware,
+bootstrap, adapter, emitter, or runnable runtime. Web Runtime, Web Application,
+and the root-owned Phase 2 fixture compose those separate responsibilities
+without making them HTTP Message package behavior.
 
 ## Trust and diagnostics
 
@@ -223,23 +230,29 @@ exception class names.
 
 ## Persistent-runtime ownership
 
-One future outer adapter owns each inbound delivery and one Kernel operation
-scope. Messages, streams, attributes, routes, permissions, and failures travel
-through explicit parameters and returns. They do not enter global, static,
-singleton, container-current, thread-local, fiber-local, or previous-operation
-storage.
+Web Runtime owns the neutral per-delivery coordination and cleanup contract
+through `WebDeliveryInterface`: request acquisition, delivery-permission
+evaluation when bootstrap permits it, one Web Application call, fixed generic
+or eligible trusted response selection, one send attempt, and one close
+attempt. Web Application alone owns the Kernel operation scope around the
+accepted application call. Messages, streams, attributes, routes, permissions,
+and failures travel through explicit parameters and returns. They do not enter
+global, static, singleton, container-current, thread-local, fiber-local, or
+previous-operation storage.
 
 Factories may be long-lived only as stateless explicit composition dependencies;
-they are not ambient authority. Successful and failing adapter paths eventually
-close the owned operation scope exactly once. Cleanup APIs, simultaneous
-failures, response emission, cancellation, recovery, and uncertain-runtime
-retirement remain later decisions.
+they are not ambient authority. PHP CGI owns bounded explicit inbound conversion
+and fully staged bounded response emission. It does not own ambient capture or a
+concrete production delivery. Web Runtime closes the delivery exactly once, while Web
+Application closes its owned Kernel scope exactly once. Broader cleanup APIs,
+cancellation, recovery, and production emission remain later implementation
+work.
 
 ## Current versus planned behavior
 
-Current after Phase 2E:
+Current after Phase 2H:
 
-- eleven first-party packages;
+- exactly fourteen first-party production packages plus a root-owned test fixture;
 - implemented `packages/http-message` and its package manifest;
 - selected PSR-7 and PSR-17 Composer dependencies;
 - five HTTP message roles and five stateless factory implementations;
@@ -249,8 +262,11 @@ Current after Phase 2E:
   bounded, immutable, transport-free `kongono/http-server` pipeline and routing
   handler;
 - explicit Web Application composition and application-call Kernel scope
-  cleanup without a supplied error middleware, adapter, emitter, or runnable
-  web application; and
+  cleanup, Web Runtime delivery/failure orchestration, and a test-owned runnable
+  fixture without a production SAPI, parser, emitter, or deployment profile; and
+- an Accepted PHP `cgi-fcgi` CGI/1.1 FastCGI Responder architecture and an
+  implemented `kongono/php-cgi` bounded explicit inbound converter and bounded
+  response emitter, without a concrete delivery; and
 - no claim of PSR compliance.
 
 Implemented by Phase 2C: a bounded first-party implementation of the exact five
@@ -263,11 +279,18 @@ Concrete message class names, constructors, defaults, exception inventory and
 IDs, validation algorithms, and fixtures were implemented by Phase 2C. Phase 2D
 now implements bounded deterministic route grammar and matching in the separate
 `kongono/routing` package. Phase 2E implements middleware dispatch and terminal
-mapping in `kongono/http-server`. Phase 2F implements bootstrap and application-call Kernel operation ownership in `kongono/web-application`.
-Adapter conversion, parsing limits, proxy trust, response emission, production
-failure delivery, adapter-owned transport cleanup, and broader resource cleanup belong to Phase 2G or later. Final
-black-box proof and compatibility promotion belong to Phase 2H or later
-explicit authority.
+mapping in `kongono/http-server`. Phase 2F implements bootstrap and
+application-call Kernel operation ownership in `kongono/web-application`.
+Phase 2G implements the ports-only outer Web Runtime, and Phase 2H proves the
+complete fixture path. Phase 3C implements bounded explicit host-value
+conversion in `kongono/php-cgi`; Phase 3D implements fully staged response
+emission with no streaming or rollback/retry after uncertain commitment.
+Arbitrary adapters, proxy trust, and deployed integration remain unimplemented. Phase 3E
+implements the immutable operator profile and independent trust inputs. Phase
+3F implements the exact concrete delivery, Web Runtime composition, production
+entry boundary, and one-delivery cleanup. Phase 3G implements the bounded front-
+controller lifecycle and documents deployment constraints; Phase 3H completes
+external test-owned acceptance and the Phase 3 checkpoint.
 
 ## Related documentation
 
@@ -280,6 +303,9 @@ explicit authority.
 - [Routing model](routing-model.md)
 - [ADR 0043](../adr/0043-phase-2-runnable-web-framework-milestone.md)
 - [Phase 2 roadmap](phase-2-roadmap.md)
+- [Phase 3 roadmap](phase-3-roadmap.md)
+- [PHP CGI FastCGI profile](php-cgi-fastcgi-profile.md)
+- [ADR 0052](../adr/0052-php-cgi-fastcgi-responder-profile.md)
 - [Runtime model](runtime-model.md)
 - [Architecture overview](overview.md)
 - [Security policy](../../SECURITY.md)
@@ -288,11 +314,29 @@ explicit authority.
 - [API status](../engineering/api-status.md)
 - [Error handling](../engineering/error-handling.md)
 
-## Phase 2G consumer
+## Web Runtime consumer and Phase 3 boundary
 
 The new top-level Web Runtime leaf consumes first-party `Response` and
 `StreamFactory` to build fresh fixed failure responses, and its Public delivery
 port exchanges PSR-7 requests and responses. HTTP Message remains transport-
 neutral and has no reverse dependency on Web Runtime. Protocol framing,
-`Content-Length`, concrete emission, and runnable integration remain outside
-Phase 2G; Phase 2H is next.
+`Content-Length`, and concrete production emission remain outside Phase 2. The
+root-owned fixture proves runnable composition but is not production
+integration. Phase 3B selects PHP `cgi-fcgi`, CGI/1.1, and FastCGI
+`RESPONDER`. Phase 3C implements caller-supplied closed-snapshot and bounded
+stream projection, Phase 3D implements fully staged response emission, and
+Phase 3F composes both through a concrete one-delivery PHP CGI adapter. That
+adapter retains the successful first-party request only for explicit body
+cleanup and captures the exact response body before emission. PHP CGI depends
+on Web Runtime, but HTTP Message remains transport-neutral and has no reverse
+dependency. Phase 3G now adds the stateless PHP CGI front controller: one entry
+attempt followed by one caller-supplied application-shutdown attempt, with 1019
+preserving both failures. HTTP Message remains unchanged and transport-neutral.
+PHP CGI still has no direct Web Application edge; caller composition and
+partial-boot cleanup remain outside it. The selected-profile constraints are
+documented without a production listener, server configuration, or deployment
+artifact. Uncertain emission or shutdown requires external process retirement.
+Phase 3H supplies root-owned external proof without adding a production
+dependency on acceptance code. The intrinsic query ceiling remains 8,192 bytes
+and exact target/query composition has an 8,190-byte effective external
+maximum. Phase 3 is closed without a Stable API or hardening claim.

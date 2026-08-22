@@ -58,6 +58,18 @@ concrete failures are Experimental, while the catalog, base exception, and
 response factory are Internal. This status does not make a concrete delivery
 trusted or select a stable server integration. Phase 2H's concrete delivery and
 runner are test-owned, carry no `#[Api]` declaration, and create no compatibility
-promise or production declaration. The production inventory remains exactly 100
-declarations across thirteen packages. Fixture-runnable status does not promote
-an Experimental API, create a Stable server surface, or imply production readiness.
+promise or production declaration. Phase 3F adds Internal `CgiWebDelivery` and
+Experimental `CgiWebEntry` plus `CgiDeliveryCleanupException`; the Public
+`WebDeliveryInterface` is unchanged. Phase 3G adds Experimental
+`CgiFrontController` and `CgiEntryShutdownException`; `PhpCgiDiagnostic` remains
+Internal. The production inventory is now exactly 126 declarations across
+fourteen packages. The front controller adds no direct PHP-CGI-to-Web-
+Application edge and owns only one entry attempt plus one supplied shutdown
+attempt. Phase 3H's test-owned external harness proves the selected synchronous
+PHP-CGI FastCGI RESPONDER integration profile without becoming a production or
+supported server/client and without adding a production package dependency.
+Production trusted diagnostics remain denied; process, proxy, TLS, credentials,
+logs, monitoring, incidents, and deployment ownership remain external. Phase 3
+is complete, but it is not the full framework, Stable API, 1.0, universal SAPI
+support, deployment automation, or production-hardening certification. No next
+phase starts automatically.

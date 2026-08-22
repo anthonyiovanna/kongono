@@ -21,8 +21,17 @@ The package performs no bootstrap, Kernel operation ownership, adapter input,
 response emission, supplied error middleware, generic production response,
 error conversion, container lookup, or I/O. Phase 2F's separate [Web Application
 package](../web-application/README.md) composes this unchanged boundary and owns
-the Kernel scope around each application call. Phase 2G is next and owns outer
-adaptation and delivery; Phase 2H remains the first runnable milestone.
+the Kernel scope around each application call. Web Runtime owns outer delivery,
+and Phase 2H's root-owned, test-owned fixture proves the complete composition.
+The fixture is not HTTP Server package behavior or a production application,
+SAPI adapter, server, listener, emitter, or deployment profile. Phase 2 is
+complete at checkpoint `647053d4bddc4c76090bca9bf3d693faa5880c52` with
+exactly thirteen production packages.
+
+Phase 3A plans one supported synchronous production HTTP integration profile
+without changing this transport-free package or selecting a host, package, API,
+parser, emitter, configuration mechanism, or entrypoint. See the [Phase 3
+roadmap](../../docs/architecture/phase-3-roadmap.md).
 
 The exception marker is Public. The pipeline, routing handler, and concrete
 definition exception are Experimental. Layer and diagnostic mechanics are

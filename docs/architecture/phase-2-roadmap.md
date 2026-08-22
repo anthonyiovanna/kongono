@@ -8,6 +8,11 @@ roadmap makes the dependency order and finish line inspectable. Phase 2A through
 2H are now complete; historical planning text below remains evidence of the
 approved dependency order.
 
+The accepted checkpoint is `647053d4bddc4c76090bca9bf3d693faa5880c52`.
+Production HTTP integration is a separate planned milestone documented by the
+[Phase 3 roadmap](phase-3-roadmap.md); Phase 3A adds no production runtime
+behavior.
+
 Phase 2A is architecture and documentation only. It creates no HTTP messages,
 router, middleware, bootstrap, adapter, response emitter, package, dependency,
 test, or runtime behavior.
@@ -67,9 +72,9 @@ Later work cannot outrun the earlier contracts on which it depends:
                             -> 2H fixture application and black-box proof
 ```
 
-This sequence does not select package names, namespaces, dependency edges,
-exact APIs, or implementation size. Those choices require later explicit
-authority within the applicable boundary.
+At acceptance, this sequence did not select package names, namespaces,
+dependency edges, exact APIs, or implementation size. Later Phase 2 authorities
+made those choices within each applicable boundary.
 
 ## End-of-Phase-2 black-box acceptance
 
@@ -93,9 +98,10 @@ these scenarios:
 14. Canonical tests require no external network listener and remain deterministic.
 15. The entire path is covered by black-box tests from outside the internal packages.
 
-Status codes for outer unmatched/failure delivery, emitter protocol, and
-adapter runtime remain unselected. Phase 2E implements the exact middleware
-signatures and terminal-handler mapping without choosing those outer concerns.
+The original acceptance boundary left outer unmatched/failure status, emitter
+protocol, and adapter runtime unselected. Later Phase 2 work fixed only the
+fixture's responses and ports-only delivery behavior; production host and
+emission contracts remain Phase 3 decisions.
 
 ## Security gates for every subphase
 
@@ -191,6 +197,7 @@ milestone.
 - [Package layout](../engineering/package-layout.md)
 - [Architectural doctrine](../doctrine.md)
 - [ADR index](../adr/README.md)
+- [Phase 3 roadmap](phase-3-roadmap.md)
 
 ## Current milestone position
 
@@ -201,3 +208,10 @@ both typed permissions and a supported source. The test-owned fixture proves the
 full path without selecting a concrete SAPI/server/listener/emitter. Phase 2 is
 the first runnable fixture milestone, not production readiness, 1.0, or the full
 framework. See [ADR 0050](../adr/0050-phase-2-runnable-fixture-and-checkpoint.md).
+
+[ADR 0051](../adr/0051-phase-3-production-http-integration-milestone.md)
+accepts the next bounded milestone: one supported synchronous production HTTP
+integration profile. Phase 3A establishes architecture, gates, roadmap,
+documentation reconciliation, and contributor tooling only. Exact host,
+package, API, parsing, emission, configuration, entrypoint, and deployment
+decisions begin under later authenticated authority.

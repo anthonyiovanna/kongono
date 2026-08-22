@@ -19,7 +19,9 @@ trusted-bootstrap permission; Phase 1D adds that package's typed
 adapter-controlled delivery permission. Diagnostic Presentation does not depend
 on either value, inspect them, or enforce them. The implemented Diagnostic
 Handler consumes both packages through one-way dependencies; a future adapter
-must still own permission evidence, composition, and delivery.
+must still own permission composition and delivery. Phase 3E PHP CGI now owns
+the literal bootstrap source and independent exact current-delivery evaluator;
+Diagnostic Presentation remains independent from both.
 
 Phase 1E adds Diagnostic Activation's pure final readonly
 `TrustedDeveloperPresentationEligibility`, which returns true only when both
@@ -49,8 +51,12 @@ Accepted permissions below before calling the projector or exposing its result.
 
 [ADR 0038](../../docs/adr/0038-fail-closed-trusted-developer-diagnostic-activation.md)
 accepts a fail-closed outer policy that this package neither owns nor enforces.
-Phase 1H implements the neutral eligibility-first Handler sequencing, while
-outer-adapter evidence and composition remain unimplemented. [ADR
+Phase 1H implements the neutral eligibility-first Handler sequencing. Phase 3E
+implements PHP CGI's independent evidence sources, while Phase 3F implements
+the concrete delivery and outer-adapter composition without changing
+Presentation. Phase 3G adds the front-controller lifecycle and diagnostic 1019
+without changing Presentation. Phase 3H adds root-owned external acceptance
+without changing Presentation or adding a production dependency. [ADR
 0039](../../docs/adr/0039-typed-trusted-developer-bootstrap-permission-foundation.md)
 implements the first typed input in the separate Diagnostic Activation package.
 [ADR
@@ -166,7 +172,28 @@ deny-by-default model rather than redact the trusted developer projection.
 - [ADR 0039](../../docs/adr/0039-typed-trusted-developer-bootstrap-permission-foundation.md)
 - [ADR 0040](../../docs/adr/0040-typed-adapter-controlled-delivery-permission-foundation.md)
 - [ADR 0041](../../docs/adr/0041-pure-two-permission-trusted-presentation-eligibility.md)
+- [ADR 0055](../../docs/adr/0055-immutable-php-cgi-operator-bootstrap-and-trust-inputs.md)
 - [Diagnostic Activation package](../diagnostic-activation/README.md)
 - [Diagnostic Handler package](../diagnostic-handler/README.md)
 - [Error-handling guide](../../docs/engineering/error-handling.md)
 - [Security policy](../../SECURITY.md)
+
+Phase 3F adds no projection or rendering behavior. Its Internal PHP CGI delivery
+supplies only the independent typed current-delivery permission before lazy
+request input access, while the Experimental entry passes a fresh delivery to
+an already-composed Web Runtime. `Production` still denies trusted presentation;
+`LoopbackDevelopment` still requires direct canonical loopback evidence with no
+forwarded marker in addition to bootstrap permission. Generic conversion failure
+does not expose diagnostic projection. Phase 3G adds the stateless PHP CGI
+front controller and diagnostic 1019, whose Safe context contains only a fixed
+token; its throwable accessors are outside Diagnostic Presentation and are not
+Safe fields. One entry attempt precedes one supplied shutdown attempt.
+`Production` remains denied and uncertain emission or shutdown requires external
+process retirement. Phase 3H's test-owned harness proves the selected synchronous
+PHP-CGI FastCGI RESPONDER profile but is not a production or supported
+server/client; process, proxy, TLS, credential, log, monitoring, incident, and
+deployment ownership remain external. No production package depends on the
+harness. Phase 3 is complete, remains smaller than Stable API, 1.0, or a
+production-hardening certification, and starts no next phase automatically. See [ADR
+0056](../../docs/adr/0056-php-cgi-production-delivery-and-entry-composition.md)
+and [ADR 0057](../../docs/adr/0057-bounded-php-cgi-front-controller-lifecycle-and-deployment-constraints.md).

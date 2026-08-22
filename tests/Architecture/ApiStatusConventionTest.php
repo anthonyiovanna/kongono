@@ -59,6 +59,32 @@ use Kongono\Kernel\Diagnostic\LifecycleDiagnostic;
 use Kongono\Kernel\Exception\ExceptionInterface as KernelExceptionInterface;
 use Kongono\Kernel\Exception\KernelException;
 use Kongono\Kernel\Exception\LifecycleException;
+use Kongono\PhpCgi\Bootstrap\CgiOperatorBootstrap;
+use Kongono\PhpCgi\Bootstrap\CgiOperatorProfile;
+use Kongono\PhpCgi\Delivery\CgiWebDelivery;
+use Kongono\PhpCgi\Diagnostic\PhpCgiDiagnostic;
+use Kongono\PhpCgi\Emission\CgiResponseEmitter;
+use Kongono\PhpCgi\Entry\CgiFrontController;
+use Kongono\PhpCgi\Entry\CgiWebEntry;
+use Kongono\PhpCgi\Exception\CgiDeliveryCleanupException;
+use Kongono\PhpCgi\Exception\CgiEntryShutdownException;
+use Kongono\PhpCgi\Exception\CgiOperatorBootstrapException;
+use Kongono\PhpCgi\Exception\CgiRequestReadException;
+use Kongono\PhpCgi\Exception\CgiResponseEmissionException;
+use Kongono\PhpCgi\Exception\ExceptionInterface as PhpCgiExceptionInterface;
+use Kongono\PhpCgi\Exception\InvalidCgiRequestException;
+use Kongono\PhpCgi\Exception\InvalidCgiResponseException;
+use Kongono\PhpCgi\Inbound\CgiServerRequestConverter;
+use Kongono\PhpCgi\Internal\CgiCookieParser;
+use Kongono\PhpCgi\Internal\CgiEmissionTarget;
+use Kongono\PhpCgi\Internal\CgiHeaderProjector;
+use Kongono\PhpCgi\Internal\CgiNativeEmissionTarget;
+use Kongono\PhpCgi\Internal\CgiOperatorBootstrapValidation;
+use Kongono\PhpCgi\Internal\CgiQueryParser;
+use Kongono\PhpCgi\Internal\CgiRequestValidation;
+use Kongono\PhpCgi\Internal\CgiResponseEmission;
+use Kongono\PhpCgi\Internal\CgiStagedResponse;
+use Kongono\PhpCgi\Internal\CgiTrustedPresentationPermissionEvaluator;
 use Kongono\Routing\Definition\RouteDefinition;
 use Kongono\Routing\Definition\RouteTable;
 use Kongono\Routing\Diagnostic\RoutingDiagnostic;
@@ -84,6 +110,7 @@ use Kongono\Web\Runtime\Exception\WebRuntimeException;
 use Kongono\Web\Runtime\Internal\FailureResponseFactory;
 use Kongono\Web\Runtime\WebRuntimeAdapter;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use RecursiveDirectoryIterator;
@@ -151,6 +178,32 @@ final class ApiStatusConventionTest extends TestCase
         'Kongono\\Kernel\\Kernel' => ApiStatus::Experimental,
         'Kongono\\Kernel\\Lifecycle\\KernelState' => ApiStatus::Experimental,
         'Kongono\\Kernel\\Lifecycle\\OperationScope' => ApiStatus::Experimental,
+        CgiOperatorBootstrap::class => ApiStatus::Experimental,
+        CgiOperatorProfile::class => ApiStatus::Experimental,
+        CgiWebDelivery::class => ApiStatus::Internal,
+        PhpCgiDiagnostic::class => ApiStatus::Internal,
+        PhpCgiExceptionInterface::class => ApiStatus::Experimental,
+        CgiOperatorBootstrapException::class => ApiStatus::Experimental,
+        CgiRequestReadException::class => ApiStatus::Experimental,
+        InvalidCgiRequestException::class => ApiStatus::Experimental,
+        CgiResponseEmissionException::class => ApiStatus::Experimental,
+        InvalidCgiResponseException::class => ApiStatus::Experimental,
+        CgiServerRequestConverter::class => ApiStatus::Experimental,
+        CgiResponseEmitter::class => ApiStatus::Experimental,
+        CgiWebEntry::class => ApiStatus::Experimental,
+        CgiFrontController::class => ApiStatus::Experimental,
+        CgiDeliveryCleanupException::class => ApiStatus::Experimental,
+        CgiEntryShutdownException::class => ApiStatus::Experimental,
+        CgiCookieParser::class => ApiStatus::Internal,
+        CgiEmissionTarget::class => ApiStatus::Internal,
+        CgiHeaderProjector::class => ApiStatus::Internal,
+        CgiNativeEmissionTarget::class => ApiStatus::Internal,
+        CgiOperatorBootstrapValidation::class => ApiStatus::Internal,
+        CgiQueryParser::class => ApiStatus::Internal,
+        CgiRequestValidation::class => ApiStatus::Internal,
+        CgiResponseEmission::class => ApiStatus::Internal,
+        CgiStagedResponse::class => ApiStatus::Internal,
+        CgiTrustedPresentationPermissionEvaluator::class => ApiStatus::Internal,
         HttpMessageDiagnostic::class => ApiStatus::Internal,
         'Kongono\\Http\\Message\\Exception\\ExceptionInterface' => ApiStatus::Public,
         'Kongono\\Http\\Message\\Exception\\HttpMessageRuntimeException' => ApiStatus::Experimental,
@@ -209,7 +262,7 @@ final class ApiStatusConventionTest extends TestCase
     public function testProductionDeclarationsExactlyMatchAuthorizedInventoryAndAreAutoloadable(): void
     {
         $types = $this->discoverProductionTypes();
-        self::assertCount(100, $types);
+        self::assertCount(126, $types);
 
         self::assertFalse(class_exists('Kongono\\Kernel\\Api\\Api'));
         self::assertFalse(enum_exists('Kongono\\Kernel\\Api\\ApiStatus'));
@@ -287,6 +340,7 @@ final class ApiStatusConventionTest extends TestCase
             RoutingExceptionInterface::class,
             WebApplicationExceptionInterface::class,
             WebRuntimeExceptionInterface::class,
+            PhpCgiExceptionInterface::class,
         ];
 
         foreach ($markers as $position => $marker) {
@@ -311,6 +365,13 @@ final class ApiStatusConventionTest extends TestCase
             [RetiredWebApplicationException::class, WebApplicationExceptionInterface::class],
             [RetiredWebRuntimeException::class, WebRuntimeExceptionInterface::class],
             [DeliveryCleanupException::class, WebRuntimeExceptionInterface::class],
+            [InvalidCgiRequestException::class, PhpCgiExceptionInterface::class],
+            [CgiOperatorBootstrapException::class, PhpCgiExceptionInterface::class],
+            [CgiRequestReadException::class, PhpCgiExceptionInterface::class],
+            [InvalidCgiResponseException::class, PhpCgiExceptionInterface::class],
+            [CgiResponseEmissionException::class, PhpCgiExceptionInterface::class],
+            [CgiDeliveryCleanupException::class, PhpCgiExceptionInterface::class],
+            [CgiEntryShutdownException::class, PhpCgiExceptionInterface::class],
         ] as [$failure, $expectedMarker]) {
             self::assertExceptionMarkerMembership($failure, $expectedMarker, array_values(array_diff($markers, [$expectedMarker])));
         }
@@ -331,11 +392,12 @@ final class ApiStatusConventionTest extends TestCase
                 ...RoutingDiagnostic::cases(),
                 ...WebApplicationDiagnostic::cases(),
                 ...WebRuntimeDiagnostic::cases(),
+                ...PhpCgiDiagnostic::cases(),
             ],
         );
 
-        self::assertCount(113, $identifiers);
-        self::assertCount(113, array_unique($identifiers));
+        self::assertCount(132, $identifiers);
+        self::assertCount(132, array_unique($identifiers));
         self::assertCount(6, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-KERNEL-1\\d{3}$/D', $identifier)));
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-GRAPH-1\\d{3}$/D', $identifier)));
         self::assertCount(25, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-DI-1\\d{3}$/D', $identifier)));
@@ -346,6 +408,20 @@ final class ApiStatusConventionTest extends TestCase
         self::assertCount(10, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-ROUTING-1\\d{3}$/D', $identifier)));
         self::assertCount(2, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-WEB-APPLICATION-1\\d{3}$/D', $identifier)));
         self::assertCount(2, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-WEB-RUNTIME-1\\d{3}$/D', $identifier)));
+        self::assertCount(19, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-PHP-CGI-1\\d{3}$/D', $identifier)));
+
+        $productionHttpIdentifiers = array_map(
+            static fn(\BackedEnum $diagnostic): string => $diagnostic->value,
+            [
+                ...HttpMessageDiagnostic::cases(),
+                ...HttpServerDiagnostic::cases(),
+                ...WebApplicationDiagnostic::cases(),
+                ...WebRuntimeDiagnostic::cases(),
+                ...PhpCgiDiagnostic::cases(),
+            ],
+        );
+        self::assertCount(54, $productionHttpIdentifiers);
+        self::assertCount(54, array_unique($productionHttpIdentifiers));
 
         foreach ([
             KernelExceptionInterface::class,
@@ -358,6 +434,7 @@ final class ApiStatusConventionTest extends TestCase
             RoutingExceptionInterface::class,
             WebApplicationExceptionInterface::class,
             WebRuntimeExceptionInterface::class,
+            PhpCgiExceptionInterface::class,
         ] as $marker) {
             $reflection = new ReflectionClass($marker);
             $methods = array_values(array_filter(
@@ -368,13 +445,13 @@ final class ApiStatusConventionTest extends TestCase
             sort($methodNames);
 
             self::assertSame([Throwable::class, \Stringable::class], $reflection->getInterfaceNames());
-            $expectedMethods = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class], true)
+            $expectedMethods = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class], true)
                 ? ['diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle']
                 : ['diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'];
             self::assertSame($expectedMethods, $methodNames);
 
             foreach ($methods as $method) {
-                $expectedReturnType = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class], true)
+                $expectedReturnType = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class], true)
                     && 'diagnosticContext' === $method->getName()
                     ? DiagnosticContext::class
                     : 'string';
@@ -773,6 +850,7 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/http-message' => '@dev',
             'kongono/http-server' => '@dev',
             'kongono/kernel' => '@dev',
+            'kongono/php-cgi' => '@dev',
             'kongono/routing' => '@dev',
             'kongono/web-application' => '@dev',
             'kongono/web-runtime' => '@dev',
@@ -798,11 +876,13 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('packages/routing/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Routing\\Tests\\']);
         self::assertSame('packages/web-application/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Web\\Application\\Tests\\']);
         self::assertSame('packages/web-runtime/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Web\\Runtime\\Tests\\']);
+        self::assertSame('packages/php-cgi/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\PhpCgi\\Tests\\']);
         self::assertIsArray($rootManifest['scripts']);
         self::assertIsArray($rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/http-message validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/http-server validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/routing validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/php-cgi validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         $validatePackages = array_values($rootManifest['scripts']['validate:packages']);
         self::assertNotSame([], $validatePackages);
         self::assertSame('composer --working-dir=packages/web-runtime validate --no-check-publish', $validatePackages[count($validatePackages) - 1]);
@@ -811,7 +891,8 @@ final class ApiStatusConventionTest extends TestCase
         self::assertIsArray($allPackageManifests);
         foreach ($allPackageManifests as $packageManifestPath) {
             if (str_ends_with(str_replace('\\', '/', $packageManifestPath), '/web-application/composer.json')
-                || str_ends_with(str_replace('\\', '/', $packageManifestPath), '/web-runtime/composer.json')) {
+                || str_ends_with(str_replace('\\', '/', $packageManifestPath), '/web-runtime/composer.json')
+                || str_ends_with(str_replace('\\', '/', $packageManifestPath), '/php-cgi/composer.json')) {
                 continue;
             }
             $manifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
@@ -974,9 +1055,9 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['process'], $this->declaredPublicMethodNames(new ReflectionClass(MiddlewareInterface::class)));
 
         foreach ([
-            '.php-cs-fixer.dist.php' => ['packages/routing/src', 'packages/routing/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests'],
-            'phpstan.neon.dist' => ['packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests'],
-            'phpunit.xml.dist' => ['packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests'],
+            '.php-cs-fixer.dist.php' => ['packages/routing/src', 'packages/routing/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests'],
+            'phpstan.neon.dist' => ['packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests'],
+            'phpunit.xml.dist' => ['packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests'],
         ] as $configuration => $needles) {
             $contents = file_get_contents(dirname(__DIR__, 2) . '/' . $configuration);
             self::assertIsString($contents);
@@ -1007,6 +1088,227 @@ final class ApiStatusConventionTest extends TestCase
             self::assertSame([], $reflection->getProperties());
             self::assertNull($reflection->getConstructor());
         }
+    }
+
+    public function testPhpCgiPackageShapeDependenciesAndIsolationAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $sourceFiles = glob($root . '/packages/php-cgi/src/*/*.php');
+        self::assertIsArray($sourceFiles);
+        self::assertCount(26, $sourceFiles);
+        $diagnosticActivationImportPaths = [
+            '/Bootstrap/CgiOperatorBootstrap.php',
+            '/Bootstrap/CgiOperatorProfile.php',
+            '/Delivery/CgiWebDelivery.php',
+            '/Internal/CgiTrustedPresentationPermissionEvaluator.php',
+        ];
+        foreach ($sourceFiles as $sourceFile) {
+            $source = file_get_contents($sourceFile);
+            self::assertIsString($source);
+            $normalizedSourceFile = str_replace('\\', '/', $sourceFile);
+            self::assertSame(0, preg_match('~Kongono\\\\(?:ApplicationGraph|DependencyInjection|DiagnosticHandler|DiagnosticPresentation|Http\\\\Server|Kernel|Routing|Web\\\\Application)|Psr\\\\Http\\\\Server|\$(?:GLOBALS|_ENV|_REQUEST|_GET|_COOKIE)|\b(?:php_sapi_name|ini_get_all|getenv|putenv|listener|socket|DependencyResolver|ApplicationGraph)\b|\.env|\b(?:exit|die)\s*\(|FastCGI parser|process manager|operator config|trust evaluation~', $source));
+
+            $isDelivery = str_ends_with($normalizedSourceFile, '/Delivery/CgiWebDelivery.php');
+            $isEntry = str_ends_with($normalizedSourceFile, '/Entry/CgiWebEntry.php');
+            $isFrontController = str_ends_with($normalizedSourceFile, '/Entry/CgiFrontController.php');
+            if (!$isDelivery) {
+                foreach (['$_SERVER', '$_POST', '$_FILES', 'php://input', 'WebDeliveryInterface'] as $forbiddenCapture) {
+                    self::assertStringNotContainsString($forbiddenCapture, $source);
+                }
+            }
+            if (!$isDelivery && !$isEntry && !$isFrontController) {
+                self::assertStringNotContainsString('Kongono\\Web\\Runtime', $source);
+            }
+
+            $importsDiagnosticActivation = str_contains($source, 'use Kongono\DiagnosticActivation\\');
+            $mayImportDiagnosticActivation = array_any(
+                $diagnosticActivationImportPaths,
+                static fn(string $suffix): bool => str_ends_with($normalizedSourceFile, $suffix),
+            );
+            self::assertSame($mayImportDiagnosticActivation, $importsDiagnosticActivation);
+
+            if (str_ends_with($normalizedSourceFile, '/Internal/CgiOperatorBootstrapValidation.php')) {
+                self::assertSame(2, substr_count($source, 'PHP_SAPI'));
+                self::assertSame(1, substr_count($source, 'ini_get('));
+            } elseif (!$isDelivery) {
+                self::assertStringNotContainsString('PHP_SAPI', $source);
+                self::assertStringNotContainsString('ini_get(', $source);
+            }
+
+            if (str_ends_with($normalizedSourceFile, '/Internal/CgiNativeEmissionTarget.php')) {
+                foreach (['headers_sent()', 'http_response_code(', 'header(', "file_put_contents('php://output'", 'set_error_handler(', 'restore_error_handler()'] as $requiredNativeCall) {
+                    self::assertStringContainsString($requiredNativeCall, $source);
+                }
+            } else {
+                self::assertSame(0, preg_match('~\b(?:headers_sent|http_response_code|header|header_remove|flush|ob_[a-z_]+|set_error_handler|restore_error_handler)\s*\(|php://output|file_put_contents\s*\(~', $source));
+            }
+            self::assertSame(0, preg_match('~\b(?:header_remove|flush|register_shutdown_function)\s*\(|\bob_[a-z_]+\s*\(|__destruct|\b(?:retry|fallback|secondResponse|currentResponse)\b~i', $source));
+        }
+        $manifest = json_decode((string) file_get_contents($root . '/packages/php-cgi/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame(['kongono/api-metadata' => '*', 'kongono/diagnostic-activation' => '*', 'kongono/diagnostics' => '*', 'kongono/http-message' => '*', 'kongono/web-runtime' => '*', 'php' => '^8.5', 'psr/http-message' => '^2.0'], $manifest['require']);
+        self::assertIsArray($manifest['autoload']);
+        self::assertIsArray($manifest['autoload']['psr-4']);
+        self::assertIsArray($manifest['autoload-dev']);
+        self::assertIsArray($manifest['autoload-dev']['psr-4']);
+        self::assertSame(['Kongono\\PhpCgi\\' => 'src/'], $manifest['autoload']['psr-4']);
+        self::assertSame(['Kongono\\PhpCgi\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
+        $packageManifests = glob($root . '/packages/*/composer.json');
+        self::assertIsArray($packageManifests);
+        self::assertCount(14, $packageManifests);
+        foreach ($packageManifests as $packageManifestPath) {
+            if (str_ends_with(str_replace('\\', '/', $packageManifestPath), '/php-cgi/composer.json')) {
+                continue;
+            }
+
+            $packageManifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($packageManifest);
+            self::assertIsArray($packageManifest['require']);
+            self::assertArrayNotHasKey('kongono/php-cgi', $packageManifest['require']);
+        }
+        $converter = new ReflectionClass(CgiServerRequestConverter::class);
+        $convert = $converter->getMethod('convert');
+        self::assertSame([true, [], null, ['convert'], ['string', 'array', 'array', 'array', 'mixed'], ServerRequestInterface::class], [$converter->isFinal(), $converter->getProperties(), $converter->getConstructor(), $this->declaredPublicMethodNames($converter), array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $convert->getParameters()), (string) $convert->getReturnType()]);
+        $emitter = new ReflectionClass(CgiResponseEmitter::class);
+        $emit = $emitter->getMethod('emit');
+        self::assertSame([true, [], null, ['emit'], ['Psr\Http\Message\ResponseInterface', 'string'], 'void'], [$emitter->isFinal(), $emitter->getProperties(), $emitter->getConstructor(), $this->declaredPublicMethodNames($emitter), array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $emit->getParameters()), (string) $emit->getReturnType()]);
+        foreach ([
+            InvalidCgiRequestException::class => [InvalidArgumentException::class, [PhpCgiDiagnostic::class, 'string', '?Throwable']],
+            CgiOperatorBootstrapException::class => [RuntimeException::class, ['string', '?Throwable']],
+            CgiRequestReadException::class => [RuntimeException::class, ['string', '?Throwable']],
+            CgiDeliveryCleanupException::class => [RuntimeException::class, ['string', '?Throwable']],
+            InvalidCgiResponseException::class => [InvalidArgumentException::class, [PhpCgiDiagnostic::class, 'string', '?Throwable']],
+        ] as $exceptionType => [$expectedParent, $expectedParameters]) {
+            $exception = new ReflectionClass($exceptionType);
+            $parent = $exception->getParentClass();
+            self::assertNotFalse($parent);
+            self::assertSame([true, true, ['diagnostic', 'diagnosticContext'], ['__construct', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $expectedParent, $expectedParameters], [$exception->isFinal(), $exception->implementsInterface(PhpCgiExceptionInterface::class), $this->declaredPropertyNames($exception), $this->declaredPublicMethodNames($exception), $parent->getName(), array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $exception->getConstructor()?->getParameters() ?? [])]);
+        }
+        $entryShutdownException = new ReflectionClass(CgiEntryShutdownException::class);
+        $entryShutdownParent = $entryShutdownException->getParentClass();
+        self::assertNotFalse($entryShutdownParent);
+        self::assertSame(
+            [true, true, ['diagnostic', 'diagnosticContext', 'primaryFailure', 'shutdownFailure'], ['__construct', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle', 'primaryFailure', 'shutdownFailure'], RuntimeException::class, ['Throwable', 'Throwable']],
+            [$entryShutdownException->isFinal(), $entryShutdownException->implementsInterface(PhpCgiExceptionInterface::class), $this->declaredPropertyNames($entryShutdownException), $this->declaredPublicMethodNames($entryShutdownException), $entryShutdownParent->getName(), array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $entryShutdownException->getConstructor()?->getParameters() ?? [])],
+        );
+        foreach ([CgiRequestValidation::class, CgiHeaderProjector::class, CgiQueryParser::class, CgiCookieParser::class] as $helperType) {
+            $helper = new ReflectionClass($helperType);
+            $constructor = $helper->getConstructor();
+            self::assertNotNull($constructor);
+            self::assertSame([true, [], [], true], [$helper->isFinal(), $helper->getProperties(), $helper->getConstants(), $constructor->isPrivate()]);
+            foreach ($helper->getMethods() as $method) {
+                if ('__construct' !== $method->getName() && $helperType === $method->getDeclaringClass()->getName()) {
+                    self::assertTrue($method->isStatic());
+                }
+            }
+        }
+
+        $bootstrapValidation = new ReflectionClass(CgiOperatorBootstrapValidation::class);
+        $bootstrapValidationConstructor = $bootstrapValidation->getConstructor();
+        self::assertNotNull($bootstrapValidationConstructor);
+        self::assertSame([true, [], ['DIRECTIVE_NAMES'], true, ['captureAndValidate', 'validate']], [$bootstrapValidation->isFinal(), $bootstrapValidation->getProperties(), array_keys($bootstrapValidation->getConstants()), $bootstrapValidationConstructor->isPrivate(), $this->declaredPublicMethodNames($bootstrapValidation)]);
+
+        $permissionEvaluator = new ReflectionClass(CgiTrustedPresentationPermissionEvaluator::class);
+        $permissionEvaluatorConstructor = $permissionEvaluator->getConstructor();
+        self::assertNotNull($permissionEvaluatorConstructor);
+        self::assertSame([true, [], [], true, ['evaluate']], [$permissionEvaluator->isFinal(), $permissionEvaluator->getProperties(), $permissionEvaluator->getConstants(), $permissionEvaluatorConstructor->isPrivate(), $this->declaredPublicMethodNames($permissionEvaluator)]);
+
+        $delivery = new ReflectionClass(CgiWebDelivery::class);
+        self::assertSame([true, false, true, ['capture', 'close', 'evaluateTrustedPresentationPermission', 'fromSnapshot', 'request', 'send']], [$delivery->isFinal(), $delivery->isReadOnly(), $delivery->implementsInterface(WebDeliveryInterface::class), $this->declaredPublicMethodNames($delivery)]);
+        $entry = new ReflectionClass(CgiWebEntry::class);
+        self::assertSame([true, [], true, ['run']], [$entry->isFinal(), $entry->getProperties(), $entry->getConstructor()?->isPrivate(), $this->declaredPublicMethodNames($entry)]);
+        $frontController = new ReflectionClass(CgiFrontController::class);
+        $frontConstructor = $frontController->getConstructor();
+        self::assertNotNull($frontConstructor);
+        $frontRun = $frontController->getMethod('run');
+        self::assertSame(
+            [true, [], [], [], [], true, ['run'], true, [WebRuntimeAdapter::class, 'Closure'], 'void'],
+            [$frontController->isFinal(), $frontController->getProperties(), $frontController->getConstants(), $frontController->getInterfaceNames(), $frontController->getTraitNames(), $frontConstructor->isPrivate(), $this->declaredPublicMethodNames($frontController), $frontRun->isStatic(), array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $frontRun->getParameters()), (string) $frontRun->getReturnType()],
+        );
+        $frontSource = file_get_contents($root . '/packages/php-cgi/src/Entry/CgiFrontController.php');
+        self::assertIsString($frontSource);
+        self::assertSame(1, substr_count($frontSource, 'CgiWebEntry::run($runtime)'));
+        self::assertSame(1, substr_count($frontSource, '$shutdown();'));
+        self::assertStringNotContainsString('finally', $frontSource);
+        self::assertSame(0, preg_match('~register_shutdown_function|__destruct|header(?:_remove)?\\s*\\(|flush\\s*\\(|ob_[a-z_]+\\s*\\(|\\b(?:exit|die)\\s*\\(|listener|socket|process manager|service locator|container~i', $frontSource));
+
+    }
+
+    public function testPhase3ExternalAcceptanceRemainsTestOnlyAndProductionIsUnchanged(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $externalRoot = $root . '/tests/External/PhpCgi';
+        $externalFiles = [];
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($externalRoot, FilesystemIterator::SKIP_DOTS),
+        );
+        /** @var SplFileInfo $file */
+        foreach ($iterator as $file) {
+            if ($file->isFile() && 'php' === $file->getExtension()) {
+                $externalFiles[] = str_replace('\\', '/', $file->getPathname());
+            }
+        }
+        sort($externalFiles);
+        self::assertCount(11, $externalFiles);
+
+        foreach ($externalFiles as $externalFile) {
+            $source = file_get_contents($externalFile);
+            self::assertIsString($source);
+            self::assertStringNotContainsString('#[Api', $source);
+            self::assertStringNotContainsString('Kongono\\ApiMetadata', $source);
+            $declarations = $this->classLikeDeclarations($source);
+            self::assertLessThanOrEqual(1, count($declarations));
+            if ([] !== $declarations) {
+                $relative = substr($externalFile, strlen(str_replace('\\', '/', $root . '/tests/')));
+                self::assertSame(
+                    'Kongono\\Tests\\' . str_replace('/', '\\', substr($relative, 0, -4)),
+                    $declarations[0],
+                );
+            }
+        }
+
+        $productionFiles = [];
+        $sourceDirectories = glob($root . '/packages/*/src', GLOB_ONLYDIR);
+        self::assertIsArray($sourceDirectories);
+        self::assertCount(14, $sourceDirectories);
+        foreach ($sourceDirectories as $sourceDirectory) {
+            $sourceIterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($sourceDirectory, FilesystemIterator::SKIP_DOTS),
+            );
+            /** @var SplFileInfo $sourceFile */
+            foreach ($sourceIterator as $sourceFile) {
+                if ($sourceFile->isFile() && 'php' === $sourceFile->getExtension()) {
+                    $productionFiles[] = $sourceFile->getPathname();
+                }
+            }
+        }
+        self::assertCount(126, $productionFiles);
+        foreach ($productionFiles as $productionFile) {
+            $source = file_get_contents($productionFile);
+            self::assertIsString($source);
+            foreach (['Kongono\\Tests\\External', 'FastCgiRecordCodec', 'FastCgiClient', 'FastCgiResponse', 'PhpCgiProcess', 'Phase3AcceptanceRunner', 'KONGONO_PHASE3_ACCEPTANCE_JOURNAL'] as $forbidden) {
+                self::assertStringNotContainsString($forbidden, $source);
+            }
+        }
+
+        $manifests = glob($root . '/packages/*/composer.json');
+        self::assertIsArray($manifests);
+        self::assertCount(14, $manifests);
+        foreach ($manifests as $manifest) {
+            $contents = file_get_contents($manifest);
+            self::assertIsString($contents);
+            self::assertStringNotContainsString('Kongono\\Tests\\External', $contents);
+            self::assertStringNotContainsString('tests/External', $contents);
+        }
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        self::assertIsArray($rootManifest['scripts']);
+        self::assertSame('@php tests/External/PhpCgi/run.php', $rootManifest['scripts']['acceptance:phase3']);
+        self::assertIsArray($rootManifest['autoload-dev']);
+        self::assertIsArray($rootManifest['autoload-dev']['psr-4']);
+        self::assertSame('tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Tests\\']);
+        self::assertArrayNotHasKey('Kongono\\Tests\\External\\', $rootManifest['autoload-dev']['psr-4']);
     }
 
     /**
@@ -1058,10 +1360,10 @@ final class ApiStatusConventionTest extends TestCase
         }
 
         sort($packageSourceDirectories);
-        self::assertCount(13, $packageSourceDirectories);
+        self::assertCount(14, $packageSourceDirectories);
         $packageManifests = glob(dirname(__DIR__, 2) . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(13, $packageManifests);
+        self::assertCount(14, $packageManifests);
         $types = [];
 
         foreach ($packageSourceDirectories as $sourceDirectory) {

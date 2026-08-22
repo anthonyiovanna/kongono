@@ -45,3 +45,31 @@ The fixture is not package-owned production behavior. Production server
 selection, hardened transport authentication, response emission, logging,
 telemetry, incident handling, deployment, and broader operational policy remain
 later decisions.
+
+## Phase 3F implementation
+
+ADR 0056 now supplies the Internal PHP CGI implementation of the existing
+Public delivery port and an Experimental thin entry. Web Runtime still owns
+generic/trusted response selection, one send, and one close. PHP CGI depends on
+Web Runtime without depending directly on Web Application, and every delivery
+keeps its bounded native capture and cleanup state on one fresh object.
+
+## Phase 3G reconciliation
+
+ADR 0057 adds a stateless PHP CGI front controller outside Web Runtime. It
+attempts the existing entry once and then the caller's explicit application
+shutdown once, preserving either failure or both through diagnostic 1019. Web
+Runtime's one-send/one-close ownership is unchanged, and PHP CGI still has no
+direct Web Application edge. Uncertain emission or shutdown requires external
+process retirement. The operator constraints are documented without a listener,
+deployment artifact, or external proof; Phase 3H alone is next.
+
+## Phase 3H outcome
+
+Phase 3H now proves this unchanged Web Runtime boundary through the selected
+external PHP-CGI listener. The root-owned harness observes one response and
+FastCGI completion, explicit application shutdown, zero active Kernel
+operations, sequential process reuse, and external retirement after uncertain
+output. It adds no production dependency, listener, client, server, process
+manager, or broader transport behavior. Production trusted diagnostics remain
+denied, and Phase 3 is closed without a Stable API, 1.0, or hardening claim.

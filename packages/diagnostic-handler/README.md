@@ -7,8 +7,9 @@ already-constructed trusted-presentation eligibility value and Kongono's
 existing trusted diagnostic projector and HTML renderer. It depends directly
 on API Metadata, Diagnostic Activation, Diagnostic Presentation, Kernel,
 Application Graph, and Dependency Injection. It does not depend directly on
-Diagnostics. No package depends on Diagnostic Handler; the framework root
-consumes it as the eighth package.
+Diagnostics. Web Runtime depends on Diagnostic Handler, while Handler has no
+reverse Web Runtime edge. The framework root consumes it among exactly thirteen
+core production packages; PHP CGI remains the fourteenth outer leaf.
 
 Diagnostic Activation and Diagnostic Presentation remain independent lower
 layers. Activation does not access diagnostics, and Presentation does not
@@ -59,8 +60,10 @@ handled, or evidence that any delivery occurred.
 Evidence and authority remain adapter-owned. This package does not read raw
 configuration or requests, evaluate bootstrap or delivery evidence,
 authenticate an audience, select a listener, authorize a transport, or deliver
-output. A future outer adapter must construct fresh delivery permission and
-eligibility for each current delivery and must own the non-trusted path.
+output. For the selected PHP CGI path, the concrete delivery constructs fresh
+delivery permission and Web Runtime constructs eligibility for each current
+delivery while owning the non-trusted path. Any other adapter must provide the
+same ownership; none of it belongs to Handler.
 
 The presenter has no constructor, property, ambient state, cache, registry, or
 I/O. Repeated and interleaved calls retain no permission, source, model, HTML,
@@ -99,5 +102,27 @@ Web Runtime now calls the presenter once only for supported application failures
 The handler still enforces eligibility before source access; denial returns
 `null`, and any presentation failure falls back once to the fixed generic
 response without recursion. The package does not emit, authenticate, log, retain
-incidents, or own a Kernel scope. The outer integration remains ports-only and
-Phase 2H remains the first runnable milestone.
+incidents, or own a Kernel scope. At the Phase 2 boundary the outer integration
+was ports-only, and Phase 2H's root-owned, test-owned fixture proves that path.
+The fixture is
+not Diagnostic Handler behavior or a production application, trust mechanism,
+server, emitter, or deployment profile. Phase 2 is complete at checkpoint
+`647053d4bddc4c76090bca9bf3d693faa5880c52`.
+
+Phase 3E and [ADR 0055](../../docs/adr/0055-immutable-php-cgi-operator-bootstrap-and-trust-inputs.md)
+now supply PHP CGI's literal bootstrap and independent exact current-
+delivery permission sources without changing Handler. Phase 3F adds the
+concrete delivery and thin entry without changing Handler or its disclosure
+contract. `Production` remains denied, and development trust still requires
+independent non-forwarded loopback evidence before request input is opened. No
+deployment surface exists. Phase 3G adds the stateless PHP CGI front controller,
+one entry attempt plus one supplied application-shutdown attempt, and diagnostic
+1019 for simultaneous failure without changing Handler. Throwable accessors are
+not Safe diagnostic fields. The two-permission denial-before-access contract is
+unchanged; `Production` remains denied. Uncertain emission or shutdown requires
+external process retirement. Phase 3H's test-owned harness supplies external
+proof for the selected synchronous PHP-CGI FastCGI RESPONDER profile without a
+production listener, server/client, deployment artifact, or dependency from this
+package. `Production` trust remains denied and operational ownership remains
+external. Phase 3 is complete and starts no next phase automatically. See the [Phase 3
+roadmap](../../docs/architecture/phase-3-roadmap.md).

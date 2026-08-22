@@ -15,6 +15,15 @@ Create one fresh delivery object for one inbound boundary. The adapter evaluates
 
 The delivery implementation must keep trusted evidence independent of request, route, URI, headers, cookies, body, session, or other client-controlled values. It owns real authentication, proxy/listener policy, response transmission, framing, and release of delivery-owned resources.
 
+Phase 3E PHP CGI supplies only the two independent permission sources selected
+by [ADR 0055](../../docs/adr/0055-immutable-php-cgi-operator-bootstrap-and-trust-inputs.md): a literal
+operator profile validated against fixed process prerequisites and a total
+current-delivery evaluator that allows exact canonical direct loopback only when
+all forwarded markers are absent. Public/production bootstrap remains denied.
+No concrete `WebDeliveryInterface`, ambient delivery capture, Web Runtime
+composition, production entrypoint, or authentication mechanism is added. Phase
+3F alone is next.
+
 ## Failure delivery
 
 Generic failures produce status `500`, body `Internal Server Error\n`, and only `Content-Type: text/plain; charset=utf-8`, `Cache-Control: no-store`, and `X-Content-Type-Options: nosniff`. This fixed production model is separate from trusted diagnostics.
@@ -32,3 +41,26 @@ only for external acceptance and proves exact permission, failure, send, close,
 body cleanup, and sequential-isolation behavior. It is not a production runtime
 or package API. See [ADR 0050](../../docs/adr/0050-phase-2-runnable-fixture-and-checkpoint.md)
 and the [fixture model](../../docs/architecture/phase-2-runnable-fixture.md).
+
+Phase 3F now supplies `CgiWebDelivery`, the Internal production PHP CGI
+implementation of this package's Public delivery port, and Experimental
+`CgiWebEntry` for one call into an already-composed adapter. PHP CGI depends on
+Web Runtime; it does not depend directly on Web Application. The adapter still
+owns fixed generic or eligible trusted response selection, one send, and one
+close. The concrete delivery projects bounded native evidence, opens input only
+after permission evaluation, and releases all one-delivery resources explicitly.
+Phase 3G adds a stateless PHP CGI front controller above the existing entry. It
+attempts entry once and then one caller-supplied application shutdown, preserving
+simultaneous failure through diagnostic 1019. Web Runtime's failure selection,
+one send, and one close remain unchanged. PHP CGI has no direct Web Application
+edge; application composition and partial-boot cleanup remain caller-owned.
+`Production` trust remains denied. Uncertain emission or shutdown requires
+external process retirement. Phase 3H's root-owned harness proves the selected
+synchronous PHP-CGI FastCGI RESPONDER profile externally without adding a
+dependency from this package. It is not a production or supported server/client.
+Process, proxy, TLS, credentials, logs, monitoring, incidents, and deployment
+ownership remain external. Phase 3 is complete, is not the full framework,
+Stable API, 1.0, universal SAPI support, deployment automation, or
+production-hardening certification, and starts no next phase automatically. See [ADR
+0056](../../docs/adr/0056-php-cgi-production-delivery-and-entry-composition.md)
+and [ADR 0057](../../docs/adr/0057-bounded-php-cgi-front-controller-lifecycle-and-deployment-constraints.md).

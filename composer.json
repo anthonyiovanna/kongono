@@ -19,6 +19,7 @@
     "kongono/http-message": "@dev",
     "kongono/http-server": "@dev",
     "kongono/kernel": "@dev",
+    "kongono/php-cgi": "@dev",
     "kongono/routing": "@dev",
     "kongono/web-application": "@dev",
     "kongono/web-runtime": "@dev",
@@ -42,6 +43,7 @@
       "Kongono\\Http\\Message\\Tests\\": "packages/http-message/tests/",
       "Kongono\\Http\\Server\\Tests\\": "packages/http-server/tests/",
       "Kongono\\Kernel\\Tests\\": "packages/kernel/tests/",
+      "Kongono\\PhpCgi\\Tests\\": "packages/php-cgi/tests/",
       "Kongono\\Routing\\Tests\\": "packages/routing/tests/",
       "Kongono\\Web\\Application\\Tests\\": "packages/web-application/tests/",
       "Kongono\\Web\\Runtime\\Tests\\": "packages/web-runtime/tests/",
@@ -75,7 +77,8 @@
   },
   "scripts": {
     "test": "phpunit --configuration phpunit.xml.dist",
-    "analyse": "phpstan analyse --configuration=phpstan.neon.dist --no-progress",
+    "acceptance:phase3": "@php tests/External/PhpCgi/run.php",
+    "analyse": "@php -d memory_limit=512M vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress",
     "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
     "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
     "audit:locked": "composer audit --locked",
@@ -92,6 +95,7 @@
       "composer --working-dir=packages/http-message validate --no-check-publish",
       "composer --working-dir=packages/http-server validate --no-check-publish",
       "composer --working-dir=packages/kernel validate --no-check-publish",
+      "composer --working-dir=packages/php-cgi validate --no-check-publish",
       "composer --working-dir=packages/routing validate --no-check-publish",
       "composer --working-dir=packages/web-application validate --no-check-publish",
       "composer --working-dir=packages/web-runtime validate --no-check-publish"

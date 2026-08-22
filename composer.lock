@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "512a55b2dc779ec4a9185f779eaa59bb",
+    "content-hash": "cd2451460b76f0afd26d8936c011994f",
     "packages": [
         {
             "name": "kongono/api-metadata",
@@ -301,6 +301,39 @@
                 }
             },
             "description": "The runtime-neutral lifecycle core for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/php-cgi",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/php-cgi",
+                "reference": "6af8198bde29307d409b0d542b25a0d75865612b"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostic-activation": "*",
+                "kongono/diagnostics": "*",
+                "kongono/http-message": "*",
+                "kongono/web-runtime": "*",
+                "php": "^8.5",
+                "psr/http-message": "^2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\PhpCgi\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\PhpCgi\\Tests\\": "tests/"
+                }
+            },
+            "description": "Bounded PHP CGI conversion, operator trust inputs, and response emission for Kongono's selected FastCGI Responder profile.",
             "transport-options": {
                 "relative": true
             }
@@ -5437,6 +5470,7 @@
         "kongono/http-message": 20,
         "kongono/http-server": 20,
         "kongono/kernel": 20,
+        "kongono/php-cgi": 20,
         "kongono/routing": 20,
         "kongono/web-application": 20,
         "kongono/web-runtime": 20

@@ -3,8 +3,8 @@
 ## Purpose and convention
 
 Kongono's initial monorepo gives each authorized framework package explicit
-source ownership beneath `packages/`. Phase 2E contains exactly eleven production
-packages:
+source ownership beneath `packages/`. Phase 3C adds the fourteenth production
+package:
 
 ```text
 packages/
@@ -58,12 +58,22 @@ packages/
 |   |-- README.md
 |   |-- src/
 |   `-- tests/
+|-- php-cgi/
+|   |-- composer.json
+|   |-- README.md
+|   |-- src/
+|   `-- tests/
 |-- routing/
-    |-- composer.json
-    |-- README.md
-    |-- src/
-    `-- tests/
-`-- web-application/
+|   |-- composer.json
+|   |-- README.md
+|   |-- src/
+|   `-- tests/
+|-- web-application/
+|   |-- composer.json
+|   |-- README.md
+|   |-- src/
+|   `-- tests/
+`-- web-runtime/
     |-- composer.json
     |-- README.md
     |-- src/
@@ -122,17 +132,23 @@ terminal mapping, without transport or ambient request state.
 `kongono/web-application` owns `Kongono\Web\Application\` and requires API
 Metadata, Diagnostics, HTTP Server, Kernel, Routing, PHP 8.5, PSR-7 messages,
 and the PSR-15 handler/middleware interfaces. It is the leaf explicit composition
-boundary. No existing package depends on it, and it has no concrete HTTP
+boundary. Web Runtime depends on it, and it has no concrete HTTP
 Message, Graph, DI, Activation, Presentation, Handler, adapter, or transport edge.
 
+`kongono/web-runtime` owns `Kongono\Web\Runtime\` as the top-level leaf above
+Web Application and the trusted-diagnostic foundations. It owns the Public
+delivery port, fixed generic or eligible trusted failure selection, and exact
+send/close orchestration without selecting a production SAPI, server, listener,
+emitter, or deployment profile.
+
 Composer does not import a dependency's `autoload-dev` mapping into the consuming
-root project. The monorepo root therefore maps all thirteen package test namespaces in
+root project. The monorepo root therefore maps all fourteen package test namespaces in
 its own `autoload-dev`, alongside the root `Kongono\Tests\` mapping. This makes
 package tests directly autoloadable during root development without exposing
 them through production `autoload`.
 
 The root manifest uses one canonical Composer path repository at `packages/*`
-and requires all thirteen local packages with exact `@dev` constraints. These per-package
+and requires all fourteen local packages with exact `@dev` constraints. These per-package
 stability flags permit untagged local packages without changing repository-wide
 minimum stability or inventing versions. Composer generates the lock and root
 autoload metadata; manual lock edits and custom autoloaders remain prohibited.
@@ -145,7 +161,7 @@ composer validate:packages
 
 The command validates API Metadata, Application Graph, Dependency Injection,
 Diagnostic Activation, Diagnostic Handler, Diagnostic Presentation, Diagnostics,
-HTTP Message, HTTP Server, Kernel, Routing, and Web Application in
+HTTP Message, HTTP Server, Kernel, PHP CGI, Routing, Web Application, and Web Runtime in
 deterministic lexicographic package-directory order and is part of `composer quality`
 immediately after root-manifest validation. Source uses package-owned production
 namespaces, package tests use package development namespaces, and all package
@@ -155,8 +171,9 @@ root architecture suite rather than any package.
 
 ## Boundaries and stability
 
-The eleven physical package boundaries and the Phase 2E dependency graph are
-implemented. Other package boundaries and dependency
+The fourteen physical package boundaries are implemented. The root-owned Phase
+2 fixture is test infrastructure, not a package or production application.
+Other package boundaries and dependency
 rules remain open. Independent publishing, splitting, versioning, and release
 automation also remain open and require authorization.
 
@@ -196,7 +213,7 @@ third-party PSR-7 implementation. The Kernel remains transport-neutral and
 PSR-free. Phase 2C creates only this package under its separately authenticated
 directive; Phase 2D now creates the separate routing boundary.
 
-## Implemented Phase 1H dependency graph
+## Current implemented dependency graph
 
 Phase 0S created this fifth package directory:
 
@@ -249,17 +266,31 @@ web-application -> routing
 web-application -> psr/http-message
 web-application -> psr/http-server-handler
 web-application -> psr/http-server-middleware
-framework root -> all thirteen packages
+web-runtime -> api-metadata
+web-runtime -> application-graph
+web-runtime -> dependency-injection
+web-runtime -> diagnostic-activation
+web-runtime -> diagnostic-handler
+web-runtime -> diagnostics
+web-runtime -> http-message
+web-runtime -> kernel
+web-runtime -> web-application
+web-runtime -> psr/http-message
+php-cgi -> api-metadata
+php-cgi -> diagnostics
+php-cgi -> http-message
+php-cgi -> psr/http-message
+framework root -> all fourteen packages
 ```
 
-The eleven API Metadata consuming package-manifest constraints are
+The thirteen API Metadata consuming package-manifest constraints are
 `"kongono/api-metadata": "*"`; the root constraint is
 `"kongono/api-metadata": "@dev"`. Cycles, overlapping production namespaces,
 self-dependencies, and undeclared package dependencies remain prohibited.
 The former `Kongono\Kernel\Api\*` namespace is absent and no compatibility shim
 exists. Kernel, Graph, and DI independently require Diagnostics; none requires
-another semantic consumer. Current Composer/autoload behavior implements the twelve-package graph
-documented above.
+another semantic consumer. Current Composer/autoload behavior implements the
+fourteen-package graph documented above.
 
 ## Implemented Diagnostic Activation foundation
 
@@ -293,7 +324,8 @@ packages/diagnostic-presentation/
 
 Its Composer name is `kongono/diagnostic-presentation` and its production
 namespace is `Kongono\DiagnosticPresentation\`. The directory and manifest are
-part of the current twelve-package tree and thirteen-manifest count including the root.
+part of the current fourteen-package tree and fifteen-manifest count including
+the root.
 
 The leaf depends directly on:
 
@@ -338,8 +370,8 @@ diagnostic-handler -> dependency-injection
 Kernel, Application Graph, and Dependency Injection are direct dependencies
 because their three separate exception markers form the presenter's
 accepted source union. Diagnostic Handler has no direct dependency on
-Diagnostics. No package depends on Diagnostic Handler, so it remains a leaf;
-the framework root consumes it with the other seven packages.
+Diagnostics. Web Runtime depends on Diagnostic Handler, while Handler retains no
+reverse edge; the framework root consumes all fourteen packages.
 
 The sole production declaration is the Experimental final
 readonly `Kongono\DiagnosticHandler\TrustedDeveloperDiagnosticHtmlPresenter`.
@@ -359,9 +391,9 @@ The presenter checks eligibility before any source accessor. False returns
 `null`; true sequences the existing projector and renderer and returns the exact
 HTML unchanged. Every failure propagates unchanged. The package has no adapter,
 configuration reader, evidence evaluator, transport, delivery, response, or
-production model. Kongono has thirteen implemented production packages and fourteen
-Composer manifests including the root. Phase 2G is implemented; Phase 2H remains the
-first runnable black-box milestone.
+production model. Kongono has fourteen implemented production packages and fifteen
+Composer manifests including the root. Phase 2G is implemented, and Phase 2H's
+root-owned fixture proves the runnable black-box milestone.
 
 ## Implemented Routing boundary
 
@@ -374,7 +406,9 @@ than declaration order, and returns a fresh immutable match or `null`.
 
 Routing itself creates no handler or middleware mapping, service binding, Graph node,
 Kernel hook, current-route registry, authentication, authorization, bootstrap,
-adapter, emission, generic production failure path, or runnable app.
+adapter, emission, or generic production failure path. The root-owned Phase 2
+fixture composes Routing externally; it is not Routing package behavior or a
+production application.
 
 ## Implemented HTTP Server boundary
 
@@ -387,7 +421,7 @@ non-authorizing. Unmatched output is delegated to an explicit handler.
 
 HTTP Server catches no `Throwable`, supplies no error middleware, and creates no
 bootstrap, Kernel operation scope, service binding, Graph node, adapter,
-transport, emission, generic production response, or runnable app. Phase 2F
+transport, emission, or generic production response. Phase 2F
 composes this unchanged lower layer. See the [HTTP server model](../architecture/http-server-model.md) and
 [ADR 0047](../adr/0047-explicit-psr-15-middleware-and-terminal-routing.md).
 
@@ -404,7 +438,9 @@ marker own its deliberate failures.
 The application retains only Kernel, pipeline, and a retirement boolean. It
 creates no DI binding, Graph node, concrete HTTP Message dependency, ambient
 request or scope, outer adapter, emission, generic failure mapping, trusted
-diagnostic delivery, broader resource cleanup, or runnable fixture. See the
+diagnostic delivery, or broader resource cleanup. The root-owned Phase 2 fixture
+proves this package through Web Runtime without becoming Web Application package
+behavior or a production application. See the
 [Web Application model](../architecture/web-application-model.md) and
 [ADR 0048](../adr/0048-web-application-bootstrap-and-kernel-operation-ownership.md).
 
@@ -424,3 +460,54 @@ subprocess protocol. Its fixed response snapshots and runner are test behavior,
 not a production emitter, framework CLI, application template, or package
 contract. See [ADR 0050](../adr/0050-phase-2-runnable-fixture-and-checkpoint.md)
 and the [fixture model](../architecture/phase-2-runnable-fixture.md).
+
+## Phase 3 PHP CGI package boundary
+
+[ADR 0052](../adr/0052-php-cgi-fastcgi-responder-profile.md), [ADR
+0053](../adr/0053-bounded-php-cgi-inbound-conversion.md), [ADR
+0054](../adr/0054-bounded-php-cgi-response-emission.md), [ADR
+0055](../adr/0055-immutable-php-cgi-operator-bootstrap-and-trust-inputs.md), and the [PHP CGI
+profile](../architecture/php-cgi-fastcgi-profile.md) define the implemented
+Phase 3C/3D/3E package boundary:
+
+```text
+directory              packages/php-cgi
+Composer package       kongono/php-cgi
+production namespace   Kongono\PhpCgi\
+role                   outer leaf for PHP cgi-fcgi FastCGI Responder
+```
+
+The current leaf depends only on PHP `^8.5`, API Metadata, Diagnostic Activation,
+Diagnostics, HTTP Message, and `psr/http-message ^2.0`. The dependency on
+Diagnostic Activation supplies existing typed permission values; no reverse edge
+exists. A Web Runtime edge remains later and may be added only when authorized
+source requires it. PHP CGI must
+not depend directly on Kernel, Routing, HTTP Server, Web
+Application, Application Graph, Dependency Injection, Diagnostic Presentation,
+Diagnostic Handler, a web server, a FastCGI library, or another framework. No
+lower package may depend on it.
+
+The converter, emitter, literal operator profile, immutable bootstrap result,
+package marker, and concrete exceptions are Experimental; diagnostics,
+bootstrap validation, current-delivery permission evaluation, and host-specific
+helpers are Internal. Phase 3C implements bounded explicit inbound conversion,
+Phase 3D implements bounded response staging/emission, and Phase 3E implements
+the two independent trust inputs. Only bootstrap validation reads `PHP_SAPI` and
+ten exact INI values. The implemented package count is exactly fourteen. Phase
+3F adds an Internal concrete delivery and Experimental entry within the existing
+PHP CGI outer leaf. PHP CGI now depends directly on Web Runtime and still does
+not depend directly on Web Application; no lower package depends on PHP CGI.
+Only the delivery capture additionally reads bounded superglobal/PHP-SAPI/input
+state. Phase 3G adds `CgiFrontController` and
+`CgiEntryShutdownException` inside the same outer leaf. The controller accepts
+Web Runtime plus a typed shutdown closure, so no PHP-CGI-to-Web-Application or
+reverse edge is added. It owns one entry attempt and one shutdown attempt;
+application composition and partial-boot cleanup remain caller-owned. The
+deployment constraints add no production package, manifest, listener, server
+configuration, or deployment artifact. Phase 3H adds only root-owned external
+acceptance code; no production package depends on it. That harness proves the
+selected synchronous PHP-CGI FastCGI RESPONDER profile but is not a production
+or supported server/client. Uncertain emission or shutdown requires external
+process retirement, production trusted diagnostics remain denied, and process,
+proxy, TLS, credentials, logs, monitoring, incidents, and deployment ownership
+remain external. Phase 3 is complete; no next phase starts automatically.

@@ -3,35 +3,34 @@
 ## Status and scope
 
 This document is an index of Kongono's authorized architectural direction.
-Kongono is pre-alpha. Phase 1C adds the exact Diagnostic Activation package and
-typed trusted-bootstrap permission value. Phase 1D adds the neutral typed
-adapter-controlled delivery permission for one current delivery, still without
-configuration, evidence evaluation, combined enforcement, or an adapter.
-Phase 1H implements the transport-neutral trusted diagnostic handler as the
-eighth leaf package and its exact Experimental eligibility-first sequencing
-contract, without adding an adapter, transport, delivery, or production model.
-Phase 1 is complete at local checkpoint
-`d7846f137a1d53f5306f48d19196b916fde44ac2`. Phase 2A records the bounded
-Phase 2A-H first-runnable-web milestone and its black-box acceptance boundary.
-Phase 2B accepts PSR-7 through `psr/http-message` 2.x, the selected server-side
-PSR-17 factories, and PSR-15 as narrow interoperability contracts. Phase 2C
-implements the five selected message roles and five stateless factories in the
-first-party `kongono/http-message` boundary. Phase 2D adds the separate
-`kongono/routing` package for bounded, byte-exact method/path declaration and
-deterministic matching. Phase 2E adds `kongono/http-server`, installs and uses
-the PSR-15 handler and middleware interfaces, and implements an explicit,
-bounded, immutable, transport-free middleware pipeline plus terminal route
-mapping. A selected route match is stored under the reserved
-`RouteMatch::class` request attribute but remains untrusted and establishes no
-authentication or authorization. Unmatched output is delegated to an explicit
-handler. Phase 2F adds `kongono/web-application`, an explicit transport-free
-composition boundary that validates Routing and HTTP Server inputs before
-booting one Kernel and owns exact-once Kernel scope closure for each application
-call. Phase 2G adds `kongono/web-runtime`, the outer delivery port and adapter,
-fixed generic or eligible trusted failure responses, and exact send/close
-orchestration. No concrete SAPI/server/listener/emitter or runnable app has been
-added. Kongono is now a thirteen-package tested component architecture, not yet
-a runnable web framework.
+Kongono is pre-alpha. Phase 2A through 2H are complete at checkpoint
+`647053d4bddc4c76090bca9bf3d693faa5880c52`. The implemented topology contains
+exactly fourteen acyclic production packages plus a root-owned, test-owned
+runnable fixture. That fixture externally proves the real HTTP Message,
+Routing, HTTP Server, Web Application, Web Runtime, diagnostic, and Kernel path;
+it is not a fourteenth package, production application, supported template,
+SAPI adapter, server, listener, emitter, or deployment surface.
+
+The selected production PHP CGI integration now has a concrete delivery and
+thin entry plus external test-owned acceptance. Phase 3B
+selects PHP `cgi-fcgi` in the FastCGI `RESPONDER` role under CGI/1.1 as the
+first exact host profile. Phase 3C and [ADR 0053](docs/adr/0053-bounded-php-cgi-inbound-conversion.md)
+implement bounded inbound conversion. Phase 3D and [ADR 0054](docs/adr/0054-bounded-php-cgi-response-emission.md)
+implement fully staged, bounded response emission. Phase 3E and [ADR 0055](docs/adr/0055-immutable-php-cgi-operator-bootstrap-and-trust-inputs.md)
+implement the literal typed operator profile, fixed native bootstrap validation,
+and independent current-delivery permission evaluation. Only the bootstrap
+validator and concrete delivery capture read `PHP_SAPI`; only bootstrap reads
+the ten fixed INI values. Phase 3F implements the Internal concrete delivery
+and Experimental thin entry. No production listener or deployment artifact
+exists.
+Streaming is unsupported, and post-commit failure is uncertain, throws, and is
+never rolled back or retried. Phase 3G front-controller lifecycle and deployment
+constraints are implemented; Phase 3H completes test-owned external acceptance
+and the Phase 3 checkpoint.
+The [PHP CGI profile](docs/architecture/php-cgi-fastcgi-profile.md) and [Phase 3
+roadmap](docs/architecture/phase-3-roadmap.md) record the remaining outer edge.
+Kernel remains transport-neutral, Web Application retains the sole operation
+scope per call, and Web Runtime retains failure and send/close orchestration.
 Phase 0X adds the exact Diagnostic Presentation leaf and
 pure trusted-developer projection above Phase 0U, which adds the exact acyclic DI-to-Diagnostics
 edge and integrates all 25 Dependency Injection diagnostics across 26 throw
@@ -53,7 +52,7 @@ repository behavior.
 
 ## Package dependency topology
 
-The current runtime has thirteen packages. `kongono/api-metadata` requires
+The current runtime has fourteen packages. `kongono/api-metadata` requires
 PHP only and owns `Kongono\ApiMetadata\Api` and `ApiStatus`. Kernel,
 Diagnostics, and Dependency Injection each require API Metadata; Kernel,
 Application Graph, Dependency Injection, HTTP Message, Routing, and HTTP Server
@@ -63,10 +62,11 @@ Metadata, Diagnostics, Routing, and the two PSR-15 interface packages; it does
 not depend on the HTTP Message package. Web Application is a leaf above API
 Metadata, Diagnostics, HTTP Server, Kernel, Routing, and the PSR interfaces; it
 does not depend on the concrete HTTP Message package. Web Runtime is the top-level
-leaf above Web Application and the trusted-diagnostic foundations. The root
-consumes all thirteen. This
-graph is acyclic, and no package depends on Kernel merely for compatibility
-metadata.
+delivery leaf above Web Application and the trusted-diagnostic foundations.
+`kongono/php-cgi` is an outer leaf over API Metadata, Diagnostic Activation,
+Diagnostics, HTTP Message, Web Runtime, PSR-7, and PHP. It has no direct Web
+Application dependency. The root consumes all fourteen. This graph is acyclic,
+and no package depends on Kernel merely for compatibility metadata.
 
 Phase 1C implements `kongono/diagnostic-activation` as an acyclic package that
 depends only on API Metadata and PHP. Phase 1D gives it exactly two Experimental
@@ -74,9 +74,10 @@ unbacked permission enums:
 `Kongono\DiagnosticActivation\TrustedDeveloperBootstrapPermission` and
 `Kongono\DiagnosticActivation\AdapterControlledDeliveryPermission`. Each has
 ordered `Denied`, `Allowed` cases and `allowsTrustedPresentation(): bool`. The
-first represents an already-validated decision fixed for a future adapter
-instance; the second represents the future adapter's already-determined
-permission for one current delivery. Only Diagnostic Handler depends on
+first represents an already-validated decision fixed for one adapter/runtime
+lifetime; the second represents an adapter-controlled decision for one current
+delivery. Web Runtime now consumes both through its neutral fail-closed
+sequence. Only Diagnostic Handler depends on
 Diagnostic Activation, and the framework root consumes all eleven packages.
 
 Phase 0X implements `kongono/diagnostic-presentation` as a leaf above this
@@ -92,9 +93,10 @@ directly only on API Metadata, Diagnostic Activation, Diagnostic Presentation,
 Kernel, Application Graph, and Dependency Injection. The three originating
 packages are direct dependencies because their marker interfaces form the
 handler's accepted source union; it has no direct dependency on Diagnostics.
-No package depends on Diagnostic Handler. The root consumes it, and Handler is
-the only current package depending on both Diagnostic Activation and Diagnostic
-Presentation. The implemented topology remains acyclic.
+Web Runtime depends on Diagnostic Handler, while Handler retains no reverse
+edge. The root consumes it, and Handler is the only lower package depending on
+both Diagnostic Activation and Diagnostic Presentation. The implemented
+topology remains acyclic.
 
 The former `Kongono\Kernel\Api\*` identities are unavailable and no alias or
 forwarder exists. Graph and Kernel retain their diagnostic integrations exactly.
@@ -126,8 +128,8 @@ delegates unmatched requests without choosing status or body. It catches no
 adapter, transport, emission, or ambient request state. Phase 2F implements the
 separate Web Application composition and application-call scope boundary;
 Phase 2G and ADR 0049 implement the outer delivery adapter without changing Web
-Application's sole Kernel-scope ownership. Phase 2H remains the first runnable
-black-box milestone.
+Application's sole Kernel-scope ownership. Phase 2H's root-owned fixture
+completes the runnable black-box milestone without becoming production behavior.
 
 Kongono Framework targets PHP 8.5+ and is designed for three first-class consumption surfaces: Human Experience, Software/API Experience, and Agent Experience. The framework is not a Laravel clone. It aims to preserve strong developer productivity while favoring explicit, typed, deterministic, observable, modular, persistent-runtime-safe, and AI-native architecture.
 
@@ -170,9 +172,12 @@ catch ownership remain local. Phase 0T makes Kernel the second semantic consumer
 for its six lifecycle failures. Phase 0U makes DI the third semantic consumer
 for 25 schemas across 26 throw sites. Kernel, Graph, and DI markers independently
 expose context; Diagnostics construction failures expose no recursive context.
-Forbidden-material detection, redaction, activation enforcement, production
-allowlists, transport, serialization, source and documentation lookup, logging,
-telemetry, and incidents remain future decisions.
+Forbidden-material detection, redaction, general raw operator configuration,
+broader evidence mechanisms and transport profiles, production allowlists,
+serialization, source and documentation lookup, logging, telemetry, and
+incidents remain future decisions. PHP CGI now supplies the selected literal
+operator and exact host-evidence inputs, and Web Runtime enforces the supplied
+two-gate eligibility for neutral response selection and delivery.
 
 The implemented Presentation boundary provides a pure Experimental trusted-
 developer projection over exactly the Kernel, Graph, or DI contextual marker.
@@ -185,8 +190,8 @@ messages, causes, traces, source, requests, environment, transports, and
 metadata bags are excluded. The projection retains no source object, cache, or
 cross-operation state and performs no I/O.
 
-Phase 1A accepts the fail-closed activation policy outside Diagnostic
-Presentation. A future outer composition boundary must hold an explicit
+Phase 1A accepted the fail-closed activation policy outside Diagnostic
+Presentation. At that phase, a future outer composition boundary had to hold an explicit
 immutable trusted bootstrap permission for its adapter instance and the adapter
 must independently authorize the current delivery. Both must be affirmative
 before presentation access, projection, rendering, or delivery; absence,
@@ -202,24 +207,36 @@ projection and returns one complete escaped HTML5 document without adding a
 package edge, runtime binding, Graph participation, or reverse dependency. It
 is stateless and fixed by two golden fixtures.
 
-The accepted conceptual composition is:
+The current PHP CGI composition is:
 
 ```text
-future outer adapter establishes both typed permissions
-    -> TrustedDeveloperPresentationEligibility
-        -> Diagnostic Handler checks eligibility
-            false -> null to the future adapter's still-unselected non-trusted path
-            true -> projector -> trusted HTML renderer -> exact HTML unchanged
-                -> future adapter owns delivery
+CgiWebEntry receives an already-composed WebRuntimeAdapter
+    -> CgiWebDelivery supplies request, delivery permission, send, close
+        -> WebRuntimeAdapter owns fail-closed response selection and delivery
+            -> WebApplication owns one Kernel operation scope
+            -> generic failure or eligible trusted presenter output
 ```
+
+Operator composition constructs and boots the application and runtime, then
+invokes `CgiWebEntry`; the external host still owns listening, process and
+deployment policy, and caller-controlled application shutdown. Web Runtime
+performs the neutral adapter sequence without changing Web Application's sole
+Kernel-scope ownership.
 
 Both permissions remain outside Diagnostic Presentation. Phase 1A added no
 package edge, service, runtime integration, configuration mechanism, activation
 type, adapter, served page, or production surface. Phase 1C implemented only
 the first typed input in the separate Diagnostic Activation package. Phase 1D
-implements only the second neutral typed input. Both values now exist, but no
+implemented only the second neutral typed input. At that boundary no
 configuration reader, delivery-evidence evaluation, combined enforcement,
-adapter, transport, or production surface exists. `Allowed` on either enum is
+adapter, transport, or production surface existed. Phase 2G now implements the
+neutral Web Runtime adapter and fail-closed response-selection/delivery
+sequence from the two supplied decisions. Phase 3E implements literal operator
+selection and exact current-delivery evidence evaluation, and Phase 3F captures
+that evidence and performs concrete PHP CGI conversion and emission. Phase 3H
+adds root-owned external acceptance for the selected profile. A general
+configuration system, production host listener/process policy, and deployment
+hardening remain unimplemented. `Allowed` on either enum is
 insufficient by itself, and direct case selection or presentation calls do not
 prove authority.
 
@@ -227,8 +244,10 @@ Phase 1E implements only the pure combined calculation as the final readonly
 Experimental `TrustedDeveloperPresentationEligibility` in Diagnostic Activation.
 It stores both typed decisions for one current delivery and returns true only
 when both are `Allowed`. Direct construction or a true result does not prove
-authority. Evidence evaluation, presentation access, and enforcement remain
-future outer-adapter responsibilities; the package graph is unchanged.
+authority. At Phase 1E, evidence evaluation, presentation access, and
+enforcement remained outer-adapter responsibilities. Web Runtime now performs
+neutral enforcement from explicitly supplied decisions; it still does not
+authenticate raw evidence. The package graph is unchanged.
 
 Phase 1H implements the Experimental final readonly
 `Kongono\DiagnosticHandler\TrustedDeveloperDiagnosticHtmlPresenter` as the
@@ -244,8 +263,13 @@ handler validates no evidence, proves no authority, chooses no transport or
 non-trusted response, and retains no ambient or cross-delivery state. Direct use
 of it or the lower-level presentation APIs is not authorization. Diagnostic
 Activation and Diagnostic Presentation remain directly callable independent
-lower layers. No adapter, configuration reader, evidence evaluator, transport,
-delivery, response, or production model exists.
+lower layers. Diagnostic Handler itself owns no adapter, configuration reader,
+evidence evaluator, transport, delivery, response, or production model. Web
+Runtime now owns the neutral adapter/delivery/generic/trusted sequence. PHP CGI
+now owns literal operator and exact delivery-evidence evaluation plus concrete
+conversion and emission; Phase 3H adds test-owned external proof for that
+selected profile. Production host listener/process policy and deployment
+hardening remain unimplemented.
 
 ## Boundaries
 
@@ -258,12 +282,14 @@ delivery, response, or production model exists.
 - OpenAPI is intended to be generated from authoritative application metadata.
 - MCP and A2A are adapters around Kongono concepts and do not define its domain model.
 
-No runtime adapter, protocol adapter, domain Graph schema, complete Graph compiler, capability package, or framework API for those planned boundaries exists yet. The implemented structural snapshot and Kernel lifecycle must not be read as selecting any of them.
+No first-party listener, general SAPI/protocol adapter, domain Graph schema, complete Graph compiler, capability package, or framework API for those planned boundaries exists yet. The implemented PHP CGI delivery, structural snapshot, and Kernel lifecycle must not be read as selecting broader forms of them; the neutral Web Runtime adapter is already implemented.
 
 ## Detailed documentation
 
 - [Architecture overview](docs/architecture/overview.md)
 - [Phase 2 roadmap](docs/architecture/phase-2-roadmap.md)
+- [Phase 3 roadmap](docs/architecture/phase-3-roadmap.md)
+- [PHP CGI FastCGI profile](docs/architecture/php-cgi-fastcgi-profile.md)
 - [HTTP message model](docs/architecture/http-message-model.md)
 - [Routing model](docs/architecture/routing-model.md)
 - [HTTP server model](docs/architecture/http-server-model.md)
@@ -293,3 +319,39 @@ The CLI subprocess runner is bounded test infrastructure, not a framework CLI,
 production SAPI/server/listener/emitter, deployment surface, supported template,
 full framework, 1.0 release, or production-ready system. Production runtime,
 transport authentication, operations, and broader capabilities remain open.
+
+## Selected Phase 3 production edge
+
+[ADR 0051](docs/adr/0051-phase-3-production-http-integration-milestone.md)
+accepts Phase 3 as the bounded path to one supported synchronous production HTTP
+integration profile. [ADR 0052](docs/adr/0052-php-cgi-fastcgi-responder-profile.md)
+selects PHP `cgi-fcgi`, CGI/1.1, and the FastCGI `RESPONDER` role. ADR 0053 and
+Phase 3C implement bounded inbound conversion; ADR 0054 and Phase 3D implement
+bounded response staging and emission; ADR 0055 and Phase 3E implement immutable
+operator bootstrap and independent current-delivery permission evaluation. The
+Phase 3F delivery captures the closed native projection and opens the input
+resource lazily; only fixed bootstrap validation reads native process
+prerequisites. The host still owns FastCGI framing, listening,
+connections, processes, TLS, and deployment. The emitter stages the complete
+bounded response before SAPI commitment. Phase 3F's `CgiWebDelivery` now
+implements the adapter port without moving lifecycle ownership. Phase 3G alone
+is next.
+
+Invalid profile input fails before `WebApplication::handle()` and the implemented
+Internal `CgiWebDelivery` maps it through Web Runtime to the fixed generic 500
+response. The delivery projects only bounded native CGI evidence, opens
+`php://input` lazily, emits once, and releases one-delivery resources explicitly.
+Experimental `CgiWebEntry` accepts an already-composed `WebRuntimeAdapter`.
+PHP CGI now depends directly on Web Runtime and still has no direct Web
+Application dependency. Phase 3G adds the stateless Experimental
+`CgiFrontController`, the 1019 simultaneous-failure contract, and the selected
+profile's [deployment constraints](docs/engineering/php-cgi-deployment.md).
+Entry and explicit caller-supplied application shutdown are attempted once in
+that order. `Production` trusted diagnostics remain denied; uncertain emission
+or shutdown requires external process retirement. Phase 3H proves this path
+through an operator-supplied listener using root-owned test infrastructure; no
+production listener, client, server configuration, or deployment artifact is
+added. The intrinsic query ceiling remains 8,192 bytes while exact target/query
+composition makes 8,190 bytes the externally representable maximum.
+Phase 3 remains neither the full framework, a Stable API, 1.0, production
+readiness, nor production-hardening certification.

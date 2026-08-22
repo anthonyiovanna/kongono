@@ -1,0 +1,24 @@
+{
+  "name": "kongono/php-cgi",
+  "description": "Bounded PHP CGI conversion, operator trust inputs, and response emission for Kongono's selected FastCGI Responder profile.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/diagnostic-activation": "*",
+    "kongono/diagnostics": "*",
+    "kongono/http-message": "*",
+    "kongono/web-runtime": "*",
+    "php": "^8.5",
+    "psr/http-message": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\PhpCgi\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\PhpCgi\\Tests\\": "tests/"
+    }
+  }
+}

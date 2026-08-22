@@ -154,8 +154,13 @@ The Experimental method is directly callable but is not authorization.
 The handler's `null` result when combined eligibility is false. It means
 only that trusted developer HTML was not produced for that reason. It does not
 mean handled, successful, retryable, empty output, fallback selected, incident
-recorded, logged, or any particular response, status, model, or transport. The
-future outer adapter owns the still-unselected non-trusted path.
+recorded, logged, or any particular response, status, model, or transport. Web
+Runtime now owns the fixed generic non-trusted path for its delivery port. PHP
+`cgi-fcgi` FastCGI `RESPONDER` is the selected production host profile, and
+Phase 3F supplies its concrete delivery and thin entry; Phase 3H supplies
+test-owned external proof for the selected synchronous profile. The harness is
+not a production or supported server/client, and deployment hardening remains
+outside Phase 3.
 
 ## Diagnostic Context
 
@@ -201,8 +206,11 @@ Phase 0Q stores exact bounded Graph keys and kinds plus optional numeric
 unexpected-key text. The trusted developer projection includes Protected fields
 unchanged; both trusted bootstrap permission and adapter-controlled delivery
 permission must be affirmative before presentation access, projection,
-rendering, or delivery. The pure HTML renderer exists, but no activation
-enforcement, trusted-mode selector, or production disclosure policy exists.
+rendering, or delivery. The pure HTML renderer itself performs no activation
+enforcement. Web Runtime enforces the supplied two-gate decision for response
+selection. PHP CGI supplies the selected literal operator and exact
+delivery-evidence evaluation; a general raw configuration system and production
+disclosure policy remain unimplemented.
 
 ## Forbidden Capture
 
@@ -223,30 +231,39 @@ fields with unchanged kind, Safe/Protected disclosure, and truncation state. It
 contains no message, cause, trace, source, request, environment, transport, or
 arbitrary metadata and is prohibited as a production model. The projector and
 model types and the pure HTML renderer exist. Their direct callability is not
-authorization, and no activation enforcement exists.
+authorization. Those low-level APIs perform no activation enforcement; Web
+Runtime separately enforces the supplied two-gate eligibility before selecting
+trusted output.
 
 ## Trusted Bootstrap Permission
 
-The Accepted Phase 1A server-owned decision that a future composition boundary
-must validate and fix immutably for one adapter instance before it serves work.
+The Accepted Phase 1A operator-owned decision that Web Runtime holds immutably
+for one adapter instance before it serves work. Phase 3E PHP CGI supplies the
+decision only after exact literal operator-profile and native-prerequisite
+validation.
 Phase 1C implements its exact Experimental unbacked type as
 `Kongono\DiagnosticActivation\TrustedDeveloperBootstrapPermission`, with
-`Denied`, `Allowed`, and `allowsTrustedPresentation(): bool`. Absence requires
-future composition of `Denied`; invalid or ambiguous raw configuration is
-rejected before serving. The configuration source, validation failure,
-composition API, reload mechanism, and adapter remain unimplemented.
+`Denied`, `Allowed`, and `allowsTrustedPresentation(): bool`. PHP CGI's
+`Production` profile maps to `Denied`; `LoopbackDevelopment` maps to `Allowed`
+only after fixed SAPI and INI validation. No raw configuration parser or reload
+exists. Phase 3F composes this permission with a fresh concrete delivery through
+an already-composed Web Runtime.
 
 ## Adapter-Controlled Delivery Permission
 
 The Accepted Phase 1A decision, independent of trusted bootstrap permission,
-that a future outer adapter must make for the current delivery boundary from
-server-controlled transport ownership. Client assertions cannot grant it,
+that Web Runtime now obtains from `WebDeliveryInterface` for the current
+delivery boundary. The delivery implementation makes it from server-controlled
+transport ownership; client assertions cannot grant it,
 uncertainty is denial, and one operation's decision cannot authorize another.
 Phase 1D implements its neutral Experimental unbacked representation as
 `Kongono\DiagnosticActivation\AdapterControlledDeliveryPermission`, with
-`Denied`, `Allowed`, and `allowsTrustedPresentation(): bool`. Its exact evidence,
-transport, listener, identity, authentication, and authorization mechanism is
-unimplemented and remains owned by the future adapter.
+`Denied`, `Allowed`, and `allowsTrustedPresentation(): bool`. Phase 3E PHP CGI
+evaluates one explicit delivery snapshot and allows only exact `cgi-fcgi`,
+CGI/1.1 RESPONDER, canonical direct loopback, and absence of all forwarded
+markers. Phase 3F captures that bounded evidence for each delivery. The external
+listener/process boundary and broader identity, authentication, and
+authorization mechanisms remain unimplemented.
 
 ## Trusted Diagnostic Activation
 
@@ -255,10 +272,15 @@ adapter-controlled delivery permission must both be affirmative before
 presentation access, projection, copying Safe or Protected fields, rendering,
 or delivery. Missing, invalid, ambiguous, failed, denied, or uncertain decisions
 prohibit the trusted path. The architecture, both typed inputs, their pure AND
-calculation, and the Handler's denial-before-access sequencing are implemented;
-the configuration reader, delivery-evidence evaluation, outer-adapter
-composition, transport, served page, and delivery are unimplemented. Direct
-construction or a true result is not authorization.
+calculation, the Handler's denial-before-access sequencing, and Web Runtime's
+neutral fail-closed response-selection/delivery composition are implemented.
+PHP CGI's literal operator selector, fixed prerequisite validation, independent
+host evidence evaluation, bounded response emitter, concrete delivery, and thin
+entry composition are implemented. A general configuration reader, first-party
+listener/process boundary and hardened served deployment remain unimplemented.
+Phase 3H supplies root-owned external acceptance evidence only; no production
+package depends on that harness. Direct construction or a true result is not
+authorization.
 
 ## Trusted Developer HTML Diagnostic Page
 
@@ -268,19 +290,23 @@ accessible, deterministic, escaped HTML5 document with five fixed visible
 regions and one exact local stylesheet. It performs no authorization,
 projection, transport, or production presentation. The renderer and golden
 fixtures are implemented, and Diagnostic Handler provides neutral eligibility-
-first sequencing. No served route, evidence evaluator, adapter, transport,
-delivery, response, or production model exists.
+first sequencing. The renderer and Handler themselves own no served route,
+evidence evaluator, adapter, transport, delivery, response, or production
+model. Web Runtime's separate neutral delivery sequence and PHP CGI trust-input
+sources are implemented; concrete PHP CGI delivery is not.
 
 ## Trusted Developer Mode
 
-Legacy shorthand for future outer-adapter enforcement of Trusted Diagnostic Activation,
-not a single switch or environment label. Phase 1A requires both trusted
+Legacy shorthand for Trusted Diagnostic Activation, not a single switch or
+environment label. Web Runtime now enforces explicitly supplied decisions;
+Phase 1A requires both trusted
 bootstrap permission and independent adapter-controlled delivery permission
 before presentation access, projection, rendering, or delivery. Query, route,
 path, body, header, cookie, session, form, user, database, provider, raw
 environment string, heuristic, AI, ambient, or previous-operation state can
 never activate or widen either decision. Calling the projector or renderer is
-not authorization. No selector, configuration mechanism, or runtime adapter
+not authorization. The Phase 3E literal PHP CGI operator selector is not a
+general configuration mechanism, and no concrete PHP CGI runtime delivery
 exists.
 
 ## Documentation ID
@@ -352,7 +378,9 @@ immutable, transport-free middleware pipeline and complete canonical route-name
 terminal mapping. Selected matches use the reserved `RouteMatch::class`
 attribute but remain untrusted and non-authorizing; unmatched output is
 delegated. It provides no error middleware, bootstrap, Kernel web composition,
-adapter, emission, generic production response, or runnable application.
+adapter, emission, or generic production response. The root-owned Phase 2
+fixture composes it externally without becoming HTTP Server package behavior or
+a production application.
 
 ## Web Application Package
 
@@ -363,8 +391,10 @@ before Kernel boot, exposes one PSR-15 handler, and owns one exact local Kernel
 operation scope around each application call. Cleanup failure retires the
 application, simultaneous work and cleanup failure preserves both objects, and
 shutdown is explicit. It retains no request-specific state and provides no
-outer adapter, response emission, generic production failure mapping, trusted
-diagnostic delivery, or runnable fixture.
+outer adapter, response emission, generic production failure mapping, or trusted
+diagnostic delivery. Web Runtime owns those outer package concerns, and the
+root-owned Phase 2 fixture proves their composition without becoming package
+behavior or a production application.
 
 ## Intent
 
@@ -427,12 +457,50 @@ A runtime in which the process and some resources may outlive one request, job, 
 
 ## Phase 2
 
-The planned bounded Phase 2A-H milestone whose finish line is Kongono's first
-runnable server-side web fixture application under the complete black-box
-acceptance boundary. Phase 2A documents that destination, and Phase 2B accepts
-the HTTP interoperability and message-package architecture. Phase 2 is not the
-full framework, a 1.0 release, or production readiness, and no Phase 2 web
-runtime behavior is currently implemented.
+The completed bounded Phase 2A-H milestone whose checkpoint is
+`647053d4bddc4c76090bca9bf3d693faa5880c52`. Exactly thirteen production
+packages and a root-owned, test-owned subprocess fixture implement and prove the
+first runnable server-side framework path. Phase 2 is not the full framework, a
+1.0 release, supported production integration, or production readiness.
+
+## Phase 3
+
+The Accepted bounded A-H path from Phase 2's fixture-runnable checkpoint to one
+supported synchronous production HTTP integration profile. Phase 3A establishes
+the milestone and roadmap. Phase 3B selects PHP `cgi-fcgi`, CGI/1.1, and FastCGI
+`RESPONDER`. Phase 3C and ADR 0053 implement bounded explicit inbound conversion.
+Phase 3D and ADR 0054 implement fully staged bounded response emission. Phase
+3E and ADR 0055 implement immutable operator bootstrap and independent current-
+delivery permission evaluation. Phase 3F and ADR 0056 implement concrete
+delivery and thin entry composition. Phase 3G and ADR 0057 implement the bounded
+front-controller lifecycle and deployment constraints. Phase 3H and ADR 0058
+complete test-owned external acceptance for the selected synchronous PHP-CGI
+FastCGI RESPONDER profile. Phase 3 is complete and starts no next phase
+automatically. It remains smaller than the full framework,
+Stable API, 1.0, or production-hardening certification.
+
+## PHP CGI FastCGI Responder Profile
+
+The Accepted Phase 3B host architecture requiring PHP SAPI `cgi-fcgi`, CGI/1.1,
+and FastCGI role `RESPONDER`. Phase 3C accepts a caller-supplied closed bounded
+server projection and caller-owned input stream without reading ambient process
+state. Phase 3D stages bounded output before SAPI commitment, treats post-commit
+failure as committed or uncertain without rollback or retry. Phase 3E validates
+fixed process prerequisites and derives independent bootstrap/current-delivery
+permissions, and leaves
+listener/process ownership to the host. The Phase 3F delivery calls conversion
+from `request()`, so malformed input maps to Web Runtime's generic 500.
+
+## PHP CGI Package
+
+The implemented outer leaf at `packages/php-cgi`, Composer name
+`kongono/php-cgi`, and namespace `Kongono\PhpCgi\`. Its direct dependencies are
+PHP, API Metadata, Diagnostic Activation, Diagnostics, HTTP Message, and PSR-7. It converts explicit
+caller values into a first-party request and emits fully staged bounded
+responses. It also owns literal typed operator bootstrap, independent exact
+current-delivery permission evaluation, the Internal concrete delivery, and the
+Experimental thin entry into Web Runtime. It supplies no listener or deployment.
+Streaming is unsupported.
 
 ## PSR-7
 
@@ -473,12 +541,13 @@ A non-empty, exactly preserved open label carried by a Relation. It establishes 
 
 ## Runnable Fixture Application
 
-The planned minimal application used at Phase 2H to prove the complete web path
-from an external entry boundary through explicit bootstrap, request conversion,
-Kernel operation ownership, deterministic routing, ordered middleware, terminal
-handling, response delivery, generic failure behavior, fail-closed trusted
-diagnostics, cleanup, and sequential-operation isolation. No such runnable
-fixture application exists in Phase 2B.
+The implemented root-owned, test-owned Phase 2 subprocess composition that
+proves the complete web path through explicit bootstrap, first-party request
+construction, Kernel operation ownership, deterministic routing, ordered
+middleware, terminal handling, response delivery, generic failure behavior,
+fail-closed trusted diagnostics, cleanup, and sequential-operation isolation.
+It is not a production application, supported template, framework CLI, SAPI
+adapter, server, listener, emitter, or deployment entrypoint.
 
 ## Service Principal
 
@@ -510,8 +579,8 @@ by lexicographic literal/parameter specificity independent of declaration order.
 It performs no decoding, normalization, I/O, ambient current-route storage, DI,
 Graph, Kernel, middleware, or handler work. Phase 2E separately composes its
 matches with explicit PSR-15 handlers, and Phase 2F wraps that composition in
-the Web Application Kernel-scope boundary. Phase 2G is implemented; Phase 2H remains the
-first runnable black-box milestone.
+the Web Application Kernel-scope boundary. Phase 2G is implemented, and Phase
+2H's root-owned fixture proves the complete path externally.
 
 ## Service Definition
 
@@ -563,3 +632,41 @@ exercises the real thirteen-package web path, emits detached newline-delimited
 JSON, and proves exact cleanup and sequential isolation. It is not a production
 server, framework CLI, supported template, full framework, 1.0 release, or
 production-readiness claim.
+
+## CGI Web Delivery
+
+The Internal Phase 3F `CgiWebDelivery` implementation of Web Runtime's Public
+delivery port. One fresh instance owns one closed projected CGI snapshot, lazy
+native input, one request-conversion attempt, one response-emission attempt, and
+explicit cleanup. It is not a listener, server, process manager, deployment
+solution, or general SAPI adapter.
+
+## CGI Web Entry
+
+The Experimental Phase 3F `CgiWebEntry` composition leaf. It creates one fresh
+CGI Web Delivery and passes it once to an already-composed `WebRuntimeAdapter`.
+It does not construct Web Application, select permissions, recover failures,
+emit independently, or own application shutdown.
+
+## CGI Front Controller
+
+The stateless Experimental Phase 3G `CgiFrontController`. It attempts the CGI
+Web Entry once, then invokes one caller-supplied `Closure(): void` for the paired
+already-booted application's explicit shutdown. The consumer owns correct
+runtime/closure pairing, application construction, and partial-boot cleanup.
+PHP CGI gains no direct Web Application edge.
+
+## CGI Entry and Shutdown Failure
+
+The Experimental Phase 3G `CgiEntryShutdownException` used only when the entry
+and shutdown both fail. It preserves the entry failure as primary/native
+previous and the shutdown failure separately. Diagnostic 1019 has only a fixed
+Safe token; throwable accessors are developer-inspection surfaces. There is no
+retry or second response. Uncertain emission or shutdown requires external
+process retirement. The selected-profile constraints have root-owned external
+acceptance proof without a production listener, server configuration,
+deployment artifact, supported server/client, or production package dependency.
+`Production` trust remains denied. Process, proxy, TLS, credentials, logs,
+monitoring, incidents, and deployment ownership remain external. Phase 3 is
+complete, is not Stable API, 1.0, universal SAPI support, deployment automation,
+or production-hardening certification, and starts no next phase automatically.
