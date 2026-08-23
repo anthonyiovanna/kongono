@@ -35,6 +35,21 @@ Agents should consume structured framework knowledge through mechanisms such as 
 
 MCP and A2A may become adapters around Kongono-owned concepts. They must not determine Kongono's internal identity, capability, delegation, or security model. AI provider SDKs likewise must not define the architecture; provider independence is required.
 
+## Developer companions are not application principals
+
+Kongono Chie, Kongono Hantei, and Kongono Oshie are planned optional developer
+companions under [ADR 0060](../adr/0060-human-centered-developer-intelligence-family.md).
+Chie helps build, Hantei independently proves, and Oshie teaches from accepted
+version-matched sources. They operate around developer knowledge and do not
+create or exercise application Principal identity, authentication,
+authorization, delegation, consent, trust, MCP, or A2A behavior.
+
+Phase 4A accepts their architecture only. No role, knowledge artifact, command,
+provider, patch proposal, or runtime exists. The deterministic framework stays
+usable offline and without AI. Any future role authority must be separately
+bounded and cannot flow from the application Principal model merely because
+both concepts involve agents.
+
 ## Security
 
 Agent identity is not authority. Every operation must eventually be governed by deterministic authentication, authorization, delegation, consent, trust, and policy mechanisms as applicable. An LLM must never make the authoritative authorization decision. Sensitive Graph, log, trace, schema, and security data must not become universally visible merely because an agent interface exists.
@@ -49,3 +64,5 @@ Agents-as-Principals and the three consumption surfaces are **LOCKED** direction
 - [Extension platform](extension-platform.md)
 - [Glossary](../glossary.md)
 - [ADR 0008](../adr/0008-agents-as-principals.md)
+- [ADR 0060](../adr/0060-human-centered-developer-intelligence-family.md)
+- [Developer intelligence](developer-intelligence.md)

@@ -94,3 +94,71 @@ test-owned proof. Production trusted diagnostics remain denied and operational
 ownership remains external. Phase 3 is complete, is not Stable API, 1.0, the
 full framework, universal SAPI support, deployment automation, or a
 production-hardening certification, and starts no next phase automatically.
+
+## Phase 4 policy relationship and current inventory
+
+Phase 3 is complete at checkpoint
+`6aacafc92f07b567818173d660e2e182dfa83d23`. The current repository has fourteen
+package manifests plus the root manifest, 126 production PHP files, 151 test
+PHP files, and 277 PHP files covered by the existing PHP CS Fixer configuration.
+These current global counts supersede the preceding historical Phase 3G
+inventory only as present-state evidence; the historical figures remain valid
+for that subphase.
+
+The literal `composer quality` order and configuration stay unchanged. A future
+PHP compatibility gate uses the locked audit, platform requirements, strict
+optimized autoload proof, style, analysis, complete test and acceptance suites,
+persistent-runtime cleanup, supported-host checks, runtime-change review, and
+measured performance/memory evidence. Phase 4A changes no command, manifest,
+constraint, lockfile, dependency, plugin, baseline, suppression, or CI lane.
+
+Experimental Kongono Hantei independently selects and interprets the closed
+eight-check framework-quality profile, but cannot replace or weaken the checks
+and cannot repair the subject it judges. `PASS`, `FAIL`, or `BLOCKED` follows
+inspectable evidence. See the [PHP support policy](php-support-policy.md),
+[developer-intelligence architecture](../architecture/developer-intelligence.md),
+and [Phase 4 roadmap](../architecture/phase-4-roadmap.md).
+
+## Knowledge artifact command
+
+`composer knowledge:check` runs after platform validation and before style in
+the canonical quality sequence. It invokes the package bin entry with the
+explicit repository root, generates and validates the exact 31-source artifact
+in memory, emits one compact JSON result, and writes no artifact. PHPUnit,
+PHPStan, PHP CS Fixer, package Composer validation, optimized strict autoload,
+and the root architecture test cover the new package. The command performs no
+network, model, retrieval, workspace scan, source mutation, cache, Git action,
+or production integration.
+
+## Read-only Chie command
+
+## Read-only Hantei command
+
+`composer hantei:verify` invokes `kongono-hantei verify .`. The command always
+runs the eight fixed profile scripts and emits one canonical semantic report.
+It is intentionally outside `quality` to prevent recursion. Exits are `0` PASS,
+`1` FAIL, `2` BLOCKED, `64` usage, and `70` unexpected command failure.
+`packages/chie/bin/kongono-chie` is included explicitly in Composer autoload,
+PHPStan, PHPUnit source coverage, and PHP CS Fixer. It accepts only `explain`
+or `diagnose` with an explicit framework root, explicit content-addressed
+artifact path, and one admitted token. Canonical quality does not invoke it or
+create an artifact implicitly. Focused validation runs PHPStan and PHP CS Fixer
+over source, tests, and the extensionless bin and runs exactly 36 package tests.
+Deterministic command proof generates an artifact only in a fresh external
+temporary directory.
+
+Phase 4F adds `packages/oshie` to package validation, PHP CS Fixer, PHPStan, PHPUnit, and root autoloading. `composer oshie` invokes only the package executable and is not part of recursive canonical quality. Hantei's fixed profile mirrors the eighteenth package validation entry without changing its eight-check order.
+## Phase 4G proposal command
+
+`kongono-chie propose <framework-root> <artifact-path> <proposal-spec-path>` is
+the only proposal grammar. It is non-interactive and deterministic. It reads one
+explicit bounded spec plus one explicit current artifact, produces canonical
+JSON, and does not call Git, Hantei, a shell, a model, a provider, or a network.
+
+`composer acceptance:phase4` is the only Phase 4H script addition. It invokes
+the real local role commands with argument vectors, bounded independent streams
+and timeouts, exact exit capture, and temporary-only files. A successful run
+emits one canonical 28-scenario object after cleanup. The harness calls literal
+`composer hantei:verify` for real current evidence and separately labels its
+temporary evaluator fixtures synthetic. It changes no canonical quality gate,
+dependency, lockfile, package manifest, platform range, or security policy.

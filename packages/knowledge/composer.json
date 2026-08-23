@@ -1,0 +1,25 @@
+{
+  "name": "kongono/knowledge",
+  "description": "Deterministic framework-knowledge artifact generation and validation for Kongono.",
+  "type": "library",
+  "require": {
+    "ext-hash": "*",
+    "ext-json": "*",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Knowledge\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\Knowledge\\Tests\\": "tests/"
+    }
+  },
+  "bin": [
+    "bin/kongono-knowledge"
+  ]
+}

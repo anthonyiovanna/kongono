@@ -22,8 +22,44 @@ If a policy source is unavailable, the safe result is failure, not reduced prote
 
 ## Lock and plugin policy
 
+## Hantei process boundary
+
+Phase 4E adds no third-party runtime dependency. Hantei uses only identified
+local PHP, Composer, Git, the fixed Composer scripts, and the existing locked
+advisory audit. It cannot authorize plugins, update dependencies, choose an
+alternate audit, or reclassify policy/security findings as transport failure.
 The committed-intent root `composer.lock` makes contributor tools reproducible. Composer alone generates or updates it; manual edits are forbidden. The root lock governs this monorepo's development environment and does not dictate how future separately published Kongono packages resolve for consumers.
 
 No Composer plugin is authorized. The empty `allow-plugins` map is an explicit deny-by-default boundary. A future plugin requires architect and security approval because it executes inside Composer's process.
 
 Use secure HTTPS and distribution archives from normal Composer repositories. Do not add credentials, custom repositories, mirrors, policy exceptions, `--no-audit`, or platform-ignore flags to repository workflows.
+
+Phase 4C adds only the first-party local path package `kongono/knowledge`. It
+requires PHP, `ext-hash`, `ext-json`, API Metadata, and Diagnostics; no new
+third-party package, Composer plugin, policy exception, repository, network
+client, serializer, CLI framework, model SDK, or Application Graph dependency
+is introduced. No existing package depends on Knowledge. Deterministic artifact
+generation performs no dependency installation or network access.
+
+Phase 4D adds only the first-party local path package `kongono/chie`. It
+requires PHP, `ext-json`, API Metadata, Diagnostics, and Knowledge. No existing
+production package depends on Chie. No third-party package, plugin, policy
+exception, repository, HTTP client, serializer, CLI framework, search library,
+or model SDK is added. Chie consumes an explicit artifact at runtime but cannot
+run Composer, alter dependencies, use a network, or discover configuration.
+
+Phase 4F adds no third-party runtime dependency. `kongono/oshie` depends only on PHP, `ext-hash`, `ext-json`, API Metadata, Diagnostics, and Knowledge. It has no Chie or Hantei dependency, and no other production package depends on Oshie. It cannot run Composer, alter dependencies, use a network, or discover configuration.
+## Phase 4G dependency boundary
+
+`kongono/chie` declares the PHP `ext-hash` platform capability used for exact
+proposal identities. Phase 4G adds no package or third-party dependency. The
+proposal path performs no network, provider, model, process, Git, Hantei,
+publication, or deployment operation.
+
+Phase 4H adds one root Composer script and test-owned external harness only. It
+adds no requirement, repository, plugin, package-manifest, lockfile, platform,
+audit-policy, provider, model, SDK, network, account, or production dependency.
+Network-denied Knowledge/Chie/Oshie proof remains local; locked-advisory
+unavailability makes Hantei visibly `BLOCKED` rather than guessed, while the
+checkpoint separately requires real current-repository PASS. Phase 5 was not
+begun.

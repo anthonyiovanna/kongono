@@ -114,6 +114,13 @@ The IR and Graph must represent Kongono concepts independently of PHP surface sy
 
 Kongono intends to connect source symbols, Graph nodes, documentation concepts, IDEs, CLI tools, and AI tools through stable documentation identities. The conceptual example `principals.resolution` illustrates intent only. No ID syntax or annotation is authorized.
 
+Any future use of Graph information by the planned developer-intelligence
+knowledge foundation requires a separate Accepted derivation boundary. Phase
+4A selects no Graph export, schema, serializer, identifier, artifact, index, or
+retrieval mechanism and does not extend the current Experimental Graph.
+Kongono Chie, Kongono Hantei, and Kongono Oshie are not implemented, and the
+Graph does not become responsible for model behavior or generated claims.
+
 ## Security and extension considerations
 
 Graph visibility must eventually respect sensitive metadata, trust boundaries, and authorization. Extension contributions must be attributable and validated rather than allowed to mutate application knowledge invisibly. These contracts remain open.
@@ -123,7 +130,28 @@ Graph visibility must eventually respect sensitive metadata, trust boundaries, a
 - [Architecture overview](overview.md)
 - [Documentation standard](../documentation-standard.md)
 - [Agent model](agent-model.md)
+- [Developer intelligence](developer-intelligence.md)
+- [Phase 4 roadmap](phase-4-roadmap.md)
 - [ADR 0005](../adr/0005-language-neutral-application-graph.md)
 - [ADR 0022](../adr/0022-immutable-application-graph-structural-snapshot.md)
 - [ADR 0024](../adr/0024-exact-direct-relation-selection.md)
 - [ADR 0025](../adr/0025-exact-whole-snapshot-kind-selection.md)
+
+## Phase 4B knowledge-source boundary
+
+[ADR 0061](../adr/0061-versioned-knowledge-source-and-provenance-contract.md)
+does not turn the current Experimental Graph into a knowledge export. Only a
+separately Accepted deterministic derivation boundary may include exact Graph
+information as implementation evidence. That future boundary must identify the
+exact Graph source state, included inventory, derivation contract, provenance,
+disclosure, validation, and conflicts.
+
+Phase 4B adds no Graph node, relation, vocabulary, identifier, schema,
+serializer, export, artifact, command, package edge, or runtime behavior.
+
+Phase 4C implements the separate `kongono/knowledge` leaf without an
+Application Graph dependency or Graph input. The bounded framework artifact
+does not claim to describe the complete repository or an application graph and
+adds no node, relation, vocabulary, schema, export, discovery, or mutation.
+Future Graph-backed knowledge remains outside this slice and requires separate
+authority.

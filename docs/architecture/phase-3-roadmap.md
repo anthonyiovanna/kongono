@@ -236,3 +236,15 @@ target, the effective externally representable maximum is 8,190 bytes. The
 external matrix proves 8,189 and 8,190 accepted and 8,191 rejected as
 `target_too_long`; package source and tests remain authoritative for the
 intrinsic ceiling.
+
+## Checkpoint and forward boundary
+
+This roadmap remains historical Phase 3 evidence. Phase 3 completed at
+checkpoint `6aacafc92f07b567818173d660e2e182dfa83d23`; its fourteen-package
+topology and selected PHP-CGI profile are unchanged by later planning.
+
+Phase 4A separately accepts documentation architecture for an optional,
+AI-independent developer-knowledge foundation and planned Kongono Chie,
+Kongono Hantei, and Kongono Oshie roles. It implements no knowledge artifact,
+assistant, patch proposal, package, command, provider, auto-fix, autonomous
+operation, or production AI. See the [Phase 4 roadmap](phase-4-roadmap.md).

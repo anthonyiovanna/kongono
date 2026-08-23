@@ -1,5 +1,16 @@
 # Kongono Glossary
 
+## Hantei
+
+The optional independent Kongono verifier implemented in Phase 4E. Hantei runs
+one closed versioned quality profile against an exact unchanged Git-visible
+subject and returns bounded derived `PASS`, `FAIL`, or `BLOCKED` evidence. It
+cannot repair source and does not depend on Chie.
+
+## Hantei Report
+
+A non-authoritative canonical evidence object binding a verdict to exact profile,
+subject, framework-artifact, source-set, tool, and ordered check identities.
 These definitions establish architectural vocabulary, not public PHP APIs. Unless identified as locked direction, exact implementation semantics remain experimental or open.
 
 ## Action
@@ -670,3 +681,191 @@ deployment artifact, supported server/client, or production package dependency.
 monitoring, incidents, and deployment ownership remain external. Phase 3 is
 complete, is not Stable API, 1.0, universal SAPI support, deployment automation,
 or production-hardening certification, and starts no next phase automatically.
+
+## Phase 4
+
+The fixed A-H milestone beginning after Phase 3 checkpoint
+`6aacafc92f07b567818173d660e2e182dfa83d23`. Phase 4 establishes a future
+versioned, inspectable, AI-independent knowledge foundation and separated Chie,
+Hantei, and Oshie roles. Phase 4A is Accepted documentation architecture only;
+no role, knowledge artifact, package, command, provider, patch proposal, or
+runtime behavior is implemented. Phase 4 is smaller than the full framework,
+Stable API, 1.0, auto-fix, autonomous operations, or production AI.
+
+## Developer Intelligence
+
+The optional planned family of developer-facing roles that explains, verifies,
+and teaches from one future version-matched deterministic knowledge foundation.
+It does not replace ordinary offline framework operation and is distinct from
+an application Agent Principal.
+
+## Knowledge Foundation
+
+The planned versioned, inspectable, AI-independent source and provenance
+foundation shared by Chie, Hantei, and Oshie. Phase 4A selects no package,
+schema, format, identifier, index, retrieval engine, model, provider, command,
+or persistence mechanism. Stale, mixed, missing, or unverifiable knowledge must
+fail visibly.
+
+## Kongono Chie
+
+The Experimental developer companion with the canonical promise **Chie helps
+you build it.** Chie deterministically explains and diagnoses one exact current
+artifact and may propose one reviewable documentation candidate. It cannot
+apply or certify its own work and is not an application Agent Principal.
+
+## Kongono Hantei
+
+The Experimental independent verifier with the canonical promise **Hantei
+proves it works.** Hantei selects and interprets one closed deterministic
+evidence profile and returns `PASS`, `FAIL`, or `BLOCKED`; it cannot repair the
+subject it judges and does not replace accepted quality gates.
+
+## Kongono Oshie
+
+The Experimental teaching role with the canonical promise **Oshie helps you
+understand it.** Oshie teaches a closed curriculum from exact version-matched
+accepted sources and deterministic exact-answer exercises. Its curriculum has
+no executable example. Teaching is derived material, not repository truth.
+
+## Rolling Current-Minor Baseline
+
+The Accepted policy that the actively developed line supports exactly one
+compatibility-certified stable PHP minor at a time. PHP 8.5 is the intended
+current line, but manifests remain in the mixed `>=8.5` and `^8.5` transitional
+state pending a separately authenticated migration to
+`>=8.5.0 <8.6.0`.
+
+## Compatibility Gate
+
+The deterministic evidence boundary required before Kongono adopts another PHP
+minor. It includes official migration/RFC review, zero Kongono-owned
+deprecations, dependency and platform proof, strict optimized autoloading,
+style and static analysis, complete tests and external acceptance, persistent-
+runtime cleanup, supported-host proof, runtime-change review, measured
+performance/memory evidence, and explicit release communication.
+
+## Candidate Patch
+
+A generated or human-authored proposed change that is not accepted repository
+truth. A future Phase 4G Chie proposal must preserve explicit authority, exact
+diff, provenance, practical reversal, human-controlled application, and fresh
+independent Hantei proof. Phase 4A implements no patch proposal or application
+behavior.
+
+## Knowledge Source
+
+A specifically included input used to support or derive a knowledge claim. Its
+path or format does not establish authority; each use declares one semantic
+Source Authority Class and exact Source State.
+
+## Source Authority Class
+
+One of the six Phase 4B semantic roles: Governing Authority, Implementation
+Evidence, Current Explanatory Documentation, Historical Evidence, Workspace
+Observation, or Derived or Advisory Material. These are architecture concepts,
+not implemented enum values or schema rows.
+
+## Source State
+
+The exact immutable identity of every semantically included input and contract
+needed to version-match a claim, including dirty tracked and untracked bytes
+when applicable. A branch, mutable tag, path, timestamp, or compatible version
+alone is insufficient.
+
+## Provenance
+
+Bounded, non-secret evidence connecting a claim to its exact source state,
+source authority, location, derivation, disclosure decisions, validation scope,
+and conflicts or uncertainty. Provenance does not copy forbidden material to
+prove exclusion.
+
+## Knowledge Claim
+
+An assertion classified as an Accepted Framework Fact, Deterministic
+Observation, Inference, Recommendation, Generated Candidate Content, or
+Unresolved Uncertainty or Conflict. The six classes are semantic architecture,
+not an implemented API.
+
+## Knowledge Conflict
+
+An unresolved disagreement among applicable sources. It remains visible and
+invalidates the affected claim unless explicit accepted supersession or another
+accepted deterministic rule resolves it; recency and model confidence are not
+tie-breakers.
+
+## Knowledge Artifact
+
+A future deterministically derived, versioned representation of validated
+knowledge. Phase 4B defines its governing semantics but implements no artifact,
+format, generator, validator, or location.
+
+## Framework Knowledge Set
+
+The future versioned view derived from one exact Kongono framework source
+state. It remains official framework knowledge and cannot be rewritten by an
+application workspace.
+
+## Workspace Evidence Overlay
+
+A future explicitly authorized, project-scoped observation layer that
+references one exact Framework Knowledge Set. It cannot become framework truth
+or contaminate another workspace, user, organization, tenant, or source state.
+
+## Framework Knowledge Artifact
+
+The implemented Phase 4C canonical JSON snapshot of the exact closed 31-source
+`phase4-foundation` inventory. It embeds source bytes, authority labels, exact
+identities, and whole-source citations. It is derived evidence rather than
+authority, is never checked in, and is rejected as stale when current complete
+regeneration differs.
+
+## Framework Knowledge Source Reference
+
+An exact `kgn-source-v1:<source-set-sha256>:<four-digit-ordinal>` reference to
+one whole embedded source in one exact Framework Knowledge Artifact. It is not
+a line, symbol, fragment, fuzzy, semantic, ranked, cross-version, or workspace
+reference.
+
+## Kongono Chie
+
+The developer companion whose promise is **Chie helps you build it.** Phase 4D
+implements only deterministic offline read-only explanation for six closed
+topics and bounded literal observation of one supplied Safe diagnostic
+identifier. It has no free-form prompt, recommendation, patch, verification,
+arbitrary workspace, model, network, Git, deployment, or production authority.
+
+## Chie Citation
+
+A Phase 4D binding from one exact claim to a version-matched artifact source
+reference, relative source path, authority class, source SHA-256, and inclusive
+one-based line range. It is derived provenance, not independent authority or
+proof of correctness.
+
+## Diagnostic Observation
+
+One syntactically Safe diagnostic identifier explicitly supplied to Chie for
+bounded literal lookup in the already validated framework artifact. It does not
+prove runtime occurrence and does not authorize reading messages, traces,
+context, logs, environment values, source files, or arbitrary workspace data.
+
+## Oshie curriculum
+
+The closed package-owned six-record Phase 4F teaching profile. It maps fixed lesson and exercise identifiers to exact accepted source sections, ordered options, and deterministic accepted answers. Curriculum values are derived teaching and cannot establish framework truth.
+
+## Oshie attempt
+
+One stateless exact-answer result containing a correct or incorrect outcome, the package-owned accepted answer, fixed feedback, and exact citations. It never contains the submitted answer.
+**Chie patch proposal**
+: A deterministic Phase 4G review candidate for one exact complete-line change
+  in current explanatory documentation. It is derived, unapplied, unverified,
+  reversible, provenance-bound, and pending human application plus fresh Hantei
+  verification; it is not accepted authority or a guaranteed fix.
+
+**Phase 4 external acceptance**
+: The root-owned, test-owned Phase 4H proof of exactly 28 ordered scenarios
+  across the real local Knowledge, Chie, Oshie, and Hantei boundaries. It binds
+  successful evidence to one current artifact/source set, distinguishes real
+  Hantei PASS from synthetic evaluator FAIL/BLOCKED evidence, proves offline and
+  failure behavior, and grants no package, production, mutation, Git, network,
+  deployment, or Phase 5 authority.

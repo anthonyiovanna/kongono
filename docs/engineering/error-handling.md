@@ -24,6 +24,15 @@ No universal diagnostic interface, HTTP or CLI mapping, logger, telemetry
 integration, retry engine, cleanup runner, incident system, development error
 page, or production renderer is implemented.
 
+Phase 4D adds ten `KGN-CHIE-1001` through `KGN-CHIE-1010` diagnostics for
+request admission, artifact availability/currentness/validity, unsupported
+resolution, citation and section integrity, response limits, and unexpected
+command failure. Each has exactly one required Safe `violation` field and no
+Protected field. Native causes remain internal; exceptions and command output
+omit native messages, roots, artifact paths, rejected values, secrets, traces,
+and Protected context. Chie's `blocked` response is an artifact or bound state,
+not a Hantei verification verdict.
+
 Phase 0X implements the separate Diagnostic Presentation leaf, four immutable
 Experimental developer concepts, pure three-marker projector, and 15 context-
 free package failures. It adds no renderer, trusted-mode selector, production
@@ -1382,3 +1391,80 @@ denied, and process, proxy, TLS, credentials, logs, monitoring, incidents, and
 deployment ownership remain external. Phase 3 is complete, but is not the full
 framework, Stable API, 1.0, universal SAPI support, deployment automation, or
 production-hardening certification. No next phase starts automatically.
+
+## Future developer-intelligence consumption
+
+Phase 3 is complete at checkpoint
+`6aacafc92f07b567818173d660e2e182dfa83d23`. Phase 4A accepts only the future
+downstream relationship between diagnostics and developer intelligence.
+Kongono Chie, Kongono Hantei, and Kongono Oshie, their knowledge artifacts, and
+their runtime behavior are not implemented.
+
+Any later role consumption remains downstream of the existing diagnostic owner,
+context schema, Safe/Protected classification, projection, and activation
+boundaries. Convenience cannot expose raw exception detail, rejected input,
+secrets, credentials, host state, unrelated source, or Protected context. A
+role cannot reclassify Protected data or treat throwable accessors as Safe.
+Missing or ambiguous disclosure authority, version identity, provenance, or
+evidence must fail closed.
+
+The planned family remains optional and distinct from application Agent
+Principals. Chie may explain or propose but cannot self-certify; Hantei
+independently interprets deterministic evidence without repairing its subject;
+Oshie teaches only from version-matched accepted sources. See the
+[developer-intelligence architecture](../architecture/developer-intelligence.md)
+and [ADR 0060](../adr/0060-human-centered-developer-intelligence-family.md).
+
+## Diagnostic knowledge-source boundary
+
+Phase 4B treats package-owned diagnostic catalogs, schemas, tests, and exact
+runtime observations as sources with explicit authority and source-state scope.
+They do not become one unclassified corpus. Diagnostic implementation evidence
+cannot authorize architecture, and historical diagnostic proof is not current
+after relevant bytes change.
+
+Safe and Protected classification applies before inclusion in any future
+knowledge artifact or role access. Protected diagnostic context is excluded
+from a general artifact by default; secrets, credentials, raw rejected values,
+and unrelated source remain forbidden. Provenance may record exclusion without
+copying the value. Phase 4B implements no diagnostic export, artifact,
+generator, validator, retrieval, model, or new disclosure path. See [ADR
+0061](../adr/0061-versioned-knowledge-source-and-provenance-contract.md).
+
+## Framework-knowledge diagnostics
+
+## Hantei verification diagnostics
+
+`KGN-HANTEI-1001` through `KGN-HANTEI-1008` cover invalid requests, weakened
+profiles, unavailable or changed subjects, unavailable tools, blocked checks,
+invalid evidence, and unexpected command failure. Operational `PASS`, `FAIL`,
+and `BLOCKED` are reports, not exceptions. Context exposes only closed Safe
+violation tokens; raw process output and native errors remain undisclosed.
+Phase 4C adds exactly 11 package-owned identifiers,
+`KGN-KNOWLEDGE-1001` through `KGN-KNOWLEDGE-1011`, for inventory, source path,
+source availability/type/limits/encoding, artifact validity/staleness,
+publication, command usage, and unexpected command failure. Each diagnostic
+owns one required Safe text field named `violation` whose value is selected from
+a closed token set. The Public package marker exposes the standard four
+presentation-neutral diagnostic methods; the Internal base eagerly owns a
+detached context and preserves a native cause without rendering its message.
+Raw rejected JSON or content, absolute paths, secrets, environment values,
+stack traces, and arbitrary native messages are excluded from command output
+and exception stringification.
+
+The Phase 4D Chie catalog remains separate from Knowledge diagnostics. Chie
+maps source/root unavailability to `unavailable`, exact current mismatch to
+`stale`, and malformed, tampered, internally invalid, citation, section, or
+limit failures to `blocked`. Unsupported topics and absent diagnostic
+identifiers remain visible without silent substitution or fallback.
+
+Phase 4F Oshie uses nine fixed `KGN-OSHIE-1001` through `KGN-OSHIE-1009` diagnostics with one required bounded Safe `violation` field. Incorrect answers are response values, not exceptions. Unavailable, stale, blocked, and unsupported states remain explicit, and rejected inputs, submitted answers, paths, native messages, traces, and Protected context are not disclosed. Native trace APIs are not claimed to be sanitized.
+## Phase 4G proposal failures
+
+Proposal diagnostics `KGN-CHIE-1011` through `KGN-CHIE-1018` expose only one
+closed Safe violation token. CLI grammar errors use fixed stderr and exit 64;
+invalid, stale, or unsupported proposal state uses bounded stdout and exit 65;
+unavailable explicit inputs use stdout and exit 66; unexpected failures use
+fixed stderr and exit 70. Rejected paths, hashes, candidate text, sources,
+native messages, and traces are not presented. This does not claim native PHP
+trace APIs are sanitized.

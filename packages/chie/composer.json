@@ -1,0 +1,26 @@
+{
+  "name": "kongono/chie",
+  "description": "Deterministic read-only cited explanation and diagnostic observation for Kongono.",
+  "type": "library",
+  "require": {
+    "ext-hash": "*",
+    "ext-json": "*",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "kongono/knowledge": "*",
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Chie\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\Chie\\Tests\\": "tests/"
+    }
+  },
+  "bin": [
+    "bin/kongono-chie"
+  ]
+}

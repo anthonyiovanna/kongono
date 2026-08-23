@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cd2451460b76f0afd26d8936c011994f",
+    "content-hash": "16b660a75ed2f97b39bc2a9805ac64a3",
     "packages": [
         {
             "name": "kongono/api-metadata",
@@ -58,6 +58,41 @@
                 }
             },
             "description": "The immutable structural core for Kongono's future Application Graph.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/chie",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/chie",
+                "reference": "00c1cb2be1831519c43b13a3004ca2b476402116"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/knowledge": "*",
+                "php": ">=8.5"
+            },
+            "bin": [
+                "bin/kongono-chie"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Chie\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Chie\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic read-only cited explanation and diagnostic observation for Kongono.",
             "transport-options": {
                 "relative": true
             }
@@ -213,6 +248,41 @@
             }
         },
         {
+            "name": "kongono/hantei",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/hantei",
+                "reference": "231c5b5cf950526fbe027561986ed7cab1774814"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/knowledge": "*",
+                "php": ">=8.5"
+            },
+            "bin": [
+                "bin/kongono-hantei"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Hantei\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Hantei\\Tests\\": "tests/"
+                }
+            },
+            "description": "Independent deterministic read-only verification for Kongono.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "kongono/http-message",
             "version": "dev-main",
             "dist": {
@@ -301,6 +371,75 @@
                 }
             },
             "description": "The runtime-neutral lifecycle core for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/knowledge",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/knowledge",
+                "reference": "75af01fbdb9a1cb8eec93df52b2c0f76fe39d876"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5"
+            },
+            "bin": [
+                "bin/kongono-knowledge"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Knowledge\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Knowledge\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic framework-knowledge artifact generation and validation for Kongono.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/oshie",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/oshie",
+                "reference": "3ac2745246d1ff2034c06ad034e53600e68cb667"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/knowledge": "*",
+                "php": ">=8.5"
+            },
+            "bin": [
+                "bin/kongono-oshie"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Oshie\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Oshie\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic read-only cited learning and exact-answer exercises for Kongono.",
             "transport-options": {
                 "relative": true
             }
@@ -5462,14 +5601,18 @@
     "stability-flags": {
         "kongono/api-metadata": 20,
         "kongono/application-graph": 20,
+        "kongono/chie": 20,
         "kongono/dependency-injection": 20,
         "kongono/diagnostic-activation": 20,
         "kongono/diagnostic-handler": 20,
         "kongono/diagnostic-presentation": 20,
         "kongono/diagnostics": 20,
+        "kongono/hantei": 20,
         "kongono/http-message": 20,
         "kongono/http-server": 20,
         "kongono/kernel": 20,
+        "kongono/knowledge": 20,
+        "kongono/oshie": 20,
         "kongono/php-cgi": 20,
         "kongono/routing": 20,
         "kongono/web-application": 20,

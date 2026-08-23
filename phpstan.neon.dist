@@ -9,6 +9,9 @@ parameters:
         - packages/api-metadata/tests
         - packages/application-graph/src
         - packages/application-graph/tests
+        - packages/chie/src
+        - packages/chie/tests
+        - packages/chie/bin/kongono-chie
         - packages/dependency-injection/src
         - packages/dependency-injection/tests
         - packages/diagnostic-activation/src
@@ -19,12 +22,21 @@ parameters:
         - packages/diagnostic-presentation/tests
         - packages/diagnostics/src
         - packages/diagnostics/tests
+        - packages/hantei/src
+        - packages/hantei/tests
+        - packages/hantei/bin/kongono-hantei
         - packages/http-message/src
         - packages/http-message/tests
         - packages/http-server/src
         - packages/http-server/tests
         - packages/kernel/src
         - packages/kernel/tests
+        - packages/knowledge/src
+        - packages/knowledge/tests
+        - packages/knowledge/bin/kongono-knowledge
+        - packages/oshie/src
+        - packages/oshie/tests
+        - packages/oshie/bin/kongono-oshie
         - packages/php-cgi/src
         - packages/php-cgi/tests
         - packages/routing/src

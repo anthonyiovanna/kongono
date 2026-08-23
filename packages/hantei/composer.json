@@ -1,0 +1,26 @@
+{
+  "name": "kongono/hantei",
+  "description": "Independent deterministic read-only verification for Kongono.",
+  "type": "library",
+  "require": {
+    "ext-hash": "*",
+    "ext-json": "*",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "kongono/knowledge": "*",
+    "php": ">=8.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Hantei\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\Hantei\\Tests\\": "tests/"
+    }
+  },
+  "bin": [
+    "bin/kongono-hantei"
+  ]
+}

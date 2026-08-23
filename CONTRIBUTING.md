@@ -52,8 +52,89 @@ composer analyse
 composer test
 ```
 
-`composer validate` remains Composer's built-in root-manifest validation command. Kongono's explicit root script is `composer validate:composer`, and `composer validate:packages` validates API Metadata, Application Graph, Dependency Injection, Diagnostics, and Kernel package manifests in lexicographic directory order. Both omit publication-readiness checks because the license remains intentionally undecided. `composer audit` remains Composer's built-in installed-dependency audit. Kongono's deterministic lock-file audit is `composer audit:locked`, and the complete quality gate uses the explicit repository scripts. Use `composer cs:fix` only as an explicit formatting action, then rerun the non-mutating checks. Do not bypass dependency policy, platform requirements, static-analysis findings, or tests. A dependency addition, Composer plugin, baseline, suppression, or policy exception requires architect approval. Report exactly what ran and do not describe an unexecuted check as passing.
+`composer validate` remains Composer's built-in root-manifest validation command. Kongono's explicit root script is `composer validate:composer`, and `composer validate:packages` validates all fourteen package manifests in lexicographic directory order. Both omit publication-readiness checks because the license remains intentionally undecided. `composer audit` remains Composer's built-in installed-dependency audit. Kongono's deterministic lock-file audit is `composer audit:locked`, and the complete quality gate uses the explicit repository scripts. Use `composer cs:fix` only as an explicit formatting action, then rerun the non-mutating checks. Do not bypass dependency policy, platform requirements, static-analysis findings, or tests. A dependency addition, Composer plugin, baseline, suppression, or policy exception requires architect approval. Report exactly what ran and do not describe an unexecuted check as passing.
+
+## PHP support and developer intelligence
+
+The accepted [PHP support policy](docs/engineering/php-support-policy.md)
+targets one compatibility-certified stable minor at a time. Current metadata is
+still transitional: the root and eight packages require `>=8.5`, while six
+packages require `^8.5`. Do not treat the intended future
+`>=8.5.0 <8.6.0` range as installed. Moving to a new minor requires the complete
+compatibility gate, Windows and supported-host proof, and a separately
+authenticated manifest migration. Composer admission or prerelease success is
+not a PHP 8.6 or PHP 9 support claim.
+
+Ordinary contribution remains deterministic and works without AI or a network
+except where an existing literal gate requires external access. The
+Experimental Kongono Chie, Kongono Hantei, and Kongono Oshie packages implement
+their bounded Phase 4 roles: Chie explains, diagnoses, and proposes one
+reviewable documentation candidate; Hantei independently proves without
+repairing; Oshie teaches cited accepted sources. None replaces contributor
+review, accepted commands, or evidence. Developer companions are distinct from
+application Agent Principals. See the [Phase 4 roadmap](docs/architecture/phase-4-roadmap.md).
 
 ## Commits and review
 
 Keep changes focused and reviewable. Commit, branch, push, release, and publishing policy will be established separately; do not infer it from this document.
+
+## Knowledge and evidence labels
+
+When a claim depends on version or repository state, identify the exact state,
+source authority class, evidence scope, and whether the claim is an accepted
+fact, deterministic observation, inference, recommendation, generated
+candidate, or unresolved uncertainty. A passing command belongs only to its
+exact source state, environment, command, and scope.
+
+Do not reuse historical reports as current proof after relevant bytes change,
+promote generated material to authority, silently merge Kongono versions, or
+hide disagreement between accepted policy and observed implementation. See
+[ADR 0061](docs/adr/0061-versioned-knowledge-source-and-provenance-contract.md)
+and the [knowledge foundation](docs/architecture/knowledge-foundation.md).
+
+## Framework-knowledge checks
+
+Phase 4C implements one bounded artifact package. Run `composer knowledge:check`
+to generate and validate the exact 31-source `phase4-foundation` artifact in
+memory without writing. Generated artifacts are derived evidence and must not be
+checked in, treated as authority, mixed across source states, or used to widen
+tool access. Optional publication requires an explicit external directory and
+creates only the content-addressed initial file. See the [artifact guide](docs/architecture/framework-knowledge-artifact.md)
+and [ADR 0062](docs/adr/0062-deterministic-framework-knowledge-artifact.md).
+
+## Read-only Chie checks
+
+## Read-only Hantei verification
+
+Run `composer hantei:verify` to execute the complete fixed Phase 4E profile.
+Callers cannot select or skip checks. A `PASS` applies only to the reported
+subject and profile identities; `FAIL` and `BLOCKED` must remain distinct. Do
+not treat ignored cache effects as source mutation or a verdict as authority.
+Phase 4D adds `packages/chie` as an offline consumer of an explicit current
+artifact. Focused work uses the package PHPUnit, PHPStan, and PHP CS Fixer
+commands documented in the [toolchain](docs/engineering/toolchain.md). The
+`kongono-chie` bin requires an explicit framework root and content-addressed
+artifact path; canonical quality does not generate or discover an artifact for
+it. Do not add prompts, ambient workspace access, network calls, models,
+recommendations, patches, verification verdicts, or write authority. See the
+[read-only Chie guide](docs/architecture/read-only-chie.md).
+
+Phase 4F contributors may exercise Oshie's closed `catalog`, `lesson`, `exercise`, and `check` grammar only with an explicit current artifact. Do not add curriculum discovery, learner persistence, executable examples, free-form generation, mutation, verification, Git, deployment, or production authority. See the [read-only Oshie guide](docs/architecture/read-only-oshie.md).
+
+## Reviewable Chie proposal checks
+
+Phase 4G contributors may use only the explicit canonical proposal spec and the
+closed exact-line rule against a current explanatory documentation source.
+Review the forward and reverse diff, provenance, identities, warnings, and
+pending handoff. Safe input is asserted, not sanitized. Chie does not apply the
+candidate or run Hantei; after an external human-controlled application, run a
+fresh Hantei verification. See the [proposal guide](docs/architecture/reviewable-chie-patch-proposals.md).
+
+## Phase 4 external acceptance
+
+Run `composer acceptance:phase4` for the exact cross-role 28-scenario proof.
+The harness uses real local command boundaries and one verified temporary tree;
+it must finish with real current-repository Hantei PASS and labels its isolated
+FAIL/BLOCKED evaluator fixtures synthetic. Do not treat the Chie candidate as
+applied or verified, invent an executable Oshie example, or infer model,
+network, Git, deployment, production, or Phase 5 authority from acceptance.

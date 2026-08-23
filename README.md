@@ -224,6 +224,9 @@ Nothing is Stable. Public API status means supported consumer use under Kongono'
 - [Architecture overview](docs/architecture/overview.md)
 - [Phase 2 roadmap](docs/architecture/phase-2-roadmap.md)
 - [Phase 3 roadmap](docs/architecture/phase-3-roadmap.md)
+- [Phase 4 roadmap](docs/architecture/phase-4-roadmap.md)
+- [Developer-intelligence architecture](docs/architecture/developer-intelligence.md)
+- [PHP support policy](docs/engineering/php-support-policy.md)
 - [PHP CGI FastCGI profile](docs/architecture/php-cgi-fastcgi-profile.md)
 - [HTTP message model](docs/architecture/http-message-model.md)
 - [Routing model](docs/architecture/routing-model.md)
@@ -283,3 +286,86 @@ responsibilities; uncertain emission or shutdown requires external process
 retirement. The intrinsic 8,192-byte query ceiling remains unchanged; exact
 target/query composition makes 8,190 bytes the effective external maximum.
 Phase 3 is closed, and no later phase starts automatically.
+
+## Phase 4 developer-intelligence milestone
+
+Phase 3 is complete at checkpoint
+`6aacafc92f07b567818173d660e2e182dfa83d23`. Phase 4A accepted the architecture
+for one versioned, inspectable, AI-independent knowledge foundation and three
+separated roles: Kongono Chie helps you build it, Kongono Hantei independently
+proves it works, and Kongono Oshie helps you understand it. Phases 4C through
+4G implement the deterministic artifact and bounded Experimental role packages;
+Phase 4H supplies their root-owned external acceptance proof. No provider,
+model, production integration, or application Agent Principal is implemented.
+
+The deterministic framework remains usable offline and without AI. Developer
+companions are distinct from application Agent Principals. The accepted PHP
+policy targets one compatibility-certified stable minor at a time, but current
+Composer metadata remains the mixed `>=8.5` and `^8.5` state. A later
+authenticated migration is required for `>=8.5.0 <8.6.0`; no PHP 8.6 or PHP 9
+support is claimed. Phase 4 remains smaller than the full framework, Stable
+API, 1.0, auto-fix, autonomous operations, or production AI.
+
+Phase 4B now accepts the architecture-only [versioned knowledge-source and
+provenance contract](docs/adr/0061-versioned-knowledge-source-and-provenance-contract.md).
+The [knowledge foundation](docs/architecture/knowledge-foundation.md) defines
+six semantic source-authority classes, six claim classes, exact source-state
+matching, visible conflict, bounded provenance, disclosure-before-inclusion,
+and strict separation of framework knowledge from workspace evidence.
+
+No knowledge artifact, package, source inventory, schema, digest, generator,
+validator, command, index, retrieval system, model, workspace reader, or Chie,
+Hantei, or Oshie runtime exists. Phase 4C is the next sequential boundary and
+must select a concrete deterministic, AI-independent artifact slice under a
+separately authenticated directive.
+
+## Implemented Phase 4C framework knowledge
+
+Phase 4C adds the fifteenth acyclic package, `kongono/knowledge`. It
+deterministically generates and validates one canonical artifact from the exact
+closed 31-source `phase4-foundation` inventory and may atomically publish a
+content-addressed initial file without overwrite. The artifact is inspectable
+derived evidence, not authority, and is never checked in. Citations resolve
+whole source records in one exact source set only. Run `composer knowledge:check`
+for the no-write in-memory proof. Retrieval, search, models, arbitrary workspace
+reads, mutation, Graph input, and production integration remain unimplemented.
+
+## Implemented Phase 4D read-only Chie
+
+## Implemented Phase 4E read-only Hantei
+
+Kongono now includes an optional independent deterministic verifier. Hantei runs
+the fixed eight-stage framework quality profile against one unchanged exact
+subject and emits bounded `PASS`, `FAIL`, or `BLOCKED` evidence. It consumes the
+knowledge foundation without depending on Chie and never repairs repository
+state. Phase 4F Oshie remains planned.
+Phase 4D adds the sixteenth acyclic package, `kongono/chie`. Given one explicit
+current Phase 4C artifact, it returns the exact cited section for one of six
+closed topics or locates bounded literal occurrences of one supplied Safe
+diagnostic identifier. It exposes answered, unsupported, unavailable, stale,
+and blocked states in deterministic canonical JSON. It has no free-form prompt,
+model, provider, network, arbitrary workspace reader, recommendation, patch,
+verification, Git, process, deployment, or production authority. See the
+[read-only Chie guide](docs/architecture/read-only-chie.md).
+
+## Implemented Phase 4F read-only Oshie
+
+Oshie now provides a closed six-lesson catalog, exact cited source lessons, deterministic practice prompts, and exact-answer checks over one current Phase 4C artifact. It retains no learner state and has no model, provider, executable-example, mutation, verifier, Git, deployment, or production authority. See the [read-only Oshie guide](docs/architecture/read-only-oshie.md).
+
+## Implemented Phase 4G reviewable Chie proposals
+
+Chie can now construct one explicit deterministic documentation candidate from
+the exact current Knowledge artifact. It returns reversible unified diffs,
+exact provenance and identities, fixed warnings, and a pending human-application
+and fresh-Hantei handoff. The candidate is derived review material, not accepted
+authority, and Chie does not apply, verify, stage, commit, publish, deploy, use a
+model, or access a network. See the [proposal guide](docs/architecture/reviewable-chie-patch-proposals.md).
+
+Phase 4H completes the root-owned
+[28-scenario external acceptance](docs/architecture/phase-4-external-acceptance.md).
+The proof binds Knowledge, Chie, Oshie, and real Hantei evidence to one current
+artifact/source identity, keeps local Knowledge/Chie/Oshie available with
+network access denied, distinguishes synthetic Hantei evaluator evidence, and
+proves candidate, disclosure, mutation, and cleanup boundaries. Phase 4A
+through 4H are implemented and externally accepted at the bounded checkpoint.
+Kongono remains pre-1.0 and not production-ready; Phase 5 was not begun.

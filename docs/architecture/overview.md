@@ -303,3 +303,87 @@ remains smaller than a full framework, Stable API, 1.0, or production-hardening
 certification. The frozen intrinsic query ceiling is 8,192 bytes; matching
 origin-form target composition makes 8,190 bytes the effective external
 maximum. Phase 3 is closed and no later phase begins automatically.
+
+## Current Phase 4 planning boundary
+
+Phase 3 is complete at checkpoint
+`6aacafc92f07b567818173d660e2e182dfa83d23`. Phase 4A accepts documentation
+architecture only and adds no package, dependency edge, public API, command, or
+runtime. The topology remains exactly fourteen acyclic production packages.
+
+The planned developer-intelligence family shares one future versioned,
+inspectable, AI-independent knowledge foundation. Kongono Chie builds, Kongono
+Hantei independently proves, and Kongono Oshie teaches. These developer
+companions are distinct from application Agent Principals; none is implemented.
+The deterministic framework remains usable offline and without AI.
+
+The accepted PHP policy targets one compatibility-certified minor at a time,
+while current manifests remain the mixed `>=8.5` and `^8.5` transitional state.
+The intended `>=8.5.0 <8.6.0` range requires a later authenticated migration.
+No PHP 8.6 or PHP 9 support is claimed.
+
+See [developer intelligence](developer-intelligence.md), the
+[Phase 4 roadmap](phase-4-roadmap.md), and the
+[PHP support policy](../engineering/php-support-policy.md). Phase 4 is not the
+full framework, Stable API, 1.0, auto-fix, autonomous operations, or production
+AI.
+
+## Current Phase 4B boundary
+
+## Current Phase 4E boundary
+
+The implemented Hantei leaf consumes API Metadata, Diagnostics, and Knowledge.
+Its fixed profile runs eight repository quality scripts, preserves exact subject
+identity, and emits bounded derived verdict evidence. No existing package
+depends on Hantei, and Hantei does not depend on Chie.
+[ADR 0061](../adr/0061-versioned-knowledge-source-and-provenance-contract.md)
+and the [knowledge-foundation architecture](knowledge-foundation.md) accept the
+semantic contract for six source-authority classes, six claim classes, exact
+source state, bounded provenance, visible conflict, version-matched citations,
+deterministic derivation, disclosure, and framework/workspace separation.
+
+This is architecture only. The repository still has fourteen acyclic
+production packages and no new dependency edge. No knowledge artifact,
+generator, validator, source inventory, schema, digest, command, retrieval
+system, model, workspace reader, Graph export, or developer-intelligence
+runtime exists. Phase 4C is next in the unchanged sequential roadmap and must
+separately select the bounded AI-independent implementation slice.
+
+Phase 4C implements that bounded slice as the fifteenth acyclic package,
+`kongono/knowledge`, depending only on API Metadata and Diagnostics. It owns one
+closed 31-source canonical artifact, exact identities, whole-source citations,
+complete in-memory generation/current validation, and optional content-
+addressed atomic initial publication. The artifact is derived evidence, not
+authority, and is not checked in.
+
+Phase 4D adds the sixteenth acyclic package, `kongono/chie`, depending only on
+API Metadata, Diagnostics, and Knowledge. It validates one explicit artifact
+against one explicit root and returns only exact cited sections for six closed
+topics or bounded literal diagnostic-identifier occurrences. It has no prompt,
+model, general retrieval, arbitrary workspace access, mutation, Hantei verdict,
+Graph input, network, deployment, or production authority. See
+[read-only Chie](read-only-chie.md).
+
+## Phase 4F teaching boundary
+
+Experimental Oshie teaches six exact version-matched source sections and checks
+fixed answers without learner persistence or mutation. Its teaching remains
+derived and citation-bound. Chie, Hantei, and Oshie stay independent; Phase 4H
+externally proves the boundary without inventing an executable example. See
+[read-only Oshie](read-only-oshie.md).
+## Phase 4G review candidate
+
+The Experimental Chie package can produce one deterministic, reversible
+documentation candidate from a validated current Knowledge artifact. It cannot
+apply or verify the candidate. Exact provenance and a pending human/fresh-Hantei
+handoff preserve the separation between derived review material and accepted
+source authority.
+
+Phase 4H adds the root-owned
+[cross-role external acceptance harness](phase-4-external-acceptance.md). Its 28
+scenarios prove shared current identities, direct accepted-source readability,
+offline Knowledge/Chie/Oshie operation, real versus synthetic Hantei evidence,
+visible failure states, inert instructions, non-disclosure, temporary cleanup,
+and unchanged role authority. Phase 4A through 4H are implemented and externally
+accepted at the bounded checkpoint. Kongono remains pre-1.0 and not
+production-ready; Phase 5 was not begun.

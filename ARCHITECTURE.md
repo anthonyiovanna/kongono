@@ -28,7 +28,8 @@ never rolled back or retried. Phase 3G front-controller lifecycle and deployment
 constraints are implemented; Phase 3H completes test-owned external acceptance
 and the Phase 3 checkpoint.
 The [PHP CGI profile](docs/architecture/php-cgi-fastcgi-profile.md) and [Phase 3
-roadmap](docs/architecture/phase-3-roadmap.md) record the remaining outer edge.
+roadmap](docs/architecture/phase-3-roadmap.md) record the completed bounded outer
+edge.
 Kernel remains transport-neutral, Web Application retains the sole operation
 scope per call, and Web Runtime retains failure and send/close orchestration.
 Phase 0X adds the exact Diagnostic Presentation leaf and
@@ -355,3 +356,100 @@ added. The intrinsic query ceiling remains 8,192 bytes while exact target/query
 composition makes 8,190 bytes the externally representable maximum.
 Phase 3 remains neither the full framework, a Stable API, 1.0, production
 readiness, nor production-hardening certification.
+
+## Accepted Phase 4 planning boundary
+
+Phase 3 is complete at checkpoint
+`6aacafc92f07b567818173d660e2e182dfa83d23`. Phase 4A adds documentation
+architecture only and creates no package or dependency edge. The implemented
+topology remains exactly fourteen acyclic production packages.
+
+The accepted direction places planned Kongono Chie, Kongono Hantei, and Kongono
+Oshie above one future versioned, inspectable, AI-independent knowledge
+foundation. Chie builds, Hantei independently proves, and Oshie teaches. These
+developer companions are distinct from application Agent Principals and are
+not implemented. The deterministic framework remains usable offline and
+without AI.
+
+Current Composer constraints remain the mixed `>=8.5` and `^8.5` transitional
+state. The accepted rolling policy targets one compatibility-certified PHP
+minor; a later authenticated migration is required before
+`>=8.5.0 <8.6.0` becomes current metadata. No PHP 8.6 or PHP 9 support is
+claimed.
+
+See the [developer-intelligence architecture](docs/architecture/developer-intelligence.md),
+[Phase 4 roadmap](docs/architecture/phase-4-roadmap.md), and
+[PHP support policy](docs/engineering/php-support-policy.md). Phase 4A does not
+implement knowledge artifacts, assistants, patch proposals, auto-fix,
+autonomous operations, production AI, Stable API, or 1.0.
+
+## Accepted Phase 4B knowledge architecture
+
+[ADR 0061](docs/adr/0061-versioned-knowledge-source-and-provenance-contract.md)
+and the [knowledge-foundation architecture](docs/architecture/knowledge-foundation.md)
+accept the semantic source-authority, exact source-state, provenance, conflict,
+citation, deterministic-derivation, disclosure, and framework/workspace
+separation contract. The six source classes and six claim classes are
+architecture concepts, not implemented enums or schema rows.
+
+Phase 4B adds no package and no dependency edge; the topology remains fourteen
+acyclic production packages. No artifact, generator, validator, inventory,
+schema, digest, command, retrieval system, model, workspace read, Graph export,
+or role runtime exists. Phase 4C is next in the unchanged sequential roadmap
+and must separately select the concrete AI-independent artifact slice.
+
+## Implemented Phase 4C knowledge slice
+
+Phase 4C adds the fifteenth acyclic production package, `kongono/knowledge`, as
+a low-level leaf depending only on API Metadata and Diagnostics. It completely
+generates and validates one canonical, versioned, inspectable 31-source
+`phase4-foundation` artifact in memory and may publish it once under its
+content-addressed name with atomic no-clobber semantics. The artifact is derived
+evidence rather than authority, is not checked in, and supports only exact
+whole-source citations. The package consumes no Application Graph input and
+implements no retrieval, search, model, workspace access, patch, or production
+dependency.
+
+## Implemented Phase 4D read-only Chie slice
+
+## Implemented Phase 4E independent Hantei slice
+
+The optional `kongono/hantei` package runs the fixed `framework-quality-v1`
+Composer profile against one exact Git-visible subject. It binds reports to the
+current framework-knowledge artifact, preserves raw tool output only in bounded
+memory, and returns derived `PASS`, `FAIL`, or `BLOCKED` evidence. Hantei depends
+on Knowledge directly, not Chie, and owns no repair or repository-mutation path.
+Phase 4D adds the sixteenth acyclic production package, `kongono/chie`, as a
+leaf depending only on API Metadata, Diagnostics, and Knowledge. It validates
+one explicit artifact against one explicit framework root before returning an
+exact cited section for one of six topics or bounded literal occurrences of one
+supplied Safe diagnostic identifier. It is deterministic and offline. It has
+no free-form prompt, arbitrary workspace read, recommendation, patch, Hantei
+verdict, write, dependency, Git, process-launch, network, deployment, or
+production authority. See [ADR 0063](docs/adr/0063-read-only-chie-explanation-and-diagnosis.md)
+and the [read-only Chie guide](docs/architecture/read-only-chie.md).
+
+## Implemented Phase 4F read-only Oshie slice
+
+The Experimental `kongono/oshie` package teaches six closed topics from exact current artifact sources and checks deterministic package-owned answers. Lessons and exercise outcomes carry exact citations; practice omits the accepted-answer field and checks omit submitted input. Accepted documentation remains authoritative. See [ADR 0065](docs/adr/0065-cited-version-matched-oshie-learning-and-deterministic-exercises.md) and the [read-only Oshie guide](docs/architecture/read-only-oshie.md).
+
+## Implemented Phase 4G reviewable Chie proposal slice
+
+Chie now constructs one deterministic, unapplied exact-line candidate for an
+explicit current explanatory documentation source. The canonical response binds
+the current artifact, source set, target, base, proposed content, reversible
+diffs, exact provenance, proposal identity, fixed warnings, and a pending human
+application/fresh-Hantei handoff. Safe candidate input is a caller disclosure
+assertion, not sanitization. Chie performs no apply, write, Git, Hantei, model,
+provider, network, or deployment action. Hantei cannot verify an unapplied
+candidate, and Oshie is not a proposal source. See [ADR 0066](docs/adr/0066-explicit-reviewable-chie-patch-proposals.md)
+and the [proposal guide](docs/architecture/reviewable-chie-patch-proposals.md).
+
+Phase 4H supplies the root-owned 28-scenario
+[external acceptance boundary](docs/architecture/phase-4-external-acceptance.md).
+It proves one current artifact/source identity across real local role commands,
+offline Knowledge/Chie/Oshie behavior, a real Hantei PASS, explicitly synthetic
+Hantei FAIL/BLOCKED evaluation, inert untrusted instructions, non-disclosure,
+temporary cleanup, and no repository mutation or authority elevation. Phase 4A
+through 4H are implemented and externally accepted at the bounded checkpoint.
+Kongono remains pre-1.0 and not production-ready; Phase 5 was not begun.

@@ -7,6 +7,8 @@ $finder = PhpCsFixer\Finder::create()
     ->in(__DIR__.'/packages/api-metadata/tests')
     ->in(__DIR__.'/packages/application-graph/src')
     ->in(__DIR__.'/packages/application-graph/tests')
+    ->in(__DIR__.'/packages/chie/src')
+    ->in(__DIR__.'/packages/chie/tests')
     ->in(__DIR__.'/packages/dependency-injection/src')
     ->in(__DIR__.'/packages/dependency-injection/tests')
     ->in(__DIR__.'/packages/diagnostic-activation/src')
@@ -17,12 +19,18 @@ $finder = PhpCsFixer\Finder::create()
     ->in(__DIR__.'/packages/diagnostic-presentation/tests')
     ->in(__DIR__.'/packages/diagnostics/src')
     ->in(__DIR__.'/packages/diagnostics/tests')
+    ->in(__DIR__.'/packages/hantei/src')
+    ->in(__DIR__.'/packages/hantei/tests')
     ->in(__DIR__.'/packages/http-message/src')
     ->in(__DIR__.'/packages/http-message/tests')
     ->in(__DIR__.'/packages/http-server/src')
     ->in(__DIR__.'/packages/http-server/tests')
     ->in(__DIR__.'/packages/kernel/src')
     ->in(__DIR__.'/packages/kernel/tests')
+    ->in(__DIR__.'/packages/knowledge/src')
+    ->in(__DIR__.'/packages/knowledge/tests')
+    ->in(__DIR__.'/packages/oshie/src')
+    ->in(__DIR__.'/packages/oshie/tests')
     ->in(__DIR__.'/packages/php-cgi/src')
     ->in(__DIR__.'/packages/php-cgi/tests')
     ->in(__DIR__.'/packages/routing/src')
@@ -31,7 +39,13 @@ $finder = PhpCsFixer\Finder::create()
     ->in(__DIR__.'/packages/web-application/tests')
     ->in(__DIR__.'/packages/web-runtime/src')
     ->in(__DIR__.'/packages/web-runtime/tests')
-    ->in(__DIR__.'/tests');
+    ->in(__DIR__.'/tests')
+    ->append([
+        __DIR__.'/packages/chie/bin/kongono-chie',
+        __DIR__.'/packages/hantei/bin/kongono-hantei',
+        __DIR__.'/packages/knowledge/bin/kongono-knowledge',
+        __DIR__.'/packages/oshie/bin/kongono-oshie',
+    ]);
 
 return (new PhpCsFixer\Config())
     // Enforcing strict types can change runtime coercion, so the formatter must acknowledge the rule as risky.

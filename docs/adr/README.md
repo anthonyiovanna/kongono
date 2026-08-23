@@ -1,5 +1,15 @@
 # Architecture Decision Records
 
+### [ADR 0064: Independent Deterministic Hantei Verification](0064-independent-deterministic-hantei-verification.md)
+
+Accepts and implements the Phase 4E closed eight-check verifier, exact subject
+identity, bounded process authority, non-disclosing evidence, and independent
+Knowledge-without-Chie package boundary.
+
+### [ADR 0066: Explicit Reviewable Chie Patch Proposals](0066-explicit-reviewable-chie-patch-proposals.md)
+
+Accepts the one explicit deterministic current-documentation candidate rule,
+reversible diff and provenance contract, and pending human/fresh-Hantei handoff.
 Architecture Decision Records (ADRs) capture decisions explicitly authorized for Kongono. They do not authorize implementation outside the current phase.
 
 ## Required structure
@@ -78,6 +88,8 @@ Phase 0A ADRs normally use `Accepted` because they record locked direction. Expe
 56. [PHP CGI Production Delivery and Entry Composition](0056-php-cgi-production-delivery-and-entry-composition.md) — Accepted Phase 3F concrete one-delivery adapter and thin entry into Web Runtime.
 57. [Bounded PHP CGI Front-Controller Lifecycle and Deployment Constraints](0057-bounded-php-cgi-front-controller-lifecycle-and-deployment-constraints.md) — Accepted Phase 3G explicit entry/shutdown lifecycle and selected-profile operator constraints.
 58. [Phase 3 External PHP-CGI Acceptance and Checkpoint](0058-phase-3-external-php-cgi-acceptance-and-checkpoint.md) — Accepted Phase 3H test-owned external listener proof and exact Phase 3 checkpoint.
+59. [Rolling Current-Minor PHP Baseline](0059-rolling-current-minor-php-baseline.md) — Accepted one-compatibility-certified-minor policy; Phase 4A changes no current Composer constraint or lockfile byte.
+60. [Human-Centered Developer-Intelligence Family](0060-human-centered-developer-intelligence-family.md) — Accepted Chie/Hantei/Oshie separation, AI-independent knowledge direction, and security/provenance boundary; no role is implemented.
 
 ## Process
 
@@ -116,3 +128,52 @@ production-hardening claim follows.
 
 - [0057 - Bounded PHP CGI Front-Controller Lifecycle and Deployment Constraints](0057-bounded-php-cgi-front-controller-lifecycle-and-deployment-constraints.md)
 - [0058 - Phase 3 External PHP-CGI Acceptance and Checkpoint](0058-phase-3-external-php-cgi-acceptance-and-checkpoint.md)
+
+Phase 3 is complete at checkpoint
+`6aacafc92f07b567818173d660e2e182dfa83d23`. Phase 4A is the current Accepted
+architecture boundary: ADR 0059 records one rolling compatibility-certified PHP
+minor without changing the mixed `>=8.5` and `^8.5` metadata, and ADR 0060
+records planned Kongono Chie, Kongono Hantei, and Kongono Oshie above one future
+AI-independent knowledge foundation. No role, knowledge artifact, patch
+proposal, package, command, provider, auto-fix, autonomous operation, or
+production AI is implemented.
+
+- [0059 - Rolling Current-Minor PHP Baseline](0059-rolling-current-minor-php-baseline.md)
+- [0060 - Human-Centered Developer-Intelligence Family](0060-human-centered-developer-intelligence-family.md)
+- [0061 - Versioned Knowledge-Source and Provenance Contract](0061-versioned-knowledge-source-and-provenance-contract.md)
+- [Phase 4 roadmap](../architecture/phase-4-roadmap.md)
+
+Phase 4B is the current Accepted architecture boundary. ADR 0061 defines exact
+source-state, source authority, provenance, conflict, citation, deterministic
+derivation, disclosure, and framework/workspace separation semantics. It adds
+no package, artifact, schema, digest, command, generator, validator, retrieval
+system, model, workspace reader, or developer-intelligence runtime. Phase 4C is
+the next sequential boundary under separate authentication.
+
+### [ADR 0062: Deterministic Framework-Knowledge Artifact Package and Format](0062-deterministic-framework-knowledge-artifact.md)
+
+Accepted 2026-08-22. Phase 4C implements the acyclic `kongono/knowledge`
+package, exact closed 31-source inventory, canonical format and identities,
+whole-source citations, complete generation/current validation, bounded
+diagnostics, and optional content-addressed atomic initial publication. The
+artifact remains derived evidence; no checked-in artifact, model, retrieval,
+workspace reader, Graph input, role runtime, mutation, or production dependency
+is introduced.
+
+### [ADR 0063: Read-Only Chie Explanation and Diagnostic-Observation Boundary](0063-read-only-chie-explanation-and-diagnosis.md)
+
+Accepted 2026-08-22. Phase 4D implements the acyclic `kongono/chie` package as
+an offline consumer of one explicit current Phase 4C artifact. It returns exact
+cited sections for six closed topics or bounded literal occurrences of one
+supplied Safe diagnostic identifier and exposes unsupported, unavailable,
+stale, and blocked states. It adds no free-form prompt, arbitrary workspace
+access, model, provider, network, patch, verification, write, Git, deployment,
+or production authority.
+
+65. [Cited Version-Matched Oshie Learning and Deterministic Exercises](0065-cited-version-matched-oshie-learning-and-deterministic-exercises.md) — Accepts the Phase 4F closed six-record curriculum, exact cited lessons, deterministic exact-answer checks, and read-only non-authoritative teaching boundary.
+66. [Explicit Reviewable Chie Patch Proposals](0066-explicit-reviewable-chie-patch-proposals.md) — Accepts one deterministic unapplied exact-line documentation candidate with reversible diffs, exact provenance, and a pending human/fresh-Hantei handoff.
+67. [Cross-Role Developer-Intelligence External Acceptance](0067-cross-role-developer-intelligence-external-acceptance.md) — Accepts the root-owned 28-scenario external harness, shared current identities, offline and failure proof, real versus synthetic Hantei evidence, temporary-only writes, and unchanged role authority.
+
+Phase 4A through 4H are implemented and externally accepted at the bounded
+Phase 4 checkpoint. The milestone remains Experimental and pre-1.0; no Phase 5
+capability is selected or implied.

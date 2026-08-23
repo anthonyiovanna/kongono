@@ -104,3 +104,57 @@ that semantic ownership. Examples may show direct structural construction,
 current Graph, Kernel, or DI context access, and direct use of the implemented
 pure trusted renderer. Sanitization, activation, transport, and production-
 presentation examples must remain labeled future pseudocode.
+
+## Versioned and generated developer-intelligence material
+
+Documentation used by future Kongono Chie, Kongono Hantei, or Kongono Oshie
+must cite the exact Kongono version or source state and the applicable source,
+ADR, diagnostic, symbol, test, or command evidence. Do not combine stale or
+mixed-version facts silently. Missing, unverifiable, unsupported, or ambiguous
+knowledge must be labeled rather than completed by confident prose.
+
+Generated teaching, explanations, recommendations, and candidate changes are
+derived material, never accepted repository truth. Label accepted framework
+fact, deterministic current-workspace observation, inference, recommendation,
+generated candidate content, and unresolved uncertainty distinctly. A role's
+output, confidence, or repetition cannot replace deterministic evidence or
+authorize itself.
+
+Phase 4A accepts this documentation rule only. The developer-intelligence
+roles, knowledge artifacts, and patch proposals are not implemented, and
+ordinary accepted documentation remains usable offline and without AI. See
+[ADR 0060](adr/0060-human-centered-developer-intelligence-family.md) and the
+[developer-intelligence architecture](architecture/developer-intelligence.md).
+
+## Source-state, authority, and provenance labels
+
+Where version, implementation state, or evidence affects meaning,
+documentation must identify the exact source state and distinguish governing
+authority, implementation evidence, current explanation, historical evidence,
+workspace observation, and derived or advisory material. Claims must also
+distinguish accepted fact, deterministic observation, inference,
+recommendation, generated candidate, and unresolved uncertainty or conflict.
+
+Derived material traces to exact originating sources and cannot cite other
+generated text as the sole authority for a framework fact. Historical evidence
+retains its historical state label. Multiple versions remain separated, and
+conflicts are disclosed rather than resolved by recency, confidence, or
+convenience. Citations must not reveal excluded paths, secrets, or Protected
+values. See [ADR 0061](adr/0061-versioned-knowledge-source-and-provenance-contract.md)
+and the [knowledge foundation](architecture/knowledge-foundation.md).
+
+Phase 4C's generated framework artifact follows these rules mechanically for
+one closed 31-source set. It embeds exact current source bytes and their
+authority labels, binds whole-source citations to one exact source-set digest,
+and fails current validation when any included state changes. The artifact is
+derived evidence rather than documentation authority and is not checked in.
+Line, symbol, inferred, cross-version, workspace, retrieval, and generated-
+teaching references remain outside the implemented contract.
+
+Phase 4D adds bounded line citations without changing documentation authority.
+Each Chie citation binds one exact excerpt or diagnostic line to its artifact
+source reference, relative path, authority class, source SHA-256, and inclusive
+line range. The cited bytes are returned unchanged; Chie does not summarize or
+complete them. A response remains derived material and cannot replace its
+source, hide stale state, turn a workspace observation into framework truth, or
+certify correctness. See [read-only Chie](architecture/read-only-chie.md).

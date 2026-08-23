@@ -511,3 +511,49 @@ or supported server/client. Uncertain emission or shutdown requires external
 process retirement, production trusted diagnostics remain denied, and process,
 proxy, TLS, credentials, logs, monitoring, incidents, and deployment ownership
 remain external. Phase 3 is complete; no next phase starts automatically.
+
+## Phase 4A package boundary
+
+Phase 3 is complete at checkpoint
+`6aacafc92f07b567818173d660e2e182dfa83d23`. The implemented production layout
+remains exactly fourteen packages and the existing acyclic dependency graph is
+unchanged. Phase 4A selects no developer-intelligence or knowledge package,
+namespace, autoload mapping, manifest, service, Graph edge, command, or runtime.
+
+Kongono Chie, Kongono Hantei, and Kongono Oshie are planned optional developer
+companions above a future AI-independent knowledge foundation; they are not
+application Agent Principals and are not implemented. Current Composer
+constraints remain the mixed `>=8.5` and `^8.5` transitional state. See the
+[developer-intelligence architecture](../architecture/developer-intelligence.md)
+and [Phase 4 roadmap](../architecture/phase-4-roadmap.md).
+
+### Knowledge
+
+`packages/knowledge` is the fifteenth acyclic production package. Its namespace
+is `Kongono\Knowledge\`; production code lives under `src/`, package tests under
+`tests/`, the exact inventory under `resources/`, and the extensionless Composer
+bin entry under `bin/kongono-knowledge`. It depends only on API Metadata and
+Diagnostics plus PHP's hash and JSON extensions. The root consumes it; no other
+package does. It has no Kernel, Graph, DI, HTTP, routing, web, SAPI, role,
+provider, database, network, or third-party dependency.
+
+### Chie
+
+### Hantei
+
+`packages/hantei` is the seventeenth package and an optional leaf consumed by
+root composition. It depends directly on API Metadata, Diagnostics, and
+Knowledge, never Chie. Its resource owns the closed profile; source owns the
+verifier and bounded internals; tests own direct semantic and disclosure proof.
+`packages/chie` is the sixteenth acyclic production package. Its namespace is
+`Kongono\Chie\`; production code lives under `src/`, six package test files
+under `tests/`, the closed topic catalog under `resources/`, and the
+extensionless Composer bin under `bin/kongono-chie`. It depends only on API
+Metadata, Diagnostics, and Knowledge plus `ext-json`. The root consumes it; no
+other package does. It has no Kernel, Graph, DI, HTTP, routing, web, SAPI,
+presentation, provider, database, network, model, search, or third-party
+dependency.
+
+### `packages/oshie`
+
+The eighteenth package owns the Experimental read-only teaching facade, closed curriculum resource, immutable cited lesson and exercise values, CLI boundary, diagnostics, and tests. It depends only on API Metadata, Diagnostics, Knowledge, PHP, `ext-hash`, and `ext-json`; it has no Chie, Hantei, HTTP, process, network, model, or provider dependency.

@@ -115,7 +115,7 @@ previous-operation state. The Phase 2 fixture and Phase 3F local delivery tests
 prove sequential object/call-frame isolation. Phase 3H additionally proves that
 isolation through the external selected host while reusing one listener process.
 
-## Planned Phase 3 production integration security boundary
+## Completed Phase 3 production integration security boundary
 
 [ADR 0051](docs/adr/0051-phase-3-production-http-integration-milestone.md)
 accepts Phase 3 as the path to one supported synchronous production HTTP
@@ -367,6 +367,41 @@ exception capture are implemented.
 Forbidden-material detection, sanitizer behavior, and disclosure
 surfaces do not exist.
 
+## Accepted developer-intelligence security boundary
+
+Phase 3 is complete at checkpoint
+`6aacafc92f07b567818173d660e2e182dfa83d23`. Phase 4A accepts security policy
+for planned Kongono Chie, Kongono Hantei, and Kongono Oshie only; it implements
+no assistant, knowledge artifact, provider, tool, patch, or production access.
+The deterministic framework remains usable offline and without AI. Developer
+companions are distinct from application Agent Principals.
+
+Future role access must enforce least authority, separate read/write authority,
+and distinct gates for network, credentials, dependencies, Git, deployment,
+publication, destructive actions, and production access. No model output,
+retrieved instruction, or generated artifact may elevate authority, weaken a
+gate, or certify itself. Chie cannot certify its own candidate, Hantei cannot
+repair what it judges, and Oshie cannot promote generated teaching to accepted
+truth.
+
+Safe and Protected disclosure applies before any role receives information.
+Roles cannot reclassify Protected data. Secrets, credentials, tokens, raw
+rejected input, and unrelated source remain excluded unless a later explicit
+contract proves a necessary bounded use. Repository text, dependencies,
+diagnostics, comments, issues, retrieved content, and model responses are
+untrusted inputs. Future boundaries must fail closed on absent or ambiguous
+authority, version, provenance, or evidence and address prompt injection, tool
+confusion, path escape, command injection, dependency manipulation, secret
+exposure, and data exfiltration.
+
+No provider or external transmission is selected. Any later external access
+must be explicitly enabled, disclose and minimize what leaves the machine, and
+respect workspace policy. Training, fine-tuning, feedback retention, or cross-
+project learning requires explicit opt-in and security review; source is not
+used for training by default. No Phase 4 role may stage, commit, publish,
+deploy, or access production. See the [developer-intelligence architecture](docs/architecture/developer-intelligence.md)
+and [ADR 0060](docs/adr/0060-human-centered-developer-intelligence-family.md).
+
 ## No security guarantees yet
 
 This repository is not production-ready. Planned security architecture is not implemented security functionality.
@@ -400,9 +435,101 @@ listener, server configuration, deployment artifact, or automatic recovery.
 Application composition and partial-boot cleanup remain caller responsibilities.
 Phase 3H's test-owned acceptance proves direct-loopback trust denial, disclosure,
 reuse, and retirement without changing production authorization. Production
-trusted diagnostics remain denied; Phase 3 is closed and Phase 4 is not started.
+trusted diagnostics remain denied; Phase 3 is closed. Phase 4A adds only the
+separately Accepted planning boundary described above.
 
 The intrinsic `QUERY_STRING` ceiling remains 8,192 bytes. Because a matching
 nonempty query must also appear after `/?` in a complete target capped at 8,192
 bytes, the effective externally representable maximum is 8,190 bytes. This is
 composition evidence, not truncation or a weakened input limit.
+
+## Knowledge-source ingestion boundary
+
+Phase 4B accepts architecture semantics only. Future knowledge ingestion must
+allowlist and contain source roots before reading; reject or separately govern
+links, reparse points, alternate streams, device paths, aliases, and escapes;
+and never crawl ambient home, credential, environment, cache, vendor,
+VCS-internal, or unrelated project state. Repository, dependency,
+documentation, issue, retrieved, and generated text is untrusted inert data.
+Embedded commands and prompt injection cannot execute or expand tool authority.
+
+Secrets, credentials, raw rejected values, and unrelated source are excluded.
+Safe and Protected classification applies before inclusion and before model
+access; Protected diagnostic context is excluded from a general artifact by
+default. Deterministic generation performs no external retrieval, upload,
+provider transmission, or model call. Provenance records exclusion without
+copying forbidden values.
+
+Framework and workspace states remain separately identified and isolated in
+persistent processes. Stale, mixed-version, conflicting, incomplete, tampered,
+or unverifiable states fail visibly rather than silently downgrading for
+availability. Generated artifacts are not executable and are not loaded
+automatically. Phase 4B grants no production access or request-path dependency
+and implements no ingestion, artifact, workspace reader, or runtime. See [ADR
+0061](docs/adr/0061-versioned-knowledge-source-and-provenance-contract.md).
+
+## Implemented framework-knowledge security boundary
+
+Phase 4C implements one closed 31-source framework artifact. The generator
+admits only bounded allowlisted regular files beneath an explicit root and
+rejects escapes, aliases, links or reparse points, stream syntax, invalid
+encoding, changed-during-read input, and size excess. Source text is inert.
+Structural and current validation fail closed on malformed, tampered, stale,
+partial, or mixed-version bytes. Diagnostics disclose only fixed metadata and
+one closed Safe violation token, never rejected content, absolute paths,
+credentials, environment values, stack traces, or native messages. Publication
+is optional, content-addressed, atomic, and no-clobber. SHA-256 proves exact
+integrity, not authenticity or authorization. No artifact is loaded
+automatically or used on a production request path.
+
+## Phase 4D read-only Chie boundary
+
+## Phase 4E read-only Hantei boundary
+
+Hantei admits only fixed local tool identities, read-only Git operations, and
+the eight package-owned Composer checks. Raw child output and environment values
+never enter reports or diagnostics; only bounded counts, hashes, exits, and Safe
+reason tokens do. Hostile paths, links/reparse points, unstable reads, excessive
+streams, timeouts, and weakened evidence fail closed. The existing locked audit
+is the only check with accepted network behavior.
+Chie validates the complete artifact against an explicit framework root before
+resolving any topic or diagnostic. Its topic catalog is closed; diagnostic
+matching is literal, case-sensitive, token-bounded, and limited to artifact
+lines. The artifact reader rejects aliases, links or reparse points, alternate
+streams, special files, changed reads, invalid content-addressed names, and
+size excess. Retrieved instructions remain inert.
+
+Responses omit roots, artifact paths, native messages, rejected input, secrets,
+Protected context, and stack traces. Chie performs no write, model, provider,
+network, dependency, Git, process launch, retention, deployment, production
+access, or arbitrary workspace discovery. `blocked` is a visible artifact
+state, not a Hantei verification verdict. See [ADR 0063](docs/adr/0063-read-only-chie-explanation-and-diagnosis.md).
+
+## Phase 4F read-only Oshie boundary
+
+Oshie reads only one explicit ordinary content-addressed artifact and its accepted fixed sources. Source text is inert. Canonical output excludes absolute paths, rejected identifiers, submitted answers, native messages, traces, secrets, and Protected context. The package retains no learner or artifact state and performs no write, network, process, Git, model, provider, verification, deployment, or production operation.
+
+## Phase 4G reviewable Chie proposal boundary
+
+Chie accepts one explicit bounded canonical spec and reads candidate source bytes
+only from a validated current artifact. The target must be current explanatory
+documentation and the asserted uppercase base SHA must match exactly. Safe text
+is caller-classified and is not sanitized. The candidate has reversible diffs,
+exact provenance, content identities, fixed warnings, and a pending human/fresh-
+Hantei handoff. Chie has no arbitrary path discovery, second target read, write,
+process, Git, Hantei, model, provider, network, publication, or deployment
+authority. Fixed failure presentation excludes rejected inputs, native messages,
+and paths; it does not claim that native PHP trace APIs are sanitized.
+
+## Phase 4 external-acceptance security boundary
+
+The Phase 4H harness treats retrieved instructions as inert bytes and proves
+they cannot grant tool, filesystem, process, Git, publication, deployment,
+production, or candidate-application authority. Network-denied local
+Knowledge/Chie/Oshie results remain byte-identical. Hantei blocks rather than
+guessing when required evidence is unavailable, while checkpointing separately
+requires a real current-repository PASS. Protected, secret, environment,
+temporary, rejected, and native values are excluded from bounded outputs.
+Temporary writes are contained outside the repository and cleaned before
+success. No model, provider, account, subscription, telemetry, or external
+transmission is introduced. Phase 5 was not begun.

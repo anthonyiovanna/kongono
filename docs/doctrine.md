@@ -282,3 +282,108 @@ TLS, credentials, logs, monitoring, incidents, and deployment ownership remain
 external. Production trusted diagnostics remain denied. Phase 3 is complete,
 no next phase starts automatically, and the milestone remains smaller than the full
 framework, Stable API, 1.0, or production-hardening certification.
+
+## Rolling current-minor PHP doctrine
+
+The actively developed line supports exactly one stable PHP minor at a time:
+the newest minor that has completed Kongono's compatibility gate. PHP 8.5 is
+the intended current certified line, and the later intended bounded Composer
+expression is `>=8.5.0 <8.6.0`. Current manifests remain in their exact mixed
+`>=8.5` and `^8.5` transitional state until a separately authenticated
+migration completes. Composer admission, publication, or prerelease success
+does not establish PHP 8.6 or PHP 9 support.
+
+Deprecations are migration signals, not warnings to suppress. A new minor
+requires deterministic dependency, platform, autoload, style, analysis, test,
+external acceptance, persistent-runtime, cleanup, host, extension, performance,
+memory, and release evidence. See [ADR 0059](adr/0059-rolling-current-minor-php-baseline.md)
+and the [PHP support policy](engineering/php-support-policy.md).
+
+## Human-centered developer intelligence
+
+Phase 3 is complete at checkpoint
+`6aacafc92f07b567818173d660e2e182dfa83d23`. Phase 4A accepts documentation
+architecture for three future optional roles above one versioned, inspectable,
+AI-independent knowledge foundation:
+
+- Kongono Chie helps you build it but cannot certify its own candidate.
+- Kongono Hantei proves it works from deterministic evidence and cannot repair
+  what it judges.
+- Kongono Oshie helps you understand it from version-matched accepted sources
+  and cannot make generated teaching authoritative.
+
+AI may suggest; Kongono must know. The framework remains usable offline and
+without AI, a provider, an account, or a network. Developer companions are
+distinct from application Agent Principals. Future answers must identify the
+exact version or source state, cite bounded provenance, distinguish fact,
+observation, inference, recommendation, candidate, and uncertainty, and fail
+closed on missing or ambiguous authority or evidence.
+
+The roles, knowledge artifacts, packages, commands, providers, patch proposals,
+auto-fix, autonomous operations, and production access are not implemented.
+See [ADR 0060](adr/0060-human-centered-developer-intelligence-family.md) and the
+[Phase 4 roadmap](architecture/phase-4-roadmap.md).
+
+## Exact-state knowledge doctrine
+
+[ADR 0061](adr/0061-versioned-knowledge-source-and-provenance-contract.md)
+accepts six distinct source-authority classes and six claim classes. Accepted
+policy, observed implementation, current explanation, historical evidence,
+workspace observation, and derived advice cannot be flattened into one corpus.
+Every version-sensitive claim binds to an exact immutable source state and
+retains bounded, non-secret provenance.
+
+Derived material and model output never become independent authority.
+Unresolved conflicts, staleness, version mismatch, missing validation, and
+incomplete evidence remain visible. Deterministic knowledge work stays offline
+and AI-independent; source text remains inert and cannot authorize execution.
+Official framework knowledge and project-scoped workspace evidence remain
+separate. Phase 4B implements no artifact or mechanism; Phase 4C must separately
+select the concrete deterministic slice.
+
+## Deterministic artifact implementation
+
+ADR 0062 and Phase 4C implement one bounded consequence of the exact-state
+knowledge doctrine. `kongono/knowledge` builds and validates a canonical
+31-source framework-foundation artifact without AI, a network, a workspace
+reader, or runtime integration. Exact bytes and authority labels remain
+inspectable; whole-source references are source-set-specific; stale state fails
+visibly. Optional publication is immutable, content-addressed, atomic, and
+no-clobber. The artifact is derived evidence and cannot authorize execution,
+replace governing sources, or become a complete framework or workspace model.
+
+## Read-only role derivation
+
+## Independent deterministic verification
+
+Hantei owns verification, not repair. A pass requires every fixed relevant
+check against one unchanged exact subject. Failures and unavailable evidence
+remain visibly distinct, raw hostile output stays outside verdicts, and derived
+reports never become accepted framework authority.
+ADR 0063 and Phase 4D implement one least-authority consumer of that artifact.
+Chie may return exact cited source sections for six closed topics and bounded
+literal occurrences of one supplied Safe diagnostic identifier. Its output is
+derived material; the supplied identifier is only a current workspace
+observation and does not prove occurrence. Retrieved instructions remain inert.
+Chie cannot infer authority, recommend or change code, select or certify gates,
+impersonate Hantei, access arbitrary workspace state, or use a model, network,
+Git, deployment, or production capability.
+
+Phase 4F Oshie teaches only from exact current accepted source sections through one closed package curriculum. Its lessons and answer feedback are derived teaching, never doctrine. Oshie cannot execute examples, retain learner state, mutate a subject, verify correctness, or elevate its own output into authority.
+
+Phase 4G Chie may construct one deterministic, reversible review candidate only
+from an explicit current-explanatory-documentation source in the validated
+current artifact. Caller-asserted Safe text is not sanitized. The candidate is
+derived material, remains unapplied and unverified, and requires explicit human
+application plus fresh independent Hantei evidence. Chie cannot write, apply,
+certify, use Git, invoke Hantei, or use a model, provider, or network. Oshie
+teaching does not supply proposal authority.
+
+Phase 4H closes Phase 4 with root-owned external evidence only. Its exact 28
+scenarios prove direct accepted-source availability, one current identity,
+offline local Knowledge/Chie/Oshie behavior, real and explicitly synthetic
+Hantei distinctions, visible failure, inert retrieved instructions,
+non-disclosure, temporary cleanup, and no authority elevation. The harness is
+not doctrine, a production service, an application Agent Principal, or a source
+of model, provider, network, Git, deployment, or production authority. Phase 5
+was not begun.

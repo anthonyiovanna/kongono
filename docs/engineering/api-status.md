@@ -73,3 +73,39 @@ logs, monitoring, incidents, and deployment ownership remain external. Phase 3
 is complete, but it is not the full framework, Stable API, 1.0, universal SAPI
 support, deployment automation, or production-hardening certification. No next
 phase starts automatically.
+
+## Knowledge package
+
+Phase 4C adds 18 production types. `Kongono\Knowledge\Exception\ExceptionInterface`
+is Public. `FrameworkKnowledgeArtifact`, its generator, validator, and publisher;
+`KnowledgeSource` and `KnowledgeSourceAuthority`; and the four concrete package
+exceptions are Experimental. `KnowledgeCommand`, `KnowledgeDiagnostic`,
+`KnowledgeException`, `CanonicalJson`, `PathGuard`,
+`KnowledgeSourceDefinition`, and `KnowledgeSourceInventory` are Internal.
+Nothing in the package is Stable, and status does not confer authority or
+permission to publish, mutate source, access a workspace, or use production.
+
+## Chie package
+
+## Hantei package
+
+Hantei, its evidence/report values, verdict/outcome enums, and invalid-request
+exception are Experimental. Its exception marker is Public. The command,
+diagnostic, base exception, invalid-value boundary, canonical JSON, profile,
+subject, process, and verdict evaluator are Internal. Nothing is Stable.
+Phase 4D adds 23 production types. `Kongono\Chie\Exception\ExceptionInterface`
+is Public. `Chie`, its request/response/citation/claim values, operation/status/
+topic/claim enums, diagnostic observation, and four concrete exceptions are
+Experimental. `ChieCommand`, `ChieDiagnostic`, `ChieException`,
+`ArtifactFileReader`, `CanonicalJson`, `DiagnosticLocator`, `SectionExtractor`,
+and `TopicCatalog` are Internal. Nothing is Stable. Status communicates
+supported use only; it grants no prompt, model, workspace, write, verification,
+Git, network, deployment, or production authority.
+
+Phase 4F marks Oshie's facade, immutable value objects, enums, request/response types, and concrete operational exceptions Experimental; its package exception marker is Public; and command, diagnostic, base exception, value-boundary exception, artifact reader, canonical encoder, curriculum catalog, and section extractor are Internal. Nothing is Stable.
+## Phase 4G Chie declarations
+
+The seven proposal values and three proposal exceptions are Experimental. The
+proposal-spec reader, unified-diff builder, and proposal builder are Internal.
+No Phase 4G declaration is Stable. The statuses describe exposure and evolution;
+they do not grant authority to apply or verify a candidate.
