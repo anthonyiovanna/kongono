@@ -104,7 +104,7 @@ final class ApiMetadataTest extends TestCase
             'description' => 'Neutral API compatibility metadata for Kongono Framework.',
             'type' => 'library',
             'require' => [
-                'php' => '>=8.5',
+                'php' => '>=8.5.0 <8.6.0',
             ],
             'autoload' => [
                 'psr-4' => [

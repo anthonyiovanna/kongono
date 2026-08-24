@@ -731,10 +731,15 @@ no executable example. Teaching is derived material, not repository truth.
 ## Rolling Current-Minor Baseline
 
 The Accepted policy that the actively developed line supports exactly one
-compatibility-certified stable PHP minor at a time. PHP 8.5 is the intended
-current line, but manifests remain in the mixed `>=8.5` and `^8.5` transitional
-state pending a separately authenticated migration to
-`>=8.5.0 <8.6.0`.
+compatibility-certified stable PHP minor at a time. PHP 8.5 is the current
+line, and Phase 5B applies `>=8.5.0 <8.6.0` to the root and all eighteen
+packages. PHP 8.5.9 on Windows is the environment proved by this execution;
+stable eligible 8.5 patches remain within range. PHP 8.6, PHP 9, prerelease,
+nightly, and automatic future-minor support are not claimed. The migration
+changes installability metadata only and adds no runtime semantics, package,
+dependency, public API, polyfill, shim, release/LTS promise, or composition/
+build capability. Phase 5A remains accepted, Phase 5B is accepted, and this
+bounded PHP constraint is current.
 
 ## Compatibility Gate
 
@@ -869,3 +874,170 @@ One stateless exact-answer result containing a correct or incorrect outcome, the
   Hantei PASS from synthetic evaluator FAIL/BLOCKED evidence, proves offline and
   failure behavior, and grants no package, production, mutation, Git, network,
   deployment, or Phase 5 authority.
+
+## Application Composition Root
+
+The Accepted future supported boundary that assembles reviewed application
+declarations and existing first-party capabilities. It owns construction,
+startup order, retained application-lifetime objects, operation factories,
+shutdown order, and partial-boot cleanup. It is not Kernel and must not expose a
+resolver or container to application services. Phase 5A implements no root API.
+
+## Composition Build
+
+The planned explicit deterministic build/check step that validates composition
+inputs, dependency structure, roots, lifetimes, routes, cleanup, and provenance
+before runtime and produces one complete inspectable artifact. It never runs on
+the first request. Phase 5A selects no syntax, command, schema, or artifact
+format.
+
+## Generated Typed Wiring
+
+The Accepted preferred future production mechanism: readable ordinary PHP with
+explicit constructor calls and dependency edges generated from canonical
+reviewed inputs. It is statically analyzable derived evidence, not authority,
+and removes dynamic resolution and discovery from the request path only after a
+successful current build.
+
+## Composition Source
+
+The Accepted singular inert application-owned file at
+`<application-root>/kongono.composition.json`. It is authoritative application
+code in data form, not generated state or framework authority. The Phase 5D
+build package consumes it before runtime; no runtime reader or generated wiring
+exists.
+
+## Composition Artifact
+
+The implemented Phase 5D compact canonical JSON evidence that binds the exact
+raw source, project files, symbol source set, closed builder implementation,
+and canonical semantic model. Raw-source and model identities are separate;
+current validation requires an exact byte-identical rebuild. Publication is
+content-addressed and no-clobber. The artifact is not runtime service access,
+generated PHP, a cache pointer, or authority.
+
+## Composition Schema Version
+
+The exact integer selecting composition-source semantics. Phase 5C accepts only
+version `1` with schema name `"kongono.composition"`; there is no implicit
+upgrade, downgrade, compatibility guess, or unknown-member tolerance.
+
+## Composition Input
+
+A version-1 declaration containing exactly one canonical class/interface
+`contract`. It represents a typed object supplied explicitly by the future
+application host. Its runtime value, credentials, handles, and environment-
+derived data never appear in the source or generated artifact.
+
+## Service Declaration
+
+A version-1 object with exactly canonical concrete `class`, one `lifetime`, an
+authoritative ordered `arguments` list, and `cleanup` as null or an exact method
+name. It is an Accepted data contract, not a current runtime registration.
+
+## Binding Declaration
+
+A version-1 single-hop mapping with exactly canonical `contract` and one
+declared concrete `service`. Each contract has zero or one binding; chains,
+aliases, contextual selection, priorities, fallbacks, wildcards, and automatic
+multi-binding are prohibited.
+
+## Application Root
+
+A version-1 root declaration whose kind is `"application"` and whose canonical
+contract resolves to an application-lifetime service. It is a future typed
+entry point, never a general runtime lookup.
+
+## Operation Root
+
+A version-1 root declaration whose kind is `"operation"` and whose canonical
+contract resolves to an operation-lifetime service. It begins one isolated
+future operation boundary and is not shared across operations.
+
+## Cleanup Declaration
+
+The optional exact method name on a service declaration. When non-null, it must
+identify a public, non-static, zero-argument instance method returning `void`;
+future owners call it at most once in reverse successful-construction order.
+
+## Canonical Composition Model
+
+The detached semantic model formed from exact declared strings, ordinal
+case-sensitive ordering for non-semantic collections, and preserved constructor
+argument order. Explicit typed aggregate members are separate ordered service
+edges. Phase 5D implements this model; Phase 5E removes the superseded service-
+list form.
+
+## Typed Aggregate Service
+
+An ordinary application-owned concrete service whose constructor names each
+plural collaborator with a separate typed parameter and `service` edge. Its
+parameter order is member order. Kongono supplies no aggregate base type,
+collection injection, automatic multibinding, tags, or priorities.
+
+## Composition Provenance
+
+The bounded future evidence binding schema/version, raw-source and canonical-
+model SHA-256 identities, root Composer manifest/lock identities, the ordinal
+declaring-source manifest, builder package/version, and generated-artifact
+identity. It excludes absolute paths, usernames, timestamps, randomness,
+environment values, credentials, request data, and Protected data.
+
+## Application Lifetime
+
+The Accepted Phase 5C lifetime of one future instance per successfully composed
+application, shared across operations and cleaned during shutdown. Its runtime
+API remains unimplemented, and application objects retain responsibility for
+documented concurrency safety and absence of operation-specific state.
+
+## Operation Lifetime
+
+The Accepted Phase 5C lifetime of at most one future instance per declared
+service in one operation. It is never shared across operations and is cleaned
+when that operation ends. Exact runtime factory/API remains unimplemented.
+
+## Transient Lifetime
+
+The Accepted Phase 5C lifetime in which every explicit future construction edge
+receives a fresh instance owned and cleaned by the active application or
+operation boundary. The current resolver independently implements transient-
+per-edge construction; Phase 5C adds no generated-wiring runtime API.
+
+## Stale Build Artifact
+
+A composition artifact whose bound input state no longer matches the accepted
+current source state. Production startup must reject it before accepting work;
+it cannot be silently reused, repaired, or replaced by request-time discovery.
+
+## Runtime Service Location
+
+Fetching a dependency during runtime from a general resolver, container,
+registry, or ambient lookup by string, class name, or equivalent key. The
+supported production path rejects it, including resolver/container injection
+and property-hook dependency fetching. Explicit typed generated factories are a
+different possible future mechanism and require separately accepted lifecycle
+semantics.
+
+## Application Build Workflow
+
+The Experimental reusable Phase 5G boundary that builds or non-mutatingly
+checks the exact current content-addressed Composition artifact and generated
+PHP pair. It derives exact filenames without scanning and owns no mutable
+current/latest pointer or automatic cleanup.
+
+## Copy-once Application Skeleton
+
+The Kongono-owned `skeletons/minimal/` template before copying. After copying,
+all non-generated files are application-owned; Kongono does not automatically
+upgrade, merge, overwrite, migrate, or remotely update them. `vendor/` and the
+content-addressed build files are derived and replaceable.
+
+## Phase 5 External Acceptance
+
+The root-owned, test-only 28-scenario proof for the supported pre-1.0
+application-composition slice. It installs an exact copied skeleton against
+ordinary mirrored local packages with plugins and network disabled, exercises
+real build/check/run and PHP-CGI boundaries, proves fail-closed state handling,
+isolation, nondisclosure, and cleanup, and emits deterministic canonical JSON.
+It is not a production API, installer, listener, deployment certification, or
+Phase 6 capability.

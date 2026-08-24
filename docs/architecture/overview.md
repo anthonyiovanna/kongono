@@ -62,10 +62,10 @@ page, production error surface, logging, telemetry, retry, cleanup, incident
 system, extension host, agent runtime, query plan, performance budget, or CLI
 executable is implemented.
 
-The current package topology has fourteen packages. `kongono/api-metadata` owns
+The current package topology has nineteen packages. `kongono/api-metadata` owns
 `Kongono\ApiMetadata\Api` and `ApiStatus` and requires PHP only. Kernel,
 Diagnostics, Application Graph, and Dependency Injection depend directly on it;
-the framework root consumes all fourteen packages and Graph retains its Diagnostics
+the framework root consumes all nineteen packages and Graph retains its Diagnostics
 dependency. Phase 0T also makes Kernel, and Phase 0U makes DI, depend directly
 on Diagnostics. Phase 1C adds `kongono/diagnostic-activation`, which requires
 only API Metadata and PHP and owns the Experimental unbacked typed bootstrap
@@ -159,7 +159,8 @@ truth table. It validates no evidence and enforces no presentation access;
 Diagnostic Presentation remains separate and directly callable.
 
 Phase 1H implements `kongono/diagnostic-handler` as the eighth leaf under
-`Kongono\DiagnosticHandler\`. It depends directly only on PHP 8.5 or later,
+`Kongono\DiagnosticHandler\`. It depends directly only on PHP
+`>=8.5.0 <8.6.0`,
 API Metadata, Diagnostic Activation, Diagnostic Presentation, Kernel,
 Application Graph, and Dependency Injection. The originating-package edges are
 required by the accepted source-marker union; no direct Diagnostics edge exists,
@@ -249,7 +250,7 @@ Only the structural core is implemented. The surrounding flow expresses intended
 
 ## Framework shape
 
-The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. Diagnostic Activation owns the implemented typed trusted-bootstrap and adapter-controlled delivery permissions. Diagnostic Presentation owns the implemented pure trusted-developer projection core and pure HTML renderer but does not depend on Diagnostic Activation or own activation decisions. Diagnostic Handler is the only lower package depending on both and owns eligibility-first neutral sequencing. HTTP Message owns the selected server-side message and factory roles plus 28 bounded diagnostics. Routing owns bounded route declarations and deterministic matching; HTTP Server owns PSR-15 composition. Web Application owns application-call Kernel scope cleanup. Web Runtime owns outer request-independent evidence sequencing, fixed generic or eligible trusted response selection, and exact send/close attempts. PHP CGI owns bounded explicit inbound conversion. The root-owned Phase 2 fixture supplies the only concrete runnable integration and is test infrastructure, not production behavior. No production SAPI/server/listener/emitter, trusted network authorization mechanism, or supported deployment profile exists. The monorepo retains atomic root validation across all fourteen implemented packages.
+The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. Diagnostic Activation owns the implemented typed trusted-bootstrap and adapter-controlled delivery permissions. Diagnostic Presentation owns the implemented pure trusted-developer projection core and pure HTML renderer but does not depend on Diagnostic Activation or own activation decisions. Diagnostic Handler is the only lower package depending on both and owns eligibility-first neutral sequencing. HTTP Message owns the selected server-side message and factory roles plus 28 bounded diagnostics. Routing owns bounded route declarations and deterministic matching; HTTP Server owns PSR-15 composition. Web Application owns application-call Kernel scope cleanup. Web Runtime owns outer request-independent evidence sequencing, fixed generic or eligible trusted response selection, and exact send/close attempts. PHP CGI owns bounded explicit inbound conversion. The root-owned Phase 2 fixture supplies the only concrete runnable integration and is test infrastructure, not production behavior. No production SAPI/server/listener/emitter, trusted network authorization mechanism, or supported deployment profile exists. The monorepo retains atomic root validation across all nineteen implemented packages.
 
 ## Interoperability boundaries
 
@@ -317,10 +318,11 @@ Hantei independently proves, and Kongono Oshie teaches. These developer
 companions are distinct from application Agent Principals; none is implemented.
 The deterministic framework remains usable offline and without AI.
 
-The accepted PHP policy targets one compatibility-certified minor at a time,
-while current manifests remain the mixed `>=8.5` and `^8.5` transitional state.
-The intended `>=8.5.0 <8.6.0` range requires a later authenticated migration.
-No PHP 8.6 or PHP 9 support is claimed.
+The accepted PHP policy targets one compatibility-certified minor at a time.
+Phase 5B applies `>=8.5.0 <8.6.0` to the root and all eighteen packages. PHP
+8.5 is the active line, and PHP 8.5.9 on Windows is the proved environment.
+Stable eligible 8.5 patches remain in range; PHP 8.6, PHP 9, prerelease,
+nightly, and automatic future-minor support are not claimed.
 
 See [developer intelligence](developer-intelligence.md), the
 [Phase 4 roadmap](phase-4-roadmap.md), and the
@@ -386,4 +388,55 @@ offline Knowledge/Chie/Oshie operation, real versus synthetic Hantei evidence,
 visible failure states, inert instructions, non-disclosure, temporary cleanup,
 and unchanged role authority. Phase 4A through 4H are implemented and externally
 accepted at the bounded checkpoint. Kongono remains pre-1.0 and not
-production-ready; Phase 5 was not begun.
+production-ready.
+
+## Accepted Phase 5A boundary
+
+Phase 4 is checkpointed at `358e412929d6bb7316195d3a1748c346a2de0e1b`
+with eighteen acyclic production packages. Application construction remains
+caller-owned at that checkpoint.
+
+Phase 5A accepts documentation architecture for one explicit application
+composition root, deterministic build-before-runtime, and readable generated
+PHP constructor wiring. Kernel remains lifecycle-neutral. The current
+Experimental resolver remains a runtime definition resolver with transient-per-
+edge construction, and the current structural Application Graph remains
+unchanged and unintegrated.
+
+The future supported path rejects runtime service location, ambient containers,
+resolver/container injection into application services, property-hook
+dependency resolution, request-time reflection/scanning/autowiring, runtime
+`eval`, and remote generated code. Production startup must reject missing,
+stale, partial, mixed, ambiguous, or unverifiable build state before work.
+
+Phase 5B applies the rolling current-minor Composer migration as installability
+metadata only, without runtime semantics, a package, dependency, public API,
+polyfill, shim, release/LTS promise, or composition/build capability. Phase 5A
+remains accepted. Phase 5B is accepted and its bounded PHP constraint is
+current.
+
+Phase 5C accepts the source and lifecycle contract for exactly one inert
+`<application-root>/kongono.composition.json`: schema
+`"kongono.composition"`, integer version `1`, six exact top-level members,
+canonical inputs/services/bindings/typed roots, three lifetimes, cleanup,
+bounds, deterministic validation, safe file handling, canonicalization, and
+provenance. Phase 5D implements the nineteenth acyclic package,
+`kongono/composition`, for strict source/symbol validation, canonical model and
+provenance-bearing artifact construction, exact current validation, and
+content-addressed no-clobber publication. Phase 5E implements canonical typed
+PHP wiring, exact generated identities, non-executing validation/publication,
+and isolated application/operation lifetime support. Plural collaboration uses
+an explicit application-owned typed aggregate; collection injection and
+automatic multibinding remain prohibited. Composition remains caller-owned and
+the DI resolver, Graph, Kernel, routes, and runtime are unchanged. No CLI or
+production runtime loader exists. Phase 5F has not begun.
+See [ADR 0068](../adr/0068-supported-application-composition-and-build-boundary.md),
+[ADR 0069](../adr/0069-generated-typed-wiring-and-no-runtime-service-location.md),
+[ADR 0070](../adr/0070-versioned-composition-source-and-provenance.md),
+[ADR 0071](../adr/0071-roots-bindings-lifetimes-and-cleanup.md),
+[ADR 0072](../adr/0072-deterministic-composition-artifact-and-publication.md),
+[ADR 0073](../adr/0073-generated-typed-wiring-and-lifecycle-boundary.md),
+the [composition guide](application-composition-and-build.md), the
+[source guide](composition-source.md), the
+[declaration guide](../engineering/composition-declarations.md), and the
+[Phase 5 roadmap](phase-5-roadmap.md).

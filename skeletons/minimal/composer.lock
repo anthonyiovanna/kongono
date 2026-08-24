@@ -1,0 +1,735 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "442a8f672bc087ad61859be8eeff8dc6",
+    "packages": [
+        {
+            "name": "kongono/api-metadata",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/api-metadata",
+                "reference": "0f63b0d67331ff0c6eef3450cb8b115b2985c9c6"
+            },
+            "require": {
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ApiMetadata\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ApiMetadata\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral API compatibility metadata for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/application-graph",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/application-graph",
+                "reference": "35051824245c03e0d5454a9ef1ad3f4278c73c62"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraph\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraph\\Tests\\": "tests/"
+                }
+            },
+            "description": "The immutable structural core for Kongono's future Application Graph.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/composition",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/composition",
+                "reference": "8830ff0877ee0de8b236a6cfc0558ff735811ccc"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Composition\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Composition\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic composition artifacts, generated typed wiring, and lifecycle support for Kongono.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/dependency-injection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/dependency-injection",
+                "reference": "7f2b8db08c97bec087a0777306cd0816678ae9a9"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DependencyInjection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DependencyInjection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit typed dependency resolution for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/diagnostic-activation",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/diagnostic-activation",
+                "reference": "8e66655ba1652173aca5746127e75bf1512f7377"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DiagnosticActivation\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DiagnosticActivation\\Tests\\": "tests/"
+                }
+            },
+            "description": "Typed trusted-bootstrap diagnostic permission values for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/diagnostic-handler",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/diagnostic-handler",
+                "reference": "5a708f827b209d07927bcd16da67223f25d9dbd3"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph": "*",
+                "kongono/dependency-injection": "*",
+                "kongono/diagnostic-activation": "*",
+                "kongono/diagnostic-presentation": "*",
+                "kongono/kernel": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DiagnosticHandler\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DiagnosticHandler\\Tests\\": "tests/"
+                }
+            },
+            "description": "Eligibility-gated trusted diagnostic presentation orchestration for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/diagnostic-presentation",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/diagnostic-presentation",
+                "reference": "5d196e784310072444f0e5e8239e640abda7f287"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph": "*",
+                "kongono/dependency-injection": "*",
+                "kongono/diagnostics": "*",
+                "kongono/kernel": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DiagnosticPresentation\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DiagnosticPresentation\\Tests\\": "tests/"
+                }
+            },
+            "description": "Trusted developer diagnostic projection values for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/diagnostics",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/diagnostics",
+                "reference": "a6a39bda1b021d6d09956b5acedcc4c2be23bdcf"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Diagnostics\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Diagnostics\\Tests\\": "tests/"
+                }
+            },
+            "description": "Presentation-neutral bounded diagnostic values for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/http-message",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/http-message",
+                "reference": "61af6c1ceeb8bec599217076a4e045a1e9dd1351"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-factory": "^1.1",
+                "psr/http-message": "^2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Http\\Message\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Http\\Message\\Tests\\": "tests/"
+                }
+            },
+            "description": "Kongono-owned PSR-7 server-message and PSR-17 factory implementations.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/http-server",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/http-server",
+                "reference": "f033f4e58bf412e384fee895ae506eeb6b347886"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/routing": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-message": "^2.0",
+                "psr/http-server-handler": "^1.0",
+                "psr/http-server-middleware": "^1.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Http\\Server\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Http\\Server\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit PSR-15 middleware and terminal routing for Kongono.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/kernel",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/kernel",
+                "reference": "85fddf1ef15a0827b54720cc72dac3b3144ac41c"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Kernel\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Kernel\\Tests\\": "tests/"
+                }
+            },
+            "description": "The runtime-neutral lifecycle core for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/php-cgi",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/php-cgi",
+                "reference": "4179f92a0428c3348995f920498cca8b2333fd04"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostic-activation": "*",
+                "kongono/diagnostics": "*",
+                "kongono/http-message": "*",
+                "kongono/web-runtime": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-message": "^2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\PhpCgi\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\PhpCgi\\Tests\\": "tests/"
+                }
+            },
+            "description": "Bounded PHP CGI conversion, operator trust inputs, and response emission for Kongono's selected FastCGI Responder profile.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/routing",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/routing",
+                "reference": "53a37dc6514c348240b13fce45416a41ead540bd"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-message": "^2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Routing\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Routing\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic route declaration and PSR-7 request matching for Kongono.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/web-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/web-application",
+                "reference": "c74a08b653f1ae20ac0378fd06a8dfd4c3ea4c14"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/http-server": "*",
+                "kongono/kernel": "*",
+                "kongono/routing": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-message": "^2.0",
+                "psr/http-server-handler": "^1.0",
+                "psr/http-server-middleware": "^1.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Web\\Application\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Web\\Application\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit web application composition and Kernel operation ownership for Kongono.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/web-runtime",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/web-runtime",
+                "reference": "be0da3b1bd3f04c3b6ed18178c69ac933a6fd658"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph": "*",
+                "kongono/composition": "*",
+                "kongono/dependency-injection": "*",
+                "kongono/diagnostic-activation": "*",
+                "kongono/diagnostic-handler": "*",
+                "kongono/diagnostics": "*",
+                "kongono/http-message": "*",
+                "kongono/kernel": "*",
+                "kongono/web-application": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-message": "^2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Web\\Runtime\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Web\\Runtime\\Tests\\": "tests/"
+                }
+            },
+            "description": "Fail-closed outer web delivery and diagnostic response orchestration for Kongono.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "psr/http-factory",
+            "version": "1.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/http-factory.git",
+                "reference": "2b4765fddfe3b508ac62f829e852b1501d3f6e8a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/http-factory/zipball/2b4765fddfe3b508ac62f829e852b1501d3f6e8a",
+                "reference": "2b4765fddfe3b508ac62f829e852b1501d3f6e8a",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1",
+                "psr/http-message": "^1.0 || ^2.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Http\\Message\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "PSR-17: Common interfaces for PSR-7 HTTP message factories",
+            "keywords": [
+                "factory",
+                "http",
+                "message",
+                "psr",
+                "psr-17",
+                "psr-7",
+                "request",
+                "response"
+            ],
+            "support": {
+                "source": "https://github.com/php-fig/http-factory"
+            },
+            "time": "2024-04-15T12:06:14+00:00"
+        },
+        {
+            "name": "psr/http-message",
+            "version": "2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/http-message.git",
+                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/http-message/zipball/402d35bcb92c70c026d1a6a9883f06b2ead23d71",
+                "reference": "402d35bcb92c70c026d1a6a9883f06b2ead23d71",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.2 || ^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "2.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Http\\Message\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "Common interface for HTTP messages",
+            "homepage": "https://github.com/php-fig/http-message",
+            "keywords": [
+                "http",
+                "http-message",
+                "psr",
+                "psr-7",
+                "request",
+                "response"
+            ],
+            "support": {
+                "source": "https://github.com/php-fig/http-message/tree/2.0"
+            },
+            "time": "2023-04-04T09:54:51+00:00"
+        },
+        {
+            "name": "psr/http-server-handler",
+            "version": "1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/http-server-handler.git",
+                "reference": "84c4fb66179be4caaf8e97bd239203245302e7d4"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/http-server-handler/zipball/84c4fb66179be4caaf8e97bd239203245302e7d4",
+                "reference": "84c4fb66179be4caaf8e97bd239203245302e7d4",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.0",
+                "psr/http-message": "^1.0 || ^2.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Http\\Server\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "Common interface for HTTP server-side request handler",
+            "keywords": [
+                "handler",
+                "http",
+                "http-interop",
+                "psr",
+                "psr-15",
+                "psr-7",
+                "request",
+                "response",
+                "server"
+            ],
+            "support": {
+                "source": "https://github.com/php-fig/http-server-handler/tree/1.0.2"
+            },
+            "time": "2023-04-10T20:06:20+00:00"
+        },
+        {
+            "name": "psr/http-server-middleware",
+            "version": "1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/php-fig/http-server-middleware.git",
+                "reference": "c1481f747daaa6a0782775cd6a8c26a1bf4a3829"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/php-fig/http-server-middleware/zipball/c1481f747daaa6a0782775cd6a8c26a1bf4a3829",
+                "reference": "c1481f747daaa6a0782775cd6a8c26a1bf4a3829",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.0",
+                "psr/http-message": "^1.0 || ^2.0",
+                "psr/http-server-handler": "^1.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Psr\\Http\\Server\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PHP-FIG",
+                    "homepage": "https://www.php-fig.org/"
+                }
+            ],
+            "description": "Common interface for HTTP server-side middleware",
+            "keywords": [
+                "http",
+                "http-interop",
+                "middleware",
+                "psr",
+                "psr-15",
+                "psr-7",
+                "request",
+                "response"
+            ],
+            "support": {
+                "issues": "https://github.com/php-fig/http-server-middleware/issues",
+                "source": "https://github.com/php-fig/http-server-middleware/tree/1.0.2"
+            },
+            "time": "2023-04-11T06:14:47+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "dev",
+    "stability-flags": {
+        "kongono/composition": 20,
+        "kongono/http-message": 20,
+        "kongono/http-server": 20,
+        "kongono/kernel": 20,
+        "kongono/php-cgi": 20,
+        "kongono/routing": 20,
+        "kongono/web-application": 20,
+        "kongono/web-runtime": 20
+    },
+    "prefer-stable": true,
+    "prefer-lowest": false,
+    "platform": {
+        "php": ">=8.5.0 <8.6.0"
+    },
+    "platform-dev": {},
+    "platform-overrides": {
+        "php": "8.5.0"
+    },
+    "plugin-api-version": "2.9.0"
+}

@@ -17,6 +17,7 @@
             <directory>packages/api-metadata/tests</directory>
             <directory>packages/application-graph/tests</directory>
             <directory>packages/chie/tests</directory>
+            <directory>packages/composition/tests</directory>
             <directory>packages/dependency-injection/tests</directory>
             <directory>packages/diagnostic-activation/tests</directory>
             <directory>packages/diagnostic-handler/tests</directory>
@@ -40,6 +41,7 @@
             <directory>packages/api-metadata/src</directory>
             <directory>packages/application-graph/src</directory>
             <directory>packages/chie/src</directory>
+            <directory>packages/composition/src</directory>
             <directory>packages/dependency-injection/src</directory>
             <directory>packages/diagnostic-activation/src</directory>
             <directory>packages/diagnostic-handler/src</directory>
@@ -55,6 +57,7 @@
             <directory>packages/routing/src</directory>
             <directory>packages/web-application/src</directory>
             <directory>packages/web-runtime/src</directory>
+            <directory>skeletons/minimal/src</directory>
         </include>
     </source>
 </phpunit>

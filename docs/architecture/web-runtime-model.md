@@ -95,6 +95,19 @@ $adapter->handle($delivery);
 
 The integration constructs both objects under server policy. The adapter does not discover a delivery globally, infer trust from the request, emit headers itself, or shut down the application.
 
+## Phase 5F generated web profile
+
+`GeneratedWebRuntimeBootstrap` wraps the existing explicit bootstrap permission.
+`GeneratedWebRuntimeRoot` pairs one already-constructed `WebApplication` with
+the existing adapter. `GeneratedWebRuntimeApplication` owns that exact typed
+root and its one-use generated application boundary, exposing only runtime,
+shutdown, and retirement observation. Startup rejects any profile other than
+one exact `GeneratedWebRuntimeRoot` application root and no operation roots.
+
+This adds no request-time reflection or generated operation. Web Runtime still
+owns one send and one close, while Web Application still owns the sole Kernel
+operation per request. See [ADR 0074](../adr/0074-generated-assembly-web-runtime-integration.md).
+
 ## Phase 2H boundary
 
 Phase 2H supplies the separately authorized minimal fixture and end-to-end

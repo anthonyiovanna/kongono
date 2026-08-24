@@ -35,7 +35,7 @@ composer quality
 The gate stops on the first failure and runs in this order:
 
 1. `composer validate:composer` executes `composer validate --no-check-publish` and checks that the root manifest is structurally valid. Composer's built-in `composer validate` remains unchanged. Publication-readiness checks are intentionally excluded from the repository script because Kongono has not selected a license.
-2. `composer validate:packages` validates all fourteen package manifests in lexicographic package-directory order without publication-readiness checks.
+2. `composer validate:packages` validates all nineteen package manifests in lexicographic package-directory order without publication-readiness checks.
 3. `composer audit:locked` executes `composer audit --locked` and checks the lock-file dependency graph against Composer's advisory, malware, and abandoned-package policies. Composer's built-in `composer audit` command remains available for auditing installed dependencies.
 4. `composer platform` verifies that installed packages can run on the actual PHP runtime and extensions, complementing dependency resolution against PHP 8.5.0.
 5. `composer cs` checks approved formatting without modifying files and prints a useful diff.
@@ -52,14 +52,20 @@ Use an individual command to reproduce a focused failure. `composer cs:fix` is t
 | --- | --- |
 | `composer --working-dir=packages/api-metadata validate --no-check-publish` | Neutral API compatibility metadata |
 | `composer --working-dir=packages/application-graph validate --no-check-publish` | Immutable Application Graph structural core |
+| `composer --working-dir=packages/chie validate --no-check-publish` | Read-only explanation, diagnosis, and bounded proposal candidates |
+| `composer --working-dir=packages/composition validate --no-check-publish` | Deterministic composition source validation and build artifacts |
 | `composer --working-dir=packages/dependency-injection validate --no-check-publish` | Explicit typed dependency resolution |
 | `composer --working-dir=packages/diagnostic-activation validate --no-check-publish` | Typed trusted-diagnostic permission values and eligibility |
 | `composer --working-dir=packages/diagnostic-handler validate --no-check-publish` | Eligibility-first trusted-diagnostic sequencing |
 | `composer --working-dir=packages/diagnostic-presentation validate --no-check-publish` | Trusted-developer diagnostic projection and HTML rendering |
 | `composer --working-dir=packages/diagnostics validate --no-check-publish` | Presentation-neutral bounded diagnostic values |
+| `composer --working-dir=packages/hantei validate --no-check-publish` | Independent deterministic framework verification |
 | `composer --working-dir=packages/http-message validate --no-check-publish` | First-party server-side PSR-7 messages and PSR-17 factories |
 | `composer --working-dir=packages/http-server validate --no-check-publish` | Explicit PSR-15 middleware and terminal routing |
 | `composer --working-dir=packages/kernel validate --no-check-publish` | Runtime-neutral lifecycle and operation scopes |
+| `composer --working-dir=packages/knowledge validate --no-check-publish` | Deterministic versioned framework knowledge artifacts |
+| `composer --working-dir=packages/oshie validate --no-check-publish` | Read-only cited deterministic teaching |
+| `composer --working-dir=packages/php-cgi validate --no-check-publish` | Bounded PHP-CGI operator boundary |
 | `composer --working-dir=packages/routing validate --no-check-publish` | Bounded deterministic route declaration and matching |
 | `composer --working-dir=packages/web-application validate --no-check-publish` | Web composition and Kernel operation ownership |
 | `composer --working-dir=packages/web-runtime validate --no-check-publish` | Outer web delivery, safe failure selection, and cleanup orchestration |
@@ -98,7 +104,7 @@ production-hardening certification, and starts no next phase automatically.
 ## Phase 4 policy relationship and current inventory
 
 Phase 3 is complete at checkpoint
-`6aacafc92f07b567818173d660e2e182dfa83d23`. The current repository has fourteen
+`6aacafc92f07b567818173d660e2e182dfa83d23`. At that checkpoint the repository had fourteen
 package manifests plus the root manifest, 126 production PHP files, 151 test
 PHP files, and 277 PHP files covered by the existing PHP CS Fixer configuration.
 These current global counts supersede the preceding historical Phase 3G
@@ -162,3 +168,57 @@ emits one canonical 28-scenario object after cleanup. The harness calls literal
 `composer hantei:verify` for real current evidence and separately labels its
 temporary evaluator fixtures synthetic. It changes no canonical quality gate,
 dependency, lockfile, package manifest, platform range, or security policy.
+
+## Phase 5A toolchain boundary
+
+Phase 5A changes no Composer script, manifest, lockfile, PHPStan, PHPUnit, PHP
+CS Fixer, autoload, cache, or generated artifact. `composer quality`,
+`composer acceptance:phase4`, and `composer hantei:verify` retain their current
+implemented meanings.
+
+The future composition build/check workflow is planned, not implemented. Phase
+5A selects no CLI grammar, executable, package, artifact path, cache, schema, or
+process boundary. When later authorized, build tooling must be deterministic,
+non-interactive where applicable, explicit about source/output identity, and
+separate from request handling. Development may eventually run an explicit
+watched build in another tool process; production requests may not rebuild.
+
+Phase 5B applies the exact root-and-eighteen-package migration to
+`>=8.5.0 <8.6.0` and proves PHP 8.5.9 on Windows. PHP 8.5 is the one active
+compatibility-certified minor; stable eligible 8.5 patches remain in range.
+PHP 8.6, PHP 9, prerelease, nightly, and automatic future-minor support are not
+claimed. This changes installability metadata only and adds no runtime
+semantics, package, dependency, public API, polyfill, shim, release/LTS promise,
+or composition/build capability. Phase 5B is accepted and the bounded PHP
+constraint is current.
+
+Phase 5D adds `kongono/composition` to the now-nineteen package validations,
+root test autoload, PHPUnit coverage, PHPStan, and PHP CS Fixer. It adds no
+Composer script, executable, CLI grammar, schema file, cache convention, or
+runtime loader. Build, structural/current validation, and publication remain
+explicit PHP API calls. `composer quality`, `composer acceptance:phase4`, and
+`composer hantei:verify` retain their implemented meanings.
+
+DI and Graph remain unintegrated. Phase 5G adds root `validate:skeleton`, maps
+`App\\` to the template source for development proof, and includes template PHP
+in PHPStan, PHP CS Fixer, and PHPUnit source coverage. The three application-
+owned scripts are not a framework CLI or automatic Composer hook. See
+[ADR 0072](../adr/0072-deterministic-composition-artifact-and-publication.md),
+[ADR 0073](../adr/0073-generated-typed-wiring-and-lifecycle-boundary.md),
+the [composition source guide](../architecture/composition-source.md), and the
+[composition build guide](composition-build.md).
+[application workflow guide](application-workflow.md).
+
+## Phase 5 external acceptance command
+
+`composer acceptance:phase5` invokes only
+`@php tests/External/Application/run.php`. It is intentionally not part of
+`composer quality`. The command accepts no arguments and emits either one
+compact canonical single-LF success object with the exact 28-scenario evidence,
+or one fixed bounded stderr failure. It copies and mutates only resolved owned
+system-temporary fixtures, disables Composer plugins and network for the locked
+external install, and leaves repository and permanent environment state
+unchanged.
+
+The command is root-owned test tooling, not a production CLI, application
+dependency, installer, listener, upgrader, or deployment surface.

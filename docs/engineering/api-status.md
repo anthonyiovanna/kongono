@@ -109,3 +109,25 @@ The seven proposal values and three proposal exceptions are Experimental. The
 proposal-spec reader, unified-diff builder, and proposal builder are Internal.
 No Phase 4G declaration is Stable. The statuses describe exposure and evolution;
 they do not grant authority to apply or verify a candidate.
+
+## Phase 5B platform metadata
+
+Phase 5B applies `>=8.5.0 <8.6.0` to the root and all eighteen packages. PHP
+8.5 is the one active compatibility-certified minor, and PHP 8.5.9 on Windows
+is the proved environment. Stable eligible 8.5 patches remain within range;
+PHP 8.6, PHP 9, prerelease, nightly, and automatic future-minor support are not
+claimed. This installability-metadata migration changes no API status or
+runtime semantics and adds no package, dependency, public API, polyfill, shim,
+release/LTS promise, or composition/build capability. Phase 5A remains
+accepted.
+
+## Phase 5D composition API
+
+`CompositionArtifact`, its builder, validator, and publisher are Experimental.
+The four final package exceptions and their marker are Public; the abstract
+base, diagnostic enum, canonical JSON, compiler, path guard, and strict decoder
+are Internal. Phase 5E adds six Experimental generated-wiring/lifecycle
+interfaces and four Public package exceptions; emitter and lifecycle helpers
+remain Internal. These statuses expose build and isolated lifecycle-support
+surfaces only. They do not authorize service lookup, production loading, or
+runtime integration; Phase 5F has not begun.

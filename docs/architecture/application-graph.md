@@ -155,3 +155,18 @@ does not claim to describe the complete repository or an application graph and
 adds no node, relation, vocabulary, schema, export, discovery, or mutation.
 Future Graph-backed knowledge remains outside this slice and requires separate
 authority.
+
+## Phase 5A composition-build separation
+
+Phase 5A accepts a future supported composition root and deterministic build
+boundary without changing this structural Graph. It selects no Graph schema,
+stable identifier, serialization, metadata, provenance field, service or route
+kind, source frontend, compiler, generated-artifact relationship, or runtime
+integration.
+
+A future composition artifact may become one source for a separately Accepted
+authoritative Application Graph. That possibility does not make the Phase 5
+artifact a Graph, make generated wiring authoritative, or authorize discovery
+from this snapshot. Current Graph construction, selectors, diagnostics,
+dependencies, and performance remain unchanged. See [ADR 0068](../adr/0068-supported-application-composition-and-build-boundary.md)
+and the [composition guide](application-composition-and-build.md).

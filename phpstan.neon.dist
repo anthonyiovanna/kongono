@@ -12,6 +12,8 @@ parameters:
         - packages/chie/src
         - packages/chie/tests
         - packages/chie/bin/kongono-chie
+        - packages/composition/src
+        - packages/composition/tests
         - packages/dependency-injection/src
         - packages/dependency-injection/tests
         - packages/diagnostic-activation/src
@@ -45,6 +47,9 @@ parameters:
         - packages/web-application/tests
         - packages/web-runtime/src
         - packages/web-runtime/tests
+        - skeletons/minimal/bin
+        - skeletons/minimal/public
+        - skeletons/minimal/src
         - tests/External
         - tests/Architecture
         - tests/BlackBox

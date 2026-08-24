@@ -99,6 +99,19 @@ Related: [ADR 0048](../adr/0048-web-application-bootstrap-and-kernel-operation-o
 [Kernel model](microkernel.md), [HTTP Server model](http-server-model.md), and
 [package README](../../packages/web-application/README.md).
 
+## Phase 5F constructor seam
+
+`WebApplication` is now directly constructible from one `KernelInterface` and
+one explicit `RequestHandlerInterface`; construction boots the Kernel once.
+The existing `boot()` factory still constructs `RoutingRequestHandler` and
+`MiddlewarePipeline`, then delegates without a second boot. Handle, per-request
+Kernel operation, cleanup, failure, retirement, and shutdown semantics are
+unchanged. Generated integration declares `WebApplication::shutdown()` as its
+cleanup and never separately declares Kernel cleanup.
+
+See [ADR 0074](../adr/0074-generated-assembly-web-runtime-integration.md) and
+[generated runtime integration](generated-runtime-integration.md).
+
 ## Phase 2G integration
 
 Web Runtime now calls `WebApplication::handle()` exactly once with the converted

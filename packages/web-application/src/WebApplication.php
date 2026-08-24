@@ -24,13 +24,14 @@ use Throwable;
 final class WebApplication implements RequestHandlerInterface
 {
     private readonly KernelInterface $kernel;
-    private readonly MiddlewarePipeline $pipeline;
+    private readonly RequestHandlerInterface $pipeline;
     private bool $retired = false;
 
-    private function __construct(KernelInterface $kernel, MiddlewarePipeline $pipeline)
+    public function __construct(KernelInterface $kernel, RequestHandlerInterface $pipeline)
     {
         $this->kernel = $kernel;
         $this->pipeline = $pipeline;
+        $this->kernel->boot();
     }
 
     private function __clone(): void {}
@@ -45,8 +46,6 @@ final class WebApplication implements RequestHandlerInterface
     ): self {
         $routingHandler = new RoutingRequestHandler($routes, $routeHandlers, $unmatchedHandler);
         $pipeline = new MiddlewarePipeline($routingHandler, ...$middleware);
-        $kernel->boot();
-
         return new self($kernel, $pipeline);
     }
 

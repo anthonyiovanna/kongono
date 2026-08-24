@@ -158,3 +158,65 @@ line range. The cited bytes are returned unchanged; Chie does not summarize or
 complete them. A response remains derived material and cannot replace its
 source, hide stale state, turn a workspace observation into framework truth, or
 certify correctness. See [read-only Chie](architecture/read-only-chie.md).
+
+## Composition-build and generated-wiring documentation
+
+Phase 5A documentation must label three states separately:
+
+- current caller-owned application construction and the current Experimental
+  runtime resolver;
+- Accepted composition-root, build-before-runtime, generated-wiring, security,
+  lifecycle, and Phase 5 roadmap architecture; and
+- planned implementation whose syntax, schema, package, API, command, artifact,
+  and runtime integration are not yet selected.
+
+Do not use present tense for a composition build, generated wiring, application
+skeleton, lifetime API, or build/check/run workflow until it is implemented.
+Do not describe generated output as authority, promise zero overhead, or claim
+an Application Graph integration that has not been separately Accepted.
+
+Future generated artifacts and their documentation must identify exact input
+and output state, invalidation behavior, publication boundary, lifecycle and
+cleanup ownership, security/disclosure limits, deterministic failure, and
+whether examples are conceptual or executable. Property hooks must never be
+documented as Kongono dependency resolution.
+
+Phase 5B documentation states the current Composer fact exactly: the root and
+all eighteen packages require `>=8.5.0 <8.6.0`; PHP 8.5 is the sole active
+compatibility-certified minor; and PHP 8.5.9 on Windows is the environment
+proved by this execution. Stable eligible 8.5 patches remain in range, while
+PHP 8.6, PHP 9, prerelease, nightly, and automatic future-minor support remain
+unclaimed. This is installability metadata only, not runtime semantics, a
+package, dependency, public API, polyfill, shim, release/LTS promise, or
+composition/build capability. Phase 5B is accepted and the bounded PHP
+constraint is current.
+
+Phase 5D documentation must now distinguish:
+
+- **Current:** caller-owned runtime composition plus the Experimental
+  `kongono/composition` strict build/artifact package; the resolver, structural
+  Graph, lifecycle-neutral Kernel, routes, and runtime remain unchanged;
+- **Accepted:** the exact inert version-1
+  `<application-root>/kongono.composition.json` grammar, canonical declarations,
+  roots, lifetimes, cleanup, bounds, validation, safety, disclosure, and
+  provenance contracts; and
+- **Implemented:** Phase 5D canonical model, raw provenance artifact,
+  structural/current validation, and content-addressed publication; Phase 5E
+  corrected typed wiring and isolated lifecycle support; and
+- **Planned:** Phase 5F runtime integration, Phase 5G workflow, and Phase 5H
+  acceptance.
+
+Label source JSON examples inert and non-executable. State accurately that the
+Phase 5D build package parses and validates them before runtime, and Phase 5E
+derives canonical typed PHP. No CLI, schema file, production runtime loader, or
+cache convention exists. Phase 5F has not begun.
+
+See [ADR 0068](adr/0068-supported-application-composition-and-build-boundary.md),
+[ADR 0069](adr/0069-generated-typed-wiring-and-no-runtime-service-location.md),
+[ADR 0070](adr/0070-versioned-composition-source-and-provenance.md),
+[ADR 0071](adr/0071-roots-bindings-lifetimes-and-cleanup.md),
+[ADR 0072](adr/0072-deterministic-composition-artifact-and-publication.md),
+the [composition guide](architecture/application-composition-and-build.md),
+the [composition source guide](architecture/composition-source.md),
+[declaration guide](engineering/composition-declarations.md), and
+[generated wiring guide](engineering/generated-wiring.md).

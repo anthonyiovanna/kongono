@@ -12,6 +12,7 @@
     "kongono/api-metadata": "@dev",
     "kongono/application-graph": "@dev",
     "kongono/chie": "@dev",
+    "kongono/composition": "@dev",
     "kongono/dependency-injection": "@dev",
     "kongono/diagnostic-activation": "@dev",
     "kongono/diagnostic-handler": "@dev",
@@ -27,7 +28,7 @@
     "kongono/routing": "@dev",
     "kongono/web-application": "@dev",
     "kongono/web-runtime": "@dev",
-    "php": ">=8.5"
+    "php": ">=8.5.0 <8.6.0"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "^3.95",
@@ -37,9 +38,11 @@
   },
   "autoload-dev": {
     "psr-4": {
+      "App\\": "skeletons/minimal/src/",
       "Kongono\\ApiMetadata\\Tests\\": "packages/api-metadata/tests/",
       "Kongono\\ApplicationGraph\\Tests\\": "packages/application-graph/tests/",
       "Kongono\\Chie\\Tests\\": "packages/chie/tests/",
+      "Kongono\\Composition\\Tests\\": "packages/composition/tests/",
       "Kongono\\DependencyInjection\\Tests\\": "packages/dependency-injection/tests/",
       "Kongono\\DiagnosticActivation\\Tests\\": "packages/diagnostic-activation/tests/",
       "Kongono\\DiagnosticHandler\\Tests\\": "packages/diagnostic-handler/tests/",
@@ -87,6 +90,7 @@
     "test": "phpunit --configuration phpunit.xml.dist",
     "acceptance:phase3": "@php tests/External/PhpCgi/run.php",
     "acceptance:phase4": "@php tests/External/DeveloperIntelligence/run.php",
+    "acceptance:phase5": "@php tests/External/Application/run.php",
     "analyse": "@php -d memory_limit=512M vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress",
     "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
     "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
@@ -97,6 +101,7 @@
       "composer --working-dir=packages/api-metadata validate --no-check-publish",
       "composer --working-dir=packages/application-graph validate --no-check-publish",
       "composer --working-dir=packages/chie validate --no-check-publish",
+      "composer --working-dir=packages/composition validate --no-check-publish",
       "composer --working-dir=packages/dependency-injection validate --no-check-publish",
       "composer --working-dir=packages/diagnostic-activation validate --no-check-publish",
       "composer --working-dir=packages/diagnostic-handler validate --no-check-publish",
@@ -113,12 +118,14 @@
       "composer --working-dir=packages/web-application validate --no-check-publish",
       "composer --working-dir=packages/web-runtime validate --no-check-publish"
     ],
+    "validate:skeleton": "composer --working-dir=skeletons/minimal validate --no-check-publish",
     "knowledge:check": "@php packages/knowledge/bin/kongono-knowledge check .",
     "hantei:verify": "@php packages/hantei/bin/kongono-hantei verify .",
     "oshie": "@php packages/oshie/bin/kongono-oshie",
     "quality": [
       "@validate:composer",
       "@validate:packages",
+      "@validate:skeleton",
       "@audit:locked",
       "@platform",
       "@knowledge:check",

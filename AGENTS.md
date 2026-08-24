@@ -265,4 +265,53 @@ current-repository Hantei PASS, explicitly synthetic Hantei FAIL/BLOCKED
 evaluation, inert retrieved instructions, non-disclosure, temporary-only writes,
 cleanup, and unchanged role authority. It is test evidence, not package or
 production behavior. No executable Oshie example exists. Phase 4 is closed;
-Phase 5 was not begun.
+Phase 5A now adds architecture documentation only.
+
+## Supported application composition and generated wiring policy
+
+Phase 5A accepts [ADR 0068](docs/adr/0068-supported-application-composition-and-build-boundary.md)
+and [ADR 0069](docs/adr/0069-generated-typed-wiring-and-no-runtime-service-location.md).
+The future supported composition root owns construction, startup and shutdown
+ordering, application-lifetime objects, operation factories, and partial-boot
+cleanup; Kernel remains lifecycle-neutral. Discovery, declaration validation,
+dependency validation, route assembly, and generation belong to an explicit
+build/check step before runtime. Production must fail closed on missing, stale,
+partial, mixed, ambiguous, or unverifiable build state.
+
+Generated ordinary PHP constructor wiring is the preferred future production
+mechanism. Do not introduce runtime service location, resolver/container
+injection into application services, ambient containers, request-time
+reflection or scanning, hidden autowiring, property-hook dependency resolution,
+runtime `eval`, or remote generated code. The current Experimental Dependency
+Injection resolver and Application Graph remain unchanged and unintegrated.
+Phase 5A selects no declaration syntax, schema, package, API, command, artifact,
+application skeleton, runtime integration, or deployment behavior. Phase 5B is
+accepted and applies `>=8.5.0 <8.6.0` to the root and all eighteen packages
+under ADR 0059.
+PHP 8.5 is the one active compatibility-certified minor; this phase proves PHP
+8.5.9 on Windows and makes no PHP 8.6, PHP 9, prerelease, nightly, future-minor,
+release, or LTS claim. The migration changes installability metadata only and
+adds no runtime semantics, package, dependency, polyfill, shim, or public API.
+Phase 5C accepts [ADR 0070](docs/adr/0070-versioned-composition-source-and-provenance.md)
+and [ADR 0071](docs/adr/0071-roots-bindings-lifetimes-and-cleanup.md) as
+architecture only. The sole version-1 source is the inert, application-owned
+`<application-root>/kongono.composition.json`. Phase 5D implements the
+Experimental `kongono/composition` build package, strict reader, detached
+canonical model, provenance-bearing artifact, exact current validator, and
+content-addressed no-clobber publisher. Inputs,
+services, bindings, typed application/operation roots, three lifetimes,
+reverse-order cleanup, deterministic failure selection, fixed bounds, safe
+source handling, canonicalization, and provenance are Accepted contracts, not
+current runtime behavior beyond that build boundary. Phase 5E accepts
+[ADR 0073](docs/adr/0073-generated-typed-wiring-and-lifecycle-boundary.md),
+narrowly removes ADR 0071's impossible `services`-list form, and implements
+canonical typed PHP generation, non-executing validation, no-clobber
+publication, application/operation boundaries, leases, reverse cleanup, and
+deterministic failure composition in the same package. Plural collaboration
+uses an explicit application-owned typed aggregate with individual `service`
+edges. Array/iterable/variadic/PHPDoc collection injection, automatic
+multibinding, tags, priorities, discovery, container widening, a production
+loader, and runtime integration remain prohibited. Current composition stays
+caller-owned and the resolver, Graph, Kernel, routes, and runtime remain
+unchanged. Phase 5F has not begun. The artifact preserves raw source identity
+separately from semantic model identity.

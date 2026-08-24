@@ -37,6 +37,13 @@ final class WebRuntimeDiagnosticTest extends TestCase
                 'Complete web runtime delivery',
                 'Delivery and cleanup failures must both remain observable',
             ],
+            'InvalidGeneratedIntegration' => [
+                'KGN-WEB-RUNTIME-1003',
+                'Invalid generated web-runtime integration',
+                'Regenerate the exact supported web profile and supply its ordered typed startup inputs',
+                'Start generated web runtime integration',
+                'The loaded generated assembly must expose exactly one supported web root and no operation roots',
+            ],
         ];
 
         self::assertSame(array_keys($expected), array_map(
@@ -50,10 +57,12 @@ final class WebRuntimeDiagnosticTest extends TestCase
             self::assertSame($remediation, $diagnostic->remediation());
             self::assertSame($operation, $diagnostic->contextOperation());
             self::assertSame($invariant, $diagnostic->contextViolatedInvariant());
-            self::assertSame([], $diagnostic->contextFields());
-            self::assertSame($operation, $diagnostic->context()->operation());
-            self::assertSame($invariant, $diagnostic->context()->violatedInvariant());
-            self::assertSame([], $diagnostic->context()->fields());
+            $context = WebRuntimeDiagnostic::InvalidGeneratedIntegration === $diagnostic
+                ? $diagnostic->context('application_root_shape')
+                : $diagnostic->context();
+            self::assertSame($operation, $context->operation());
+            self::assertSame($invariant, $context->violatedInvariant());
+            self::assertCount(WebRuntimeDiagnostic::InvalidGeneratedIntegration === $diagnostic ? 1 : 0, $context->fields());
         }
     }
 
@@ -78,8 +87,8 @@ final class WebRuntimeDiagnosticTest extends TestCase
             }
         }
 
-        self::assertCount(113, $identifiers);
-        self::assertCount(113, array_unique($identifiers));
+        self::assertCount(114, $identifiers);
+        self::assertCount(114, array_unique($identifiers));
         foreach ([
             'KERNEL' => 6,
             'GRAPH' => 11,
@@ -90,7 +99,7 @@ final class WebRuntimeDiagnosticTest extends TestCase
             'HTTP-SERVER' => 3,
             'ROUTING' => 10,
             'WEB-APPLICATION' => 2,
-            'WEB-RUNTIME' => 2,
+            'WEB-RUNTIME' => 3,
         ] as $domain => $count) {
             self::assertCount($count, array_filter(
                 $identifiers,
@@ -108,11 +117,10 @@ final class WebRuntimeDiagnosticTest extends TestCase
             ['context', 'contextFields', 'contextOperation', 'contextViolatedInvariant', 'remediation', 'title'],
             $this->declaredPublicMethodNames($reflection),
         );
-        foreach ($reflection->getMethods() as $method) {
-            if ($method->isUserDefined() && WebRuntimeDiagnostic::class === $method->getDeclaringClass()->getName()) {
-                self::assertSame([], $method->getParameters());
-            }
-        }
+        self::assertSame(['?string'], array_map(
+            static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(),
+            $reflection->getMethod('context')->getParameters(),
+        ));
         self::assertFalse($reflection->hasMethod('__toString'));
     }
 

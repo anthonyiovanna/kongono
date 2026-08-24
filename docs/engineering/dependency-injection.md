@@ -137,3 +137,33 @@ PSR-11 interoperability, autowiring, service lifetimes, Graph representation,
 runtime composition, and all advanced container features remain unselected or
 deferred. Phase 0F rejects their implementation, not every possible future
 decision.
+
+## Phase 5A relationship to generated wiring
+
+Phase 5A accepts generated ordinary PHP constructor wiring as the preferred
+future production direction, but it changes none of this package's behavior,
+API, definitions, validation, diagnostics, dependencies, or transient-per-edge
+construction. The current resolver remains a narrow Experimental runtime
+resolver until a separate generated boundary is implemented and proved.
+
+The future supported composition root must not inject `ResolverInterface` or a
+general container into application services. Runtime service location by string
+or class name, ambient/global/static/thread-local/fiber-local containers,
+request-time reflection or attribute scanning, hidden constructor inference,
+property-hook dependency resolution, mutable process-wide registries, and
+runtime `eval` are rejected.
+
+Phase 5C now accepts canonical symbol, explicit constructor dependency,
+application/operation/transient lifetime, reachability, root, binding,
+cleanup, and reverse-order release contracts for the future version-1
+`kongono.composition.json`. Factories, lazy behavior, cycles, service location,
+and implicit resolution remain excluded. These contracts are not this
+resolver's runtime API and do not change its transient-per-edge behavior.
+
+Current composition remains caller-owned and no Application Graph, Kernel,
+route, or runtime integration is selected. Phase 5B is accepted and its bounded
+PHP constraint is current; Phase 5D is next and has not begun. See
+[ADR 0069](../adr/0069-generated-typed-wiring-and-no-runtime-service-location.md),
+[ADR 0071](../adr/0071-roots-bindings-lifetimes-and-cleanup.md), the
+[declaration guide](composition-declarations.md), and the
+[generated wiring guide](generated-wiring.md).

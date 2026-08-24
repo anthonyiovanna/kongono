@@ -5,6 +5,7 @@
   "require": {
     "kongono/api-metadata": "*",
     "kongono/application-graph": "*",
+    "kongono/composition": "*",
     "kongono/dependency-injection": "*",
     "kongono/diagnostic-activation": "*",
     "kongono/diagnostic-handler": "*",
@@ -12,7 +13,7 @@
     "kongono/http-message": "*",
     "kongono/kernel": "*",
     "kongono/web-application": "*",
-    "php": "^8.5",
+    "php": ">=8.5.0 <8.6.0",
     "psr/http-message": "^2.0"
   },
   "autoload": {

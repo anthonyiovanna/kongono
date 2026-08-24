@@ -26,7 +26,7 @@ If a change requires an unapproved architectural, security, public-API, package-
 
 ## Validation
 
-Kongono development requires PHP 8.5 or newer and Composer 2.10 or newer. Install the reproducible root development environment with:
+Kongono development requires PHP `>=8.5.0 <8.6.0` and Composer 2.10 or newer. Install the reproducible root development environment with:
 
 ```bash
 composer install
@@ -52,18 +52,17 @@ composer analyse
 composer test
 ```
 
-`composer validate` remains Composer's built-in root-manifest validation command. Kongono's explicit root script is `composer validate:composer`, and `composer validate:packages` validates all fourteen package manifests in lexicographic directory order. Both omit publication-readiness checks because the license remains intentionally undecided. `composer audit` remains Composer's built-in installed-dependency audit. Kongono's deterministic lock-file audit is `composer audit:locked`, and the complete quality gate uses the explicit repository scripts. Use `composer cs:fix` only as an explicit formatting action, then rerun the non-mutating checks. Do not bypass dependency policy, platform requirements, static-analysis findings, or tests. A dependency addition, Composer plugin, baseline, suppression, or policy exception requires architect approval. Report exactly what ran and do not describe an unexecuted check as passing.
+`composer validate` remains Composer's built-in root-manifest validation command. Kongono's explicit root script is `composer validate:composer`, and `composer validate:packages` validates all nineteen package manifests in lexicographic directory order. Both omit publication-readiness checks because the license remains intentionally undecided. `composer audit` remains Composer's built-in installed-dependency audit. Kongono's deterministic lock-file audit is `composer audit:locked`, and the complete quality gate uses the explicit repository scripts. Use `composer cs:fix` only as an explicit formatting action, then rerun the non-mutating checks. Do not bypass dependency policy, platform requirements, static-analysis findings, or tests. A dependency addition, Composer plugin, baseline, suppression, or policy exception requires architect approval. Report exactly what ran and do not describe an unexecuted check as passing.
 
 ## PHP support and developer intelligence
 
 The accepted [PHP support policy](docs/engineering/php-support-policy.md)
-targets one compatibility-certified stable minor at a time. Current metadata is
-still transitional: the root and eight packages require `>=8.5`, while six
-packages require `^8.5`. Do not treat the intended future
-`>=8.5.0 <8.6.0` range as installed. Moving to a new minor requires the complete
-compatibility gate, Windows and supported-host proof, and a separately
-authenticated manifest migration. Composer admission or prerelease success is
-not a PHP 8.6 or PHP 9 support claim.
+targets one compatibility-certified stable minor at a time. Phase 5B applies
+`>=8.5.0 <8.6.0` to the root and all eighteen packages. PHP 8.5 is the one
+active line, and Phase 5B proves PHP 8.5.9 on Windows. Eligible stable 8.5
+patches remain in range. Moving to a later minor requires the complete
+separately accepted compatibility gate; PHP 8.6, PHP 9, prerelease, nightly,
+and automatic future-minor support are not claimed.
 
 Ordinary contribution remains deterministic and works without AI or a network
 except where an existing literal gate requires external access. The
@@ -138,3 +137,55 @@ it must finish with real current-repository Hantei PASS and labels its isolated
 FAIL/BLOCKED evaluator fixtures synthetic. Do not treat the Chie candidate as
 applied or verified, invent an executable Oshie example, or infer model,
 network, Git, deployment, production, or Phase 5 authority from acceptance.
+
+## Phase 5A composition documentation
+
+Phase 4 is checkpointed at `358e412929d6bb7316195d3a1748c346a2de0e1b`.
+Phase 5A accepts documentation architecture only; contributors must not infer a
+composition package, declaration syntax, build artifact, generator, command,
+application skeleton, or runtime integration.
+
+Future composition work uses explicit reviewed declarations, canonical symbol
+spelling, constructor injection, deterministic build-before-runtime behavior,
+and readable generated PHP. Do not introduce runtime service location, an
+ambient/global container, resolver injection into application services,
+request-time reflection or attribute scanning, hidden autowiring, property-hook
+dependency resolution, runtime `eval`, or remote generated code. The existing
+Experimental Dependency Injection resolver and Application Graph remain
+unchanged.
+
+Keep current, Accepted, and planned behavior explicit in documentation. The
+[composition guide](docs/architecture/application-composition-and-build.md),
+[Phase 5 roadmap](docs/architecture/phase-5-roadmap.md), and
+[generated wiring guide](docs/engineering/generated-wiring.md) define the
+accepted boundary. Phase 5B changes installability metadata only and adds no
+runtime semantics, package, dependency, public API, polyfill, shim, release/LTS
+promise, or composition/build capability. Phase 5B is accepted and its bounded
+PHP range is current.
+
+## Phase 5C composition declaration review
+
+Phase 5C accepts one inert version-1 declaration contract at
+`<application-root>/kongono.composition.json`. Phase 5D implements its strict
+reader and artifact boundary in `kongono/composition`; no schema file, command,
+wiring, or runtime integration exists. Contributors reviewing sources must require exact canonical symbols,
+the six-member root grammar, explicit inputs/services/bindings/typed roots,
+ordered constructor arguments, lifetime reachability, reverse cleanup,
+deterministic bounds and failures, source containment, non-disclosure, and
+bounded provenance. Do not infer or scan services, merge configuration,
+introduce service location, or add later capability families.
+
+Phase 5E generation accepts only individual `service`, typed `input`, or
+`default: true` arguments. Model plural collaborators as an application-owned
+typed aggregate with one named constructor edge per member. Do not add
+collection injection, multibinding, tags, priorities, discovery, a container,
+or a loader. Current composition remains caller-owned and DI, Graph, Kernel,
+routes, and runtime behavior remain unchanged. Run the package tests, generated
+PHP probes, focused analysis, and cache-disabled style checks before canonical
+quality. Phase 5F has not begun. See
+[ADRs 0070](docs/adr/0070-versioned-composition-source-and-provenance.md) and
+[0071](docs/adr/0071-roots-bindings-lifetimes-and-cleanup.md), the
+[artifact decision](docs/adr/0072-deterministic-composition-artifact-and-publication.md), the
+[generated-wiring decision](docs/adr/0073-generated-typed-wiring-and-lifecycle-boundary.md), the
+[source guide](docs/architecture/composition-source.md), and the
+[declaration guide](docs/engineering/composition-declarations.md).

@@ -22,8 +22,12 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertIsArray($root);
         self::assertIsArray($root['scripts']);
         self::assertIsArray($root['scripts']['validate:packages']);
-        self::assertCount(18, $root['scripts']['validate:packages']);
+        self::assertCount(19, $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/composition validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/oshie validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertSame('composer --working-dir=skeletons/minimal validate --no-check-publish', $root['scripts']['validate:skeleton']);
+        self::assertIsArray($root['scripts']['quality']);
+        self::assertSame('@validate:skeleton', $root['scripts']['quality'][2]);
     }
 
     public function testUnknownProfileIsRejected(): void

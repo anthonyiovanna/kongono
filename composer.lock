@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "16b660a75ed2f97b39bc2a9805ac64a3",
+    "content-hash": "099f567a6da7e3490937e7d717cc0817",
     "packages": [
         {
             "name": "kongono/api-metadata",
@@ -12,10 +12,10 @@
             "dist": {
                 "type": "path",
                 "url": "packages/api-metadata",
-                "reference": "c6c5a7fa936bcabe1f3bd27b04085274a0448d6a"
+                "reference": "ed9de6616405c95d1f45ffb8ea9ce03eba8478df"
             },
             "require": {
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "type": "library",
             "autoload": {
@@ -39,12 +39,12 @@
             "dist": {
                 "type": "path",
                 "url": "packages/application-graph",
-                "reference": "7b4d04bb722d18a5a620bec29f39d238a0da2a16"
+                "reference": "6f7f772c9a65e0102b065e89f0930729086704d7"
             },
             "require": {
                 "kongono/api-metadata": "*",
                 "kongono/diagnostics": "*",
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "type": "library",
             "autoload": {
@@ -68,7 +68,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/chie",
-                "reference": "00c1cb2be1831519c43b13a3004ca2b476402116"
+                "reference": "f5893e18f0b827548cf3ea833adf5fb64f0b4e34"
             },
             "require": {
                 "ext-hash": "*",
@@ -76,7 +76,7 @@
                 "kongono/api-metadata": "*",
                 "kongono/diagnostics": "*",
                 "kongono/knowledge": "*",
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "bin": [
                 "bin/kongono-chie"
@@ -98,17 +98,48 @@
             }
         },
         {
+            "name": "kongono/composition",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/composition",
+                "reference": "b3adfff64dbbf6ad1eda90c781a5385a6dabc202"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Composition\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Composition\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic composition artifacts, generated typed wiring, and lifecycle support for Kongono.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "kongono/dependency-injection",
             "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "packages/dependency-injection",
-                "reference": "4b85c50871a783ec10d88c37d088db892fc33fd5"
+                "reference": "b77eb35476227473a46c0fda9caa544c661ebca5"
             },
             "require": {
                 "kongono/api-metadata": "*",
                 "kongono/diagnostics": "*",
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "type": "library",
             "autoload": {
@@ -132,11 +163,11 @@
             "dist": {
                 "type": "path",
                 "url": "packages/diagnostic-activation",
-                "reference": "5caab5493cf851ec089617f2c628efd818001af4"
+                "reference": "6afecc3f9e9be96144fb9fd52cf7ac52b1513541"
             },
             "require": {
                 "kongono/api-metadata": "*",
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "type": "library",
             "autoload": {
@@ -160,7 +191,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/diagnostic-handler",
-                "reference": "3c53f93e0adc057e45db050f9244da05be2b37b2"
+                "reference": "34a54f31511a76ada4f2441a5152ec8b1c177451"
             },
             "require": {
                 "kongono/api-metadata": "*",
@@ -169,7 +200,7 @@
                 "kongono/diagnostic-activation": "*",
                 "kongono/diagnostic-presentation": "*",
                 "kongono/kernel": "*",
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "type": "library",
             "autoload": {
@@ -193,7 +224,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/diagnostic-presentation",
-                "reference": "086ab79629ab57680f6099a48e42185c6e117621"
+                "reference": "07d67badead0819b3b1c8dd8cbfa3647fb70c318"
             },
             "require": {
                 "kongono/api-metadata": "*",
@@ -201,7 +232,7 @@
                 "kongono/dependency-injection": "*",
                 "kongono/diagnostics": "*",
                 "kongono/kernel": "*",
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "type": "library",
             "autoload": {
@@ -225,11 +256,11 @@
             "dist": {
                 "type": "path",
                 "url": "packages/diagnostics",
-                "reference": "6e56597decf138ed187daea1ab888bee52dede0a"
+                "reference": "69532da07bbdaeaf4398a1a12270d0a5f68820fb"
             },
             "require": {
                 "kongono/api-metadata": "*",
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "type": "library",
             "autoload": {
@@ -253,7 +284,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/hantei",
-                "reference": "231c5b5cf950526fbe027561986ed7cab1774814"
+                "reference": "4e84993ebe95376210f8052e92c461672f1d2d11"
             },
             "require": {
                 "ext-hash": "*",
@@ -261,7 +292,7 @@
                 "kongono/api-metadata": "*",
                 "kongono/diagnostics": "*",
                 "kongono/knowledge": "*",
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "bin": [
                 "bin/kongono-hantei"
@@ -288,12 +319,12 @@
             "dist": {
                 "type": "path",
                 "url": "packages/http-message",
-                "reference": "2017b7505c9bdf4cdc085eff87b31e0c5b5a81fc"
+                "reference": "f3b41256a8129341e81a5bebf3fe5fb970823920"
             },
             "require": {
                 "kongono/api-metadata": "*",
                 "kongono/diagnostics": "*",
-                "php": "^8.5",
+                "php": ">=8.5.0 <8.6.0",
                 "psr/http-factory": "^1.1",
                 "psr/http-message": "^2.0"
             },
@@ -319,13 +350,13 @@
             "dist": {
                 "type": "path",
                 "url": "packages/http-server",
-                "reference": "7a29fe13bdf929ce218dedc5525603ffbe82fc3f"
+                "reference": "b77007642ca3e55395b15f2f34c5edbfdca3e153"
             },
             "require": {
                 "kongono/api-metadata": "*",
                 "kongono/diagnostics": "*",
                 "kongono/routing": "*",
-                "php": "^8.5",
+                "php": ">=8.5.0 <8.6.0",
                 "psr/http-message": "^2.0",
                 "psr/http-server-handler": "^1.0",
                 "psr/http-server-middleware": "^1.0"
@@ -352,12 +383,12 @@
             "dist": {
                 "type": "path",
                 "url": "packages/kernel",
-                "reference": "8d45884c90f12d7a725de10763f48a262fc48aa4"
+                "reference": "1e12996b4271997c32a4a7acc088a8ab8f028507"
             },
             "require": {
                 "kongono/api-metadata": "*",
                 "kongono/diagnostics": "*",
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "type": "library",
             "autoload": {
@@ -381,14 +412,14 @@
             "dist": {
                 "type": "path",
                 "url": "packages/knowledge",
-                "reference": "75af01fbdb9a1cb8eec93df52b2c0f76fe39d876"
+                "reference": "837f085d2e8f76a56bfacf5876098c8d416cb5a9"
             },
             "require": {
                 "ext-hash": "*",
                 "ext-json": "*",
                 "kongono/api-metadata": "*",
                 "kongono/diagnostics": "*",
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "bin": [
                 "bin/kongono-knowledge"
@@ -415,7 +446,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/oshie",
-                "reference": "3ac2745246d1ff2034c06ad034e53600e68cb667"
+                "reference": "4724c45f181b7b5264b01298fc815ee81e82dad5"
             },
             "require": {
                 "ext-hash": "*",
@@ -423,7 +454,7 @@
                 "kongono/api-metadata": "*",
                 "kongono/diagnostics": "*",
                 "kongono/knowledge": "*",
-                "php": ">=8.5"
+                "php": ">=8.5.0 <8.6.0"
             },
             "bin": [
                 "bin/kongono-oshie"
@@ -450,7 +481,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/php-cgi",
-                "reference": "6af8198bde29307d409b0d542b25a0d75865612b"
+                "reference": "dc12de298c6f7b04c210c85a9084ca6f4c136447"
             },
             "require": {
                 "kongono/api-metadata": "*",
@@ -458,7 +489,7 @@
                 "kongono/diagnostics": "*",
                 "kongono/http-message": "*",
                 "kongono/web-runtime": "*",
-                "php": "^8.5",
+                "php": ">=8.5.0 <8.6.0",
                 "psr/http-message": "^2.0"
             },
             "type": "library",
@@ -483,12 +514,12 @@
             "dist": {
                 "type": "path",
                 "url": "packages/routing",
-                "reference": "a1d954ffbaac589fc5d9cf7a1519967e2453b0db"
+                "reference": "e9d70cd933fa58620522301adc5168d44c635500"
             },
             "require": {
                 "kongono/api-metadata": "*",
                 "kongono/diagnostics": "*",
-                "php": "^8.5",
+                "php": ">=8.5.0 <8.6.0",
                 "psr/http-message": "^2.0"
             },
             "type": "library",
@@ -513,7 +544,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/web-application",
-                "reference": "a6038259a925c49268ead9e161a3572f3d8c7b34"
+                "reference": "41187bd0255f43092508b8dc867734942939122b"
             },
             "require": {
                 "kongono/api-metadata": "*",
@@ -521,7 +552,7 @@
                 "kongono/http-server": "*",
                 "kongono/kernel": "*",
                 "kongono/routing": "*",
-                "php": "^8.5",
+                "php": ">=8.5.0 <8.6.0",
                 "psr/http-message": "^2.0",
                 "psr/http-server-handler": "^1.0",
                 "psr/http-server-middleware": "^1.0"
@@ -548,11 +579,12 @@
             "dist": {
                 "type": "path",
                 "url": "packages/web-runtime",
-                "reference": "dee8cbceff20b2913239f804949de62086e9092f"
+                "reference": "ba06321e646d091ebfe13ad299d0e0512fc966ad"
             },
             "require": {
                 "kongono/api-metadata": "*",
                 "kongono/application-graph": "*",
+                "kongono/composition": "*",
                 "kongono/dependency-injection": "*",
                 "kongono/diagnostic-activation": "*",
                 "kongono/diagnostic-handler": "*",
@@ -560,7 +592,7 @@
                 "kongono/http-message": "*",
                 "kongono/kernel": "*",
                 "kongono/web-application": "*",
-                "php": "^8.5",
+                "php": ">=8.5.0 <8.6.0",
                 "psr/http-message": "^2.0"
             },
             "type": "library",
@@ -5602,6 +5634,7 @@
         "kongono/api-metadata": 20,
         "kongono/application-graph": 20,
         "kongono/chie": 20,
+        "kongono/composition": 20,
         "kongono/dependency-injection": 20,
         "kongono/diagnostic-activation": 20,
         "kongono/diagnostic-handler": 20,
@@ -5621,7 +5654,7 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=8.5"
+        "php": ">=8.5.0 <8.6.0"
     },
     "platform-dev": {},
     "platform-overrides": {

@@ -87,7 +87,7 @@ The implemented Kernel lifecycle boots once, permits overlapping opaque operatio
 
 ## Platform boundaries
 
-PHP 8.5+ is the primary application language. TypeScript and JavaScript are for the browser and frontend environment. Rust may later be used for high-performance framework tooling, while Go may be selected for specific infrastructure or runtime integration. No Rust, Go, Node.js, or TypeScript tooling is introduced in Phase 0A.
+PHP 8.5 is the primary application language. TypeScript and JavaScript are for the browser and frontend environment. Rust may later be used for high-performance framework tooling, while Go may be selected for specific infrastructure or runtime integration. No Rust, Go, Node.js, or TypeScript tooling is introduced in Phase 0A.
 
 Kongono will not build a JavaScript bundler. Vite is the intended default build integration. Kongono will own an Asset Platform abstraction, with possible future adapters for React, Vue, Svelte, HTMX, Alpine, server-rendered HTML, and native/no-bundler assets.
 
@@ -287,10 +287,10 @@ framework, Stable API, 1.0, or production-hardening certification.
 
 The actively developed line supports exactly one stable PHP minor at a time:
 the newest minor that has completed Kongono's compatibility gate. PHP 8.5 is
-the intended current certified line, and the later intended bounded Composer
-expression is `>=8.5.0 <8.6.0`. Current manifests remain in their exact mixed
-`>=8.5` and `^8.5` transitional state until a separately authenticated
-migration completes. Composer admission, publication, or prerelease success
+the current certified line, and Phase 5B applies the bounded Composer
+expression `>=8.5.0 <8.6.0` to the root and all eighteen packages. PHP 8.5.9
+on Windows is the environment proved by this execution; stable eligible 8.5
+patches remain within range. Composer admission, publication, or prerelease success
 does not establish PHP 8.6 or PHP 9 support.
 
 Deprecations are migration signals, not warnings to suppress. A new minor
@@ -386,4 +386,60 @@ Hantei distinctions, visible failure, inert retrieved instructions,
 non-disclosure, temporary cleanup, and no authority elevation. The harness is
 not doctrine, a production service, an application Agent Principal, or a source
 of model, provider, network, Git, deployment, or production authority. Phase 5
-was not begun.
+now begins with documentation-only Phase 5A.
+
+## Supported composition and deterministic build doctrine
+
+Kongono will provide one explicit supported application composition root. It
+owns construction, startup and shutdown order, application-lifetime objects,
+operation factories, and partial-boot cleanup without becoming Kernel. Kernel
+remains lifecycle-neutral and gains no configuration, discovery, routing,
+transport, resolver, generated-code, or application-definition responsibility.
+
+Discovery, declaration validation, dependency validation, route assembly, and
+generation occur in an explicit deterministic build/check step before runtime,
+never on the first request. Production accepts only one complete current
+artifact and fails closed on missing, stale, mixed, partial, ambiguous,
+unsupported, or unverifiable state. Build inputs and outputs are bounded,
+versioned, content-identified, inspectable, atomically published, safe to
+rebuild, and free of secrets. Generated output is derived evidence, not
+authority.
+
+Generated readable ordinary PHP constructor wiring is the preferred future
+production mechanism. Constructor injection and canonical explicit dependency
+declarations are the default. Runtime service location, ambient containers,
+resolver/container injection, property-hook dependency resolution, request-time
+reflection or scanning, hidden autowiring, runtime `eval`, remote generated
+code, and implicit lazy lifecycle behavior are rejected.
+
+Application, operation, and transient lifetimes require exact future contracts
+for construction, sharing, cleanup, reverse-order release, failure composition,
+and concurrency before they become runtime API. The current resolver and
+Application Graph remain unchanged. Phase 5A selects no syntax, schema,
+package, API, command, artifact, template, runtime integration, or deployment.
+Phase 5B changes installability metadata only and adds no runtime semantics,
+package, dependency, public API, polyfill, shim, release/LTS promise, or
+composition/build capability. PHP 8.6, PHP 9, prerelease, nightly, and automatic
+future-minor support remain unclaimed. Phase 5B is accepted and the bounded PHP
+constraint is current.
+
+Phase 5C accepts one inert data-only source at
+`<application-root>/kongono.composition.json`, with exact schema/version,
+declaration grammar, canonical symbol, typed root, lifetime/reachability,
+cleanup/failure, bound, validation-order, path-safety, disclosure, and
+provenance semantics. The application source is authority and derived state is
+evidence. Input values and secrets never enter source or provenance.
+
+Phase 5D implements the deterministic build evidence boundary while preserving
+the application source as authority. Raw source provenance and canonical model
+identity remain separate. Current composition remains caller-owned; the DI
+resolver, Graph, Kernel, routes, and runtime remain unchanged. Phase 5E adds
+derived canonical typed wiring and isolated lifecycle support while preserving
+source authority. It rejects collection widening and represents plural
+collaboration with an explicit application-owned typed aggregate. No schema
+file, command, production loader, or later integration capability is
+introduced. Phase 5F has not begun. See [ADR 0070](adr/0070-versioned-composition-source-and-provenance.md),
+[ADR 0071](adr/0071-roots-bindings-lifetimes-and-cleanup.md), and the
+[ADR 0072](adr/0072-deterministic-composition-artifact-and-publication.md), and the
+[ADR 0073](adr/0073-generated-typed-wiring-and-lifecycle-boundary.md), and the
+[composition source guide](architecture/composition-source.md).

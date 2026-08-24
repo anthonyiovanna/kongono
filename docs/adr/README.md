@@ -173,7 +173,49 @@ or production authority.
 65. [Cited Version-Matched Oshie Learning and Deterministic Exercises](0065-cited-version-matched-oshie-learning-and-deterministic-exercises.md) — Accepts the Phase 4F closed six-record curriculum, exact cited lessons, deterministic exact-answer checks, and read-only non-authoritative teaching boundary.
 66. [Explicit Reviewable Chie Patch Proposals](0066-explicit-reviewable-chie-patch-proposals.md) — Accepts one deterministic unapplied exact-line documentation candidate with reversible diffs, exact provenance, and a pending human/fresh-Hantei handoff.
 67. [Cross-Role Developer-Intelligence External Acceptance](0067-cross-role-developer-intelligence-external-acceptance.md) — Accepts the root-owned 28-scenario external harness, shared current identities, offline and failure proof, real versus synthetic Hantei evidence, temporary-only writes, and unchanged role authority.
+68. [Supported Application Composition and Build Boundary](0068-supported-application-composition-and-build-boundary.md) — Accepts the Phase 5 composition root, deterministic build-before-runtime, persistent-lifecycle, security/provenance, and fixed A-H milestone boundary; Phase 5A is documentation only.
+69. [Generated Typed Wiring and No Runtime Service Location](0069-generated-typed-wiring-and-no-runtime-service-location.md) — Accepts generated readable PHP constructor wiring and rejects runtime service location, ambient containers, property-hook DI, request-time reflection, hidden autowiring, and unsupported performance claims.
+70. [Versioned Composition Source and Provenance](0070-versioned-composition-source-and-provenance.md) — Accepts the singular inert version-1 source, fixed grammar, bounds, safe-read contract, canonical model, deterministic validation, provenance, and invalidation without implementing them.
+71. [Roots, Bindings, Lifetimes, and Cleanup](0071-roots-bindings-lifetimes-and-cleanup.md) — Accepts canonical inputs/services/bindings/typed roots, constructor restrictions, three lifetimes, reachability, reverse cleanup, and deterministic failure precedence without runtime implementation.
+72. [Deterministic Composition Artifact and Publication](0072-deterministic-composition-artifact-and-publication.md) — Implements the Experimental build-time package, exact source/model/provenance identities, current validation, and atomic content-addressed no-clobber publication without generated wiring or runtime integration.
+73. [Generated Typed Wiring and Lifecycle Boundary](0073-generated-typed-wiring-and-lifecycle-boundary.md) — Implements canonical typed PHP wiring, explicit application/operation lifetime support, and the typed-aggregate correction while reserving loading and integration for Phase 5F.
+74. [Generated Assembly and Web Runtime Integration](0074-generated-assembly-web-runtime-integration.md) — Implements exact-current generated loading, one-use startup reflection, the single-root web profile, and existing Web/PHP-CGI lifecycle integration without runtime service location.
+75. [Minimal Application Skeleton and Workflow](0075-minimal-application-skeleton-and-workflow.md) — Implements the copy-once minimal skeleton, reusable content-addressed build/check workflow, and bounded one-request PHP-CGI development run without a mutable pointer, listener, deployment automation, or automatic upgrade.
+76. [Phase 5 External Application Acceptance](0076-phase-5-external-application-acceptance.md) — Accepts the root-owned 28-scenario external application harness, offline mirrored installation, deterministic result, fail-closed state matrix, nondisclosure, cleanup, and Phase 5 checkpoint evidence boundary.
 
 Phase 4A through 4H are implemented and externally accepted at the bounded
-Phase 4 checkpoint. The milestone remains Experimental and pre-1.0; no Phase 5
-capability is selected or implied.
+Phase 4 checkpoint `358e412929d6bb7316195d3a1748c346a2de0e1b`. Phase 5A
+accepted ADRs 0068 and 0069 plus the fixed [Phase 5 roadmap](../architecture/phase-5-roadmap.md)
+as documentation architecture. Later Phase 5 increments implement the bounded
+artifact, generated wiring, runtime integration, and application workflow while
+Graph and DI remain unintegrated. Phase 5B
+now applies ADR 0059's `>=8.5.0 <8.6.0` range to the root and all eighteen
+packages. PHP 8.5 is the sole compatibility-certified minor, with PHP 8.5.9 on
+Windows proved; no PHP 8.6, PHP 9, prerelease, nightly, or automatic
+future-minor support is claimed. This installability-metadata migration adds no
+runtime semantics, dependency, public API, polyfill, shim, release/LTS promise,
+or composition/build capability. Phase 5B is accepted and its bounded PHP
+constraint is current.
+
+Phase 5C accepts ADRs 0070 and 0071 plus the
+[composition source guide](../architecture/composition-source.md) and
+[declaration guide](../engineering/composition-declarations.md). The sole
+version-1 source is inert application-owned
+`<application-root>/kongono.composition.json`; the source/declaration/lifetime
+contract is accepted. Phase 5D implements `kongono/composition` as the
+nineteenth package with strict validation, canonical model and artifact bytes,
+raw-source/project/symbol/builder provenance, exact current validation, and
+content-addressed publication. Phase 5E accepts ADR 0073 and adds corrected
+typed generation, isolated lifetimes, leases, cleanup, failure composition,
+validation, and explicit publication in that package. Phase 5F accepts ADR 0074
+and adds the exact-current loader, one-use startup reflection, exact single-root
+web profile, and thin existing PHP-CGI bridge. Phase 5G accepts ADR 0075 and
+adds one copy-once minimal skeleton plus reusable exact build/check and bounded
+one-request application commands. It adds no framework CLI, container, mutable
+pointer, new transport, listener, automatic upgrade, deployment behavior, or
+Phase 5H work. Copied source stays application-owned; DI and Graph remain
+unintegrated and existing lifecycle ownership remains unchanged. Phase 5H
+accepts ADR 0076 and adds only the root-owned external harness, documentation
+reconciliation, and exact Phase 5 checkpoint. The milestone is a supported
+pre-1.0 application-composition slice, not Stable API, a full framework,
+production-readiness certification, deployment behavior, or Phase 6 authority.

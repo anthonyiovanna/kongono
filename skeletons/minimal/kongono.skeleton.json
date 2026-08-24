@@ -1,0 +1,26 @@
+{
+  "schema": "kongono.application-skeleton",
+  "version": 1,
+  "template_paths": [
+    ".gitignore",
+    "README.md",
+    "bin/build.php",
+    "bin/check.php",
+    "bin/run.php",
+    "composer.json",
+    "composer.lock",
+    "kongono.composition.json",
+    "kongono.skeleton.json",
+    "public/index.php",
+    "src/Bootstrap.php",
+    "src/Http/HomeHandler.php",
+    "src/Http/NotFoundHandler.php",
+    "src/Runtime.php",
+    "var/kongono/build/.gitignore"
+  ],
+  "derived_output_patterns": [
+    "var/kongono/build/kongono-composition-v1-*.json",
+    "var/kongono/build/kongono-wiring-v1-*.php",
+    "vendor/**"
+  ]
+}

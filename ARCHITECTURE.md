@@ -53,7 +53,7 @@ repository behavior.
 
 ## Package dependency topology
 
-The current runtime has fourteen packages. `kongono/api-metadata` requires
+The current runtime has nineteen packages. `kongono/api-metadata` requires
 PHP only and owns `Kongono\ApiMetadata\Api` and `ApiStatus`. Kernel,
 Diagnostics, and Dependency Injection each require API Metadata; Kernel,
 Application Graph, Dependency Injection, HTTP Message, Routing, and HTTP Server
@@ -66,7 +66,7 @@ does not depend on the concrete HTTP Message package. Web Runtime is the top-lev
 delivery leaf above Web Application and the trusted-diagnostic foundations.
 `kongono/php-cgi` is an outer leaf over API Metadata, Diagnostic Activation,
 Diagnostics, HTTP Message, Web Runtime, PSR-7, and PHP. It has no direct Web
-Application dependency. The root consumes all fourteen. This graph is acyclic,
+Application dependency. The root consumes all nineteen. This graph is acyclic,
 and no package depends on Kernel merely for compatibility metadata.
 
 Phase 1C implements `kongono/diagnostic-activation` as an acyclic package that
@@ -89,7 +89,7 @@ reverse edge. Diagnostic Presentation does not depend on Diagnostic Activation;
 the framework root consumes both independently.
 
 Phase 1H implements `kongono/diagnostic-handler` as the eighth leaf package under
-`Kongono\DiagnosticHandler\`. It requires PHP 8.5 or later and depends
+`Kongono\DiagnosticHandler\`. It requires PHP `>=8.5.0 <8.6.0` and depends
 directly only on API Metadata, Diagnostic Activation, Diagnostic Presentation,
 Kernel, Application Graph, and Dependency Injection. The three originating
 packages are direct dependencies because their marker interfaces form the
@@ -132,7 +132,7 @@ Phase 2G and ADR 0049 implement the outer delivery adapter without changing Web
 Application's sole Kernel-scope ownership. Phase 2H's root-owned fixture
 completes the runnable black-box milestone without becoming production behavior.
 
-Kongono Framework targets PHP 8.5+ and is designed for three first-class consumption surfaces: Human Experience, Software/API Experience, and Agent Experience. The framework is not a Laravel clone. It aims to preserve strong developer productivity while favoring explicit, typed, deterministic, observable, modular, persistent-runtime-safe, and AI-native architecture.
+Kongono Framework targets PHP 8.5 and is designed for three first-class consumption surfaces: Human Experience, Software/API Experience, and Agent Experience. The framework is not a Laravel clone. It aims to preserve strong developer productivity while favoring explicit, typed, deterministic, observable, modular, persistent-runtime-safe, and AI-native architecture.
 
 ## Foundational model
 
@@ -274,7 +274,7 @@ hardening remain unimplemented.
 
 ## Boundaries
 
-- PHP 8.5+ is the primary application language.
+- PHP 8.5 is the primary application language.
 - TypeScript and JavaScript belong to browser/frontend integration.
 - Rust may later support high-performance framework tooling.
 - Go may be selected later for specific infrastructure or runtime integrations.
@@ -371,11 +371,12 @@ developer companions are distinct from application Agent Principals and are
 not implemented. The deterministic framework remains usable offline and
 without AI.
 
-Current Composer constraints remain the mixed `>=8.5` and `^8.5` transitional
-state. The accepted rolling policy targets one compatibility-certified PHP
-minor; a later authenticated migration is required before
-`>=8.5.0 <8.6.0` becomes current metadata. No PHP 8.6 or PHP 9 support is
-claimed.
+Phase 5B applies `>=8.5.0 <8.6.0` to the root and all eighteen package
+manifests. PHP 8.5 is the one active compatibility-certified minor, and this
+execution proves PHP 8.5.9 on Windows. Eligible stable 8.5 patches remain in
+range; a later minor still requires the complete separately accepted
+compatibility gate. PHP 8.6, PHP 9, prerelease, nightly, and automatic
+future-minor support are not claimed.
 
 See the [developer-intelligence architecture](docs/architecture/developer-intelligence.md),
 [Phase 4 roadmap](docs/architecture/phase-4-roadmap.md), and
@@ -452,4 +453,81 @@ offline Knowledge/Chie/Oshie behavior, a real Hantei PASS, explicitly synthetic
 Hantei FAIL/BLOCKED evaluation, inert untrusted instructions, non-disclosure,
 temporary cleanup, and no repository mutation or authority elevation. Phase 4A
 through 4H are implemented and externally accepted at the bounded checkpoint.
-Kongono remains pre-1.0 and not production-ready; Phase 5 was not begun.
+Kongono remains pre-1.0 and not production-ready.
+
+## Phase 5 composition and application workflow
+
+Phase 4 is complete at checkpoint
+`358e412929d6bb7316195d3a1748c346a2de0e1b` with eighteen acyclic production
+packages. Phase 5A accepted documentation architecture for one supported
+application composition root, deterministic build-before-runtime behavior, and
+generated typed PHP constructor wiring. Phases 5D-5F now implement the
+artifact, generated wiring, and existing-web lifecycle boundaries. Phase 5G
+adds one copy-once minimal skeleton and an explicit build/check/one-request run
+workflow.
+
+The future composition root owns construction, startup order, retained
+application-lifetime objects, operation factories, shutdown order, and partial-
+boot cleanup. It is not Kernel: Kernel retains its current lifecycle-neutral
+boundary. Production startup must verify one complete current deterministic
+artifact before accepting work; request handling never discovers, reflects,
+scans, autowires, rebuilds, downloads, or silently accepts stale output.
+
+The supported production direction rejects ambient containers, resolver or
+container injection into application services, runtime service lookup,
+property-hook dependency resolution, request-time reflection/scanning,
+runtime `eval`, and remote generated code. The existing Experimental runtime
+resolver remains unchanged until a separate generated boundary is implemented
+and proved. The current Application Graph also remains unchanged and has no
+selected build integration.
+
+Phase 5B applies the already-Accepted Composer/platform migration to
+`>=8.5.0 <8.6.0` without adding runtime semantics, a package, dependency,
+polyfill, shim, public API, release/LTS promise, or composition/build
+capability. Phase 5B is accepted and the bounded PHP constraint is current.
+
+Phase 5C accepts the contract for exactly one inert application-owned
+`<application-root>/kongono.composition.json`, schema
+`"kongono.composition"`, integer version `1`, canonical symbols, typed inputs,
+explicit services/bindings/roots, application/operation/transient lifetimes,
+reverse-order cleanup, deterministic validation, bounds, source safety, and
+provenance. Phase 5D now implements the nineteenth acyclic package,
+`kongono/composition`, which validates that source and inspected symbols,
+builds a canonical semantic model, preserves exact raw-source/project/builder/
+symbol provenance in a versioned artifact, validates currentness, and publishes
+content-addressed bytes without overwrite. Phase 5E now adds deterministic
+typed PHP generation and isolated application/operation lifetime support in
+that package. Version 1 accepts only `service`, `input`, and `default`; plural
+collaboration uses an explicit application-owned typed aggregate. The
+generated boundary owns eager roots, three lifetimes, leases, reverse cleanup,
+closed/retired state, non-executing validation, and explicit no-clobber
+publication. Phase 5F adds one exact-current generated-file loader, bounded
+one-use startup reflection, and the exact single-root web profile. Existing Web
+Application Kernel-operation ownership, Web Runtime delivery ownership, and
+PHP-CGI front-controller ownership remain unchanged. Copied application source
+remains application-owned; DI and Graph remain unintegrated. Phase 5G adds only
+application-owned Composer scripts and the copy-once skeleton. Phase 5H adds
+only root-owned external acceptance: a deterministic 28-scenario offline
+install/build/check/run/failure/isolation/nondisclosure/cleanup matrix and the
+exact Phase 5 checkpoint. It adds no framework CLI, mutable current pointer,
+new transport, listener, deployment behavior, automatic upgrade, production
+capability, or Phase 6 work. See
+[ADR 0068](docs/adr/0068-supported-application-composition-and-build-boundary.md),
+[ADR 0069](docs/adr/0069-generated-typed-wiring-and-no-runtime-service-location.md),
+[ADR 0070](docs/adr/0070-versioned-composition-source-and-provenance.md),
+[ADR 0071](docs/adr/0071-roots-bindings-lifetimes-and-cleanup.md),
+[ADR 0072](docs/adr/0072-deterministic-composition-artifact-and-publication.md),
+[ADR 0073](docs/adr/0073-generated-typed-wiring-and-lifecycle-boundary.md),
+[ADR 0074](docs/adr/0074-generated-assembly-web-runtime-integration.md),
+[ADR 0075](docs/adr/0075-minimal-application-skeleton-and-workflow.md),
+[ADR 0076](docs/adr/0076-phase-5-external-application-acceptance.md),
+the [composition and build guide](docs/architecture/application-composition-and-build.md),
+the [generated composition wiring guide](docs/architecture/generated-composition-wiring.md),
+the [generated runtime integration guide](docs/architecture/generated-runtime-integration.md),
+the [composition source guide](docs/architecture/composition-source.md),
+the [minimal application workflow](docs/architecture/minimal-application-workflow.md),
+the [Phase 5 external acceptance guide](docs/architecture/phase-5-external-acceptance.md),
+the [Phase 5 roadmap](docs/architecture/phase-5-roadmap.md),
+the [generated wiring guide](docs/engineering/generated-wiring.md),
+the [application workflow guide](docs/engineering/application-workflow.md), and
+the [declaration guide](docs/engineering/composition-declarations.md).

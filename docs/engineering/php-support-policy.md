@@ -4,27 +4,24 @@
 
 This contributor policy translates [ADR 0059](../adr/0059-rolling-current-minor-php-baseline.md)
 into operational review criteria. The rolling one-minor policy is Accepted.
-Phase 4A changes no Composer manifest, lockfile, CI lane, runtime behavior, or
-release claim.
+Phase 5B applies ADR 0059's accepted bounded current-minor expression without
+changing runtime behavior or making a release claim.
 
-## Current transitional manifest state
+## Current manifest state
 
-The root and eight package manifests currently require `>=8.5`: API Metadata,
-Application Graph, Dependency Injection, Diagnostic Activation, Diagnostic
-Handler, Diagnostic Presentation, Diagnostics, and Kernel. Six package
-manifests require `^8.5`: HTTP Message, HTTP Server, PHP CGI, Routing, Web
-Application, and Web Runtime.
-
-No current manifest requires the intended future bounded expression
-`>=8.5.0 <8.6.0`. The mixed metadata is current installable behavior; it is not
-evidence of PHP 8.6 or PHP 9 support.
+The root and all eighteen package manifests require `>=8.5.0 <8.6.0`. PHP 8.5
+is the one active compatibility-certified minor. Phase 5B proves PHP 8.5.9 on
+Windows; it does not invent a broader host matrix. Eligible stable 8.5 patches
+remain within range, while a later minor requires the complete separately
+accepted compatibility gate. PHP 8.6, PHP 9, prerelease, nightly, and automatic
+future-minor support are not claimed.
 
 ## Accepted rolling one-minor policy
 
 The actively developed line supports exactly one stable PHP minor at a time:
 the newest minor that has completed Kongono's compatibility gate. PHP 8.5 is
-the intended current certified line. A later separately authenticated migration
-is required before the bounded expression becomes repository behavior.
+the current certified line. The bounded expression is repository behavior from
+Phase 5B onward.
 
 Eligible stable patches within the certified minor do not require a manifest
 edit unless a documented security, correctness, or platform reason raises the
@@ -92,23 +89,23 @@ cadence, maintenance, LTS, backports, and Kongono 1.0 policy remain open.
 
 This policy does not mean:
 
-- the intended bounded constraint is already installed;
-- `>=8.5` or `^8.5` certifies every runtime Composer admits;
+- the bounded constraint certifies any minor beyond PHP 8.5;
 - PHP 8.6 is supported because it is published or a forward lane passes;
 - PHP 9 is supported because PHP 8 code or a prerelease test succeeds;
 - older minors receive default shims, polyfills, legacy branches, or indefinite
   maintenance; or
-- Phase 4A changes runtime certification, CI, dependencies, or release status.
+- Phase 5B changes runtime semantics, dependencies, API, or release status.
 
 A PHP major always requires a separate architecture and migration decision. A
 time-bounded compatibility exception requires another Accepted ADR.
 
-## Later manifest migration
+## Phase 5B migration boundary
 
-Only a separately authenticated directive may migrate the root and all fourteen
-package manifests to `>=8.5.0 <8.6.0`, regenerate lockfile metadata through
-Composer, change CI, and establish the associated release evidence. Do not make
-or recommend that edit as Phase 4A implementation.
+Phase 5B changes installability metadata only. It adds no runtime semantics,
+package, dependency, public API, polyfill, shim, composition/build capability,
+release, or LTS promise. Phase 5A remains accepted; Phase 5C is next and has not
+begun. Any later minor still requires a separately authenticated directive and
+the complete gate above.
 
 ## Related material
 

@@ -2,7 +2,7 @@
 
 > **Build what comes next.**
 
-Kongono is a planned modern application framework for applications that must be understandable to humans, software clients, tooling, infrastructure, and AI agents. PHP 8.5+ is its primary application language.
+Kongono is a planned modern application framework for applications that must be understandable to humans, software clients, tooling, infrastructure, and AI agents. PHP 8.5 is its primary application language.
 
 ## Who Kongono is designed for
 
@@ -300,10 +300,11 @@ model, production integration, or application Agent Principal is implemented.
 
 The deterministic framework remains usable offline and without AI. Developer
 companions are distinct from application Agent Principals. The accepted PHP
-policy targets one compatibility-certified stable minor at a time, but current
-Composer metadata remains the mixed `>=8.5` and `^8.5` state. A later
-authenticated migration is required for `>=8.5.0 <8.6.0`; no PHP 8.6 or PHP 9
-support is claimed. Phase 4 remains smaller than the full framework, Stable
+policy targets one compatibility-certified stable minor at a time. Phase 5B
+applies `>=8.5.0 <8.6.0` to the root and all eighteen packages; PHP 8.5 is the
+active line and PHP 8.5.9 on Windows is the proved environment. Eligible stable
+8.5 patches remain in range. PHP 8.6, PHP 9, prerelease, nightly, and automatic
+future-minor support are not claimed. Phase 4 remains smaller than the full framework, Stable
 API, 1.0, auto-fix, autonomous operations, or production AI.
 
 Phase 4B now accepts the architecture-only [versioned knowledge-source and
@@ -368,4 +369,67 @@ artifact/source identity, keeps local Knowledge/Chie/Oshie available with
 network access denied, distinguishes synthetic Hantei evaluator evidence, and
 proves candidate, disclosure, mutation, and cleanup boundaries. Phase 4A
 through 4H are implemented and externally accepted at the bounded checkpoint.
-Kongono remains pre-1.0 and not production-ready; Phase 5 was not begun.
+Kongono remains pre-1.0 and not production-ready.
+
+## Accepted Phase 5A application composition architecture
+
+Phase 4 is checkpointed at `358e412929d6bb7316195d3a1748c346a2de0e1b`.
+Phase 5A accepts architecture and documentation only for a supported
+application composition root, an explicit deterministic build/check step, and
+generated readable PHP constructor wiring. Current application construction is
+still caller-owned, the runnable fixture is still test-only, and no composition
+artifact, generator, application template, command, or runtime integration has
+been implemented.
+
+The future runtime path will consume one complete current build artifact before
+accepting work. Runtime service location, ambient containers, resolver or
+container injection into application services, property-hook dependency
+resolution, request-time reflection or scanning, hidden autowiring, and runtime
+`eval` are rejected. The current Experimental resolver and structural
+Application Graph remain unchanged and unintegrated.
+
+Phase 5B applies the rolling current-minor Composer/platform migration as
+installability metadata only. It adds no runtime semantics, package,
+dependency, public API, polyfill, shim, composition/build capability, or
+release/LTS promise. Phase 5B is accepted and the bounded PHP range is current.
+
+Phase 5C accepts a contract for one inert version-1 source at
+`<application-root>/kongono.composition.json`. It defines canonical inputs,
+services, bindings, typed roots, application/operation/transient lifetimes,
+cleanup, bounds, deterministic validation, safe reading, and provenance.
+Phase 5D implements the Experimental `kongono/composition` package: strict
+source/symbol validation, canonical model construction, exact provenance,
+versioned structural/current validation, and explicit content-addressed
+no-clobber publication. Phase 5E extends it with canonical typed PHP generation,
+exact generated identities, non-executing validation/publication, and explicit
+application/operation lifetime support. Version 1 uses only individual
+`service`, typed `input`, and `default` arguments; applications declare a typed
+aggregate service for plural collaboration. Phase 5F adds the explicit exact-
+current generated-file loader, one-use startup reflection, exact single-root web
+profile, and thin existing PHP-CGI front-controller bridge. Phase 5G adds the
+copy-once `skeletons/minimal/` template, reusable content-addressed build/check
+workflow, and application-owned `app:build`, `app:check`, and bounded one-request
+`app:run` scripts. There is no framework CLI, container, service locator,
+mutable current pointer, new transport, listener, automatic skeleton upgrade,
+deployment behavior, or automatic upgrade. Phase 5H adds the root-owned
+`composer acceptance:phase5` 28-scenario external proof and exact checkpoint;
+it adds no production capability or Phase 6 work. Existing Kernel, Web
+Application, Web Runtime, and PHP-CGI lifecycle ownership is preserved.
+See the
+[composition and build guide](docs/architecture/application-composition-and-build.md),
+[composition source guide](docs/architecture/composition-source.md),
+[Phase 5 roadmap](docs/architecture/phase-5-roadmap.md),
+[generated wiring guide](docs/engineering/generated-wiring.md),
+[declaration guide](docs/engineering/composition-declarations.md),
+[ADR 0068](docs/adr/0068-supported-application-composition-and-build-boundary.md),
+[ADR 0069](docs/adr/0069-generated-typed-wiring-and-no-runtime-service-location.md),
+[ADR 0070](docs/adr/0070-versioned-composition-source-and-provenance.md), and
+[ADR 0071](docs/adr/0071-roots-bindings-lifetimes-and-cleanup.md), and
+[ADR 0072](docs/adr/0072-deterministic-composition-artifact-and-publication.md).
+[ADR 0073](docs/adr/0073-generated-typed-wiring-and-lifecycle-boundary.md).
+[ADR 0074](docs/adr/0074-generated-assembly-web-runtime-integration.md),
+[ADR 0075](docs/adr/0075-minimal-application-skeleton-and-workflow.md),
+[ADR 0076](docs/adr/0076-phase-5-external-application-acceptance.md),
+the [generated runtime integration guide](docs/architecture/generated-runtime-integration.md), and
+the [minimal application workflow](docs/architecture/minimal-application-workflow.md), and
+the [Phase 5 external acceptance guide](docs/architecture/phase-5-external-acceptance.md).

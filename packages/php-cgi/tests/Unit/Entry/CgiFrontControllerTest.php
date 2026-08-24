@@ -12,11 +12,13 @@ use Kongono\DiagnosticActivation\TrustedDeveloperBootstrapPermission;
 use Kongono\Http\Message\Message\Response;
 use Kongono\Kernel\Contract\KernelInterface;
 use Kongono\PhpCgi\Entry\CgiFrontController;
+use Kongono\PhpCgi\Entry\CgiGeneratedFrontController;
 use Kongono\PhpCgi\Exception\CgiEntryShutdownException;
 use Kongono\Routing\Definition\RouteTable;
 use Kongono\Web\Application\WebApplication;
 use Kongono\Web\Runtime\Contract\WebDeliveryInterface;
 use Kongono\Web\Runtime\Exception\RetiredWebRuntimeException;
+use Kongono\Web\Runtime\GeneratedWebRuntimeApplication;
 use Kongono\Web\Runtime\WebRuntimeAdapter;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
@@ -28,6 +30,27 @@ use RuntimeException;
 
 final class CgiFrontControllerTest extends TestCase
 {
+    public function testGeneratedFrontControllerSurfaceIsOneExactTypedDelegation(): void
+    {
+        $reflection = new \ReflectionClass(CgiGeneratedFrontController::class);
+        self::assertTrue($reflection->isFinal());
+        self::assertSame(ApiStatus::Experimental, $reflection->getAttributes(Api::class)[0]->newInstance()->status);
+        self::assertTrue($reflection->getConstructor()?->isPrivate());
+        self::assertSame([], $reflection->getProperties());
+        self::assertSame(['run'], array_map(
+            static fn(\ReflectionMethod $method): string => $method->getName(),
+            array_filter(
+                $reflection->getMethods(\ReflectionMethod::IS_PUBLIC),
+                static fn(\ReflectionMethod $method): bool => $reflection->getName() === $method->getDeclaringClass()->getName(),
+            ),
+        ));
+        self::assertSame([GeneratedWebRuntimeApplication::class], array_map(
+            static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(),
+            $reflection->getMethod('run')->getParameters(),
+        ));
+        self::assertSame('void', (string) $reflection->getMethod('run')->getReturnType());
+    }
+
     public function testDeclarationAndPublicSurfaceAreExact(): void
     {
         $reflection = new \ReflectionClass(CgiFrontController::class);

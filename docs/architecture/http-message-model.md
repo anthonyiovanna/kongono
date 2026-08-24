@@ -84,7 +84,7 @@ php 8.5 ---------+
 The exact implemented constraints are:
 
 ```text
-php: ^8.5
+php: >=8.5.0 <8.6.0
 kongono/api-metadata: *
 kongono/diagnostics: *
 psr/http-message: ^2.0
@@ -340,3 +340,12 @@ Phase 3H supplies root-owned external proof without adding a production
 dependency on acceptance code. The intrinsic query ceiling remains 8,192 bytes
 and exact target/query composition has an 8,190-byte effective external
 maximum. Phase 3 is closed without a Stable API or hardening claim.
+
+Phase 5B changes only Composer installability metadata: the root and all
+eighteen packages now require `>=8.5.0 <8.6.0`. PHP 8.5 remains the sole
+compatibility-certified minor, and PHP 8.5.9 on Windows is the environment
+proved by this execution. Stable eligible 8.5 patches stay in range; PHP 8.6,
+PHP 9, prerelease, nightly, and automatic future-minor support are not claimed.
+No HTTP Message runtime behavior, package, dependency, public API, polyfill,
+shim, release/LTS promise, or composition/build capability is added. Phase 5A
+remains accepted; Phase 5C is next and has not begun.

@@ -18,6 +18,7 @@ use Kongono\Web\Application\Exception\ExceptionInterface as WebApplicationExcept
 use Kongono\Web\Runtime\Diagnostic\WebRuntimeDiagnostic;
 use Kongono\Web\Runtime\Exception\DeliveryCleanupException;
 use Kongono\Web\Runtime\Exception\ExceptionInterface;
+use Kongono\Web\Runtime\Exception\InvalidGeneratedWebRuntimeException;
 use Kongono\Web\Runtime\Exception\RetiredWebRuntimeException;
 use Kongono\Web\Runtime\Exception\WebRuntimeException;
 use PHPUnit\Framework\TestCase;
@@ -50,14 +51,14 @@ final class WebRuntimeExceptionTest extends TestCase
         $constructor = $base->getConstructor();
         self::assertNotNull($constructor);
         self::assertTrue($constructor->isProtected());
-        self::assertSame([WebRuntimeDiagnostic::class, '?Throwable'], array_map(
+        self::assertSame([WebRuntimeDiagnostic::class, '?Throwable', '?string'], array_map(
             static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(),
             $constructor->getParameters(),
         ));
         foreach (['diagnosticContext', 'diagnosticId', 'diagnosticTitle', 'diagnosticRemediation'] as $method) {
             self::assertTrue($base->getMethod($method)->isFinal());
         }
-        self::assertNotSame(WebRuntimeException::class, $base->getMethod('__toString')->getDeclaringClass()->getName());
+        self::assertSame(WebRuntimeException::class, $base->getMethod('__toString')->getDeclaringClass()->getName());
 
         $retired = new \ReflectionClass(RetiredWebRuntimeException::class);
         self::assertTrue($retired->isFinal());
@@ -112,6 +113,17 @@ final class WebRuntimeExceptionTest extends TestCase
             self::assertStringNotContainsString($raw, $surface);
         }
         self::assertNotSame(DeliveryCleanupException::class, (new \ReflectionClass(DeliveryCleanupException::class))->getMethod('__toString')->getDeclaringClass()->getName());
+    }
+
+    public function testGeneratedIntegrationFailureSanitizesDirectInputAndStringification(): void
+    {
+        $secret = 'raw-generated-secret-sentinel';
+        $exception = new InvalidGeneratedWebRuntimeException($secret);
+
+        self::assertSame('KGN-WEB-RUNTIME-1003', $exception->diagnosticId());
+        self::assertSame('application_root_shape', $exception->diagnosticContext()->fields()[0]->value());
+        self::assertSame('KGN-WEB-RUNTIME-1003: Invalid generated web-runtime integration', (string) $exception);
+        self::assertStringNotContainsString($secret, (string) $exception);
     }
 
     /**

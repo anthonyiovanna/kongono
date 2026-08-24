@@ -18,10 +18,10 @@ abstract class WebRuntimeException extends RuntimeException implements Exception
     private readonly WebRuntimeDiagnostic $diagnostic;
     private readonly DiagnosticContext $diagnosticContext;
 
-    protected function __construct(WebRuntimeDiagnostic $diagnostic, ?Throwable $previous = null)
+    protected function __construct(WebRuntimeDiagnostic $diagnostic, ?Throwable $previous = null, ?string $violation = null)
     {
         $this->diagnostic = $diagnostic;
-        $this->diagnosticContext = $diagnostic->context();
+        $this->diagnosticContext = $diagnostic->context($violation);
         parent::__construct($diagnostic->title(), 0, $previous);
     }
 
@@ -43,5 +43,10 @@ abstract class WebRuntimeException extends RuntimeException implements Exception
     final public function diagnosticRemediation(): string
     {
         return $this->diagnostic->remediation();
+    }
+
+    final public function __toString(): string
+    {
+        return sprintf('%s: %s', $this->diagnostic->value, $this->diagnostic->title());
     }
 }

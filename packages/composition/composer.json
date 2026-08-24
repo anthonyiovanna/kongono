@@ -1,0 +1,22 @@
+{
+  "name": "kongono/composition",
+  "description": "Deterministic composition artifacts, generated typed wiring, and lifecycle support for Kongono.",
+  "type": "library",
+  "require": {
+    "ext-hash": "*",
+    "ext-json": "*",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Composition\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\Composition\\Tests\\": "tests/"
+    }
+  }
+}

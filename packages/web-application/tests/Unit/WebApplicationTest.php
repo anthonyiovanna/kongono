@@ -27,6 +27,23 @@ use RuntimeException;
 
 final class WebApplicationTest extends TestCase
 {
+    public function testDirectTypedConstructionStoresPipelineAndBootsKernelOnce(): void
+    {
+        $response = self::createStub(ResponseInterface::class);
+        $scope = new OperationScope();
+        $request = $this->request('GET', '/');
+        $kernel = $this->createMock(KernelInterface::class);
+        $kernel->expects(self::once())->method('boot');
+        $kernel->expects(self::once())->method('beginOperation')->willReturn($scope);
+        $kernel->expects(self::once())->method('endOperation')->with(self::identicalTo($scope));
+        $pipeline = $this->createMock(RequestHandlerInterface::class);
+        $pipeline->expects(self::once())->method('handle')->with(self::identicalTo($request))->willReturn($response);
+
+        $application = new WebApplication($kernel, $pipeline);
+
+        self::assertSame($response, $application->handle($request));
+    }
+
     public function testInvalidRouteHandlerKeyFailsBeforeKernelBoot(): void
     {
         $kernel = $this->createMock(KernelInterface::class);
@@ -455,8 +472,8 @@ final class WebApplicationTest extends TestCase
 
         $constructor = $reflection->getConstructor();
         self::assertNotNull($constructor);
-        self::assertTrue($constructor->isPrivate());
-        self::assertSame([KernelInterface::class, 'Kongono\\Http\\Server\\MiddlewarePipeline'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $constructor->getParameters()));
+        self::assertTrue($constructor->isPublic());
+        self::assertSame([KernelInterface::class, RequestHandlerInterface::class], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $constructor->getParameters()));
         self::assertTrue($reflection->getMethod('__clone')->isPrivate());
         self::assertFalse($reflection->hasMethod('__destruct'));
         self::assertFalse($reflection->hasMethod('__serialize'));
@@ -467,7 +484,7 @@ final class WebApplicationTest extends TestCase
             array_filter($reflection->getMethods(\ReflectionMethod::IS_PUBLIC), static fn(\ReflectionMethod $method): bool => WebApplication::class === $method->getDeclaringClass()->getName()),
         );
         sort($public);
-        self::assertSame(['boot', 'handle', 'isRetired', 'shutdown'], $public);
+        self::assertSame(['__construct', 'boot', 'handle', 'isRetired', 'shutdown'], $public);
     }
 
     public function testDestructionDoesNotTriggerAutomaticShutdown(): void

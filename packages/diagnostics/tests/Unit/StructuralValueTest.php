@@ -229,7 +229,7 @@ final class StructuralValueTest extends TestCase
         self::assertIsArray($manifest);
         self::assertSame([
             'kongono/api-metadata' => '*',
-            'php' => '>=8.5',
+            'php' => '>=8.5.0 <8.6.0',
         ], $manifest['require']);
     }
 

@@ -138,8 +138,26 @@ monitoring, incidents, and deployment remain operator-owned. Phase 3 is not the
 full framework, Stable API, 1.0, universal SAPI support, deployment automation,
 or production-hardening certification. No next phase starts automatically.
 
+## Phase 5F generated entry
+
+Phase 5F adds one optional typed entry for an already-started
+`GeneratedWebRuntimeApplication`. `CgiGeneratedFrontController` delegates to
+the existing front controller with exactly that application's runtime and
+shutdown closure. It adds no generated entry script, listener, server profile,
+deployment automation, new acceptance claim, or change to the operator-owned
+responsibilities above.
+
 ## Related material
 
 - [ADR 0057: Bounded PHP CGI Front-Controller Lifecycle and Deployment Constraints](../adr/0057-bounded-php-cgi-front-controller-lifecycle-and-deployment-constraints.md)
 - [PHP CGI FastCGI profile](../architecture/php-cgi-fastcgi-profile.md)
 - [Phase 3 roadmap](../architecture/phase-3-roadmap.md)
+- [ADR 0074: Generated Assembly and Web Runtime Integration](../adr/0074-generated-assembly-web-runtime-integration.md)
+- [ADR 0075: Minimal Application Skeleton and Workflow](../adr/0075-minimal-application-skeleton-and-workflow.md)
+- [Application workflow](application-workflow.md)
+
+The Phase 5G `app:run` script is a one-request development proof. It checks
+exact generated state, invokes the installed PHP-CGI executable with a fixed
+local snapshot, and exits. It is not a deployment recipe and must not be
+extended into a listener, resident server, watcher, supervisor, or worker
+manager.

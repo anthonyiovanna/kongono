@@ -125,7 +125,7 @@ host/web server
         -> kongono/http-message
         -> kongono/web-runtime
         -> psr/http-message ^2.0
-        -> php ^8.5
+        -> php >=8.5.0 <8.6.0
 ```
 
 The leaf must not depend directly on Kernel, Routing, HTTP Server, Web
@@ -538,3 +538,23 @@ matching nonempty query must occur after `/?` in the complete 8,192-byte-capped
 target, so the effective external maximum is 8,190 bytes. Acceptance proves
 8,189 and 8,190 bytes accepted and 8,191 rejected as `target_too_long`; it does
 not claim isolated external reachability of the intrinsic query check.
+
+Phase 5B changes PHP CGI and every other first-party manifest, plus the root,
+to `>=8.5.0 <8.6.0`. PHP 8.5 is the sole compatibility-certified minor, with
+PHP 8.5.9 on Windows proved by this execution; stable eligible 8.5 patches
+remain in range. PHP 8.6, PHP 9, prerelease, nightly, and automatic future-minor
+support are not claimed. This installability-metadata change adds no FastCGI or
+runtime semantics, package, dependency, public API, polyfill, shim, release/LTS
+promise, or composition/build capability. Phase 5A remains accepted; Phase 5C
+is accepted. Phase 5F adds only `CgiGeneratedFrontController`, which delegates
+the exact generated application's runtime and shutdown closure to the existing
+`CgiFrontController::run()`. Capture, conversion, trust, response selection,
+emission, close, and failure composition remain unchanged. This is not new
+external FastCGI acceptance or deployment behavior. See
+[ADR 0074](../adr/0074-generated-assembly-web-runtime-integration.md).
+
+Phase 5G's application-owned `app:run` invokes one installed PHP-CGI process
+for one fixed local request and exits. It reuses this profile and the generated
+front controller; it is not a listener, resident development server, worker
+manager, supervisor, or deployment workflow. See
+[ADR 0075](../adr/0075-minimal-application-skeleton-and-workflow.md).

@@ -50,6 +50,41 @@ use Kongono\Chie\Proposal\ChieProposalAuthority;
 use Kongono\Chie\Proposal\ChieProposalRequest;
 use Kongono\Chie\Proposal\ChieProposalStatus;
 use Kongono\Chie\Proposal\SafeCandidateText;
+use Kongono\Composition\Build\CompositionArtifact;
+use Kongono\Composition\Build\CompositionArtifactBuilder;
+use Kongono\Composition\Build\CompositionArtifactPublisher;
+use Kongono\Composition\Build\CompositionArtifactValidator;
+use Kongono\Composition\Diagnostic\CompositionDiagnostic;
+use Kongono\Composition\Exception\ApplicationWorkflowException;
+use Kongono\Composition\Exception\CompositionException;
+use Kongono\Composition\Exception\CompositionLifecycleException;
+use Kongono\Composition\Exception\CompositionPublicationException;
+use Kongono\Composition\Exception\ExceptionInterface as CompositionExceptionInterface;
+use Kongono\Composition\Exception\GeneratedWiringLoadException;
+use Kongono\Composition\Exception\GeneratedWiringPublicationException;
+use Kongono\Composition\Exception\InvalidCompositionArtifactException;
+use Kongono\Composition\Exception\InvalidCompositionSourceException;
+use Kongono\Composition\Exception\InvalidGeneratedWiringException;
+use Kongono\Composition\Exception\RetiredCompositionBoundaryException;
+use Kongono\Composition\Exception\StaleCompositionArtifactException;
+use Kongono\Composition\Generated\GeneratedWiringArtifact;
+use Kongono\Composition\Generated\GeneratedWiringGenerator;
+use Kongono\Composition\Generated\GeneratedWiringPublisher;
+use Kongono\Composition\Generated\GeneratedWiringValidator;
+use Kongono\Composition\Internal\CanonicalJson as CompositionCanonicalJson;
+use Kongono\Composition\Internal\CompositionModelCompiler;
+use Kongono\Composition\Internal\GeneratedWiringEmitter;
+use Kongono\Composition\Internal\GeneratedWiringImplementation;
+use Kongono\Composition\Internal\PathGuard as CompositionPathGuard;
+use Kongono\Composition\Internal\StrictJsonDecoder;
+use Kongono\Composition\Runtime\GeneratedApplicationBoundary;
+use Kongono\Composition\Runtime\GeneratedApplicationState;
+use Kongono\Composition\Runtime\GeneratedOperationBoundary;
+use Kongono\Composition\Runtime\GeneratedWiringLoader;
+use Kongono\Composition\Runtime\LifecycleFailureComposer;
+use Kongono\Composition\Runtime\LoadedGeneratedWiring;
+use Kongono\Composition\Workflow\ApplicationBuildWorkflow;
+use Kongono\Composition\Workflow\CurrentApplicationBuild;
 use Kongono\DependencyInjection\Contract\ResolverInterface;
 use Kongono\DependencyInjection\Definition\ServiceDefinition;
 use Kongono\DependencyInjection\DependencyResolver;
@@ -161,6 +196,7 @@ use Kongono\PhpCgi\Delivery\CgiWebDelivery;
 use Kongono\PhpCgi\Diagnostic\PhpCgiDiagnostic;
 use Kongono\PhpCgi\Emission\CgiResponseEmitter;
 use Kongono\PhpCgi\Entry\CgiFrontController;
+use Kongono\PhpCgi\Entry\CgiGeneratedFrontController;
 use Kongono\PhpCgi\Entry\CgiWebEntry;
 use Kongono\PhpCgi\Exception\CgiDeliveryCleanupException;
 use Kongono\PhpCgi\Exception\CgiEntryShutdownException;
@@ -201,8 +237,12 @@ use Kongono\Web\Runtime\Contract\WebDeliveryInterface;
 use Kongono\Web\Runtime\Diagnostic\WebRuntimeDiagnostic;
 use Kongono\Web\Runtime\Exception\DeliveryCleanupException;
 use Kongono\Web\Runtime\Exception\ExceptionInterface as WebRuntimeExceptionInterface;
+use Kongono\Web\Runtime\Exception\InvalidGeneratedWebRuntimeException;
 use Kongono\Web\Runtime\Exception\RetiredWebRuntimeException;
 use Kongono\Web\Runtime\Exception\WebRuntimeException;
+use Kongono\Web\Runtime\GeneratedWebRuntimeApplication;
+use Kongono\Web\Runtime\GeneratedWebRuntimeBootstrap;
+use Kongono\Web\Runtime\GeneratedWebRuntimeRoot;
 use Kongono\Web\Runtime\Internal\FailureResponseFactory;
 use Kongono\Web\Runtime\WebRuntimeAdapter;
 use PHPUnit\Framework\TestCase;
@@ -268,6 +308,41 @@ final class ApiStatusConventionTest extends TestCase
         ProposalSpecReader::class => ApiStatus::Internal,
         UnifiedDiffBuilder::class => ApiStatus::Internal,
         ProposalBuilder::class => ApiStatus::Internal,
+        CompositionArtifact::class => ApiStatus::Experimental,
+        CompositionArtifactBuilder::class => ApiStatus::Experimental,
+        CompositionArtifactPublisher::class => ApiStatus::Experimental,
+        CompositionArtifactValidator::class => ApiStatus::Experimental,
+        ApplicationBuildWorkflow::class => ApiStatus::Experimental,
+        CurrentApplicationBuild::class => ApiStatus::Experimental,
+        ApplicationWorkflowException::class => ApiStatus::Experimental,
+        CompositionDiagnostic::class => ApiStatus::Internal,
+        CompositionExceptionInterface::class => ApiStatus::Public,
+        CompositionException::class => ApiStatus::Internal,
+        CompositionLifecycleException::class => ApiStatus::Public,
+        InvalidCompositionSourceException::class => ApiStatus::Public,
+        InvalidCompositionArtifactException::class => ApiStatus::Public,
+        StaleCompositionArtifactException::class => ApiStatus::Public,
+        CompositionPublicationException::class => ApiStatus::Public,
+        InvalidGeneratedWiringException::class => ApiStatus::Public,
+        GeneratedWiringPublicationException::class => ApiStatus::Public,
+        GeneratedWiringLoadException::class => ApiStatus::Experimental,
+        RetiredCompositionBoundaryException::class => ApiStatus::Public,
+        GeneratedWiringArtifact::class => ApiStatus::Experimental,
+        GeneratedWiringGenerator::class => ApiStatus::Experimental,
+        GeneratedWiringPublisher::class => ApiStatus::Experimental,
+        GeneratedWiringValidator::class => ApiStatus::Experimental,
+        CompositionCanonicalJson::class => ApiStatus::Internal,
+        CompositionModelCompiler::class => ApiStatus::Internal,
+        GeneratedWiringEmitter::class => ApiStatus::Internal,
+        GeneratedWiringImplementation::class => ApiStatus::Internal,
+        CompositionPathGuard::class => ApiStatus::Internal,
+        StrictJsonDecoder::class => ApiStatus::Internal,
+        GeneratedApplicationBoundary::class => ApiStatus::Experimental,
+        GeneratedWiringLoader::class => ApiStatus::Experimental,
+        LoadedGeneratedWiring::class => ApiStatus::Experimental,
+        GeneratedApplicationState::class => ApiStatus::Internal,
+        GeneratedOperationBoundary::class => ApiStatus::Experimental,
+        LifecycleFailureComposer::class => ApiStatus::Internal,
         ResolverInterface::class => ApiStatus::Experimental,
         ServiceDefinition::class => ApiStatus::Experimental,
         DependencyResolver::class => ApiStatus::Experimental,
@@ -384,6 +459,7 @@ final class ApiStatusConventionTest extends TestCase
         CgiResponseEmitter::class => ApiStatus::Experimental,
         CgiWebEntry::class => ApiStatus::Experimental,
         CgiFrontController::class => ApiStatus::Experimental,
+        CgiGeneratedFrontController::class => ApiStatus::Experimental,
         CgiDeliveryCleanupException::class => ApiStatus::Experimental,
         CgiEntryShutdownException::class => ApiStatus::Experimental,
         CgiCookieParser::class => ApiStatus::Internal,
@@ -440,9 +516,13 @@ final class ApiStatusConventionTest extends TestCase
         WebRuntimeExceptionInterface::class => ApiStatus::Public,
         WebRuntimeException::class => ApiStatus::Internal,
         RetiredWebRuntimeException::class => ApiStatus::Experimental,
+        InvalidGeneratedWebRuntimeException::class => ApiStatus::Experimental,
         DeliveryCleanupException::class => ApiStatus::Experimental,
         FailureResponseFactory::class => ApiStatus::Internal,
         WebRuntimeAdapter::class => ApiStatus::Experimental,
+        GeneratedWebRuntimeApplication::class => ApiStatus::Experimental,
+        GeneratedWebRuntimeBootstrap::class => ApiStatus::Experimental,
+        GeneratedWebRuntimeRoot::class => ApiStatus::Experimental,
     ];
 
     /** @var list<class-string> */
@@ -454,7 +534,7 @@ final class ApiStatusConventionTest extends TestCase
     public function testProductionDeclarationsExactlyMatchAuthorizedInventoryAndAreAutoloadable(): void
     {
         $types = $this->discoverProductionTypes();
-        self::assertCount(222, $types);
+        self::assertCount(262, $types);
 
         self::assertFalse(class_exists('Kongono\\Kernel\\Api\\Api'));
         self::assertFalse(enum_exists('Kongono\\Kernel\\Api\\ApiStatus'));
@@ -467,6 +547,102 @@ final class ApiStatusConventionTest extends TestCase
         sort($expected);
 
         self::assertSame($expected, $types);
+    }
+
+    public function testCompositionBuildApiAndDiagnosticsMatchThePhase5DBoundary(): void
+    {
+        self::assertSame(
+            ['__construct', 'artifactSha256', 'builderImplementationSha256', 'canonicalBytes', 'modelSha256', 'sourceSetSha256', 'sourceSha256'],
+            $this->declaredPublicMethodNames(new ReflectionClass(CompositionArtifact::class)),
+        );
+        self::assertSame(['build'], $this->declaredPublicMethodNames(new ReflectionClass(CompositionArtifactBuilder::class)));
+        self::assertSame(['publish'], $this->declaredPublicMethodNames(new ReflectionClass(CompositionArtifactPublisher::class)));
+        self::assertSame(['validateCurrent', 'validateStructure'], $this->declaredPublicMethodNames(new ReflectionClass(CompositionArtifactValidator::class)));
+        self::assertSame(['__construct', 'applicationClass', 'canonicalBytes', 'compositionArtifactSha256', 'generatedNamespace', 'generatorImplementationSha256', 'modelSha256', 'operationClass', 'wiringSha256'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringArtifact::class)));
+        self::assertSame(['generate'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringGenerator::class)));
+        self::assertSame(['publish'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringPublisher::class)));
+        self::assertSame(['validateCurrent', 'validateStructure'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringValidator::class)));
+        self::assertSame(['beginOperation', 'isRetired', 'shutdown'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedApplicationBoundary::class)));
+        self::assertSame(['close', 'isClosed'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedOperationBoundary::class)));
+        self::assertSame(['loadCurrent'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringLoader::class)));
+        self::assertSame(['__construct', 'applicationClass', 'isStarted', 'operationClass', 'start', 'wiringSha256'], $this->declaredPublicMethodNames(new ReflectionClass(LoadedGeneratedWiring::class)));
+        self::assertSame(['build', 'check'], $this->declaredPublicMethodNames(new ReflectionClass(ApplicationBuildWorkflow::class)));
+        self::assertSame(['__construct', 'artifactSha256', 'compositionArtifactBytes', 'compositionArtifactPath', 'generatedPhpPath', 'generatedWiringSha256'], $this->declaredPublicMethodNames(new ReflectionClass(CurrentApplicationBuild::class)));
+
+        $generatedArtifact = new ReflectionClass(GeneratedWiringArtifact::class);
+        self::assertTrue($generatedArtifact->isFinal());
+        self::assertTrue($generatedArtifact->isReadOnly());
+        self::assertSame(['applicationClass', 'canonicalBytes', 'compositionArtifactSha256', 'generatedNamespace', 'generatorImplementationSha256', 'modelSha256', 'operationClass', 'wiringSha256'], $this->declaredPropertyNames($generatedArtifact));
+        $artifactConstructor = $generatedArtifact->getConstructor();
+        self::assertNotNull($artifactConstructor);
+        self::assertSame(['string', 'string', 'string', 'string', 'string', 'string', 'string', 'string'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $artifactConstructor->getParameters()));
+
+        $generatorMethod = (new ReflectionClass(GeneratedWiringGenerator::class))->getMethod('generate');
+        self::assertSame(['string', 'string'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $generatorMethod->getParameters()));
+        self::assertSame(GeneratedWiringArtifact::class, (string) $generatorMethod->getReturnType());
+        $validatorCurrent = (new ReflectionClass(GeneratedWiringValidator::class))->getMethod('validateCurrent');
+        self::assertSame(['string', 'string', 'string'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $validatorCurrent->getParameters()));
+        self::assertSame(GeneratedWiringArtifact::class, (string) $validatorCurrent->getReturnType());
+        $publisherMethod = (new ReflectionClass(GeneratedWiringPublisher::class))->getMethod('publish');
+        self::assertSame([GeneratedWiringArtifact::class, 'string'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $publisherMethod->getParameters()));
+        self::assertSame('string', (string) $publisherMethod->getReturnType());
+
+        $applicationBoundary = new ReflectionClass(GeneratedApplicationBoundary::class);
+        $operationBoundary = new ReflectionClass(GeneratedOperationBoundary::class);
+        self::assertTrue($applicationBoundary->isInterface());
+        self::assertTrue($operationBoundary->isInterface());
+        self::assertSame(GeneratedOperationBoundary::class, (string) $applicationBoundary->getMethod('beginOperation')->getReturnType());
+        self::assertSame(['?Throwable'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $applicationBoundary->getMethod('shutdown')->getParameters()));
+        self::assertSame(['?Throwable'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $operationBoundary->getMethod('close')->getParameters()));
+        self::assertSame([
+            'KGN-COMPOSITION-1001',
+            'KGN-COMPOSITION-1002',
+            'KGN-COMPOSITION-1003',
+            'KGN-COMPOSITION-1004',
+            'KGN-COMPOSITION-1005',
+            'KGN-COMPOSITION-1006',
+            'KGN-COMPOSITION-1007',
+            'KGN-COMPOSITION-1008',
+            'KGN-COMPOSITION-1009',
+            'KGN-COMPOSITION-1010',
+            'KGN-COMPOSITION-1011',
+            'KGN-COMPOSITION-1012',
+            'KGN-COMPOSITION-1013',
+            'KGN-COMPOSITION-1014',
+            'KGN-COMPOSITION-1015',
+            'KGN-COMPOSITION-1016',
+            'KGN-COMPOSITION-1017',
+            'KGN-COMPOSITION-1018',
+        ], array_map(static fn(CompositionDiagnostic $diagnostic): string => $diagnostic->value, CompositionDiagnostic::cases()));
+
+        foreach ([
+            InvalidCompositionSourceException::class,
+            InvalidCompositionArtifactException::class,
+            StaleCompositionArtifactException::class,
+            CompositionPublicationException::class,
+            InvalidGeneratedWiringException::class,
+            GeneratedWiringPublicationException::class,
+            RetiredCompositionBoundaryException::class,
+            GeneratedWiringLoadException::class,
+        ] as $exception) {
+            $reflection = new ReflectionClass($exception);
+            self::assertTrue($reflection->isFinal());
+            self::assertTrue($reflection->implementsInterface(CompositionExceptionInterface::class));
+            $parent = $reflection->getParentClass();
+            self::assertNotFalse($parent);
+            self::assertSame(CompositionException::class, $parent->getName());
+        }
+
+        $lifecycle = new ReflectionClass(CompositionLifecycleException::class);
+        self::assertTrue($lifecycle->isFinal());
+        self::assertTrue($lifecycle->implementsInterface(CompositionExceptionInterface::class));
+        self::assertSame(['boundary', 'cleanupFailures', 'diagnosticContext', 'primaryFailure'], $this->declaredPropertyNames($lifecycle));
+        self::assertSame(['__construct', '__toString', 'boundary', 'cleanupFailures', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle', 'primaryFailure'], $this->declaredPublicMethodNames($lifecycle));
+
+        $workflowFailure = new ReflectionClass(ApplicationWorkflowException::class);
+        self::assertTrue($workflowFailure->isFinal());
+        self::assertTrue($workflowFailure->implementsInterface(CompositionExceptionInterface::class));
+        self::assertSame(['__construct', '__toString', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames($workflowFailure));
     }
 
     public function testEveryNonBootstrapTypeHasExactlyOneExpectedApiStatus(): void
@@ -535,6 +711,7 @@ final class ApiStatusConventionTest extends TestCase
             PhpCgiExceptionInterface::class,
             KnowledgeExceptionInterface::class,
             ChieExceptionInterface::class,
+            CompositionExceptionInterface::class,
         ];
 
         foreach ($markers as $position => $marker) {
@@ -577,6 +754,15 @@ final class ApiStatusConventionTest extends TestCase
             [InvalidChieProposalException::class, ChieExceptionInterface::class],
             [ProposalSpecUnavailableException::class, ChieExceptionInterface::class],
             [ProposalTargetStaleException::class, ChieExceptionInterface::class],
+            [InvalidCompositionSourceException::class, CompositionExceptionInterface::class],
+            [InvalidCompositionArtifactException::class, CompositionExceptionInterface::class],
+            [StaleCompositionArtifactException::class, CompositionExceptionInterface::class],
+            [CompositionPublicationException::class, CompositionExceptionInterface::class],
+            [InvalidGeneratedWiringException::class, CompositionExceptionInterface::class],
+            [GeneratedWiringPublicationException::class, CompositionExceptionInterface::class],
+            [RetiredCompositionBoundaryException::class, CompositionExceptionInterface::class],
+            [CompositionLifecycleException::class, CompositionExceptionInterface::class],
+            [ApplicationWorkflowException::class, CompositionExceptionInterface::class],
         ] as [$failure, $expectedMarker]) {
             self::assertExceptionMarkerMembership($failure, $expectedMarker, array_values(array_diff($markers, [$expectedMarker])));
         }
@@ -601,11 +787,12 @@ final class ApiStatusConventionTest extends TestCase
                 ...KnowledgeDiagnostic::cases(),
                 ...ChieDiagnostic::cases(),
                 ...HanteiDiagnostic::cases(),
+                ...CompositionDiagnostic::cases(),
             ],
         );
 
-        self::assertCount(169, $identifiers);
-        self::assertCount(169, array_unique($identifiers));
+        self::assertCount(188, $identifiers);
+        self::assertCount(188, array_unique($identifiers));
         self::assertCount(6, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-KERNEL-1\\d{3}$/D', $identifier)));
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-GRAPH-1\\d{3}$/D', $identifier)));
         self::assertCount(25, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-DI-1\\d{3}$/D', $identifier)));
@@ -615,10 +802,11 @@ final class ApiStatusConventionTest extends TestCase
         self::assertCount(3, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-HTTP-SERVER-1\\d{3}$/D', $identifier)));
         self::assertCount(10, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-ROUTING-1\\d{3}$/D', $identifier)));
         self::assertCount(2, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-WEB-APPLICATION-1\\d{3}$/D', $identifier)));
-        self::assertCount(2, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-WEB-RUNTIME-1\\d{3}$/D', $identifier)));
+        self::assertCount(3, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-WEB-RUNTIME-1\\d{3}$/D', $identifier)));
         self::assertCount(19, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-PHP-CGI-1\\d{3}$/D', $identifier)));
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-KNOWLEDGE-1\\d{3}$/D', $identifier)));
         self::assertCount(18, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CHIE-1\\d{3}$/D', $identifier)));
+        self::assertCount(18, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-COMPOSITION-1\\d{3}$/D', $identifier)));
 
         $productionHttpIdentifiers = array_map(
             static fn(\BackedEnum $diagnostic): string => $diagnostic->value,
@@ -630,8 +818,8 @@ final class ApiStatusConventionTest extends TestCase
                 ...PhpCgiDiagnostic::cases(),
             ],
         );
-        self::assertCount(54, $productionHttpIdentifiers);
-        self::assertCount(54, array_unique($productionHttpIdentifiers));
+        self::assertCount(55, $productionHttpIdentifiers);
+        self::assertCount(55, array_unique($productionHttpIdentifiers));
 
         foreach ([
             KernelExceptionInterface::class,
@@ -647,6 +835,7 @@ final class ApiStatusConventionTest extends TestCase
             PhpCgiExceptionInterface::class,
             KnowledgeExceptionInterface::class,
             ChieExceptionInterface::class,
+            CompositionExceptionInterface::class,
         ] as $marker) {
             $reflection = new ReflectionClass($marker);
             $methods = array_values(array_filter(
@@ -657,13 +846,13 @@ final class ApiStatusConventionTest extends TestCase
             sort($methodNames);
 
             self::assertSame([Throwable::class, \Stringable::class], $reflection->getInterfaceNames());
-            $expectedMethods = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class], true)
+            $expectedMethods = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class], true)
                 ? ['diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle']
                 : ['diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'];
             self::assertSame($expectedMethods, $methodNames);
 
             foreach ($methods as $method) {
-                $expectedReturnType = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class], true)
+                $expectedReturnType = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class], true)
                     && 'diagnosticContext' === $method->getName()
                     ? DiagnosticContext::class
                     : 'string';
@@ -758,6 +947,15 @@ final class ApiStatusConventionTest extends TestCase
         self::assertTrue($chieConstructor->isFinal());
         self::assertSame([ChieDiagnostic::class, 'string', '?Throwable'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $chieConstructor->getParameters()));
 
+        $compositionBase = new ReflectionClass(CompositionException::class);
+        self::assertTrue($compositionBase->isAbstract());
+        self::assertSame(['diagnostic', 'diagnosticContext'], $this->declaredPropertyNames($compositionBase));
+        self::assertSame(['__construct', '__toString', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames($compositionBase));
+        $compositionConstructor = $compositionBase->getConstructor();
+        self::assertNotNull($compositionConstructor);
+        self::assertFalse($compositionConstructor->isFinal());
+        self::assertSame([CompositionDiagnostic::class, 'string', '?Throwable'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $compositionConstructor->getParameters()));
+
         $chieValueFailure = new ReflectionClass(InvalidChieValueException::class);
         $chieValueParent = $chieValueFailure->getParentClass();
         self::assertNotFalse($chieValueParent);
@@ -778,6 +976,7 @@ final class ApiStatusConventionTest extends TestCase
             PhpCgiExceptionInterface::class,
             KnowledgeExceptionInterface::class,
             ChieExceptionInterface::class,
+            CompositionExceptionInterface::class,
         ] as $marker) {
             self::assertFalse($chieValueFailure->implementsInterface($marker));
         }
@@ -925,7 +1124,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame([
             'kongono/api-metadata' => '*',
             'kongono/diagnostics' => '*',
-            'php' => '>=8.5',
+            'php' => '>=8.5.0 <8.6.0',
         ], $graphManifest['require']);
 
         $kernelManifest = json_decode(
@@ -939,7 +1138,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame([
             'kongono/api-metadata' => '*',
             'kongono/diagnostics' => '*',
-            'php' => '>=8.5',
+            'php' => '>=8.5.0 <8.6.0',
         ], $kernelManifest['require']);
 
         $dependencyInjectionManifest = json_decode(
@@ -953,7 +1152,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame([
             'kongono/api-metadata' => '*',
             'kongono/diagnostics' => '*',
-            'php' => '>=8.5',
+            'php' => '>=8.5.0 <8.6.0',
         ], $dependencyInjectionManifest['require']);
 
         $diagnosticsManifest = json_decode(
@@ -966,7 +1165,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertIsArray($diagnosticsManifest['require']);
         self::assertSame([
             'kongono/api-metadata' => '*',
-            'php' => '>=8.5',
+            'php' => '>=8.5.0 <8.6.0',
         ], $diagnosticsManifest['require']);
 
         $diagnosticActivationManifest = json_decode(
@@ -979,7 +1178,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertIsArray($diagnosticActivationManifest['require']);
         self::assertSame([
             'kongono/api-metadata' => '*',
-            'php' => '>=8.5',
+            'php' => '>=8.5.0 <8.6.0',
         ], $diagnosticActivationManifest['require']);
         self::assertArrayNotHasKey('kongono/diagnostic-handler', $diagnosticActivationManifest['require']);
 
@@ -998,7 +1197,7 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/diagnostic-activation' => '*',
             'kongono/diagnostic-presentation' => '*',
             'kongono/kernel' => '*',
-            'php' => '>=8.5',
+            'php' => '>=8.5.0 <8.6.0',
         ], $diagnosticHandlerManifest['require']);
         self::assertArrayNotHasKey('kongono/diagnostics', $diagnosticHandlerManifest['require']);
 
@@ -1016,7 +1215,7 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/dependency-injection' => '*',
             'kongono/diagnostics' => '*',
             'kongono/kernel' => '*',
-            'php' => '>=8.5',
+            'php' => '>=8.5.0 <8.6.0',
         ], $diagnosticPresentationManifest['require']);
         self::assertArrayNotHasKey('kongono/diagnostic-handler', $diagnosticPresentationManifest['require']);
 
@@ -1030,7 +1229,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame([
             'kongono/api-metadata' => '*',
             'kongono/diagnostics' => '*',
-            'php' => '^8.5',
+            'php' => '>=8.5.0 <8.6.0',
             'psr/http-factory' => '^1.1',
             'psr/http-message' => '^2.0',
         ], $httpMessageManifest['require']);
@@ -1045,7 +1244,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame([
             'kongono/api-metadata' => '*',
             'kongono/diagnostics' => '*',
-            'php' => '^8.5',
+            'php' => '>=8.5.0 <8.6.0',
             'psr/http-message' => '^2.0',
         ], $routingManifest['require']);
         self::assertArrayNotHasKey('kongono/http-message', $routingManifest['require']);
@@ -1061,7 +1260,7 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/api-metadata' => '*',
             'kongono/diagnostics' => '*',
             'kongono/routing' => '*',
-            'php' => '^8.5',
+            'php' => '>=8.5.0 <8.6.0',
             'psr/http-message' => '^2.0',
             'psr/http-server-handler' => '^1.0',
             'psr/http-server-middleware' => '^1.0',
@@ -1069,6 +1268,50 @@ final class ApiStatusConventionTest extends TestCase
         foreach (['kongono/http-message', 'kongono/kernel', 'kongono/application-graph', 'kongono/dependency-injection', 'kongono/diagnostic-activation', 'kongono/diagnostic-presentation', 'kongono/diagnostic-handler'] as $forbiddenDependency) {
             self::assertArrayNotHasKey($forbiddenDependency, $httpServerManifest['require']);
         }
+
+        $compositionManifest = json_decode(
+            (string) file_get_contents(dirname(__DIR__, 2) . '/packages/composition/composer.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($compositionManifest);
+        self::assertSame('kongono/composition', $compositionManifest['name']);
+        self::assertSame('Deterministic composition artifacts, generated typed wiring, and lifecycle support for Kongono.', $compositionManifest['description']);
+        self::assertSame('library', $compositionManifest['type']);
+        self::assertSame([
+            'ext-hash' => '*',
+            'ext-json' => '*',
+            'kongono/api-metadata' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $compositionManifest['require']);
+        self::assertIsArray($compositionManifest['autoload']);
+        self::assertIsArray($compositionManifest['autoload']['psr-4']);
+        self::assertIsArray($compositionManifest['autoload-dev']);
+        self::assertIsArray($compositionManifest['autoload-dev']['psr-4']);
+        self::assertSame(['Kongono\\Composition\\' => 'src/'], $compositionManifest['autoload']['psr-4']);
+        self::assertSame(['Kongono\\Composition\\Tests\\' => 'tests/'], $compositionManifest['autoload-dev']['psr-4']);
+        self::assertArrayNotHasKey('bin', $compositionManifest);
+
+        $compositionRoot = dirname(__DIR__, 2) . '/packages/composition';
+        self::assertDirectoryDoesNotExist($compositionRoot . '/bin');
+        self::assertDirectoryDoesNotExist($compositionRoot . '/resources');
+        $compositionCounts = [];
+        foreach (['src' => 35, 'tests' => 32] as $directory => $expectedCount) {
+            $count = 0;
+            foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($compositionRoot . '/' . $directory, FilesystemIterator::SKIP_DOTS)) as $compositionFile) {
+                if (!$compositionFile instanceof SplFileInfo) {
+                    throw new RuntimeException('Composition inventory entry is not a file descriptor.');
+                }
+                if ($compositionFile->isFile() && 'php' === $compositionFile->getExtension()) {
+                    ++$count;
+                }
+                self::assertFalse(str_starts_with($compositionFile->getFilename(), 'kongono-wiring-v1-'));
+            }
+            self::assertSame($expectedCount, $count);
+            $compositionCounts[$directory] = $count;
+        }
+        self::assertSame(['src' => 35, 'tests' => 32], $compositionCounts);
 
         $webApplicationManifest = json_decode(
             (string) file_get_contents(dirname(__DIR__, 2) . '/packages/web-application/composer.json'),
@@ -1085,7 +1328,7 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/http-server' => '*',
             'kongono/kernel' => '*',
             'kongono/routing' => '*',
-            'php' => '^8.5',
+            'php' => '>=8.5.0 <8.6.0',
             'psr/http-message' => '^2.0',
             'psr/http-server-handler' => '^1.0',
             'psr/http-server-middleware' => '^1.0',
@@ -1101,11 +1344,15 @@ final class ApiStatusConventionTest extends TestCase
         }
 
         self::assertSame(['close', 'evaluateTrustedPresentationPermission', 'request', 'send'], $this->declaredPublicMethodNames(new ReflectionClass(WebDeliveryInterface::class)));
-        self::assertSame(['diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames(new ReflectionClass(WebRuntimeException::class)));
+        self::assertSame(['__toString', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames(new ReflectionClass(WebRuntimeException::class)));
         self::assertSame(['__construct'], $this->declaredPublicMethodNames(new ReflectionClass(RetiredWebRuntimeException::class)));
+        self::assertSame(['__construct'], $this->declaredPublicMethodNames(new ReflectionClass(InvalidGeneratedWebRuntimeException::class)));
         self::assertSame(['__construct', 'cleanupFailure', 'primaryFailure'], $this->declaredPublicMethodNames(new ReflectionClass(DeliveryCleanupException::class)));
         self::assertSame(['__construct', 'generic', 'trusted'], $this->declaredPublicMethodNames(new ReflectionClass(FailureResponseFactory::class)));
         self::assertSame(['__construct', 'handle', 'isRetired'], $this->declaredPublicMethodNames(new ReflectionClass(WebRuntimeAdapter::class)));
+        self::assertSame(['__construct', 'permission'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWebRuntimeBootstrap::class)));
+        self::assertSame(['__construct', 'isRetired', 'runtime'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWebRuntimeRoot::class)));
+        self::assertSame(['isRetired', 'runtime', 'shutdown', 'start'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWebRuntimeApplication::class)));
 
         $rootManifest = json_decode(
             (string) file_get_contents(dirname(__DIR__, 2) . '/composer.json'),
@@ -1119,6 +1366,7 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/api-metadata' => '@dev',
             'kongono/application-graph' => '@dev',
             'kongono/chie' => '@dev',
+            'kongono/composition' => '@dev',
             'kongono/dependency-injection' => '@dev',
             'kongono/diagnostic-activation' => '@dev',
             'kongono/diagnostic-handler' => '@dev',
@@ -1134,7 +1382,7 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/routing' => '@dev',
             'kongono/web-application' => '@dev',
             'kongono/web-runtime' => '@dev',
-            'php' => '>=8.5',
+            'php' => '>=8.5.0 <8.6.0',
         ], $rootManifest['require']);
 
         $diagnosticsSourceFiles = glob(dirname(__DIR__, 2) . '/packages/diagnostics/src/*/*.php');
@@ -1154,6 +1402,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('packages/http-message/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Http\\Message\\Tests\\']);
         self::assertSame('packages/http-server/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Http\\Server\\Tests\\']);
         self::assertSame('packages/chie/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Chie\\Tests\\']);
+        self::assertSame('packages/composition/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Composition\\Tests\\']);
         self::assertSame('packages/knowledge/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Knowledge\\Tests\\']);
         self::assertSame('packages/oshie/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Oshie\\Tests\\']);
         self::assertSame('packages/hantei/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Hantei\\Tests\\']);
@@ -1161,11 +1410,13 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('packages/web-application/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Web\\Application\\Tests\\']);
         self::assertSame('packages/web-runtime/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Web\\Runtime\\Tests\\']);
         self::assertSame('packages/php-cgi/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\PhpCgi\\Tests\\']);
+        self::assertSame('skeletons/minimal/src/', $rootManifest['autoload-dev']['psr-4']['App\\']);
         self::assertIsArray($rootManifest['scripts']);
         self::assertIsArray($rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/http-message validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/http-server validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/chie validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/composition validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/knowledge validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/oshie validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/hantei validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
@@ -1174,9 +1425,20 @@ final class ApiStatusConventionTest extends TestCase
         $validatePackages = array_values($rootManifest['scripts']['validate:packages']);
         self::assertNotSame([], $validatePackages);
         self::assertSame('composer --working-dir=packages/web-runtime validate --no-check-publish', $validatePackages[count($validatePackages) - 1]);
+        self::assertSame('composer --working-dir=skeletons/minimal validate --no-check-publish', $rootManifest['scripts']['validate:skeleton']);
+        self::assertIsArray($rootManifest['scripts']['quality']);
+        self::assertSame('@validate:skeleton', $rootManifest['scripts']['quality'][2]);
 
         $allPackageManifests = glob(dirname(__DIR__, 2) . '/packages/*/composer.json');
         self::assertIsArray($allPackageManifests);
+        self::assertCount(19, $allPackageManifests);
+        self::assertSame('>=8.5.0 <8.6.0', $rootManifest['require']['php']);
+        foreach ($allPackageManifests as $packageManifestPath) {
+            $manifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($manifest);
+            self::assertIsArray($manifest['require']);
+            self::assertSame('>=8.5.0 <8.6.0', $manifest['require']['php']);
+        }
         foreach ($allPackageManifests as $packageManifestPath) {
             if (str_ends_with(str_replace('\\', '/', $packageManifestPath), '/web-application/composer.json')
                 || str_ends_with(str_replace('\\', '/', $packageManifestPath), '/web-runtime/composer.json')
@@ -1200,7 +1462,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertIsArray($knowledgeManifest['autoload']['psr-4']);
         self::assertIsArray($knowledgeManifest['autoload-dev']);
         self::assertIsArray($knowledgeManifest['autoload-dev']['psr-4']);
-        self::assertSame(['ext-hash' => '*', 'ext-json' => '*', 'kongono/api-metadata' => '*', 'kongono/diagnostics' => '*', 'php' => '>=8.5'], $knowledgeManifest['require']);
+        self::assertSame(['ext-hash' => '*', 'ext-json' => '*', 'kongono/api-metadata' => '*', 'kongono/diagnostics' => '*', 'php' => '>=8.5.0 <8.6.0'], $knowledgeManifest['require']);
         self::assertSame(['Kongono\\Knowledge\\' => 'src/'], $knowledgeManifest['autoload']['psr-4']);
         self::assertSame(['Kongono\\Knowledge\\Tests\\' => 'tests/'], $knowledgeManifest['autoload-dev']['psr-4']);
         self::assertSame(['bin/kongono-knowledge'], $knowledgeManifest['bin']);
@@ -1213,7 +1475,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertIsArray($chieManifest['autoload']['psr-4']);
         self::assertIsArray($chieManifest['autoload-dev']);
         self::assertIsArray($chieManifest['autoload-dev']['psr-4']);
-        self::assertSame(['ext-hash' => '*', 'ext-json' => '*', 'kongono/api-metadata' => '*', 'kongono/diagnostics' => '*', 'kongono/knowledge' => '*', 'php' => '>=8.5'], $chieManifest['require']);
+        self::assertSame(['ext-hash' => '*', 'ext-json' => '*', 'kongono/api-metadata' => '*', 'kongono/diagnostics' => '*', 'kongono/knowledge' => '*', 'php' => '>=8.5.0 <8.6.0'], $chieManifest['require']);
         self::assertSame(['Kongono\\Chie\\' => 'src/'], $chieManifest['autoload']['psr-4']);
         self::assertSame(['Kongono\\Chie\\Tests\\' => 'tests/'], $chieManifest['autoload-dev']['psr-4']);
         self::assertSame(['bin/kongono-chie'], $chieManifest['bin']);
@@ -1240,7 +1502,7 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/api-metadata' => '*',
             'kongono/diagnostics' => '*',
             'kongono/knowledge' => '*',
-            'php' => '>=8.5',
+            'php' => '>=8.5.0 <8.6.0',
         ], $hanteiManifest['require']);
         self::assertSame(['Kongono\\Hantei\\' => 'src/'], $hanteiManifest['autoload']['psr-4']);
         self::assertSame(['Kongono\\Hantei\\Tests\\' => 'tests/'], $hanteiManifest['autoload-dev']['psr-4']);
@@ -1256,7 +1518,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertIsArray($oshieManifest['autoload']['psr-4']);
         self::assertIsArray($oshieManifest['autoload-dev']);
         self::assertIsArray($oshieManifest['autoload-dev']['psr-4']);
-        self::assertSame(['ext-hash' => '*', 'ext-json' => '*', 'kongono/api-metadata' => '*', 'kongono/diagnostics' => '*', 'kongono/knowledge' => '*', 'php' => '>=8.5'], $oshieManifest['require']);
+        self::assertSame(['ext-hash' => '*', 'ext-json' => '*', 'kongono/api-metadata' => '*', 'kongono/diagnostics' => '*', 'kongono/knowledge' => '*', 'php' => '>=8.5.0 <8.6.0'], $oshieManifest['require']);
         self::assertSame(['Kongono\\Oshie\\' => 'src/'], $oshieManifest['autoload']['psr-4']);
         self::assertSame(['Kongono\\Oshie\\Tests\\' => 'tests/'], $oshieManifest['autoload-dev']['psr-4']);
         self::assertSame(['bin/kongono-oshie'], $oshieManifest['bin']);
@@ -1420,14 +1682,14 @@ final class ApiStatusConventionTest extends TestCase
         self::assertFalse($webProperties[2]->isReadOnly());
         $webConstructor = $webApplication->getConstructor();
         self::assertNotNull($webConstructor);
-        self::assertTrue($webConstructor->isPrivate());
-        self::assertSame([KernelInterface::class, MiddlewarePipeline::class], array_map(
+        self::assertTrue($webConstructor->isPublic());
+        self::assertSame([KernelInterface::class, RequestHandlerInterface::class], array_map(
             static fn($parameter): string => (string) $parameter->getType(),
             $webConstructor->getParameters(),
         ));
         self::assertTrue($webApplication->getMethod('__clone')->isPrivate());
         self::assertFalse($webApplication->hasMethod('__destruct'));
-        self::assertSame(['boot', 'handle', 'isRetired', 'shutdown'], $this->declaredPublicMethodNames($webApplication));
+        self::assertSame(['__construct', 'boot', 'handle', 'isRetired', 'shutdown'], $this->declaredPublicMethodNames($webApplication));
 
         self::assertSame(['handle'], $this->declaredPublicMethodNames(new ReflectionClass(RequestHandlerInterface::class)));
         self::assertSame(['process'], $this->declaredPublicMethodNames(new ReflectionClass(MiddlewareInterface::class)));
@@ -1473,7 +1735,7 @@ final class ApiStatusConventionTest extends TestCase
         $root = dirname(__DIR__, 2);
         $sourceFiles = glob($root . '/packages/php-cgi/src/*/*.php');
         self::assertIsArray($sourceFiles);
-        self::assertCount(26, $sourceFiles);
+        self::assertCount(27, $sourceFiles);
         $diagnosticActivationImportPaths = [
             '/Bootstrap/CgiOperatorBootstrap.php',
             '/Bootstrap/CgiOperatorProfile.php',
@@ -1489,12 +1751,13 @@ final class ApiStatusConventionTest extends TestCase
             $isDelivery = str_ends_with($normalizedSourceFile, '/Delivery/CgiWebDelivery.php');
             $isEntry = str_ends_with($normalizedSourceFile, '/Entry/CgiWebEntry.php');
             $isFrontController = str_ends_with($normalizedSourceFile, '/Entry/CgiFrontController.php');
+            $isGeneratedFrontController = str_ends_with($normalizedSourceFile, '/Entry/CgiGeneratedFrontController.php');
             if (!$isDelivery) {
                 foreach (['$_SERVER', '$_POST', '$_FILES', 'php://input', 'WebDeliveryInterface'] as $forbiddenCapture) {
                     self::assertStringNotContainsString($forbiddenCapture, $source);
                 }
             }
-            if (!$isDelivery && !$isEntry && !$isFrontController) {
+            if (!$isDelivery && !$isEntry && !$isFrontController && !$isGeneratedFrontController) {
                 self::assertStringNotContainsString('Kongono\\Web\\Runtime', $source);
             }
 
@@ -1524,7 +1787,7 @@ final class ApiStatusConventionTest extends TestCase
         }
         $manifest = json_decode((string) file_get_contents($root . '/packages/php-cgi/composer.json'), true, flags: JSON_THROW_ON_ERROR);
         self::assertIsArray($manifest);
-        self::assertSame(['kongono/api-metadata' => '*', 'kongono/diagnostic-activation' => '*', 'kongono/diagnostics' => '*', 'kongono/http-message' => '*', 'kongono/web-runtime' => '*', 'php' => '^8.5', 'psr/http-message' => '^2.0'], $manifest['require']);
+        self::assertSame(['kongono/api-metadata' => '*', 'kongono/diagnostic-activation' => '*', 'kongono/diagnostics' => '*', 'kongono/http-message' => '*', 'kongono/web-runtime' => '*', 'php' => '>=8.5.0 <8.6.0', 'psr/http-message' => '^2.0'], $manifest['require']);
         self::assertIsArray($manifest['autoload']);
         self::assertIsArray($manifest['autoload']['psr-4']);
         self::assertIsArray($manifest['autoload-dev']);
@@ -1533,7 +1796,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['Kongono\\PhpCgi\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
         $packageManifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(18, $packageManifests);
+        self::assertCount(19, $packageManifests);
         foreach ($packageManifests as $packageManifestPath) {
             if (str_ends_with(str_replace('\\', '/', $packageManifestPath), '/php-cgi/composer.json')) {
                 continue;
@@ -1610,6 +1873,13 @@ final class ApiStatusConventionTest extends TestCase
         self::assertStringNotContainsString('finally', $frontSource);
         self::assertSame(0, preg_match('~register_shutdown_function|__destruct|header(?:_remove)?\\s*\\(|flush\\s*\\(|ob_[a-z_]+\\s*\\(|\\b(?:exit|die)\\s*\\(|listener|socket|process manager|service locator|container~i', $frontSource));
 
+        $generatedFrontController = new ReflectionClass(CgiGeneratedFrontController::class);
+        $generatedRun = $generatedFrontController->getMethod('run');
+        self::assertSame(
+            [true, true, ['run'], true, [GeneratedWebRuntimeApplication::class], 'void'],
+            [$generatedFrontController->isFinal(), $generatedFrontController->getConstructor()?->isPrivate(), $this->declaredPublicMethodNames($generatedFrontController), $generatedRun->isStatic(), array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $generatedRun->getParameters()), (string) $generatedRun->getReturnType()],
+        );
+
     }
 
     public function testPhase3ExternalAcceptanceRemainsTestOnlyAndProductionIsUnchanged(): void
@@ -1648,7 +1918,7 @@ final class ApiStatusConventionTest extends TestCase
         $productionFiles = [];
         $sourceDirectories = glob($root . '/packages/*/src', GLOB_ONLYDIR);
         self::assertIsArray($sourceDirectories);
-        self::assertCount(18, $sourceDirectories);
+        self::assertCount(19, $sourceDirectories);
         foreach ($sourceDirectories as $sourceDirectory) {
             $sourceIterator = new RecursiveIteratorIterator(
                 new RecursiveDirectoryIterator($sourceDirectory, FilesystemIterator::SKIP_DOTS),
@@ -1660,7 +1930,7 @@ final class ApiStatusConventionTest extends TestCase
                 }
             }
         }
-        self::assertCount(222, $productionFiles);
+        self::assertCount(262, $productionFiles);
         foreach ($productionFiles as $productionFile) {
             $source = file_get_contents($productionFile);
             self::assertIsString($source);
@@ -1671,7 +1941,7 @@ final class ApiStatusConventionTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(18, $manifests);
+        self::assertCount(19, $manifests);
         foreach ($manifests as $manifest) {
             $contents = file_get_contents($manifest);
             self::assertIsString($contents);
@@ -1738,10 +2008,10 @@ final class ApiStatusConventionTest extends TestCase
         }
 
         sort($packageSourceDirectories);
-        self::assertCount(18, $packageSourceDirectories);
+        self::assertCount(19, $packageSourceDirectories);
         $packageManifests = glob(dirname(__DIR__, 2) . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(18, $packageManifests);
+        self::assertCount(19, $packageManifests);
         $types = [];
 
         foreach ($packageSourceDirectories as $sourceDirectory) {

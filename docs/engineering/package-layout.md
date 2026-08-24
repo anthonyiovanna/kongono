@@ -86,7 +86,7 @@ release, or version-coordination mechanism.
 
 ## Composer integration
 
-Each package manifest defines a PHP 8.5+ library, owns its production namespace
+Each package manifest requires `>=8.5.0 <8.6.0`, owns its production namespace
 from `src/`, and maps its development test namespace to `tests/`.
 `kongono/api-metadata` owns `Kongono\ApiMetadata\`, requires PHP only, and
 contains exactly `Api` and `ApiStatus`. `kongono/application-graph` owns
@@ -142,13 +142,13 @@ send/close orchestration without selecting a production SAPI, server, listener,
 emitter, or deployment profile.
 
 Composer does not import a dependency's `autoload-dev` mapping into the consuming
-root project. The monorepo root therefore maps all fourteen package test namespaces in
+root project. The monorepo root therefore maps all nineteen package test namespaces in
 its own `autoload-dev`, alongside the root `Kongono\Tests\` mapping. This makes
 package tests directly autoloadable during root development without exposing
 them through production `autoload`.
 
 The root manifest uses one canonical Composer path repository at `packages/*`
-and requires all fourteen local packages with exact `@dev` constraints. These per-package
+and requires all nineteen local packages with exact `@dev` constraints. These per-package
 stability flags permit untagged local packages without changing repository-wide
 minimum stability or inventing versions. Composer generates the lock and root
 autoload metadata; manual lock edits and custom autoloaders remain prohibited.
@@ -198,7 +198,7 @@ test namespace         Kongono\Http\Message\Tests\
 Its direct requirements are exactly:
 
 ```text
-php: ^8.5
+php: >=8.5.0 <8.6.0
 kongono/api-metadata: *
 kongono/diagnostics: *
 psr/http-message: ^2.0
@@ -280,17 +280,17 @@ php-cgi -> api-metadata
 php-cgi -> diagnostics
 php-cgi -> http-message
 php-cgi -> psr/http-message
-framework root -> all fourteen packages
+framework root -> all nineteen packages
 ```
 
-The thirteen API Metadata consuming package-manifest constraints are
+The eighteen API Metadata consuming package-manifest constraints are
 `"kongono/api-metadata": "*"`; the root constraint is
 `"kongono/api-metadata": "@dev"`. Cycles, overlapping production namespaces,
 self-dependencies, and undeclared package dependencies remain prohibited.
 The former `Kongono\Kernel\Api\*` namespace is absent and no compatibility shim
 exists. Kernel, Graph, and DI independently require Diagnostics; none requires
 another semantic consumer. Current Composer/autoload behavior implements the
-fourteen-package graph documented above.
+nineteen-package graph documented above.
 
 ## Implemented Diagnostic Activation foundation
 
@@ -324,7 +324,7 @@ packages/diagnostic-presentation/
 
 Its Composer name is `kongono/diagnostic-presentation` and its production
 namespace is `Kongono\DiagnosticPresentation\`. The directory and manifest are
-part of the current fourteen-package tree and fifteen-manifest count including
+part of the then-current fourteen-package tree and fifteen-manifest count including
 the root.
 
 The leaf depends directly on:
@@ -371,7 +371,7 @@ Kernel, Application Graph, and Dependency Injection are direct dependencies
 because their three separate exception markers form the presenter's
 accepted source union. Diagnostic Handler has no direct dependency on
 Diagnostics. Web Runtime depends on Diagnostic Handler, while Handler retains no
-reverse edge; the framework root consumes all fourteen packages.
+reverse edge; the framework root consumes all nineteen packages.
 
 The sole production declaration is the Experimental final
 readonly `Kongono\DiagnosticHandler\TrustedDeveloperDiagnosticHtmlPresenter`.
@@ -391,7 +391,7 @@ The presenter checks eligibility before any source accessor. False returns
 `null`; true sequences the existing projector and renderer and returns the exact
 HTML unchanged. Every failure propagates unchanged. The package has no adapter,
 configuration reader, evidence evaluator, transport, delivery, response, or
-production model. Kongono has fourteen implemented production packages and fifteen
+production model. At Phase 2G, Kongono had fourteen implemented production packages and fifteen
 Composer manifests including the root. Phase 2G is implemented, and Phase 2H's
 root-owned fixture proves the runnable black-box milestone.
 
@@ -520,10 +520,10 @@ remains exactly fourteen packages and the existing acyclic dependency graph is
 unchanged. Phase 4A selects no developer-intelligence or knowledge package,
 namespace, autoload mapping, manifest, service, Graph edge, command, or runtime.
 
-Kongono Chie, Kongono Hantei, and Kongono Oshie are planned optional developer
-companions above a future AI-independent knowledge foundation; they are not
-application Agent Principals and are not implemented. Current Composer
-constraints remain the mixed `>=8.5` and `^8.5` transitional state. See the
+Kongono Chie, Kongono Hantei, and Kongono Oshie were planned optional developer
+companions above a future AI-independent knowledge foundation at Phase 4A; they
+were not application Agent Principals or implemented then. Phase 4A retained
+the mixed `>=8.5` and `^8.5` transitional constraints. See the
 [developer-intelligence architecture](../architecture/developer-intelligence.md)
 and [Phase 4 roadmap](../architecture/phase-4-roadmap.md).
 
@@ -557,3 +557,46 @@ dependency.
 ### `packages/oshie`
 
 The eighteenth package owns the Experimental read-only teaching facade, closed curriculum resource, immutable cited lesson and exercise values, CLI boundary, diagnostics, and tests. It depends only on API Metadata, Diagnostics, Knowledge, PHP, `ext-hash`, and `ext-json`; it has no Chie, Hantei, HTTP, process, network, model, or provider dependency.
+
+## Phase 5A package boundary
+
+Phase 4 is complete at checkpoint
+`358e412929d6bb7316195d3a1748c346a2de0e1b` with exactly eighteen acyclic
+production packages and eighteen package manifests. Phase 5A is documentation
+only and creates no nineteenth package, namespace, manifest, autoload mapping,
+dependency edge, command, generated-artifact directory, or application
+template.
+
+No package name or ownership boundary is selected for future composition
+source, deterministic build/check, generated wiring, or application skeleton
+work. The current Dependency Injection package and Application Graph remain
+unchanged and unintegrated. Phase 5B completes the separately authenticated
+rolling current-minor Composer/platform metadata migration. PHP 8.5 is the sole
+compatibility-certified minor, with PHP 8.5.9 on Windows proved and stable
+eligible 8.5 patches remaining in range. PHP 8.6, PHP 9, prerelease, nightly,
+and automatic future-minor support are not claimed. The migration adds no
+runtime semantics, package, dependency, public API, polyfill, shim, release/LTS
+promise, composition/build capability, or generated-runtime API. Phase 5A
+remains accepted. Phase 5B is accepted and its bounded PHP constraint is
+current.
+
+Phase 5C accepts source/declaration/lifecycle architecture. Phase 5D creates the
+nineteenth package, `packages/composition` / `kongono/composition`, under
+`Kongono\Composition\`. It depends exactly on API Metadata, Diagnostics, PHP,
+`ext-hash`, and `ext-json`; it owns the Experimental build/artifact and
+generated-wiring/lifecycle-support APIs, the reusable application workflow, and
+18 diagnostics. It has no package command, schema file, generated-artifact directory,
+runtime integration, DI, Graph, Kernel, routing, HTTP, web, or developer-role
+dependency. Phase 5F adds the exact generated loader within Composition and
+one `web-runtime -> composition` edge; it adds no second package. PHP-CGI uses
+its existing Web Runtime edge, and Kernel, Routing, HTTP Server, Web Application,
+and PHP-CGI gain no Composition edge. Current DI and Graph remain unintegrated.
+See the
+[composition source guide](../architecture/composition-source.md) and
+[declaration guide](composition-declarations.md).
+[composition build guide](composition-build.md).
+[generated composition wiring guide](../architecture/generated-composition-wiring.md).
+[generated runtime integration guide](../architecture/generated-runtime-integration.md).
+[application workflow guide](application-workflow.md). Phase 5G adds only
+application-owned Composer scripts in the copy-once skeleton; it adds no
+package `bin`, framework CLI, listener, or deployment behavior.
