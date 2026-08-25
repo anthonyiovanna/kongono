@@ -597,6 +597,45 @@ final class CompositionArtifactTest extends TestCase
         self::assertNotSame($wiringA->wiringSha256(), $wiringB->wiringSha256());
     }
 
+    public function testGeneratedOperationRetainsOnlyRootsBehindTypedConstructionBoundaries(): void
+    {
+        self::writeSource(self::lifecycleSource(false, false));
+        $composition = (new CompositionArtifactBuilder())->build(self::$applicationRoot);
+        $generator = new GeneratedWiringGenerator();
+        $first = $generator->generate(self::$applicationRoot, $composition->canonicalBytes());
+        $second = $generator->generate(self::$applicationRoot, $composition->canonicalBytes());
+        $bytes = $first->canonicalBytes();
+
+        self::assertSame($first->wiringSha256(), $second->wiringSha256());
+        self::assertSame($bytes, $second->canonicalBytes());
+        self::assertStringContainsString('private \\Kongono\\Composition\\Tests\\Fixture\\TrackedOperationRoot $operationService2;', $bytes);
+        self::assertStringNotContainsString('private \\Kongono\\Composition\\Tests\\Fixture\\TrackedOperationLeaf $operationService1;', $bytes);
+        self::assertStringContainsString('$operationService1 = new \\Kongono\\Composition\\Tests\\Fixture\\TrackedOperationLeaf(', $bytes);
+        self::assertStringContainsString('static function () use ($operationService1): void {', $bytes);
+        self::assertStringContainsString('$this->operationService2 = $operationService2;', $bytes);
+        self::assertStringContainsString('$construct = function (): void {', $bytes);
+        self::assertStringContainsString('$construct = static function () use ($assembly, $input1): void {', $bytes);
+        self::assertSame(
+            $bytes,
+            (new GeneratedWiringValidator())->validateCurrent(
+                self::$applicationRoot,
+                $composition->canonicalBytes(),
+                $bytes,
+            )->canonicalBytes(),
+        );
+
+        $recorder = new LifecycleRecorder();
+        $application = self::startGenerated($first, $recorder);
+        $operation = $application->beginOperation();
+        $root = self::invokeRoot($first->operationClass(), 'operationRoot1', $operation);
+        self::assertInstanceOf(TrackedOperationRoot::class, $root);
+        [, $firstLeaf, $secondLeaf] = $root->dependencies();
+        self::assertSame($firstLeaf, $secondLeaf);
+        $operation->close();
+        self::assertSame(1, substr_count($recorder->eventLog(), 'operation-leaf'));
+        $application->shutdown();
+    }
+
     public function testGeneratedTypedAggregateAndLifetimeSharingAreExact(): void
     {
         $composition = (new CompositionArtifactBuilder())->build(self::$applicationRoot);

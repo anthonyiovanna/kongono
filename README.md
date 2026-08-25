@@ -371,17 +371,16 @@ proves candidate, disclosure, mutation, and cleanup boundaries. Phase 4A
 through 4H are implemented and externally accepted at the bounded checkpoint.
 Kongono remains pre-1.0 and not production-ready.
 
-## Accepted Phase 5A application composition architecture
+## Completed Phase 5 application composition milestone
 
-Phase 4 is checkpointed at `358e412929d6bb7316195d3a1748c346a2de0e1b`.
-Phase 5A accepts architecture and documentation only for a supported
-application composition root, an explicit deterministic build/check step, and
-generated readable PHP constructor wiring. Current application construction is
-still caller-owned, the runnable fixture is still test-only, and no composition
-artifact, generator, application template, command, or runtime integration has
-been implemented.
+Phase 5 is complete at checkpoint
+`c431482bea664ce3c3201794332c62cab1ed034e`. The supported pre-1.0 slice now
+includes an explicit application composition root, deterministic build/check,
+generated readable PHP constructor wiring, exact-current loading, existing web
+lifecycle integration, the copy-once minimal skeleton, and root-owned external
+application acceptance.
 
-The future runtime path will consume one complete current build artifact before
+The supported runtime path consumes one complete current build artifact before
 accepting work. Runtime service location, ambient containers, resolver or
 container injection into application services, property-hook dependency
 resolution, request-time reflection or scanning, hidden autowiring, and runtime
@@ -433,3 +432,77 @@ See the
 the [generated runtime integration guide](docs/architecture/generated-runtime-integration.md), and
 the [minimal application workflow](docs/architecture/minimal-application-workflow.md), and
 the [Phase 5 external acceptance guide](docs/architecture/phase-5-external-acceptance.md).
+
+## Accepted Phase 6B database contract architecture
+
+Phase 6A accepts the Deterministic Data Platform direction as documentation and
+architecture only. It keeps five conceptual layers separate: low-level database
+execution, explicit SQL plans and dialect compilation, schema and migrations,
+optional generated Data Mapper support, and composition with operation-scoped
+lifecycle.
+
+Raw SQL remains a first-class parameter-bound escape hatch. Provider
+capabilities and unsupported behavior stay visible. Connections, transactions,
+results, repositories, and mappers must use explicit boundaries rather than
+static facades, ambient connection lookup, or service location. Request-time
+mapping reflection, runtime proxies, hidden lazy loading, and Active Record as
+the core model are rejected defaults.
+
+Phase 6C implements the two Experimental boundaries accepted by Phase 6B: neutral
+`kongono/database` under `Kongono\Database\`, and the separate first PostgreSQL
+PDO adapter `kongono/database-pdo-pgsql` under
+`Kongono\DatabasePdoPgsql\`. The adapter depends on the neutral package; the
+neutral package does not depend on it. PostgreSQL 17.2 through `pdo_pgsql` is
+the proved first profile, not a universal PDO or portability claim.
+
+The version-1 contract fixes explicit connectors and operation-owned sessions,
+immutable parameter-bound raw SQL with an explicit row/completion expectation,
+bounded values and duplicate-safe rows, session-reported capabilities, one
+active stream and transaction, explicit transaction states, deterministic
+cleanup, combined failure preservation, no automatic retry, and non-disclosing
+errors. No ambient connection, native handle, service locator, hidden loading,
+request-time reflection, proxy, or Active Record default is accepted.
+
+Phase 6D adds Experimental `kongono/database-sql` immutable Select, Insert,
+Update, and Delete plans plus the explicit PostgreSQL 17 compiler package
+`kongono/database-sql-pgsql`. Plans are bounded, inspectable, capability-aware,
+and parameterize every value occurrence. Update and Delete require predicate or
+explicit all-row intent. Direct parameter-bound `DatabaseStatement` raw SQL
+remains supported and is not deprecated.
+
+Phase 6E adds the Experimental `kongono/database-migration` authoritative typed
+catalog and pure planner plus `kongono/database-migration-pgsql` PostgreSQL 17
+compiler/executor. Exact-prefix history, canonical identities, two destructive
+gates, one-attempt advisory locking, transactional history/DDL, and explicit
+uncertainty remain visible. Phase 6F adds the optional Experimental
+`kongono/database-mapping` package with explicit application-owned metadata,
+build-time record validation, provenance-bearing artifacts, and generated typed
+mappers/repositories. Generated output is derived and is not checked in. Raw
+SQL and typed plans remain first-class. Phase 6G brings the current topology to
+27 production packages with exact-current outer loading/composition,
+operation-owned sessions, and an optional data skeleton. Phase 6H adds the
+root-owned PostgreSQL 17 whole-platform acceptance command, a local
+observational four-scenario measurement baseline, documentation reconciliation,
+and the exact Phase 6 checkpoint. ORM behavior, pooling, retry, migration
+startup, runtime telemetry, further providers, and deployment remain absent.
+
+Kongono remains pre-1.0, uses the current PHP 8.5 minor policy, and is not
+production-ready. See [ADR 0077](docs/adr/0077-layered-data-platform-and-explicit-sql-boundary.md),
+[ADR 0078](docs/adr/0078-deterministic-data-plans-and-operation-scoped-persistence.md),
+[ADR 0079](docs/adr/0079-neutral-database-session-and-provider-capability-contract.md),
+[ADR 0080](docs/adr/0080-explicit-database-result-transaction-and-failure-lifecycle.md),
+[ADR 0081](docs/adr/0081-postgresql-pdo-adapter-and-real-provider-proof.md),
+[ADR 0082](docs/adr/0082-immutable-database-sql-plans-and-postgresql-dialect-compilation.md),
+[ADR 0083](docs/adr/0083-deterministic-schema-migrations-and-postgresql-execution.md),
+[ADR 0084](docs/adr/0084-compile-time-data-mapping-and-generated-repositories.md),
+[ADR 0085](docs/adr/0085-generated-data-application-and-operation-owned-sessions.md),
+[ADR 0086](docs/adr/0086-phase-6-external-data-platform-acceptance-and-checkpoint.md),
+the [Data Platform guide](docs/architecture/data-platform.md), the
+[Phase 6 external acceptance guide](docs/architecture/phase-6-external-acceptance.md), the
+[database contract](docs/architecture/database-contract.md), the
+[SQL plan guide](docs/architecture/database-sql-plans.md), the
+[mapping guide](docs/architecture/database-mapping.md), the
+[migration guide](docs/architecture/database-migrations.md), the
+[engineering contract tables](docs/engineering/database-contracts.md), the
+[performance baseline guide](docs/engineering/database-performance-baseline.md), and the
+[Phase 6 roadmap](docs/architecture/phase-6-roadmap.md).

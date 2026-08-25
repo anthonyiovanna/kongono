@@ -4,6 +4,8 @@ includes:
 parameters:
     level: max
     phpVersion: 80500
+    scanFiles:
+        - packages/database-application/tests/StaticAnalysis/KongonoDataMinimalAccountRepository.phpstan
     paths:
         - packages/api-metadata/src
         - packages/api-metadata/tests
@@ -14,6 +16,22 @@ parameters:
         - packages/chie/bin/kongono-chie
         - packages/composition/src
         - packages/composition/tests
+        - packages/database/src
+        - packages/database/tests
+        - packages/database-application/src
+        - packages/database-application/tests
+        - packages/database-mapping/src
+        - packages/database-mapping/tests
+        - packages/database-migration/src
+        - packages/database-migration/tests
+        - packages/database-migration-pgsql/src
+        - packages/database-migration-pgsql/tests
+        - packages/database-pdo-pgsql/src
+        - packages/database-pdo-pgsql/tests
+        - packages/database-sql/src
+        - packages/database-sql/tests
+        - packages/database-sql-pgsql/src
+        - packages/database-sql-pgsql/tests
         - packages/dependency-injection/src
         - packages/dependency-injection/tests
         - packages/diagnostic-activation/src
@@ -47,6 +65,8 @@ parameters:
         - packages/web-application/tests
         - packages/web-runtime/src
         - packages/web-runtime/tests
+        - skeletons/data-minimal/bin
+        - skeletons/data-minimal/src
         - skeletons/minimal/bin
         - skeletons/minimal/public
         - skeletons/minimal/src

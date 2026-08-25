@@ -386,11 +386,11 @@ Hantei distinctions, visible failure, inert retrieved instructions,
 non-disclosure, temporary cleanup, and no authority elevation. The harness is
 not doctrine, a production service, an application Agent Principal, or a source
 of model, provider, network, Git, deployment, or production authority. Phase 5
-now begins with documentation-only Phase 5A.
+is complete at checkpoint `c431482bea664ce3c3201794332c62cab1ed034e`.
 
 ## Supported composition and deterministic build doctrine
 
-Kongono will provide one explicit supported application composition root. It
+Kongono provides one explicit supported application composition root. It
 owns construction, startup and shutdown order, application-lifetime objects,
 operation factories, and partial-boot cleanup without becoming Kernel. Kernel
 remains lifecycle-neutral and gains no configuration, discovery, routing,
@@ -405,18 +405,17 @@ versioned, content-identified, inspectable, atomically published, safe to
 rebuild, and free of secrets. Generated output is derived evidence, not
 authority.
 
-Generated readable ordinary PHP constructor wiring is the preferred future
-production mechanism. Constructor injection and canonical explicit dependency
+Generated readable ordinary PHP constructor wiring is the supported production
+mechanism. Constructor injection and canonical explicit dependency
 declarations are the default. Runtime service location, ambient containers,
 resolver/container injection, property-hook dependency resolution, request-time
 reflection or scanning, hidden autowiring, runtime `eval`, remote generated
 code, and implicit lazy lifecycle behavior are rejected.
 
-Application, operation, and transient lifetimes require exact future contracts
-for construction, sharing, cleanup, reverse-order release, failure composition,
-and concurrency before they become runtime API. The current resolver and
-Application Graph remain unchanged. Phase 5A selects no syntax, schema,
-package, API, command, artifact, template, runtime integration, or deployment.
+Application, operation, and transient lifetimes have explicit generated
+construction, sharing, cleanup, reverse-order release, failure composition, and
+concurrency boundaries. The current resolver and Application Graph remain
+unchanged and unintegrated.
 Phase 5B changes installability metadata only and adds no runtime semantics,
 package, dependency, public API, polyfill, shim, release/LTS promise, or
 composition/build capability. PHP 8.6, PHP 9, prerelease, nightly, and automatic
@@ -437,9 +436,82 @@ resolver, Graph, Kernel, routes, and runtime remain unchanged. Phase 5E adds
 derived canonical typed wiring and isolated lifecycle support while preserving
 source authority. It rejects collection widening and represents plural
 collaboration with an explicit application-owned typed aggregate. No schema
-file, command, production loader, or later integration capability is
-introduced. Phase 5F has not begun. See [ADR 0070](adr/0070-versioned-composition-source-and-provenance.md),
+file or framework CLI is introduced. Phase 5F adds exact-current loading and
+the single-root web profile without moving existing lifecycle ownership. Phase
+5G adds the copy-once minimal application workflow, and Phase 5H supplies the
+root-owned external proof and checkpoint. See [ADR 0070](adr/0070-versioned-composition-source-and-provenance.md),
 [ADR 0071](adr/0071-roots-bindings-lifetimes-and-cleanup.md), and the
 [ADR 0072](adr/0072-deterministic-composition-artifact-and-publication.md), and the
 [ADR 0073](adr/0073-generated-typed-wiring-and-lifecycle-boundary.md), and the
 [composition source guide](architecture/composition-source.md).
+
+## Deterministic Data Platform doctrine
+
+Phase 6 is a layered Data Platform capability family, not one monolithic ORM
+and not a Kernel responsibility. Low-level connectivity and execution,
+explicit SQL plans and dialect compilation, schema and migrations, optional
+generated Data Mapper support, and composition with operation-scoped lifecycle
+remain conceptually separate.
+
+Raw SQL is an explicit parameter-bound escape hatch. Values are not
+interpolated into executable SQL, provider capability requirements remain
+visible, and unsupported behavior fails closed. Portability and performance
+claims require provider-specific external evidence and named measurements.
+
+Database configuration and factories are application-owned; leases,
+statements, cursors, results, and transactions are operation-owned under later
+accepted contracts. Static facades, ambient connections, service location,
+cross-operation mutable state, request-time entity reflection, runtime proxy
+generation, hidden lazy loading, property-hook infrastructure lookup, and
+Active Record as the core model are rejected defaults. Transactions remain
+explicit and do not imply arbitrary retry or distributed guarantees.
+
+Derived SQL plans, migration plans, and generated mapping are deterministic
+evidence, never authority. Migration direction requires authoritative sources,
+canonical order, checksums, locks, preconditions, applied history, partial-
+failure evidence, destructive review, and honest reversibility. Data
+diagnostics retain existing non-disclosure rules.
+
+Phase 6B accepts the exact low-level contract and Phase 6C implements its narrow
+boundary. The neutral Experimental `kongono/database` package owns explicit connector,
+operation session, statement/value/result, capability, transaction, lifecycle,
+and non-disclosing failure contracts. The separate Experimental
+`kongono/database-pdo-pgsql` adapter depends on that neutral package and proves
+PostgreSQL through PDO `pdo_pgsql` first; this is not universal portability.
+
+Raw SQL remains immutable, explicitly parameter-bound, unparsed by the neutral
+layer, and expected as either rows or completion. Results preserve exact ordinal
+and duplicate labels, while one active stream and transaction, reverse cleanup,
+combined failures, no automatic retry, and no native/ambient authority protect
+persistent runtimes. The PDO implementation remains internal and the real proof
+uses an isolated PostgreSQL 17.2 process outside normal framework runtime.
+
+Phase 6D implements immutable bounded Select, Insert, Update, and Delete plans
+in `kongono/database-sql` and explicit stateless PostgreSQL 17 compilation in
+`kongono/database-sql-pgsql`. Every value occurrence becomes an ordered
+parameter, destructive all-row intent is explicit, and declared dialect
+capabilities fail closed. Raw parameter-bound `DatabaseStatement` remains a
+first-class path. Phase 6E implements an explicit caller-owned typed migration
+catalog, exact-prefix history, deterministic identities, two destructive gates,
+and PostgreSQL 17 transaction-scoped execution. Phase 6F implements the optional
+Experimental `kongono/database-mapping` build layer: explicit inert metadata,
+build-time record validation, provenance artifacts, and generated typed
+mappers/repositories. Generated output is derived and not checked in; raw SQL
+and typed plans remain first-class. Phase 6G now provides the exact-current
+outer loading/composition workflow and operation-owned sessions without adding
+an ORM, provider startup, ambient authority, or Phase 6H behavior. See
+[ADR 0077](adr/0077-layered-data-platform-and-explicit-sql-boundary.md),
+[ADR 0078](adr/0078-deterministic-data-plans-and-operation-scoped-persistence.md),
+[ADR 0079](adr/0079-neutral-database-session-and-provider-capability-contract.md),
+[ADR 0080](adr/0080-explicit-database-result-transaction-and-failure-lifecycle.md),
+[ADR 0081](adr/0081-postgresql-pdo-adapter-and-real-provider-proof.md),
+[ADR 0082](adr/0082-immutable-database-sql-plans-and-postgresql-dialect-compilation.md),
+[ADR 0083](adr/0083-deterministic-schema-migrations-and-postgresql-execution.md),
+[ADR 0084](adr/0084-compile-time-data-mapping-and-generated-repositories.md),
+the [Data Platform guide](architecture/data-platform.md), the
+[database contract](architecture/database-contract.md), the
+[SQL plan guide](architecture/database-sql-plans.md), the
+[migration guide](architecture/database-migrations.md), the
+[mapping guide](architecture/database-mapping.md), the
+[engineering contract tables](engineering/database-contracts.md), and the
+[Phase 6 roadmap](architecture/phase-6-roadmap.md).

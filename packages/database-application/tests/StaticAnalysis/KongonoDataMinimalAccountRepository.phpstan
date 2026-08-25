@@ -1,0 +1,23 @@
+<?php
+
+declare(strict_types=1);
+
+namespace KongonoDataMinimal\Generated;
+
+use Kongono\Database\CommandResult;
+use Kongono\Database\DatabaseExecutor;
+use Kongono\DatabaseSql\SqlDialectCompiler;
+use KongonoDataMinimal\Account;
+
+interface AccountRepository
+{
+    public function __construct(DatabaseExecutor $executor, SqlDialectCompiler $compiler);
+
+    public function find(int $identity): ?Account;
+
+    public function insert(Account $record): CommandResult;
+
+    public function update(Account $record): CommandResult;
+
+    public function delete(int $identity): CommandResult;
+}

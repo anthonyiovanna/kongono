@@ -22,12 +22,32 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertIsArray($root);
         self::assertIsArray($root['scripts']);
         self::assertIsArray($root['scripts']['validate:packages']);
-        self::assertCount(19, $root['scripts']['validate:packages']);
+        self::assertCount(27, $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/composition validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database-application validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database-mapping validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database-migration validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database-migration-pgsql validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database-pdo-pgsql validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database-sql validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database-sql-pgsql validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/oshie validate --no-check-publish', $root['scripts']['validate:packages']);
-        self::assertSame('composer --working-dir=skeletons/minimal validate --no-check-publish', $root['scripts']['validate:skeleton']);
+        self::assertSame([
+            'composer --working-dir=skeletons/data-minimal validate --no-check-publish',
+            'composer --working-dir=skeletons/minimal validate --no-check-publish',
+        ], $root['scripts']['validate:skeleton']);
         self::assertIsArray($root['scripts']['quality']);
         self::assertSame('@validate:skeleton', $root['scripts']['quality'][2]);
+
+        $resource = json_decode(
+            (string) file_get_contents(dirname(__DIR__, 3) . '/resources/framework-quality-v1.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($resource);
+        self::assertIsArray($resource['composer_scripts']);
+        self::assertSame($root['scripts']['validate:packages'], $resource['composer_scripts']['validate:packages']);
     }
 
     public function testUnknownProfileIsRejected(): void

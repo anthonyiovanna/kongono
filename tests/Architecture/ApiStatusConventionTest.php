@@ -85,6 +85,13 @@ use Kongono\Composition\Runtime\LifecycleFailureComposer;
 use Kongono\Composition\Runtime\LoadedGeneratedWiring;
 use Kongono\Composition\Workflow\ApplicationBuildWorkflow;
 use Kongono\Composition\Workflow\CurrentApplicationBuild;
+use Kongono\Database\Diagnostic\DatabaseDiagnostic;
+use Kongono\Database\Exception\ExceptionInterface as DatabaseExceptionInterface;
+use Kongono\DatabaseMapping\Diagnostic\MappingDiagnostic;
+use Kongono\DatabaseMigration\Diagnostic\MigrationDiagnostic;
+use Kongono\DatabaseMigration\Exception\ExceptionInterface as MigrationExceptionInterface;
+use Kongono\DatabaseSql\Diagnostic\SqlDiagnostic;
+use Kongono\DatabaseSql\Exception\ExceptionInterface as SqlExceptionInterface;
 use Kongono\DependencyInjection\Contract\ResolverInterface;
 use Kongono\DependencyInjection\Definition\ServiceDefinition;
 use Kongono\DependencyInjection\DependencyResolver;
@@ -340,6 +347,166 @@ final class ApiStatusConventionTest extends TestCase
         GeneratedApplicationBoundary::class => ApiStatus::Experimental,
         GeneratedWiringLoader::class => ApiStatus::Experimental,
         LoadedGeneratedWiring::class => ApiStatus::Experimental,
+        'Kongono\\Database\\CommandResult' => ApiStatus::Experimental,
+        'Kongono\\Database\\DatabaseCapabilities' => ApiStatus::Experimental,
+        'Kongono\\Database\\DatabaseCapability' => ApiStatus::Experimental,
+        'Kongono\\Database\\DatabaseColumn' => ApiStatus::Experimental,
+        'Kongono\\Database\\DatabaseConnector' => ApiStatus::Public,
+        'Kongono\\Database\\DatabaseExecutor' => ApiStatus::Public,
+        'Kongono\\Database\\DatabaseParameter' => ApiStatus::Experimental,
+        'Kongono\\Database\\DatabaseRow' => ApiStatus::Experimental,
+        'Kongono\\Database\\DatabaseSession' => ApiStatus::Public,
+        'Kongono\\Database\\DatabaseStatement' => ApiStatus::Experimental,
+        'Kongono\\Database\\DatabaseTransaction' => ApiStatus::Public,
+        'Kongono\\Database\\DatabaseValue' => ApiStatus::Experimental,
+        'Kongono\\Database\\DatabaseValueKind' => ApiStatus::Experimental,
+        'Kongono\\Database\\ResultExpectation' => ApiStatus::Experimental,
+        'Kongono\\Database\\RowStream' => ApiStatus::Public,
+        'Kongono\\Database\\TransactionAccess' => ApiStatus::Experimental,
+        'Kongono\\Database\\TransactionIsolation' => ApiStatus::Experimental,
+        'Kongono\\Database\\TransactionOptions' => ApiStatus::Experimental,
+        'Kongono\\Database\\TransactionState' => ApiStatus::Experimental,
+        'Kongono\\Database\\Diagnostic\\DatabaseDiagnostic' => ApiStatus::Internal,
+        'Kongono\\Database\\Exception\\CombinedDatabaseFailureException' => ApiStatus::Experimental,
+        'Kongono\\Database\\Exception\\DatabaseBindingException' => ApiStatus::Experimental,
+        'Kongono\\Database\\Exception\\DatabaseCleanupException' => ApiStatus::Experimental,
+        'Kongono\\Database\\Exception\\DatabaseConnectionException' => ApiStatus::Experimental,
+        'Kongono\\Database\\Exception\\DatabaseException' => ApiStatus::Internal,
+        'Kongono\\Database\\Exception\\DatabaseExecutionException' => ApiStatus::Experimental,
+        'Kongono\\Database\\Exception\\DatabaseResultException' => ApiStatus::Experimental,
+        'Kongono\\Database\\Exception\\DatabaseTransactionBeginException' => ApiStatus::Experimental,
+        'Kongono\\Database\\Exception\\DatabaseTransactionCommitException' => ApiStatus::Experimental,
+        'Kongono\\Database\\Exception\\DatabaseTransactionRollbackException' => ApiStatus::Experimental,
+        'Kongono\\Database\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\Database\\Exception\\InvalidDatabaseStateException' => ApiStatus::Experimental,
+        'Kongono\\Database\\Exception\\InvalidDatabaseValueException' => ApiStatus::Experimental,
+        'Kongono\\Database\\Exception\\UnsupportedDatabaseCapabilityException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseApplication\\DataOperationRoot' => ApiStatus::Experimental,
+        'Kongono\\DatabaseApplication\\Diagnostic\\DatabaseApplicationDiagnostic' => ApiStatus::Internal,
+        'Kongono\\DatabaseApplication\\Exception\\DataApplicationLifecycleException' => ApiStatus::Public,
+        'Kongono\\DatabaseApplication\\Exception\\DataApplicationWorkflowException' => ApiStatus::Public,
+        'Kongono\\DatabaseApplication\\Exception\\DatabaseApplicationException' => ApiStatus::Internal,
+        'Kongono\\DatabaseApplication\\Exception\\DatabaseSessionUnavailableException' => ApiStatus::Public,
+        'Kongono\\DatabaseApplication\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\DatabaseApplication\\Exception\\InvalidGeneratedDataProfileException' => ApiStatus::Public,
+        'Kongono\\DatabaseApplication\\GeneratedDataApplication' => ApiStatus::Experimental,
+        'Kongono\\DatabaseApplication\\GeneratedDataOperation' => ApiStatus::Experimental,
+        'Kongono\\DatabaseApplication\\OperationDatabaseSession' => ApiStatus::Experimental,
+        'Kongono\\DatabaseApplication\\Workflow\\CurrentDataApplicationBuild' => ApiStatus::Experimental,
+        'Kongono\\DatabaseApplication\\Workflow\\DataApplicationBuildWorkflow' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMapping\\Build\\MappingArtifact' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMapping\\Build\\MappingArtifactBuilder' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMapping\\Build\\MappingArtifactPublisher' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMapping\\Build\\MappingArtifactValidator' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMapping\\Diagnostic\\MappingDiagnostic' => ApiStatus::Internal,
+        'Kongono\\DatabaseMapping\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Exception\\GeneratedDataAccessLoadException' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Exception\\GeneratedDataAccessPublicationException' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Exception\\HydrationException' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Exception\\InvalidGeneratedDataAccessException' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Exception\\InvalidMappingArtifactException' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Exception\\InvalidMappingSourceException' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Exception\\MappingArtifactPublicationException' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Exception\\MappingException' => ApiStatus::Internal,
+        'Kongono\\DatabaseMapping\\Exception\\RepositoryCleanupException' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Exception\\RepositoryExecutionException' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Exception\\RowCardinalityException' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Exception\\StaleMappingArtifactException' => ApiStatus::Public,
+        'Kongono\\DatabaseMapping\\Generated\\GeneratedDataAccessArtifact' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMapping\\Generated\\GeneratedDataAccessGenerator' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMapping\\Generated\\GeneratedDataAccessPublisher' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMapping\\Generated\\GeneratedDataAccessValidator' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMapping\\Internal\\CanonicalJson' => ApiStatus::Internal,
+        'Kongono\\DatabaseMapping\\Internal\\GeneratedDataAccessEmitter' => ApiStatus::Internal,
+        'Kongono\\DatabaseMapping\\Internal\\MappingFailureCategory' => ApiStatus::Internal,
+        'Kongono\\DatabaseMapping\\Internal\\MappingImplementation' => ApiStatus::Internal,
+        'Kongono\\DatabaseMapping\\Internal\\MappingModelCompiler' => ApiStatus::Internal,
+        'Kongono\\DatabaseMapping\\Internal\\PathGuard' => ApiStatus::Internal,
+        'Kongono\\DatabaseMapping\\Internal\\StrictJsonDecoder' => ApiStatus::Internal,
+        'Kongono\\DatabaseMapping\\Runtime\\GeneratedDataAccessLoader' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMapping\\Runtime\\LoadedGeneratedDataAccess' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\AddColumn' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\AppliedMigration' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\CreateIndex' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\CreateTable' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\DestructiveMigrationPolicy' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\Diagnostic\\MigrationDiagnostic' => ApiStatus::Internal,
+        'Kongono\\DatabaseMigration\\DropColumn' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\DropIndex' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\DropTable' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\Exception\\CombinedMigrationFailureException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\Exception\\DestructiveMigrationReviewRequiredException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\DatabaseMigration\\Exception\\InvalidMigrationDefinitionException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\Exception\\MigrationException' => ApiStatus::Internal,
+        'Kongono\\DatabaseMigration\\Exception\\MigrationExecutionException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\Exception\\MigrationHistoryMismatchException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\Exception\\MigrationLockUnavailableException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\Exception\\MigrationNotReversibleException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\Exception\\MigrationUncertainStateException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\Internal\\MigrationCanonicalJson' => ApiStatus::Internal,
+        'Kongono\\DatabaseMigration\\MigrationCatalog' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\MigrationDefinition' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\MigrationDirection' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\MigrationDirectionPlan' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\MigrationExecutor' => ApiStatus::Public,
+        'Kongono\\DatabaseMigration\\MigrationHistory' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\MigrationOperation' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\MigrationPlan' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\MigrationPlanner' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\MigrationRisk' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\MigrationRunResult' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\PlannedMigration' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\RenameColumn' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\RenameTable' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\SchemaColumn' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigration\\SchemaColumnType' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigrationPgsql\\Internal\\PostgreSqlMigrationSql' => ApiStatus::Internal,
+        'Kongono\\DatabaseMigrationPgsql\\PostgreSql17MigrationCompiler' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigrationPgsql\\PostgreSql17MigrationExecutor' => ApiStatus::Experimental,
+        'Kongono\\DatabaseMigrationPgsql\\PostgreSqlMigrationConfiguration' => ApiStatus::Experimental,
+        'Kongono\\DatabasePdoPgsql\\PdoPgsqlConfiguration' => ApiStatus::Experimental,
+        'Kongono\\DatabasePdoPgsql\\PdoPgsqlConnector' => ApiStatus::Experimental,
+        'Kongono\\DatabasePdoPgsql\\PdoPgsqlExecution' => ApiStatus::Internal,
+        'Kongono\\DatabasePdoPgsql\\PdoPgsqlRowStream' => ApiStatus::Internal,
+        'Kongono\\DatabasePdoPgsql\\PdoPgsqlSession' => ApiStatus::Internal,
+        'Kongono\\DatabasePdoPgsql\\PdoPgsqlTransaction' => ApiStatus::Internal,
+        'Kongono\\DatabaseSql\\DeletePlan' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\Diagnostic\\SqlDiagnostic' => ApiStatus::Internal,
+        'Kongono\\DatabaseSql\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\DatabaseSql\\Exception\\InvalidSqlPlanException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\Exception\\SqlCompilationException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\Exception\\SqlException' => ApiStatus::Internal,
+        'Kongono\\DatabaseSql\\Exception\\UnsupportedDialectCapabilityException' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\InsertPlan' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\Internal\\SqlValidation' => ApiStatus::Internal,
+        'Kongono\\DatabaseSql\\SelectPlan' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlAndPredicate' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlAssignment' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlColumn' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlComparisonOperator' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlComparisonPredicate' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlDialectCapabilities' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlDialectCapability' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlDialectCompiler' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlIdentifier' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlInPredicate' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlMutationScope' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlNotPredicate' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlNullOrdering' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlNullPredicate' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlNullTest' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlOrder' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlOrPredicate' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlPlan' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlPlanKind' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlPredicate' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlProjection' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlQualifiedName' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\SqlSortDirection' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSql\\UpdatePlan' => ApiStatus::Experimental,
+        'Kongono\\DatabaseSqlPgsql\\Internal\\PostgreSqlCompilation' => ApiStatus::Internal,
+        'Kongono\\DatabaseSqlPgsql\\PostgreSql17Compiler' => ApiStatus::Experimental,
         GeneratedApplicationState::class => ApiStatus::Internal,
         GeneratedOperationBoundary::class => ApiStatus::Experimental,
         LifecycleFailureComposer::class => ApiStatus::Internal,
@@ -534,7 +701,7 @@ final class ApiStatusConventionTest extends TestCase
     public function testProductionDeclarationsExactlyMatchAuthorizedInventoryAndAreAutoloadable(): void
     {
         $types = $this->discoverProductionTypes();
-        self::assertCount(262, $types);
+        self::assertCount(422, $types);
 
         self::assertFalse(class_exists('Kongono\\Kernel\\Api\\Api'));
         self::assertFalse(enum_exists('Kongono\\Kernel\\Api\\ApiStatus'));
@@ -645,6 +812,429 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['__construct', '__toString', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames($workflowFailure));
     }
 
+    public function testDatabasePackagesContractsDependenciesDiagnosticsAndNativeIsolationAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $surfaces = [
+            'Kongono\\Database\\DatabaseConnector' => ['openSession'],
+            'Kongono\\Database\\DatabaseExecutor' => ['execute'],
+            'Kongono\\Database\\DatabaseSession' => ['begin', 'capabilities', 'close', 'isClosed'],
+            'Kongono\\Database\\DatabaseTransaction' => ['close', 'commit', 'isClosed', 'rollback', 'state'],
+            'Kongono\\Database\\RowStream' => ['close', 'columns', 'fetch', 'isClosed'],
+            'Kongono\\Database\\CommandResult' => ['__construct', 'affectedRows'],
+            'Kongono\\Database\\DatabaseColumn' => ['__construct', 'label', 'ordinal'],
+            'Kongono\\Database\\DatabaseParameter' => ['__construct', 'name', 'value'],
+            'Kongono\\Database\\DatabaseStatement' => ['__construct', 'expectation', 'parameters', 'sql'],
+            'Kongono\\Database\\DatabaseValue' => ['binary', 'boolean', 'float', 'integer', 'kind', 'null', 'text', 'value'],
+            'Kongono\\Database\\DatabaseCapabilities' => ['__construct', 'all', 'has'],
+            'Kongono\\Database\\DatabaseRow' => ['__construct', 'at', 'columns', 'named', 'values'],
+            'Kongono\\Database\\TransactionOptions' => ['__construct', 'access', 'isolation'],
+            'Kongono\\DatabasePdoPgsql\\PdoPgsqlConfiguration' => ['__construct', 'createSession'],
+            'Kongono\\DatabasePdoPgsql\\PdoPgsqlConnector' => ['__construct', 'openSession'],
+        ];
+        foreach ($surfaces as $type => $methods) {
+            self::assertSame($methods, $this->declaredPublicMethodNames(new ReflectionClass($type)));
+        }
+
+        self::assertSame(
+            array_map(static fn(int $ordinal): string => sprintf('KGN-DATABASE-%04d', $ordinal), range(1001, 1011)),
+            array_map(static fn(DatabaseDiagnostic $diagnostic): string => $diagnostic->value, DatabaseDiagnostic::cases()),
+        );
+
+        $databaseManifest = json_decode((string) file_get_contents($root . '/packages/database/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        $adapterManifest = json_decode((string) file_get_contents($root . '/packages/database-pdo-pgsql/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($databaseManifest);
+        self::assertIsArray($adapterManifest);
+        self::assertIsArray($databaseManifest['require']);
+        self::assertIsArray($databaseManifest['autoload']);
+        self::assertIsArray($databaseManifest['autoload']['psr-4']);
+        self::assertIsArray($adapterManifest['require']);
+        self::assertIsArray($adapterManifest['autoload']);
+        self::assertIsArray($adapterManifest['autoload']['psr-4']);
+        self::assertSame(['kongono/api-metadata' => '*', 'kongono/diagnostics' => '*', 'php' => '>=8.5.0 <8.6.0'], $databaseManifest['require']);
+        self::assertSame(['ext-pdo' => '*', 'ext-pdo_pgsql' => '*', 'kongono/database' => '*', 'php' => '>=8.5.0 <8.6.0'], $adapterManifest['require']);
+        self::assertArrayNotHasKey('kongono/database-pdo-pgsql', $databaseManifest['require']);
+        self::assertSame(['Kongono\\Database\\' => 'src/'], $databaseManifest['autoload']['psr-4']);
+        self::assertSame(['Kongono\\DatabasePdoPgsql\\' => 'src/'], $adapterManifest['autoload']['psr-4']);
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        self::assertIsArray($rootManifest['require']);
+        self::assertIsArray($rootManifest['autoload-dev']);
+        self::assertIsArray($rootManifest['autoload-dev']['psr-4']);
+        self::assertIsArray($rootManifest['scripts']);
+        self::assertIsArray($rootManifest['scripts']['validate:packages']);
+        self::assertSame('@dev', $rootManifest['require']['kongono/database']);
+        self::assertSame('@dev', $rootManifest['require']['kongono/database-pdo-pgsql']);
+        self::assertSame('packages/database/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Database\\Tests\\']);
+        self::assertSame('packages/database-pdo-pgsql/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\DatabasePdoPgsql\\Tests\\']);
+        self::assertSame('@php tests/External/Database/run.php', $rootManifest['scripts']['acceptance:phase6']);
+        self::assertContains('composer --working-dir=packages/database validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database-pdo-pgsql validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+
+        $databaseFiles = $this->recursivePhpFiles($root . '/packages/database/src');
+        $adapterFiles = $this->recursivePhpFiles($root . '/packages/database-pdo-pgsql/src');
+        self::assertCount(34, $databaseFiles);
+        self::assertCount(6, $adapterFiles);
+        foreach ($databaseFiles as $file) {
+            $source = file_get_contents($file);
+            self::assertIsString($source);
+            self::assertSame(0, preg_match('/\\bPDO(?:Statement|Exception)?\\b|pdo_pgsql|pgsql:/i', $source));
+        }
+
+        foreach (['Kongono\\DatabasePdoPgsql\\PdoPgsqlConfiguration', 'Kongono\\DatabasePdoPgsql\\PdoPgsqlConnector'] as $type) {
+            $reflection = new ReflectionClass($type);
+            self::assertTrue($reflection->isFinal());
+            foreach ($reflection->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+                $signature = (string) $method->getReturnType();
+                foreach ($method->getParameters() as $parameter) {
+                    $signature .= ' ' . (string) $parameter->getType();
+                }
+                self::assertSame(0, preg_match('/\\bPDO(?:Statement|Exception)?\\b/', $signature));
+            }
+        }
+
+        $configurationConstructor = (new ReflectionClass('Kongono\\DatabasePdoPgsql\\PdoPgsqlConfiguration'))->getConstructor();
+        self::assertNotNull($configurationConstructor);
+        $sensitive = [];
+        foreach ($configurationConstructor->getParameters() as $parameter) {
+            if ([] !== $parameter->getAttributes(\SensitiveParameter::class)) {
+                $sensitive[] = $parameter->getName();
+            }
+        }
+        self::assertSame(['host', 'database', 'username', 'password'], $sensitive);
+
+        foreach ([
+            'Kongono\\Database\\Exception\\InvalidDatabaseValueException',
+            'Kongono\\Database\\Exception\\InvalidDatabaseStateException',
+            'Kongono\\Database\\Exception\\UnsupportedDatabaseCapabilityException',
+            'Kongono\\Database\\Exception\\DatabaseConnectionException',
+            'Kongono\\Database\\Exception\\DatabaseBindingException',
+            'Kongono\\Database\\Exception\\DatabaseExecutionException',
+            'Kongono\\Database\\Exception\\DatabaseResultException',
+            'Kongono\\Database\\Exception\\DatabaseTransactionBeginException',
+            'Kongono\\Database\\Exception\\DatabaseTransactionCommitException',
+            'Kongono\\Database\\Exception\\DatabaseTransactionRollbackException',
+            'Kongono\\Database\\Exception\\DatabaseCleanupException',
+            'Kongono\\Database\\Exception\\CombinedDatabaseFailureException',
+        ] as $failure) {
+            $reflection = new ReflectionClass($failure);
+            self::assertTrue($reflection->isFinal());
+            self::assertTrue($reflection->implementsInterface(DatabaseExceptionInterface::class));
+        }
+    }
+
+    public function testDatabaseSqlPackagesContractsDependenciesAndForbiddenBoundariesAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $neutralManifest = json_decode((string) file_get_contents($root . '/packages/database-sql/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        $compilerManifest = json_decode((string) file_get_contents($root . '/packages/database-sql-pgsql/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($neutralManifest);
+        self::assertIsArray($compilerManifest);
+        $neutralRequire = $neutralManifest['require'];
+        $compilerRequire = $compilerManifest['require'];
+        $neutralAutoload = $neutralManifest['autoload'];
+        $compilerAutoload = $compilerManifest['autoload'];
+        self::assertIsArray($neutralRequire);
+        self::assertIsArray($compilerRequire);
+        self::assertIsArray($neutralAutoload);
+        self::assertIsArray($compilerAutoload);
+        $neutralPsr4 = $neutralAutoload['psr-4'];
+        $compilerPsr4 = $compilerAutoload['psr-4'];
+        self::assertIsArray($neutralPsr4);
+        self::assertIsArray($compilerPsr4);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'kongono/database' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $neutralRequire);
+        self::assertSame([
+            'kongono/database' => '*',
+            'kongono/database-sql' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $compilerRequire);
+        self::assertSame(['Kongono\\DatabaseSql\\' => 'src/'], $neutralPsr4);
+        self::assertSame(['Kongono\\DatabaseSqlPgsql\\' => 'src/'], $compilerPsr4);
+
+        $databaseManifest = json_decode((string) file_get_contents($root . '/packages/database/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        $adapterManifest = json_decode((string) file_get_contents($root . '/packages/database-pdo-pgsql/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($databaseManifest);
+        self::assertIsArray($adapterManifest);
+        $databaseRequire = $databaseManifest['require'];
+        $adapterRequire = $adapterManifest['require'];
+        self::assertIsArray($databaseRequire);
+        self::assertIsArray($adapterRequire);
+        self::assertArrayNotHasKey('kongono/database-sql', $databaseRequire);
+        self::assertArrayNotHasKey('kongono/database-sql', $adapterRequire);
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        $rootRequire = $rootManifest['require'];
+        $rootAutoloadDev = $rootManifest['autoload-dev'];
+        $rootScripts = $rootManifest['scripts'];
+        self::assertIsArray($rootRequire);
+        self::assertIsArray($rootAutoloadDev);
+        self::assertIsArray($rootScripts);
+        $rootAutoloadDevPsr4 = $rootAutoloadDev['psr-4'];
+        $validatePackages = $rootScripts['validate:packages'];
+        self::assertIsArray($rootAutoloadDevPsr4);
+        self::assertIsArray($validatePackages);
+        self::assertSame('@dev', $rootRequire['kongono/database-sql']);
+        self::assertSame('@dev', $rootRequire['kongono/database-sql-pgsql']);
+        self::assertSame('packages/database-sql/tests/', $rootAutoloadDevPsr4['Kongono\\DatabaseSql\\Tests\\']);
+        self::assertSame('packages/database-sql-pgsql/tests/', $rootAutoloadDevPsr4['Kongono\\DatabaseSqlPgsql\\Tests\\']);
+        self::assertCount(27, $validatePackages);
+
+        self::assertSame(
+            ['KGN-SQL-1001', 'KGN-SQL-1002', 'KGN-SQL-1003'],
+            array_map(static fn(SqlDiagnostic $diagnostic): string => $diagnostic->value, SqlDiagnostic::cases()),
+        );
+        self::assertSame(
+            ['Select', 'Insert', 'Update', 'Delete', 'Returning', 'LimitOffset', 'NullOrdering', 'Like', 'InList'],
+            array_map(static fn(\Kongono\DatabaseSql\SqlDialectCapability $capability): string => $capability->name, \Kongono\DatabaseSql\SqlDialectCapability::cases()),
+        );
+
+        $surfaces = [
+            'Kongono\\DatabaseSql\\SqlPlan' => ['kind', 'requiredCapabilities'],
+            'Kongono\\DatabaseSql\\SqlDialectCompiler' => ['capabilities', 'compile'],
+            'Kongono\\DatabaseSql\\SqlIdentifier' => ['__construct', 'value'],
+            'Kongono\\DatabaseSql\\SqlQualifiedName' => ['__construct', 'segments'],
+            'Kongono\\DatabaseSql\\SqlMutationScope' => ['allRows', 'forPredicate', 'isAllRows', 'predicate'],
+            'Kongono\\DatabaseSqlPgsql\\PostgreSql17Compiler' => ['capabilities', 'compile'],
+        ];
+        foreach ($surfaces as $type => $methods) {
+            self::assertSame($methods, $this->declaredPublicMethodNames(new ReflectionClass($type)));
+        }
+        $compiler = new ReflectionClass('Kongono\\DatabaseSqlPgsql\\PostgreSql17Compiler');
+        self::assertTrue($compiler->isFinal());
+        self::assertTrue($compiler->isReadOnly());
+
+        $neutralFiles = $this->recursivePhpFiles($root . '/packages/database-sql/src');
+        $compilerFiles = $this->recursivePhpFiles($root . '/packages/database-sql-pgsql/src');
+        self::assertCount(34, $neutralFiles);
+        self::assertCount(2, $compilerFiles);
+        foreach ([...$neutralFiles, ...$compilerFiles] as $file) {
+            $source = file_get_contents($file);
+            self::assertIsString($source);
+            self::assertSame(0, preg_match('/\\bPDO(?:Statement|Exception)?\\b|pdo_pgsql|pgsql:/i', $source));
+            self::assertSame(0, preg_match('/RawPlan|RawExpression|LiteralExpression|UnsafeFragment|Interpolation|SchemaDefinition|Migration|Mapper|Repository|IdentityMap|UnitOfWork|ActiveRecord|LazyLoad/i', $source));
+        }
+    }
+
+    public function testDatabaseMappingPackageContractAndBoundariesAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/database-mapping/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/database-mapping', $manifest['name']);
+        self::assertSame('Compile-time mapping artifacts and generated typed data access for Kongono Framework.', $manifest['description']);
+        self::assertSame('library', $manifest['type']);
+        self::assertSame([
+            'ext-hash' => '*',
+            'ext-json' => '*',
+            'kongono/api-metadata' => '*',
+            'kongono/database' => '*',
+            'kongono/database-sql' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $manifest['require']);
+        self::assertIsArray($manifest['autoload']);
+        self::assertIsArray($manifest['autoload']['psr-4']);
+        self::assertIsArray($manifest['autoload-dev']);
+        self::assertIsArray($manifest['autoload-dev']['psr-4']);
+        self::assertSame(['Kongono\\DatabaseMapping\\' => 'src/'], $manifest['autoload']['psr-4']);
+        self::assertSame(['Kongono\\DatabaseMapping\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
+        foreach (['kongono/database-pdo-pgsql', 'kongono/database-migration', 'kongono/database-migration-pgsql', 'kongono/database-sql-pgsql', 'kongono/composition'] as $forbiddenDependency) {
+            self::assertArrayNotHasKey($forbiddenDependency, $manifest['require']);
+        }
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        self::assertIsArray($rootManifest['require']);
+        self::assertIsArray($rootManifest['autoload-dev']);
+        self::assertIsArray($rootManifest['autoload-dev']['psr-4']);
+        self::assertIsArray($rootManifest['scripts']);
+        self::assertIsArray($rootManifest['scripts']['validate:packages']);
+        self::assertSame('@dev', $rootManifest['require']['kongono/database-mapping']);
+        self::assertSame('packages/database-mapping/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\DatabaseMapping\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/database-mapping validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+
+        self::assertSame(
+            array_map(static fn(int $ordinal): string => sprintf('KGN-MAPPING-%04d', $ordinal), range(1001, 1009)),
+            array_map(static fn(\Kongono\DatabaseMapping\Diagnostic\MappingDiagnostic $diagnostic): string => $diagnostic->value, \Kongono\DatabaseMapping\Diagnostic\MappingDiagnostic::cases()),
+        );
+        self::assertSame(['build'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseMapping\\Build\\MappingArtifactBuilder')));
+        self::assertSame(['publish'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseMapping\\Build\\MappingArtifactPublisher')));
+        self::assertSame(['validateCurrent', 'validateStructure'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseMapping\\Build\\MappingArtifactValidator')));
+        self::assertSame(['generate'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseMapping\\Generated\\GeneratedDataAccessGenerator')));
+        self::assertSame(['publish'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseMapping\\Generated\\GeneratedDataAccessPublisher')));
+        self::assertSame(['validateCurrent', 'validateStructure'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseMapping\\Generated\\GeneratedDataAccessValidator')));
+        self::assertSame(['loadCurrent'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseMapping\\Runtime\\GeneratedDataAccessLoader')));
+        self::assertSame(['__construct', 'classes', 'generatedFileSha256', 'generatedNamespace', 'mappingArtifactSha256'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseMapping\\Runtime\\LoadedGeneratedDataAccess')));
+
+        $sourceFiles = $this->recursivePhpFiles($root . '/packages/database-mapping/src');
+        self::assertCount(31, $sourceFiles);
+        foreach ($sourceFiles as $file) {
+            $source = file_get_contents($file);
+            self::assertIsString($source);
+            self::assertSame(0, preg_match('/\\bPDO(?:Statement|Exception)?\\b|pdo_pgsql|pgsql:/i', $source));
+            self::assertSame(0, preg_match('/IdentityMap|UnitOfWork|ActiveRecord|LazyLoad|SchemaDefinition|Migration|Container|ServiceLocator|ReflectionProperty/i', $source));
+        }
+    }
+
+    public function testDatabaseApplicationPackageAndDataSkeletonBoundariesAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/database-application/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/database-application', $manifest['name']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'kongono/composition' => '*',
+            'kongono/database' => '*',
+            'kongono/database-mapping' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $manifest['require']);
+        $autoload = $manifest['autoload'] ?? null;
+        $autoloadDev = $manifest['autoload-dev'] ?? null;
+        self::assertIsArray($autoload);
+        self::assertIsArray($autoloadDev);
+        self::assertSame(['Kongono\\DatabaseApplication\\' => 'src/'], $autoload['psr-4'] ?? null);
+        self::assertSame(['Kongono\\DatabaseApplication\\Tests\\' => 'tests/'], $autoloadDev['psr-4'] ?? null);
+        foreach (['ext-pdo', 'ext-pdo_pgsql', 'kongono/database-pdo-pgsql', 'kongono/database-sql', 'kongono/database-sql-pgsql', 'kongono/kernel', 'kongono/web-application'] as $forbiddenDependency) {
+            self::assertArrayNotHasKey($forbiddenDependency, $manifest['require']);
+        }
+
+        self::assertSame(['__construct', 'begin', 'capabilities', 'close', 'execute', 'isClosed'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseApplication\\OperationDatabaseSession')));
+        self::assertSame([], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseApplication\\DataOperationRoot')));
+        self::assertSame(['beginOperation', 'isRetired', 'shutdown', 'start'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseApplication\\GeneratedDataApplication')));
+        self::assertSame(['__construct', 'close', 'isClosed', 'root'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseApplication\\GeneratedDataOperation')));
+        self::assertSame(['build', 'check'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseApplication\\Workflow\\DataApplicationBuildWorkflow')));
+        self::assertSame(
+            ['KGN-DATABASE-APPLICATION-1001', 'KGN-DATABASE-APPLICATION-1002', 'KGN-DATABASE-APPLICATION-1003', 'KGN-DATABASE-APPLICATION-1004'],
+            array_map(static fn(\Kongono\DatabaseApplication\Diagnostic\DatabaseApplicationDiagnostic $diagnostic): string => $diagnostic->value, \Kongono\DatabaseApplication\Diagnostic\DatabaseApplicationDiagnostic::cases()),
+        );
+
+        $sourceFiles = $this->recursivePhpFiles($root . '/packages/database-application/src');
+        self::assertCount(13, $sourceFiles);
+        foreach ($sourceFiles as $file) {
+            $source = file_get_contents($file);
+            self::assertIsString($source);
+            self::assertSame(0, preg_match('/\\bPDO(?:Statement|Exception)?\\b|pdo_pgsql|pgsql:|getenv|putenv|register_shutdown_function|__destruct|ServiceLocator|Container|IdentityMap|UnitOfWork|ActiveRecord|LazyLoad|Migration/i', $source));
+        }
+
+        $skeletonManifest = json_decode((string) file_get_contents($root . '/skeletons/data-minimal/kongono.skeleton.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($skeletonManifest);
+        self::assertSame('kongono.application-skeleton', $skeletonManifest['schema']);
+        self::assertSame(1, $skeletonManifest['version']);
+        $templatePaths = $skeletonManifest['template_paths'] ?? null;
+        $derivedOutputPatterns = $skeletonManifest['derived_output_patterns'] ?? null;
+        self::assertIsArray($templatePaths);
+        self::assertIsArray($derivedOutputPatterns);
+        self::assertContains('kongono.data-mapping.json', $templatePaths);
+        self::assertContains('kongono.composition.json', $templatePaths);
+        self::assertContains('var/kongono/build/kongono-data-access-v1-*.php', $derivedOutputPatterns);
+        self::assertContains('var/kongono/build/kongono-wiring-v1-*.php', $derivedOutputPatterns);
+        self::assertFileExists($root . '/skeletons/data-minimal/composer.lock');
+
+        $minimalBytes = '';
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root . '/skeletons/minimal', FilesystemIterator::SKIP_DOTS)) as $file) {
+            if ($file instanceof SplFileInfo && $file->isFile()) {
+                $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($root . '/skeletons/minimal') + 1));
+                if (!str_starts_with($relative, 'vendor/') && !str_starts_with($relative, 'var/kongono/build/')) {
+                    $minimalBytes .= $relative . "\t" . hash_file('sha256', $file->getPathname()) . "\n";
+                }
+            }
+        }
+        self::assertNotSame('', $minimalBytes);
+    }
+
+    public function testDatabaseMigrationPackagesContractsDependenciesAndForbiddenBoundariesAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $neutralManifest = json_decode((string) file_get_contents($root . '/packages/database-migration/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        $postgresManifest = json_decode((string) file_get_contents($root . '/packages/database-migration-pgsql/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($neutralManifest);
+        self::assertIsArray($postgresManifest);
+        self::assertIsArray($neutralManifest['require']);
+        self::assertIsArray($neutralManifest['autoload']);
+        self::assertIsArray($neutralManifest['autoload']['psr-4']);
+        self::assertIsArray($postgresManifest['require']);
+        self::assertIsArray($postgresManifest['autoload']);
+        self::assertIsArray($postgresManifest['autoload']['psr-4']);
+        self::assertSame([
+            'ext-hash' => '*',
+            'ext-json' => '*',
+            'kongono/api-metadata' => '*',
+            'kongono/database' => '*',
+            'kongono/database-sql' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $neutralManifest['require']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'kongono/database' => '*',
+            'kongono/database-migration' => '*',
+            'kongono/database-sql' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $postgresManifest['require']);
+        self::assertSame(['Kongono\\DatabaseMigration\\' => 'src/'], $neutralManifest['autoload']['psr-4']);
+        self::assertSame(['Kongono\\DatabaseMigrationPgsql\\' => 'src/'], $postgresManifest['autoload']['psr-4']);
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        self::assertIsArray($rootManifest['require']);
+        self::assertIsArray($rootManifest['autoload-dev']);
+        self::assertIsArray($rootManifest['autoload-dev']['psr-4']);
+        self::assertIsArray($rootManifest['scripts']);
+        self::assertIsArray($rootManifest['scripts']['validate:packages']);
+        self::assertSame('@dev', $rootManifest['require']['kongono/database-migration']);
+        self::assertSame('@dev', $rootManifest['require']['kongono/database-migration-pgsql']);
+        self::assertSame('packages/database-migration/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\DatabaseMigration\\Tests\\']);
+        self::assertSame('packages/database-migration-pgsql/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\DatabaseMigrationPgsql\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/database-migration validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database-migration-pgsql validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+
+        self::assertSame(
+            array_map(static fn(int $ordinal): string => sprintf('KGN-MIGRATION-%04d', $ordinal), range(1001, 1007)),
+            array_map(static fn(MigrationDiagnostic $diagnostic): string => $diagnostic->value, MigrationDiagnostic::cases()),
+        );
+
+        $surfaces = [
+            'Kongono\\DatabaseMigration\\MigrationCatalog' => ['__construct', 'canonicalBytes', 'definitions', 'sha256'],
+            'Kongono\\DatabaseMigration\\MigrationDefinition' => ['__construct', 'apply', 'canonicalBytes', 'id', 'ordinal', 'revert', 'sha256'],
+            'Kongono\\DatabaseMigration\\MigrationDirectionPlan' => ['__construct', 'operations', 'risk'],
+            'Kongono\\DatabaseMigration\\MigrationOperation' => ['kind', 'risk'],
+            'Kongono\\DatabaseMigration\\MigrationHistory' => ['__construct', 'count', 'records'],
+            'Kongono\\DatabaseMigration\\MigrationPlanner' => ['applyPending', 'revertLast'],
+            'Kongono\\DatabaseMigration\\MigrationExecutor' => ['applyPending', 'revertLast'],
+            'Kongono\\DatabaseMigrationPgsql\\PostgreSql17MigrationCompiler' => ['compile'],
+            'Kongono\\DatabaseMigrationPgsql\\PostgreSql17MigrationExecutor' => ['__construct', 'applyPending', 'revertLast'],
+            'Kongono\\DatabaseMigrationPgsql\\PostgreSqlMigrationConfiguration' => ['__construct', 'advisoryLockKey', 'historyTable'],
+        ];
+        foreach ($surfaces as $type => $methods) {
+            self::assertSame($methods, $this->declaredPublicMethodNames(new ReflectionClass($type)));
+        }
+
+        $neutralFiles = $this->recursivePhpFiles($root . '/packages/database-migration/src');
+        $postgresFiles = $this->recursivePhpFiles($root . '/packages/database-migration-pgsql/src');
+        self::assertCount(36, $neutralFiles);
+        self::assertCount(4, $postgresFiles);
+        foreach ($neutralFiles as $file) {
+            $source = file_get_contents($file);
+            self::assertIsString($source);
+            self::assertSame(0, preg_match('/\\bPDO(?:Statement|Exception)?\\b|pdo_pgsql|pgsql:|PostgreSql/i', $source));
+        }
+        foreach ([...$neutralFiles, ...$postgresFiles] as $file) {
+            $source = file_get_contents($file);
+            self::assertIsString($source);
+            self::assertSame(0, preg_match('/FilesystemIterator|RecursiveDirectoryIterator|ReflectionClass|glob\\s*\\(|scandir\\s*\\(|getenv\\s*\\(|service.?locator|live.?schema/i', $source));
+            self::assertSame(0, preg_match('/MigrationDiscovery|MigrationLoader|MigrationCli|MigrationRepository|SchemaIntrospector|AutomaticRollback/i', $source));
+        }
+    }
+
     public function testEveryNonBootstrapTypeHasExactlyOneExpectedApiStatus(): void
     {
         foreach ($this->discoverProductionTypes() as $type) {
@@ -712,6 +1302,9 @@ final class ApiStatusConventionTest extends TestCase
             KnowledgeExceptionInterface::class,
             ChieExceptionInterface::class,
             CompositionExceptionInterface::class,
+            DatabaseExceptionInterface::class,
+            MigrationExceptionInterface::class,
+            SqlExceptionInterface::class,
         ];
 
         foreach ($markers as $position => $marker) {
@@ -763,6 +1356,29 @@ final class ApiStatusConventionTest extends TestCase
             [RetiredCompositionBoundaryException::class, CompositionExceptionInterface::class],
             [CompositionLifecycleException::class, CompositionExceptionInterface::class],
             [ApplicationWorkflowException::class, CompositionExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\InvalidDatabaseValueException', DatabaseExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\InvalidDatabaseStateException', DatabaseExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\UnsupportedDatabaseCapabilityException', DatabaseExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\DatabaseConnectionException', DatabaseExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\DatabaseBindingException', DatabaseExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\DatabaseExecutionException', DatabaseExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\DatabaseResultException', DatabaseExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\DatabaseTransactionBeginException', DatabaseExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\DatabaseTransactionCommitException', DatabaseExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\DatabaseTransactionRollbackException', DatabaseExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\DatabaseCleanupException', DatabaseExceptionInterface::class],
+            ['Kongono\\Database\\Exception\\CombinedDatabaseFailureException', DatabaseExceptionInterface::class],
+            ['Kongono\\DatabaseMigration\\Exception\\InvalidMigrationDefinitionException', MigrationExceptionInterface::class],
+            ['Kongono\\DatabaseMigration\\Exception\\MigrationHistoryMismatchException', MigrationExceptionInterface::class],
+            ['Kongono\\DatabaseMigration\\Exception\\DestructiveMigrationReviewRequiredException', MigrationExceptionInterface::class],
+            ['Kongono\\DatabaseMigration\\Exception\\MigrationNotReversibleException', MigrationExceptionInterface::class],
+            ['Kongono\\DatabaseMigration\\Exception\\MigrationLockUnavailableException', MigrationExceptionInterface::class],
+            ['Kongono\\DatabaseMigration\\Exception\\MigrationExecutionException', MigrationExceptionInterface::class],
+            ['Kongono\\DatabaseMigration\\Exception\\MigrationUncertainStateException', MigrationExceptionInterface::class],
+            ['Kongono\\DatabaseMigration\\Exception\\CombinedMigrationFailureException', MigrationExceptionInterface::class],
+            ['Kongono\\DatabaseSql\\Exception\\InvalidSqlPlanException', SqlExceptionInterface::class],
+            ['Kongono\\DatabaseSql\\Exception\\UnsupportedDialectCapabilityException', SqlExceptionInterface::class],
+            ['Kongono\\DatabaseSql\\Exception\\SqlCompilationException', SqlExceptionInterface::class],
         ] as [$failure, $expectedMarker]) {
             self::assertExceptionMarkerMembership($failure, $expectedMarker, array_values(array_diff($markers, [$expectedMarker])));
         }
@@ -788,11 +1404,15 @@ final class ApiStatusConventionTest extends TestCase
                 ...ChieDiagnostic::cases(),
                 ...HanteiDiagnostic::cases(),
                 ...CompositionDiagnostic::cases(),
+                ...DatabaseDiagnostic::cases(),
+                ...MappingDiagnostic::cases(),
+                ...MigrationDiagnostic::cases(),
+                ...SqlDiagnostic::cases(),
             ],
         );
 
-        self::assertCount(188, $identifiers);
-        self::assertCount(188, array_unique($identifiers));
+        self::assertCount(218, $identifiers);
+        self::assertCount(218, array_unique($identifiers));
         self::assertCount(6, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-KERNEL-1\\d{3}$/D', $identifier)));
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-GRAPH-1\\d{3}$/D', $identifier)));
         self::assertCount(25, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-DI-1\\d{3}$/D', $identifier)));
@@ -806,7 +1426,11 @@ final class ApiStatusConventionTest extends TestCase
         self::assertCount(19, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-PHP-CGI-1\\d{3}$/D', $identifier)));
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-KNOWLEDGE-1\\d{3}$/D', $identifier)));
         self::assertCount(18, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CHIE-1\\d{3}$/D', $identifier)));
+        self::assertCount(3, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-SQL-1\\d{3}$/D', $identifier)));
         self::assertCount(18, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-COMPOSITION-1\\d{3}$/D', $identifier)));
+        self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-DATABASE-1\\d{3}$/D', $identifier)));
+        self::assertCount(9, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-MAPPING-1\\d{3}$/D', $identifier)));
+        self::assertCount(7, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-MIGRATION-1\\d{3}$/D', $identifier)));
 
         $productionHttpIdentifiers = array_map(
             static fn(\BackedEnum $diagnostic): string => $diagnostic->value,
@@ -836,6 +1460,9 @@ final class ApiStatusConventionTest extends TestCase
             KnowledgeExceptionInterface::class,
             ChieExceptionInterface::class,
             CompositionExceptionInterface::class,
+            DatabaseExceptionInterface::class,
+            MigrationExceptionInterface::class,
+            SqlExceptionInterface::class,
         ] as $marker) {
             $reflection = new ReflectionClass($marker);
             $methods = array_values(array_filter(
@@ -846,13 +1473,13 @@ final class ApiStatusConventionTest extends TestCase
             sort($methodNames);
 
             self::assertSame([Throwable::class, \Stringable::class], $reflection->getInterfaceNames());
-            $expectedMethods = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class], true)
+            $expectedMethods = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class, DatabaseExceptionInterface::class, MigrationExceptionInterface::class, SqlExceptionInterface::class], true)
                 ? ['diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle']
                 : ['diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'];
             self::assertSame($expectedMethods, $methodNames);
 
             foreach ($methods as $method) {
-                $expectedReturnType = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class], true)
+                $expectedReturnType = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class, DatabaseExceptionInterface::class, MigrationExceptionInterface::class, SqlExceptionInterface::class], true)
                     && 'diagnosticContext' === $method->getName()
                     ? DiagnosticContext::class
                     : 'string';
@@ -977,6 +1604,9 @@ final class ApiStatusConventionTest extends TestCase
             KnowledgeExceptionInterface::class,
             ChieExceptionInterface::class,
             CompositionExceptionInterface::class,
+            DatabaseExceptionInterface::class,
+            MigrationExceptionInterface::class,
+            SqlExceptionInterface::class,
         ] as $marker) {
             self::assertFalse($chieValueFailure->implementsInterface($marker));
         }
@@ -1367,6 +1997,14 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/application-graph' => '@dev',
             'kongono/chie' => '@dev',
             'kongono/composition' => '@dev',
+            'kongono/database' => '@dev',
+            'kongono/database-application' => '@dev',
+            'kongono/database-mapping' => '@dev',
+            'kongono/database-migration' => '@dev',
+            'kongono/database-migration-pgsql' => '@dev',
+            'kongono/database-pdo-pgsql' => '@dev',
+            'kongono/database-sql' => '@dev',
+            'kongono/database-sql-pgsql' => '@dev',
             'kongono/dependency-injection' => '@dev',
             'kongono/diagnostic-activation' => '@dev',
             'kongono/diagnostic-handler' => '@dev',
@@ -1403,6 +2041,8 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('packages/http-server/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Http\\Server\\Tests\\']);
         self::assertSame('packages/chie/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Chie\\Tests\\']);
         self::assertSame('packages/composition/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Composition\\Tests\\']);
+        self::assertSame('packages/database-application/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\DatabaseApplication\\Tests\\']);
+        self::assertSame('packages/database-mapping/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\DatabaseMapping\\Tests\\']);
         self::assertSame('packages/knowledge/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Knowledge\\Tests\\']);
         self::assertSame('packages/oshie/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Oshie\\Tests\\']);
         self::assertSame('packages/hantei/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Hantei\\Tests\\']);
@@ -1411,12 +2051,15 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('packages/web-runtime/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Web\\Runtime\\Tests\\']);
         self::assertSame('packages/php-cgi/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\PhpCgi\\Tests\\']);
         self::assertSame('skeletons/minimal/src/', $rootManifest['autoload-dev']['psr-4']['App\\']);
+        self::assertSame('skeletons/data-minimal/src/', $rootManifest['autoload-dev']['psr-4']['KongonoDataMinimal\\']);
         self::assertIsArray($rootManifest['scripts']);
         self::assertIsArray($rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/http-message validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/http-server validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/chie validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/composition validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database-application validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/database-mapping validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/knowledge validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/oshie validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/hantei validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
@@ -1425,13 +2068,16 @@ final class ApiStatusConventionTest extends TestCase
         $validatePackages = array_values($rootManifest['scripts']['validate:packages']);
         self::assertNotSame([], $validatePackages);
         self::assertSame('composer --working-dir=packages/web-runtime validate --no-check-publish', $validatePackages[count($validatePackages) - 1]);
-        self::assertSame('composer --working-dir=skeletons/minimal validate --no-check-publish', $rootManifest['scripts']['validate:skeleton']);
+        self::assertSame([
+            'composer --working-dir=skeletons/data-minimal validate --no-check-publish',
+            'composer --working-dir=skeletons/minimal validate --no-check-publish',
+        ], $rootManifest['scripts']['validate:skeleton']);
         self::assertIsArray($rootManifest['scripts']['quality']);
         self::assertSame('@validate:skeleton', $rootManifest['scripts']['quality'][2]);
 
         $allPackageManifests = glob(dirname(__DIR__, 2) . '/packages/*/composer.json');
         self::assertIsArray($allPackageManifests);
-        self::assertCount(19, $allPackageManifests);
+        self::assertCount(27, $allPackageManifests);
         self::assertSame('>=8.5.0 <8.6.0', $rootManifest['require']['php']);
         foreach ($allPackageManifests as $packageManifestPath) {
             $manifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
@@ -1796,7 +2442,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['Kongono\\PhpCgi\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
         $packageManifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(19, $packageManifests);
+        self::assertCount(27, $packageManifests);
         foreach ($packageManifests as $packageManifestPath) {
             if (str_ends_with(str_replace('\\', '/', $packageManifestPath), '/php-cgi/composer.json')) {
                 continue;
@@ -1918,7 +2564,7 @@ final class ApiStatusConventionTest extends TestCase
         $productionFiles = [];
         $sourceDirectories = glob($root . '/packages/*/src', GLOB_ONLYDIR);
         self::assertIsArray($sourceDirectories);
-        self::assertCount(19, $sourceDirectories);
+        self::assertCount(27, $sourceDirectories);
         foreach ($sourceDirectories as $sourceDirectory) {
             $sourceIterator = new RecursiveIteratorIterator(
                 new RecursiveDirectoryIterator($sourceDirectory, FilesystemIterator::SKIP_DOTS),
@@ -1930,7 +2576,7 @@ final class ApiStatusConventionTest extends TestCase
                 }
             }
         }
-        self::assertCount(262, $productionFiles);
+        self::assertCount(422, $productionFiles);
         foreach ($productionFiles as $productionFile) {
             $source = file_get_contents($productionFile);
             self::assertIsString($source);
@@ -1941,7 +2587,7 @@ final class ApiStatusConventionTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(19, $manifests);
+        self::assertCount(27, $manifests);
         foreach ($manifests as $manifest) {
             $contents = file_get_contents($manifest);
             self::assertIsString($contents);
@@ -1957,6 +2603,22 @@ final class ApiStatusConventionTest extends TestCase
         self::assertIsArray($rootManifest['autoload-dev']['psr-4']);
         self::assertSame('tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Tests\\']);
         self::assertArrayNotHasKey('Kongono\\Tests\\External\\', $rootManifest['autoload-dev']['psr-4']);
+    }
+
+    /** @return list<string> */
+    private function recursivePhpFiles(string $root): array
+    {
+        $files = [];
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
+        /** @var SplFileInfo $file */
+        foreach ($iterator as $file) {
+            if ($file->isFile() && 'php' === $file->getExtension()) {
+                $files[] = $file->getPathname();
+            }
+        }
+        sort($files);
+
+        return $files;
     }
 
     /**
@@ -2008,10 +2670,10 @@ final class ApiStatusConventionTest extends TestCase
         }
 
         sort($packageSourceDirectories);
-        self::assertCount(19, $packageSourceDirectories);
+        self::assertCount(27, $packageSourceDirectories);
         $packageManifests = glob(dirname(__DIR__, 2) . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(19, $packageManifests);
+        self::assertCount(27, $packageManifests);
         $types = [];
 
         foreach ($packageSourceDirectories as $sourceDirectory) {

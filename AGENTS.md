@@ -315,3 +315,30 @@ loader, and runtime integration remain prohibited. Current composition stays
 caller-owned and the resolver, Graph, Kernel, routes, and runtime remain
 unchanged. Phase 5F has not begun. The artifact preserves raw source identity
 separately from semantic model identity.
+
+## Compile-time database mapping policy
+
+Phase 6F accepts [ADR 0084](docs/adr/0084-compile-time-data-mapping-and-generated-repositories.md)
+and implements the optional Experimental `kongono/database-mapping` package.
+One explicit application-owned inert `kongono.data-mapping.json` source is
+validated at build time against exact existing final readonly scalar record
+classes. Reflection is build-time only. A detached canonical model and
+provenance-bearing artifact generate ordinary typed mapper/repository PHP;
+validation is non-executing and current validation regenerates exact bytes.
+Publication is content-addressed, atomic, idempotent, initial-only, and
+no-clobber. Generated mapping output is derived evidence and is not checked in.
+
+Generated repositories expose only find, insert, update, and delete through
+caller-owned `DatabaseExecutor` and `SqlDialectCompiler` capabilities. They do
+not own sessions, transactions, compilers, retry, migration, schema, or
+lifecycle. Raw parameter-bound statements and typed SQL plans remain
+first-class. Runtime Reflection, scanning, discovery, inference, proxies,
+identity maps, units of work, Active Record, relations, hidden lazy loading,
+Phase 6G adds the outer Experimental `kongono/database-application` package,
+exact-current mapping publication/loading, the mapping-before-composition
+workflow, operation-owned session wrapper, one-operation-root runtime profile,
+and optional `skeletons/data-minimal` application. The host supplies an explicit
+connector; generated reverse cleanup closes each operation session once.
+Provider selection remains outside the integration package. ORM behavior,
+ambient sessions, automatic transactions/retry, pooling, startup migrations,
+deployment behavior, performance baselines, and Phase 6H remain prohibited.

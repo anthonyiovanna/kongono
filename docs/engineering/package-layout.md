@@ -142,13 +142,13 @@ send/close orchestration without selecting a production SAPI, server, listener,
 emitter, or deployment profile.
 
 Composer does not import a dependency's `autoload-dev` mapping into the consuming
-root project. The monorepo root therefore maps all nineteen package test namespaces in
+root project. The monorepo root therefore maps all twenty-seven package test namespaces in
 its own `autoload-dev`, alongside the root `Kongono\Tests\` mapping. This makes
 package tests directly autoloadable during root development without exposing
 them through production `autoload`.
 
 The root manifest uses one canonical Composer path repository at `packages/*`
-and requires all nineteen local packages with exact `@dev` constraints. These per-package
+and requires all twenty-seven local packages with exact `@dev` constraints. These per-package
 stability flags permit untagged local packages without changing repository-wide
 minimum stability or inventing versions. Composer generates the lock and root
 autoload metadata; manual lock edits and custom autoloaders remain prohibited.
@@ -159,10 +159,8 @@ Run package-manifest validation from the root with:
 composer validate:packages
 ```
 
-The command validates API Metadata, Application Graph, Dependency Injection,
-Diagnostic Activation, Diagnostic Handler, Diagnostic Presentation, Diagnostics,
-HTTP Message, HTTP Server, Kernel, PHP CGI, Routing, Web Application, and Web Runtime in
-deterministic lexicographic package-directory order and is part of `composer quality`
+The command validates all twenty-seven package manifests in deterministic
+lexicographic package-directory order and is part of `composer quality`
 immediately after root-manifest validation. Source uses package-owned production
 namespaces, package tests use package development namespaces, and all package
 source and tests participate in root style, static-analysis, and PHPUnit checks.
@@ -171,7 +169,7 @@ root architecture suite rather than any package.
 
 ## Boundaries and stability
 
-The fourteen physical package boundaries are implemented. The root-owned Phase
+The twenty-seven physical package boundaries are implemented. The root-owned Phase
 2 fixture is test infrastructure, not a package or production application.
 Other package boundaries and dependency
 rules remain open. Independent publishing, splitting, versioning, and release
@@ -280,7 +278,7 @@ php-cgi -> api-metadata
 php-cgi -> diagnostics
 php-cgi -> http-message
 php-cgi -> psr/http-message
-framework root -> all nineteen packages
+framework root -> all twenty-seven packages
 ```
 
 The eighteen API Metadata consuming package-manifest constraints are
@@ -290,7 +288,7 @@ self-dependencies, and undeclared package dependencies remain prohibited.
 The former `Kongono\Kernel\Api\*` namespace is absent and no compatibility shim
 exists. Kernel, Graph, and DI independently require Diagnostics; none requires
 another semantic consumer. Current Composer/autoload behavior implements the
-nineteen-package graph documented above.
+twenty-seven-package graph documented above.
 
 ## Implemented Diagnostic Activation foundation
 
@@ -371,7 +369,7 @@ Kernel, Application Graph, and Dependency Injection are direct dependencies
 because their three separate exception markers form the presenter's
 accepted source union. Diagnostic Handler has no direct dependency on
 Diagnostics. Web Runtime depends on Diagnostic Handler, while Handler retains no
-reverse edge; the framework root consumes all nineteen packages.
+reverse edge; the framework root consumes all twenty-seven packages.
 
 The sole production declaration is the Experimental final
 readonly `Kongono\DiagnosticHandler\TrustedDeveloperDiagnosticHtmlPresenter`.
@@ -600,3 +598,73 @@ See the
 [application workflow guide](application-workflow.md). Phase 5G adds only
 application-owned Composer scripts in the copy-once skeleton; it adds no
 package `bin`, framework CLI, listener, or deployment behavior.
+
+## Phase 6E database package boundary
+
+Phase 5 is complete at checkpoint
+`c431482bea664ce3c3201794332c62cab1ed034e` with exactly nineteen production
+packages and nineteen package manifests. Phase 6A is documentation and
+architecture only. It creates no twentieth package, namespace, manifest,
+autoload mapping, dependency edge, command, configuration key, provider,
+database runtime, SQL API, migration system, mapper, repository, generated data
+artifact, or Application Graph integration.
+
+Phase 6B accepts exactly two Experimental package boundaries and Phase 6C
+implements them:
+
+| Package | Namespace | Direct dependencies |
+| --- | --- | --- |
+| `kongono/database` | `Kongono\Database\` | PHP `>=8.5.0 <8.6.0`; `kongono/api-metadata @dev`; `kongono/diagnostics @dev` |
+| `kongono/database-pdo-pgsql` | `Kongono\DatabasePdoPgsql\` | PHP `>=8.5.0 <8.6.0`; `ext-pdo`; `ext-pdo_pgsql`; `kongono/database @dev` |
+
+The first adapter depends on the neutral package; the neutral package never
+depends on the adapter. Neither has a dependency on Kernel, Composition,
+Dependency Injection, Application Graph, HTTP, developer-intelligence roles, or
+another Data Platform layer. PostgreSQL 17.2 through PDO `pdo_pgsql` is only the
+first proved profile. Phase 6G adds composition integration only in the outer
+database-application package.
+
+Phase 6D adds two higher-layer boundaries:
+
+| Package | Namespace | Direct dependencies |
+| --- | --- | --- |
+| `kongono/database-sql` | `Kongono\DatabaseSql\` | PHP `>=8.5.0 <8.6.0`; `kongono/api-metadata @dev`; `kongono/database @dev`; `kongono/diagnostics @dev` |
+| `kongono/database-sql-pgsql` | `Kongono\DatabaseSqlPgsql\` | PHP `>=8.5.0 <8.6.0`; `kongono/database @dev`; `kongono/database-sql @dev` |
+
+Phase 6E adds two more higher-layer boundaries:
+
+| Package | Namespace | Direct dependencies |
+| --- | --- | --- |
+| `kongono/database-migration` | `Kongono\DatabaseMigration\` | PHP `>=8.5.0 <8.6.0`; `ext-hash`; `ext-json`; `kongono/api-metadata @dev`; `kongono/database @dev`; `kongono/database-sql @dev`; `kongono/diagnostics @dev` |
+| `kongono/database-migration-pgsql` | `Kongono\DatabaseMigrationPgsql\` | PHP `>=8.5.0 <8.6.0`; `kongono/api-metadata @dev`; `kongono/database @dev`; `kongono/database-migration @dev`; `kongono/database-sql @dev` |
+
+Phase 6F adds one optional higher-layer boundary:
+
+| Package | Namespace | Direct dependencies |
+| --- | --- | --- |
+| `kongono/database-mapping` | `Kongono\DatabaseMapping\` | PHP `>=8.5.0 <8.6.0`; `ext-hash`; `ext-json`; `kongono/api-metadata @dev`; `kongono/database @dev`; `kongono/database-sql @dev`; `kongono/diagnostics @dev` |
+
+Phase 6G adds one provider-neutral outer boundary:
+
+| Package | Namespace | Direct dependencies |
+| --- | --- | --- |
+| `kongono/database-application` | `Kongono\DatabaseApplication\` | PHP `>=8.5.0 <8.6.0`; `kongono/api-metadata @dev`; `kongono/composition @dev`; `kongono/database @dev`; `kongono/database-mapping @dev`; `kongono/diagnostics @dev` |
+
+Phase 6G adds `kongono/database-application` as the eighth Data Platform package.
+The current graph has twenty-seven package manifests. The SQL compiler depends one
+way on neutral plans; neither low-level package depends on either higher layer.
+The migration executor depends one way on the neutral migration model and lower
+database/SQL contracts. Mapping depends one way on the neutral database and SQL
+contracts; no lower package depends upward on mapping. The root requirements,
+autoload and validation tools include all eight database
+packages, while the PHP range and Phase 5 lifecycle ownership remain unchanged.
+PDO stays internal to the existing adapter, and the provider harness remains
+external test evidence. Mapping source and generated output remain application-
+owned derived build evidence and are not checked in. The outer integration
+package owns exact-current loading, composition, and operation sessions. No ORM,
+pooling, migration startup, deployment behavior, or Phase 6H behavior exists. See the
+[Data Platform guide](../architecture/data-platform.md), [database contract](../architecture/database-contract.md),
+[SQL plan guide](../architecture/database-sql-plans.md),
+[migration guide](../architecture/database-migrations.md),
+[mapping guide](../architecture/database-mapping.md),
+[engineering contract tables](database-contracts.md), and [Phase 6 roadmap](../architecture/phase-6-roadmap.md).

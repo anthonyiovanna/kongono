@@ -4,7 +4,7 @@
   Phase 4E verifier, subject identity, evidence, process, and mutation boundary.
 ## Purpose and current scope
 
-Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all nineteen production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
+Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all twenty-seven production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
 
 Phase 0X expands the automatically discovered inventory with eight Diagnostic
 Presentation declarations and six focused package tests. Existing quality rules
@@ -16,7 +16,7 @@ The root command is:
 composer quality
 ```
 
-It validates the root and all six package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
+It validates the root and all twenty-seven package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
 
 ## Guides
 
@@ -121,3 +121,55 @@ copies, plugins and network disabled, exact raw-stream assertions, unchanged
 repository state, and owned temporary cleanup. It is test evidence only, not a
 runtime package, framework CLI, installer, deployment mechanism, Stable API,
 production-readiness claim, or Phase 6 capability.
+
+## Phase 6B database contract engineering
+
+Phase 5 is complete at checkpoint
+`c431482bea664ce3c3201794332c62cab1ed034e`. Phase 6A adds only the
+[Data Platform architecture guide](../architecture/data-platform.md),
+[Phase 6 roadmap](../architecture/phase-6-roadmap.md), [ADR 0077](../adr/0077-layered-data-platform-and-explicit-sql-boundary.md),
+and [ADR 0078](../adr/0078-deterministic-data-plans-and-operation-scoped-persistence.md),
+plus current-document reconciliation.
+
+The accepted direction keeps connectivity/execution, SQL plans and dialects,
+schema/migrations, optional generated Data Mapper support, and lifecycle
+integration conceptually separate. It requires explicit parameter binding,
+provider capability truthfulness, operation-scoped resources and transactions,
+deterministic derived evidence, and existing diagnostic non-disclosure.
+
+Phase 6B adds the [database contract architecture](../architecture/database-contract.md),
+the implementer-facing [database contract tables](database-contracts.md),
+[ADR 0079](../adr/0079-neutral-database-session-and-provider-capability-contract.md),
+and [ADR 0080](../adr/0080-explicit-database-result-transaction-and-failure-lifecycle.md).
+Phase 6C implements the `kongono/database` neutral boundary and separate
+`kongono/database-pdo-pgsql` first adapter, exact version-1 statement/value/
+result/capability/transaction/lifecycle vocabulary, PostgreSQL PDO proof profile,
+no-retry policy, and nondisclosing error categories.
+
+Phase 6D adds Experimental immutable plans in `kongono/database-sql` and the
+stateless PostgreSQL 17 compiler in `kongono/database-sql-pgsql`. Explicit
+capabilities, mutation scope, identifier quoting, occurrence-ordered parameters,
+and non-disclosing failures are covered by focused and real-provider proof. Raw
+parameter-bound statements remain supported.
+
+Phase 6E adds the neutral typed migration catalog/planner and explicit
+PostgreSQL 17 migration compiler/executor. Phase 6F adds optional Experimental
+compile-time mapping, provenance artifacts, and generated typed
+mappers/repositories. Phase 6G adds the outer database-application workflow,
+exact-current loading, operation-owned sessions, and optional data skeleton.
+The package graph now has twenty-seven packages and the current PHP range
+remains `>=8.5.0 <8.6.0`. Generated output is derived and not checked in; raw
+SQL and typed plans remain first-class. Phase 6H adds the root-owned whole-
+platform PostgreSQL 17 acceptance proof and a versioned local observational
+measurement baseline. The [external acceptance guide](../architecture/phase-6-external-acceptance.md)
+and [performance baseline guide](database-performance-baseline.md) document the
+command, result, limits, and re-baselining rules. No ORM, provider service,
+deployment, runtime telemetry, pooling, retry, or further provider exists. See [ADR 0081](../adr/0081-postgresql-pdo-adapter-and-real-provider-proof.md),
+[ADR 0082](../adr/0082-immutable-database-sql-plans-and-postgresql-dialect-compilation.md),
+[ADR 0083](../adr/0083-deterministic-schema-migrations-and-postgresql-execution.md),
+[ADR 0084](../adr/0084-compile-time-data-mapping-and-generated-repositories.md),
+[ADR 0085](../adr/0085-generated-data-application-and-operation-owned-sessions.md),
+[ADR 0086](../adr/0086-phase-6-external-data-platform-acceptance-and-checkpoint.md),
+the [SQL plan engineering guide](database-sql-plans.md), the
+[migration engineering guide](database-migrations.md), and the
+[mapping engineering guide](database-mapping.md).

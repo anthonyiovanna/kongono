@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "099f567a6da7e3490937e7d717cc0817",
+    "content-hash": "e116a9257fbbfd4a4c44c23f99367fb2",
     "packages": [
         {
             "name": "kongono/api-metadata",
@@ -124,6 +124,253 @@
                 }
             },
             "description": "Deterministic composition artifacts, generated typed wiring, and lifecycle support for Kongono.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/database",
+                "reference": "b4d79491dc8a2e459d4b89cf73b9d52168c206b0"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Database\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Database\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral bounded database execution and lifecycle contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/database-application",
+                "reference": "affb38f0ebdcc81ac82b6644aea547fee9156c7f"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/composition": "*",
+                "kongono/database": "*",
+                "kongono/database-mapping": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabaseApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabaseApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Generated data-application composition and operation-owned persistence for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-mapping",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/database-mapping",
+                "reference": "77d35019c0af670f0e77d6680001831893fa5d90"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/database": "*",
+                "kongono/database-sql": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabaseMapping\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabaseMapping\\Tests\\": "tests/"
+                }
+            },
+            "description": "Compile-time mapping artifacts and generated typed data access for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-migration",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/database-migration",
+                "reference": "467f01f1034e4bbfcbfd31cfbde993207899277c"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/database": "*",
+                "kongono/database-sql": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabaseMigration\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabaseMigration\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic schema migration definitions, planning, and execution contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-migration-pgsql",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/database-migration-pgsql",
+                "reference": "2244b43f50c642176ee8d30fad6ad96468bb96f4"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/database": "*",
+                "kongono/database-migration": "*",
+                "kongono/database-sql": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabaseMigrationPgsql\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabaseMigrationPgsql\\Tests\\": "tests/"
+                }
+            },
+            "description": "PostgreSQL 17 schema migration compilation and execution for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-pdo-pgsql",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/database-pdo-pgsql",
+                "reference": "59312cd0c2f2a40cd445d750a895d62cf57acf28"
+            },
+            "require": {
+                "ext-pdo": "*",
+                "ext-pdo_pgsql": "*",
+                "kongono/database": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabasePdoPgsql\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabasePdoPgsql\\Tests\\": "tests/"
+                }
+            },
+            "description": "PostgreSQL PDO proof adapter for Kongono's neutral database contracts.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-sql",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/database-sql",
+                "reference": "9a48fa9dd7023afe171d2b142e4118aaa2757b6f"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/database": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabaseSql\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabaseSql\\Tests\\": "tests/"
+                }
+            },
+            "description": "Immutable bounded SQL plans and dialect contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-sql-pgsql",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/database-sql-pgsql",
+                "reference": "fc2329a6951ba85241452e8bd3671b2def0afe8b"
+            },
+            "require": {
+                "kongono/database": "*",
+                "kongono/database-sql": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabaseSqlPgsql\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabaseSqlPgsql\\Tests\\": "tests/"
+                }
+            },
+            "description": "PostgreSQL 17 compiler for Kongono immutable SQL plans.",
             "transport-options": {
                 "relative": true
             }
@@ -5635,6 +5882,14 @@
         "kongono/application-graph": 20,
         "kongono/chie": 20,
         "kongono/composition": 20,
+        "kongono/database": 20,
+        "kongono/database-application": 20,
+        "kongono/database-mapping": 20,
+        "kongono/database-migration": 20,
+        "kongono/database-migration-pgsql": 20,
+        "kongono/database-pdo-pgsql": 20,
+        "kongono/database-sql": 20,
+        "kongono/database-sql-pgsql": 20,
         "kongono/dependency-injection": 20,
         "kongono/diagnostic-activation": 20,
         "kongono/diagnostic-handler": 20,

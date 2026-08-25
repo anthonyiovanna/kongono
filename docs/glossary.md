@@ -1041,3 +1041,21 @@ real build/check/run and PHP-CGI boundaries, proves fail-closed state handling,
 isolation, nondisclosure, and cleanup, and emits deterministic canonical JSON.
 It is not a production API, installer, listener, deployment certification, or
 Phase 6 capability.
+
+## Phase 6 External Acceptance
+
+The root-owned test-only whole-platform proof for the accepted eight-package
+Deterministic Data Platform. It starts an owned local PostgreSQL 17 cluster,
+exercises explicit session/transaction/SQL/migration/mapping/generated-
+application boundaries and a copied data-minimal workflow, emits one bounded
+canonical result after cleanup, and adds no production provider service,
+deployment behavior, ORM, or runtime telemetry.
+
+## Database Performance Baseline
+
+The versioned local observational timing evidence emitted by Phase 6 external
+acceptance. Version 1 uses `hrtime(true)`, fixed warmup and sample counts, and
+nearest-rank summaries for four ordered scenarios. Its values are neither exact
+build identities nor SLAs, budgets, regression thresholds, portability claims,
+or framework rankings; compatible profiles must be compared cautiously and
+material environment changes require re-baselining.

@@ -1,0 +1,24 @@
+{
+  "name": "kongono/database-mapping",
+  "description": "Compile-time mapping artifacts and generated typed data access for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "ext-hash": "*",
+    "ext-json": "*",
+    "kongono/api-metadata": "*",
+    "kongono/database": "*",
+    "kongono/database-sql": "*",
+    "kongono/diagnostics": "*",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\DatabaseMapping\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\DatabaseMapping\\Tests\\": "tests/"
+    }
+  }
+}

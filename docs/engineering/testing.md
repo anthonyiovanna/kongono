@@ -217,3 +217,65 @@ temporary residue remain unchanged.
 This evidence closes only the supported pre-1.0 application-composition slice.
 It is not a Stable API, full-framework, production-readiness, deployment, or
 Phase 6 test claim.
+
+## Phase 6E database proof
+
+Phase 5 is complete at checkpoint
+`c431482bea664ce3c3201794332c62cab1ed034e`. Phases 6A and 6B change
+documentation and architecture only. Phase 6C implements the accepted neutral
+and PostgreSQL PDO adapter contracts, package tests, architecture/static/style
+coverage, and one root-owned external harness.
+
+Focused neutral and adapter tests cover exact value/boundary validation,
+capability and result-shape failures, duplicate labels and ordinal rows,
+one-stream and one-transaction restrictions, state transitions, reverse cleanup
+and combined failure, no retry, operation isolation, and nondisclosure. Static,
+style, and architecture proof covers the dependency direction, Experimental API
+status, closed diagnostics, sensitive configuration, and native PDO isolation.
+
+The Phase 6D package tests additionally prove immutable detached plan shapes,
+identifier and collection bounds, capability derivation, explicit all-row
+intent, canonical PostgreSQL 17 output, ordered parameters, compiler reuse,
+fiber isolation, foreign-plan rejection, and nondisclosure. Architecture proof
+locks the 26-package dependency direction, mapping and migration package
+surfaces, and absence of native/provider and later-phase declarations.
+
+The exact external command accepts one caller-supplied PostgreSQL binary
+directory, requires PostgreSQL 17.2, uses only loopback and a fresh external
+temporary tree, and emits one canonical JSON line. Its prior 76 cases retain
+the Phase 6C provider proof and add real Select/Insert/Update/Delete compilation,
+quoted identifiers, ordering, limit/offset, RETURNING, transaction execution,
+explicit all-row mutation, raw-SQL coexistence, adversarial rejection, and
+complete process/tree cleanup. Phase 6E adds typed-catalog, exact-history,
+destructive-policy, all-operation/type, advisory-lock, transactional rollback,
+reserved-history, caller-session, and nondisclosure cases while retaining all
+76 prior cases. Phase 6F retains all 104 Phase 6E cases and adds exactly 16
+generated mapping cases for 120 total, including current validation, CRUD,
+scalar/null hydration, both identity types, cardinality rejection, caller-owned
+rollback/reuse, repository independence, deterministic failure, nondisclosure,
+and cleanup. It makes no universal portability, automatic recovery, ORM, or
+production-service claim. Phase 6G adds exact-current loading, composition,
+operation isolation, and data-skeleton proof while retaining all 120 earlier
+cases for 140 accepted cases before Phase 6H.
+
+Phase 6H retains those cases and adds the named whole-platform closure proofs:
+simultaneous temporary-relation isolation, read-committed visibility across
+commit and rollback, peer survival, generated operation identity/lifetime
+boundaries, exact-current state refusal, write-free copied-application checks,
+nondisclosure, and complete cleanup. The success JSON also contains the four
+ordered version-1 performance summaries. The final observed case and PHPUnit
+assertion counts are evidence rather than advance-locked contracts. See
+[ADR 0081](../adr/0081-postgresql-pdo-adapter-and-real-provider-proof.md),
+[ADR 0082](../adr/0082-immutable-database-sql-plans-and-postgresql-dialect-compilation.md),
+[ADR 0083](../adr/0083-deterministic-schema-migrations-and-postgresql-execution.md),
+[ADR 0084](../adr/0084-compile-time-data-mapping-and-generated-repositories.md),
+[ADR 0085](../adr/0085-generated-data-application-and-operation-owned-sessions.md),
+[ADR 0086](../adr/0086-phase-6-external-data-platform-acceptance-and-checkpoint.md),
+[Phase 6 external acceptance](../architecture/phase-6-external-acceptance.md),
+[performance baseline](database-performance-baseline.md),
+the [Data Platform guide](../architecture/data-platform.md),
+[database contract](../architecture/database-contract.md),
+[SQL plan guide](../architecture/database-sql-plans.md),
+[migration guide](../architecture/database-migrations.md),
+[mapping guide](../architecture/database-mapping.md),
+[engineering contract tables](database-contracts.md), and [Phase 6 roadmap](../architecture/phase-6-roadmap.md).

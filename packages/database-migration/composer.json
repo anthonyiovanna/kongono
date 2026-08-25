@@ -1,0 +1,24 @@
+{
+  "name": "kongono/database-migration",
+  "description": "Deterministic schema migration definitions, planning, and execution contracts for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "ext-hash": "*",
+    "ext-json": "*",
+    "kongono/api-metadata": "*",
+    "kongono/database": "*",
+    "kongono/database-sql": "*",
+    "kongono/diagnostics": "*",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\DatabaseMigration\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\DatabaseMigration\\Tests\\": "tests/"
+    }
+  }
+}

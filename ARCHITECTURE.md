@@ -53,7 +53,7 @@ repository behavior.
 
 ## Package dependency topology
 
-The current runtime has nineteen packages. `kongono/api-metadata` requires
+The current runtime has twenty-seven packages. `kongono/api-metadata` requires
 PHP only and owns `Kongono\ApiMetadata\Api` and `ApiStatus`. Kernel,
 Diagnostics, and Dependency Injection each require API Metadata; Kernel,
 Application Graph, Dependency Injection, HTTP Message, Routing, and HTTP Server
@@ -66,7 +66,7 @@ does not depend on the concrete HTTP Message package. Web Runtime is the top-lev
 delivery leaf above Web Application and the trusted-diagnostic foundations.
 `kongono/php-cgi` is an outer leaf over API Metadata, Diagnostic Activation,
 Diagnostics, HTTP Message, Web Runtime, PSR-7, and PHP. It has no direct Web
-Application dependency. The root consumes all nineteen. This graph is acyclic,
+Application dependency. The root consumes all twenty-seven. This graph is acyclic,
 and no package depends on Kernel merely for compatibility metadata.
 
 Phase 1C implements `kongono/diagnostic-activation` as an acyclic package that
@@ -455,18 +455,16 @@ temporary cleanup, and no repository mutation or authority elevation. Phase 4A
 through 4H are implemented and externally accepted at the bounded checkpoint.
 Kongono remains pre-1.0 and not production-ready.
 
-## Phase 5 composition and application workflow
+## Completed Phase 5 composition and application workflow
 
-Phase 4 is complete at checkpoint
-`358e412929d6bb7316195d3a1748c346a2de0e1b` with eighteen acyclic production
-packages. Phase 5A accepted documentation architecture for one supported
-application composition root, deterministic build-before-runtime behavior, and
-generated typed PHP constructor wiring. Phases 5D-5F now implement the
-artifact, generated wiring, and existing-web lifecycle boundaries. Phase 5G
-adds one copy-once minimal skeleton and an explicit build/check/one-request run
-workflow.
+Phase 5 is complete at checkpoint
+`c431482bea664ce3c3201794332c62cab1ed034e` with nineteen acyclic production
+packages. It implements one supported application composition root,
+deterministic build-before-runtime behavior, generated typed PHP constructor
+wiring, exact-current loading, existing-web lifecycle integration, one copy-once
+minimal skeleton, and root-owned external acceptance.
 
-The future composition root owns construction, startup order, retained
+The supported composition root owns construction, startup order, retained
 application-lifetime objects, operation factories, shutdown order, and partial-
 boot cleanup. It is not Kernel: Kernel retains its current lifecycle-neutral
 boundary. Production startup must verify one complete current deterministic
@@ -477,9 +475,9 @@ The supported production direction rejects ambient containers, resolver or
 container injection into application services, runtime service lookup,
 property-hook dependency resolution, request-time reflection/scanning,
 runtime `eval`, and remote generated code. The existing Experimental runtime
-resolver remains unchanged until a separate generated boundary is implemented
-and proved. The current Application Graph also remains unchanged and has no
-selected build integration.
+resolver remains separate and unchanged; the supported generated boundary does
+not integrate or deprecate it. The current Application Graph also remains
+unchanged and has no selected build integration.
 
 Phase 5B applies the already-Accepted Composer/platform migration to
 `>=8.5.0 <8.6.0` without adding runtime semantics, a package, dependency,
@@ -531,3 +529,84 @@ the [Phase 5 roadmap](docs/architecture/phase-5-roadmap.md),
 the [generated wiring guide](docs/engineering/generated-wiring.md),
 the [application workflow guide](docs/engineering/application-workflow.md), and
 the [declaration guide](docs/engineering/composition-declarations.md).
+
+## Accepted Phase 6B low-level database contract architecture
+
+Phase 6A accepts documentation architecture for a layered Deterministic Data
+Platform. Its five conceptual layers are low-level connectivity and execution;
+explicit SQL/query/command plans and dialect compilation; schema and migration
+work; optional generated Data Mapper and repository ergonomics; and composition
+with operation-scoped lifecycle. These layers are not a monolithic ORM and do
+not move database responsibility into Kernel.
+
+Raw SQL remains an explicit parameter-bound escape hatch. Provider capability
+requirements remain visible, unsupported behavior fails closed, and portability
+or performance claims require real evidence. Static facades, ambient
+connections, service location, request-time mapping reflection or proxy
+generation, hidden lazy loading, property-hook infrastructure lookup, and
+Active Record as the core model are rejected defaults.
+
+Operation-owned resources and transactions require explicit acquisition,
+cleanup, concurrency, and failure composition suitable for persistent runtimes.
+Derived plans and generated mapping remain deterministic evidence rather than
+authority. Data diagnostics retain the existing non-disclosure policy.
+
+Phase 6B accepts the architecture implemented by Phase 6C in two Experimental packages. Neutral
+`kongono/database` under `Kongono\Database\` depends only on PHP, API Metadata,
+and Diagnostics. The first separate adapter,
+`kongono/database-pdo-pgsql` under `Kongono\DatabasePdoPgsql\`, depends on PHP,
+`ext-pdo`, `ext-pdo_pgsql`, and the neutral package. It adapts PostgreSQL
+through PDO `pdo_pgsql` only; this first proof profile is not a portability
+claim, and the neutral package never depends on the adapter.
+
+The Accepted version-1 contract fixes explicit connectors, operation-owned
+sessions, immutable parameter-bound unparsed raw SQL with a `Rows` or
+`Completion` expectation, exact scalar/binary values and bounds, canonical
+session capabilities, forward-only duplicate-label-safe rows, one active stream
+and transaction, explicit transaction state/options, reverse cleanup,
+primary-plus-cleanup failure retention, no automatic retry, and non-disclosing
+failure categories. Kernel and every Phase 5 lifecycle owner remain unchanged.
+
+Phase 6D adds two one-way higher-layer packages. Experimental
+`kongono/database-sql` owns immutable bounded Select, Insert, Update, Delete,
+predicate, capability, and non-disclosing compilation contracts. Experimental
+`kongono/database-sql-pgsql` owns a stateless PostgreSQL 17 compiler that emits
+ordinary immutable `DatabaseStatement` values. Explicit all-row mutation intent
+is retained in plans; every executable value becomes an ordered parameter.
+Direct parameter-bound raw SQL remains supported.
+
+Phase 6E adds the one-way `kongono/database-migration` and
+`kongono/database-migration-pgsql` layers. The caller-owned catalog, exact-prefix
+history, canonical identities, explicit destructive policy, and PostgreSQL 17
+transaction/lock execution remain separate from mapping and runtime ownership.
+Phase 6F adds the optional Experimental `kongono/database-mapping` leaf over
+API Metadata, Database, Database SQL, and Diagnostics. Its explicit inert source,
+build-time record Reflection, canonical artifact, and generated typed
+mappers/repositories remain separate from migration and runtime ownership.
+Generated output is derived and not checked in; raw SQL and typed plans remain
+first-class. Phase 6G brings the current graph to 27 packages with the outer
+Experimental database-application workflow, exact-current generated loading,
+operation-owned sessions, and optional data skeleton. Phase 6H adds only the
+root-owned whole-platform PostgreSQL 17 acceptance proof, local observational
+measurement baseline, documentation reconciliation, and exact checkpoint. No
+ORM, pool, framework CLI, migration startup, deployment entrypoint, runtime
+telemetry, or further provider exists. Kongono remains pre-1.0 and not
+production-ready. See [ADR 0077](docs/adr/0077-layered-data-platform-and-explicit-sql-boundary.md),
+[ADR 0078](docs/adr/0078-deterministic-data-plans-and-operation-scoped-persistence.md),
+[ADR 0079](docs/adr/0079-neutral-database-session-and-provider-capability-contract.md),
+[ADR 0080](docs/adr/0080-explicit-database-result-transaction-and-failure-lifecycle.md),
+[ADR 0081](docs/adr/0081-postgresql-pdo-adapter-and-real-provider-proof.md),
+[ADR 0082](docs/adr/0082-immutable-database-sql-plans-and-postgresql-dialect-compilation.md),
+[ADR 0083](docs/adr/0083-deterministic-schema-migrations-and-postgresql-execution.md),
+[ADR 0084](docs/adr/0084-compile-time-data-mapping-and-generated-repositories.md),
+[ADR 0085](docs/adr/0085-generated-data-application-and-operation-owned-sessions.md),
+[ADR 0086](docs/adr/0086-phase-6-external-data-platform-acceptance-and-checkpoint.md),
+the [Data Platform guide](docs/architecture/data-platform.md), the
+[Phase 6 external acceptance guide](docs/architecture/phase-6-external-acceptance.md), the
+[database contract](docs/architecture/database-contract.md), the
+[SQL plan guide](docs/architecture/database-sql-plans.md), the
+[migration guide](docs/architecture/database-migrations.md), the
+[mapping guide](docs/architecture/database-mapping.md), the
+[engineering contract tables](docs/engineering/database-contracts.md), the
+[performance baseline guide](docs/engineering/database-performance-baseline.md), and the
+[Phase 6 roadmap](docs/architecture/phase-6-roadmap.md).

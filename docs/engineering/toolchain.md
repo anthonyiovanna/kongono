@@ -222,3 +222,24 @@ unchanged.
 
 The command is root-owned test tooling, not a production CLI, application
 dependency, installer, listener, upgrader, or deployment surface.
+
+## Phase 6 external acceptance command
+
+`composer acceptance:phase6 -- "<PostgreSQL-17-bin>"` invokes only the
+root-owned database harness with one explicit ordinary binary directory. The
+accepted local profile uses:
+
+```text
+composer acceptance:phase6 -- "C:\laragon\bin\postgresql\postgresql-17.2-3-windows-x64-binaries\bin"
+```
+
+The harness owns a fresh system-temporary cluster, loopback port, role/database
+state, copied skeleton, local package mirror, locked offline install, generated
+output, and cleanup. Success is one canonical LF-terminated JSON object after
+the server and temporary root are gone. Failure is a bounded stderr token.
+
+The `performance` member follows the test-only version-1 `hrtime(true)` protocol
+and contains summaries rather than raw samples. It is not part of `composer
+quality`, production autoload, runtime telemetry, an SLA, or a regression
+threshold. See the [Phase 6 external guide](../architecture/phase-6-external-acceptance.md)
+and [performance baseline guide](database-performance-baseline.md).

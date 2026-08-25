@@ -36,7 +36,11 @@ final class GeneratedWiringEmitter
     /** @var array<string, int> */
     private array $operationProperties = [];
     /** @var array<string, true> */
+    private array $retainedOperation = [];
+    /** @var array<string, true> */
     private array $operationInputs = [];
+    /** @var array<string, true> */
+    private array $applicationInputs = [];
     /** @var array<string, string> */
     private array $builtApplication = [];
     /** @var array<string, string> */
@@ -139,6 +143,14 @@ final class GeneratedWiringEmitter
                 $this->operationRoots[] = $root;
             }
         }
+        foreach ($this->applicationRoots as $root) {
+            $seen = [];
+            $this->collectApplicationInputs($this->resolve($root['contract']), true, $seen);
+        }
+        foreach ($this->operationRoots as $root) {
+            $seen = [];
+            $this->collectApplicationInputs($this->resolve($root['contract']), false, $seen);
+        }
 
         $applicationNeeded = [];
         foreach ([...$this->applicationRoots, ...$this->operationRoots] as $root) {
@@ -164,6 +176,9 @@ final class GeneratedWiringEmitter
         foreach ($this->applicationRoots as $root) {
             $this->retainedApplication[$this->resolve($root['contract'])] = true;
         }
+        foreach ($this->operationRoots as $root) {
+            $this->retainedOperation[$this->resolve($root['contract'])] = true;
+        }
         foreach ($applicationClasses as $class) {
             if ($this->operationUsesApplication($class)) {
                 $this->retainedApplication[$class] = true;
@@ -188,6 +203,30 @@ final class GeneratedWiringEmitter
         foreach ($service['arguments'] as $argument) {
             if (isset($argument['service'])) {
                 $this->collectApplicationServices($this->resolve($argument['service']), $needed, $seen);
+            }
+        }
+    }
+
+    /** @param array<string, true> $seen */
+    private function collectApplicationInputs(string $class, bool $applicationScope, array &$seen): void
+    {
+        $scopeKey = ($applicationScope ? 'application:' : 'operation:') . $class;
+        if (isset($seen[$scopeKey])) {
+            return;
+        }
+        $seen[$scopeKey] = true;
+        $service = $this->service($class);
+        if ('application' === $service['lifetime']) {
+            $applicationScope = true;
+        } elseif ('operation' === $service['lifetime']) {
+            $applicationScope = false;
+        }
+        foreach ($service['arguments'] as $argument) {
+            if ($applicationScope && isset($argument['input'])) {
+                $this->applicationInputs[$argument['input']] = true;
+            }
+            if (isset($argument['service'])) {
+                $this->collectApplicationInputs($this->resolve($argument['service']), $applicationScope, $seen);
             }
         }
     }
@@ -263,10 +302,18 @@ final class GeneratedWiringEmitter
         foreach (array_keys($this->applicationProperties) as $class) {
             $this->construct($class);
         }
-        $lines[] = '        try {';
+        $captures = ['$assembly'];
+        foreach ($this->applicationInputs as $contract => $_) {
+            $index = $this->inputIndexes[$contract];
+            $captures[] = '$input' . $index;
+        }
+        $lines[] = '        $construct = static function () use (' . implode(', ', $captures) . '): void {';
         foreach ($this->generatedConstructionLines() as $line) {
             $lines[] = '            ' . $line;
         }
+        $lines[] = '        };';
+        $lines[] = '        try {';
+        $lines[] = '            $construct();';
         $lines[] = '        } catch (Throwable $primaryFailure) {';
         $lines[] = '            $assembly->retireAfterConstructionFailure();';
         $lines[] = '            $cleanupFailures = $assembly->runCleanup();';
@@ -354,6 +401,9 @@ final class GeneratedWiringEmitter
             $lines[] = '    private \\' . $contract . ' $input' . $this->inputIndexes[$contract] . ';';
         }
         foreach ($this->operationProperties as $class => $index) {
+            if (!isset($this->retainedOperation[$class])) {
+                continue;
+            }
             $lines[] = '    private \\' . $class . ' $operationService' . $index . ';';
         }
         $lines[] = '';
@@ -389,10 +439,13 @@ final class GeneratedWiringEmitter
         foreach (array_keys($this->operationProperties) as $class) {
             $this->construct($class);
         }
-        $lines[] = '        try {';
+        $lines[] = '        $construct = function (): void {';
         foreach ($this->generatedConstructionLines() as $line) {
             $lines[] = '            ' . $line;
         }
+        $lines[] = '        };';
+        $lines[] = '        try {';
+        $lines[] = '            $construct();';
         $lines[] = '        } catch (Throwable $primaryFailure) {';
         $lines[] = '            $this->closed = true;';
         $lines[] = '            $cleanupFailures = $this->runCleanup();';
@@ -510,7 +563,9 @@ final class GeneratedWiringEmitter
             }
             $this->builtApplication[$class] = $variable;
         } elseif ('operation' === $service['lifetime']) {
-            $this->constructionLines[] = '$this->operationService' . $this->operationProperties[$class] . ' = ' . $variable . ';';
+            if (isset($this->retainedOperation[$class])) {
+                $this->constructionLines[] = '$this->operationService' . $this->operationProperties[$class] . ' = ' . $variable . ';';
+            }
             $this->builtOperation[$class] = $variable;
         }
 
