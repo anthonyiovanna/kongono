@@ -576,6 +576,83 @@ final class CompositionArtifactTest extends TestCase
         }
     }
 
+    public function testGeneratedWiringAllowsExplicitApplicationGraphTypeWithoutWeakeningForbiddenConstructs(): void
+    {
+        $composition = (new CompositionArtifactBuilder())->build(self::$applicationRoot);
+        $generated = (new GeneratedWiringGenerator())->generate(self::$applicationRoot, $composition->canonicalBytes());
+        $bytes = str_replace(
+            '\\Kongono\\Composition\\Tests\\Fixture\\ConfigInput',
+            '\\Kongono\\ApplicationGraph\\Model\\ApplicationGraph',
+            $generated->canonicalBytes(),
+        );
+        self::assertNotSame($generated->canonicalBytes(), $bytes);
+        self::assertStringContainsString('\\Kongono\\ApplicationGraph\\Model\\ApplicationGraph $input1', $bytes);
+        self::assertSame($bytes, (new GeneratedWiringValidator())->validateStructure($bytes)->canonicalBytes());
+
+        foreach (['ReflectionClass', 'DependencyResolver', 'class_exists', 'eval('] as $forbidden) {
+            try {
+                (new GeneratedWiringValidator())->validateStructure(str_replace(
+                    'public static function start(',
+                    $forbidden . "\n    public static function start(",
+                    $bytes,
+                ));
+                self::fail('A genuine discovery, service-location, or dynamic-execution construct must remain forbidden.');
+            } catch (InvalidGeneratedWiringException $exception) {
+                self::assertSame('KGN-COMPOSITION-1013', $exception->diagnosticId());
+                self::assertSame('forbidden_construct', $exception->diagnosticContext()->fields()[0]->value());
+            }
+        }
+    }
+
+    public function testEmptyOperationEmissionOmitsUnusedMachineryAndRetainsLeaseLifecycle(): void
+    {
+        $source = self::validSource();
+        $source['services'] = array_values(array_filter(
+            $source['services'],
+            static fn(array $service): bool => 'operation' !== $service['lifetime'],
+        ));
+        $source['roots'] = array_values(array_filter(
+            $source['roots'],
+            static fn(array $root): bool => 'application' === $root['kind'],
+        ));
+        self::writeSource($source);
+
+        $builder = new CompositionArtifactBuilder();
+        $firstComposition = $builder->build(self::$applicationRoot);
+        $secondComposition = $builder->build(self::$applicationRoot);
+        $generator = new GeneratedWiringGenerator();
+        $first = $generator->generate(self::$applicationRoot, $firstComposition->canonicalBytes());
+        $second = $generator->generate(self::$applicationRoot, $secondComposition->canonicalBytes());
+        self::assertSame($firstComposition->canonicalBytes(), $secondComposition->canonicalBytes());
+        self::assertSame($first->canonicalBytes(), $second->canonicalBytes());
+
+        $operationEnd = strpos($first->canonicalBytes(), "\nfinal class ApplicationAssembly");
+        self::assertIsInt($operationEnd);
+        $operationBytes = substr($first->canonicalBytes(), 0, $operationEnd);
+        self::assertStringNotContainsString('$construct = function (): void', $operationBytes);
+        self::assertStringNotContainsString('$construct();', $operationBytes);
+        self::assertStringNotContainsString('private function assertOpen(): void', $operationBytes);
+        self::assertStringNotContainsString('public function operationRoot', $operationBytes);
+        self::assertGeneratedPhpPassesExternalGates($first);
+
+        $application = self::startGenerated($first, new class implements ConfigInput {});
+        $operation = $application->beginOperation();
+        try {
+            $application->shutdown();
+            self::fail('The acquired empty-operation lease must block shutdown until close.');
+        } catch (RetiredCompositionBoundaryException $exception) {
+            self::assertSame('KGN-COMPOSITION-1016', $exception->diagnosticId());
+            self::assertFalse($application->isRetired());
+        }
+        self::assertFalse($operation->isClosed());
+        $operation->close();
+        self::assertTrue($operation->isClosed());
+        $operation->close();
+        self::assertTrue($operation->isClosed());
+        $application->shutdown();
+        self::assertTrue($application->isRetired());
+    }
+
     public function testExactRawArtifactIdentityChangesGeneratedNamespaceForEqualModel(): void
     {
         $builder = new CompositionArtifactBuilder();
@@ -614,6 +691,10 @@ final class CompositionArtifactTest extends TestCase
         self::assertStringContainsString('static function () use ($operationService1): void {', $bytes);
         self::assertStringContainsString('$this->operationService2 = $operationService2;', $bytes);
         self::assertStringContainsString('$construct = function (): void {', $bytes);
+        self::assertStringContainsString('            $construct();', $bytes);
+        self::assertStringContainsString('        } catch (Throwable $primaryFailure) {', $bytes);
+        self::assertStringContainsString("LifecycleFailureComposer::throwIfNeeded('operation-construction', \$primaryFailure, \$cleanupFailures);", $bytes);
+        self::assertStringContainsString('    private function assertOpen(): void', $bytes);
         self::assertStringContainsString('$construct = static function () use ($assembly, $input1): void {', $bytes);
         self::assertSame(
             $bytes,
@@ -623,6 +704,7 @@ final class CompositionArtifactTest extends TestCase
                 $bytes,
             )->canonicalBytes(),
         );
+        self::assertGeneratedPhpPassesExternalGates($first);
 
         $recorder = new LifecycleRecorder();
         $application = self::startGenerated($first, $recorder);
@@ -1177,6 +1259,70 @@ final class CompositionArtifactTest extends TestCase
     private static function invokeRoot(string $class, string $method, object $boundary): mixed
     {
         return (new ReflectionClass(self::loadedClass($class)))->getMethod($method)->invoke($boundary);
+    }
+
+    private static function assertGeneratedPhpPassesExternalGates(GeneratedWiringArtifact $artifact): void
+    {
+        $temporaryRoot = self::temporaryDirectory('generated-analysis');
+        $generatedPath = $temporaryRoot . '/kongono-wiring-v1-' . $artifact->wiringSha256() . '.php';
+        self::writeFile($generatedPath, $artifact->canonicalBytes());
+        $repository = str_replace('\\', '/', dirname(__DIR__, 4));
+
+        try {
+            foreach ([
+                'lint' => [PHP_BINARY, '-l', $generatedPath],
+                'phpstan' => [
+                    PHP_BINARY,
+                    $repository . '/vendor/bin/phpstan',
+                    'analyse',
+                    '--configuration=' . $repository . '/phpstan.neon.dist',
+                    '--level=max',
+                    '--no-progress',
+                    '--debug',
+                    '--autoload-file=' . $repository . '/vendor/autoload.php',
+                    $generatedPath,
+                ],
+                'style' => [
+                    PHP_BINARY,
+                    $repository . '/vendor/bin/php-cs-fixer',
+                    'fix',
+                    '--config=' . $repository . '/.php-cs-fixer.dist.php',
+                    '--dry-run',
+                    '--diff',
+                    '--using-cache=no',
+                    $generatedPath,
+                ],
+            ] as $gate => $command) {
+                $result = self::runProcess($command, $temporaryRoot);
+                self::assertSame(0, $result['exit'], $gate . " failed:\n" . $result['stdout'] . $result['stderr']);
+            }
+        } finally {
+            self::removeTree($temporaryRoot);
+        }
+        self::assertDirectoryDoesNotExist($temporaryRoot);
+    }
+
+    /**
+     * @param list<string> $command
+     * @return array{exit: int, stdout: string, stderr: string}
+     */
+    private static function runProcess(array $command, string $workingDirectory): array
+    {
+        $pipes = [];
+        $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $workingDirectory);
+        if (!is_resource($process)) {
+            throw new RuntimeException('Generated-output validation process could not start.');
+        }
+        $stdout = stream_get_contents($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exit = proc_close($process);
+        if (!is_string($stdout) || !is_string($stderr)) {
+            throw new RuntimeException('Generated-output validation process output was unavailable.');
+        }
+
+        return ['exit' => $exit, 'stdout' => $stdout, 'stderr' => $stderr];
     }
 
     /** @return class-string */

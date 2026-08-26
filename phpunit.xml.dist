@@ -18,6 +18,12 @@
             <directory>packages/application-graph/tests</directory>
             <directory>packages/chie/tests</directory>
             <directory>packages/composition/tests</directory>
+            <directory>packages/console/tests</directory>
+            <directory>packages/console-application/tests</directory>
+            <directory>packages/console-build/tests</directory>
+            <directory>packages/console-commands/tests</directory>
+            <directory>packages/console-presentation/tests</directory>
+            <directory>packages/console-runtime/tests</directory>
             <directory>packages/database/tests</directory>
             <directory>packages/database-application/tests</directory>
             <directory>packages/database-mapping/tests</directory>
@@ -53,6 +59,12 @@
             <directory>packages/application-graph/src</directory>
             <directory>packages/chie/src</directory>
             <directory>packages/composition/src</directory>
+            <directory>packages/console/src</directory>
+            <directory>packages/console-application/src</directory>
+            <directory>packages/console-build/src</directory>
+            <directory>packages/console-commands/src</directory>
+            <directory>packages/console-presentation/src</directory>
+            <directory>packages/console-runtime/src</directory>
             <directory>packages/database/src</directory>
             <directory>packages/database-application/src</directory>
             <directory>packages/database-mapping/src</directory>

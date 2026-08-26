@@ -82,7 +82,7 @@ and operable without AI, a provider, an account, or a network.
 
 ### Framework invariants over arbitrary choice
 
-Application architecture may remain flexible while framework invariants stay strong. Planned invariants include typed dependency injection, the Application Graph, structured CLI behavior, operation scopes, architecture validation, security metadata, telemetry, and machine-readable contracts. Their presence here does not authorize their implementation.
+Application architecture may remain flexible while framework invariants stay strong. Typed dependency injection, the Application Graph, operation scopes, architecture validation, security metadata, telemetry, and machine-readable contracts remain bounded by their accepted implementation state. Phase 8G adds only the official one-shot `kongo` edge and exact `application:build` workflow in `kongono/console-application`. `--plan` is non-mutating and `--apply` is explicit bounded publication authority. Phase 8H adds only root-owned external acceptance and the exact Phase 8 checkpoint. Neither phase authorizes another command, a daemon, watcher, shell, installer, deployment manager, or fabricated Phase 8F snapshots.
 
 ## Documentation doctrine
 
@@ -392,3 +392,80 @@ closure evidence. Phase 7 runs against the primary PostgreSQL 18 profile, with
 18.6 as the exact checkpoint minor; PostgreSQL 17.2 remains historical Phase 6
 regression evidence. The milestone closes at thirty production packages without
 widening runtime, provider, transaction, deployment, or AI authority.
+
+## Neutral Structured CLI contract policy
+
+Phase 8A accepts [ADR 0096](docs/adr/0096-explicit-structured-cli-and-automation-boundary.md),
+[ADR 0097](docs/adr/0097-deterministic-command-lifecycle-and-presentation-separation.md),
+the [Structured CLI guide](docs/architecture/structured-cli.md), and the fixed
+[Phase 8 roadmap](docs/architecture/phase-8-roadmap.md) as the Accepted
+architecture. Phase 8B accepts [ADR 0098](docs/adr/0098-neutral-structured-cli-contracts-and-package-boundary.md)
+and implements the Experimental `kongono/console` neutral contract package.
+Phase 8C accepts [ADR 0099](docs/adr/0099-deterministic-command-parsing-and-definition-evidence.md),
+adds immutable specifications and an already-tokenized parser, and implements
+the separate Experimental `kongono/console-build` package. One explicit inert
+`kongono.commands.json` source compiles to canonical source/model/artifact
+evidence with exact-current validation. The official future executable remains
+exactly `kongo`; Phase 8C adds no alias, executor, presenter, process adapter,
+executable, or framework command. Phase 8D accepts
+[ADR 0100](docs/adr/0100-operation-scoped-command-execution-and-cleanup.md)
+and implements the separate Experimental `kongono/console-runtime` package.
+It owns immutable explicit handler bindings, one fresh concrete operation per
+dispatch, caller-supplied cancellation, bounded reverse cleanup, safe combined
+failure preservation, reentrancy rejection, and sequential same-process
+isolation. Phase 8E accepts
+[ADR 0101](docs/adr/0101-deterministic-command-presentation-and-process-adaptation.md),
+adds bounded neutral result records to Console, and implements the separate
+Experimental `kongono/console-presentation` package. Human and canonical
+version-1 machine forms share one neutral result/help projection and exit map;
+Protected fields are omitted, explicit ports receive one completed document,
+and no native process stream is owned. Phase 8F accepts
+[ADR 0102](docs/adr/0102-first-read-only-framework-capability-commands.md) and
+implements the Experimental `kongono/console-commands` upper package. Its exact
+`graph:inspect`, `composition:inspect`, and `quality:inspect` handlers consume
+only explicit accepted capability evidence, execute through Console Runtime,
+and use generated Composition roots. It adds no executable, application
+workflow, terminal adaptation, mutation, or ambient authority.
+
+Command meaning, one-invocation execution, and presentation/process adaptation
+remain separate. The neutral engine may receive only explicit tokens, ports,
+and detached values; it must not read ambient process, stream, environment,
+working-directory, terminal, signal, clock, randomness, credential, or registry
+state. Definitions and provenance must become deterministic fail-closed build
+evidence rather than runtime scanning, Reflection discovery, mutable registries,
+plugin probing, or network discovery.
+
+Human and versioned machine presentations must derive from one neutral result
+and agree on outcome and diagnostic identity. Hidden interaction, hidden I/O,
+service location, handler printing, and handler process exit are prohibited.
+Machine mode never silently prompts; `--no-interaction` fails when required
+input is absent. Mutation authority, destructive intent, confirmation, apply,
+and honest `--dry-run` behavior remain explicit and separate.
+
+Each invocation owns one bounded operation lifecycle with explicit reverse
+cleanup, combined-failure preservation, and sequential same-process isolation.
+Existing diagnostic disclosure rules remain unchanged. Neutral CLI contracts
+must remain independent of capability adapters, and the future executable is an
+upper composition leaf. Console depends only on API Metadata, Diagnostics, and
+PHP. Console Build depends only on Console, API Metadata, Diagnostics, Hash,
+JSON, and PHP. Console Runtime depends only on Console, API Metadata,
+Diagnostics, and PHP. Console Presentation depends only on Console, API
+Metadata, Diagnostics, and PHP, and no lower production package depends on it.
+Phase 8F changes no
+Application Graph or Composition schema, Kernel lifecycle, HTTP, database,
+persistence, developer-intelligence, telemetry, deployment, or release behavior.
+
+Phase 8G accepts [ADR 0103](docs/adr/0103-supported-kongo-edge-and-honest-application-build.md)
+and implements the Experimental `kongono/console-application` upper package,
+the official extensionless `kongo` Composer binary, and exactly
+`application:build`. Planning performs complete validation and generation in
+memory without filesystem mutation. Apply explicitly publishes the two
+content-addressed Composition outputs atomically, contained, initial-only, and
+no-clobber, then proves the predicted identities current. No prompt exists;
+`--no-interaction` is automation-safe. Human and machine forms share one result
+and exit map. Phase 8F snapshot handlers remain programmatic because this
+application fabricates no snapshot defaults. Phase 8H accepts
+[ADR 0104](docs/adr/0104-phase-8-external-cli-acceptance-and-checkpoint.md),
+adds only root-owned real-process acceptance for both executable edges, and
+closes the exact Phase 8 checkpoint. Conflicting output is a no-clobber
+Precondition at exit 3; exit 6 remains Infrastructure. Phase 9 is unimplemented.

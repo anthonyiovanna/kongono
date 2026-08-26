@@ -603,7 +603,92 @@ A planned lifetime and ownership boundary for service instances. Phase 0F select
 
 ## Structured CLI
 
-The doctrine that meaningful `kongo` commands should support deterministic, machine-readable, automation-safe interaction, including `--json`, `--dry-run`, and `--no-interaction` where applicable. The CLI architecture and exact command contracts are not yet defined.
+The Accepted Phase 8A architecture plus the implemented Phase 8B neutral
+contracts, Phase 8C deterministic parser/evidence boundary, Phase 8D
+operation-scoped execution boundary, Phase 8E deterministic presentation
+boundary, Phase 8F read-only capability family, and Phase 8G supported
+application/process edge for a first-party developer and operator edge. The
+official executable is exactly `kongo`; no alias
+is accepted. Command meaning, one explicit invocation and neutral result, and
+human or versioned machine presentation plus process adaptation remain
+separate. Definitions must become fail-closed deterministic build evidence,
+interaction and mutation authority are explicit, and every invocation owns
+bounded cleanup and same-process isolation. Phase 8C implements immutable
+specifications and already-tokenized parsing in `kongono/console`, plus
+canonical exact-current definition evidence in `kongono/console-build`. Phase
+8D implements immutable explicit handler binding and one fresh operation per
+dispatch in `kongono/console-runtime`, with explicit cancellation, reverse
+cleanup, combined failure preservation, and sequential isolation. Phase 8E
+adds bounded result records plus deterministic human and canonical version-1
+machine output in `kongono/console-presentation`. Phase 8F adds the exact
+`graph:inspect`, `composition:inspect`, and `quality:inspect` handlers in
+`kongono/console-commands`, with generated Composition wiring and no mutation
+authority. Phase 8G adds `kongono/console-application` and exactly
+`application:build`: non-mutating `--plan`, explicit atomic/no-clobber
+`--apply`, no prompt, automation-safe `--no-interaction`, and shared
+human/machine result and exit behavior. Phase 8F handlers remain programmatic
+without fabricated snapshots. Phase 8H adds root-owned external process
+acceptance and the exact checkpoint without changing production behavior. A
+conflicting output is a no-clobber Precondition at exit 3; Infrastructure
+remains exit 6. See the [Structured CLI guide](architecture/structured-cli.md),
+[external acceptance guide](architecture/phase-8-external-acceptance.md), and
+[Phase 8 roadmap](architecture/phase-8-roadmap.md).
+
+## Command Meaning
+
+The immutable, bounded Phase 8B definition of one command identifier, summary,
+interaction policy, and mutation policy. Phase 8C combines it with explicit
+input definitions in a `CommandSpecification`; one immutable ordinal
+`CommandSpecificationSet` is the complete parser input. It remains separate
+from execution and presentation and owns no handler, mutable registry, alias,
+service binding, or discovery rule.
+
+## Command Invocation
+
+The Phase 8B detached value containing one definition, ordered already-normalized
+named inputs, explicit execution intent, and explicit interaction mode. A later
+Phase 8D operation executes command behavior through typed collaborators and produces one
+presentation-neutral result. The invocation reads no
+ambient process, stream, environment, directory, terminal, signal, clock,
+randomness, credential, or registry state and owns bounded cleanup before
+completion. Phase 8C's pure parser constructs this value from explicit tokens
+and a separate sensitive-input carrier. Phase 8D dispatches it without
+presentation or process adaptation.
+
+## Command Execution Operation
+
+The fresh Phase 8D concrete lifecycle owner created for one bound dispatch. It
+retains the exact invocation and explicit cancellation collaborator only while
+Active and accepts at most 64 cleanup collaborators unique by object identity.
+Retirement becomes observable and detaches operation-owned references before
+attempting every cleanup once in reverse order. Repeated retirement is a no-op.
+
+## Command Definition Artifact
+
+The Phase 8C canonical JSON evidence compiled by `kongono/console-build` from
+one explicit application-owned `kongono.commands.json` version-1 source.
+Commands and inputs use ordinal order, the model is rehydrated through Console
+invariant owners, and exact-current validation rebuilds and compares the entire
+artifact. The artifact is derived evidence, not runtime authority; Console
+Runtime does not load it. No publisher, loader, mutable registry, presenter, or
+executable exists.
+
+## Neutral Command Result
+
+The implemented presentation-independent Phase 8B outcome preserved by Phase
+8D execution. It reports succeeded, rejected, failed, or cancelled and retains
+only bounded neutral failure evidence. Phase 8E adds one bounded record of
+ordinal Safe or Protected scalar fields. Human and machine renderers derive
+from it without granting stream, process-exit, disclosure, or execution
+authority; Protected values are omitted and only their count is disclosed.
+
+## Command Presentation
+
+The immutable Phase 8E stdout-or-stderr document with one exact media type and
+shared exit status. Human and canonical version-1 machine forms derive from the
+same neutral result or immutable help definition projection. A caller-owned
+output port receives the exact completed bytes once; the delivery adapter owns
+no native stream and is not the future process adapter or `kongo` executable.
 
 ## Transient Resolution
 

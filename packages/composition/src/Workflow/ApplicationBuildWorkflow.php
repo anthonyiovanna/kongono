@@ -22,6 +22,32 @@ use Throwable;
 #[Api(ApiStatus::Experimental)]
 final class ApplicationBuildWorkflow
 {
+    public function plan(string $applicationRoot, string $outputDirectory): PlannedApplicationBuild
+    {
+        $root = $this->applicationRoot($applicationRoot);
+        $output = $this->outputDirectory($root, $outputDirectory);
+        $artifact = $this->artifact($root);
+        $wiring = $this->wiring($root, $artifact);
+        $paths = $this->expectedPaths($output, $artifact, $wiring);
+
+        $artifactPresent = file_exists($paths['artifact']) || is_link($paths['artifact']);
+        $wiringPresent = file_exists($paths['wiring']) || is_link($paths['wiring']);
+        if ($artifactPresent !== $wiringPresent) {
+            throw new ApplicationWorkflowException('artifact_check', 'required_file_missing');
+        }
+        if ($artifactPresent) {
+            $this->checked($root, $output, $artifact, $wiring);
+        }
+
+        return new PlannedApplicationBuild(
+            basename($paths['artifact']),
+            basename($paths['wiring']),
+            $artifact->artifactSha256(),
+            $wiring->wiringSha256(),
+            !$artifactPresent,
+        );
+    }
+
     public function build(string $applicationRoot, string $outputDirectory): CurrentApplicationBuild
     {
         $root = $this->applicationRoot($applicationRoot);
@@ -63,6 +89,9 @@ final class ApplicationBuildWorkflow
 
     private function applicationRoot(string $applicationRoot): string
     {
+        if (self::containsLinkOrReparsePoint($applicationRoot)) {
+            throw new ApplicationWorkflowException('application_root', 'invalid_application_root');
+        }
         try {
             return PathGuard::resolveApplicationRoot($applicationRoot);
         } catch (Throwable $failure) {
@@ -72,6 +101,9 @@ final class ApplicationBuildWorkflow
 
     private function outputDirectory(string $root, string $outputDirectory): string
     {
+        if (self::containsLinkOrReparsePoint($outputDirectory)) {
+            throw new ApplicationWorkflowException('output_directory', 'unsafe_output_directory');
+        }
         try {
             $output = PathGuard::resolveOutputDirectory($outputDirectory);
         } catch (Throwable $failure) {
@@ -249,5 +281,26 @@ final class ApplicationBuildWorkflow
     private static function normalize(string $path): string
     {
         return str_replace('\\', '/', $path);
+    }
+
+    private static function containsLinkOrReparsePoint(string $path): bool
+    {
+        $candidate = rtrim($path, '/\\');
+        while ('' !== $candidate) {
+            $parent = dirname($candidate);
+            if ($parent === $candidate || '.' === $parent) {
+                break;
+            }
+            $linkTarget = @readlink($candidate);
+            if (
+                is_link($candidate)
+                || (is_string($linkTarget) && self::normalize(rtrim($linkTarget, '/\\')) !== self::normalize($candidate))
+            ) {
+                return true;
+            }
+            $candidate = $parent;
+        }
+
+        return false;
     }
 }

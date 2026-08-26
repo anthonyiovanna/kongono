@@ -1,0 +1,30 @@
+{
+    "name": "kongono/console-application",
+    "description": "Supported one-shot kongo application and process edge for Kongono Framework.",
+    "type": "library",
+    "require": {
+        "kongono/api-metadata": "*",
+        "kongono/composition": "*",
+        "kongono/console": "*",
+        "kongono/console-presentation": "*",
+        "kongono/console-runtime": "*",
+        "kongono/diagnostics": "*",
+        "php": ">=8.5.0 <8.6.0"
+    },
+    "require-dev": {
+        "kongono/console-build": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kongono\\ConsoleApplication\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kongono\\ConsoleApplication\\Tests\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/kongo"
+    ]
+}

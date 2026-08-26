@@ -11,6 +11,18 @@ $finder = PhpCsFixer\Finder::create()
     ->in(__DIR__.'/packages/chie/tests')
     ->in(__DIR__.'/packages/composition/src')
     ->in(__DIR__.'/packages/composition/tests')
+    ->in(__DIR__.'/packages/console/src')
+    ->in(__DIR__.'/packages/console/tests')
+    ->in(__DIR__.'/packages/console-application/src')
+    ->in(__DIR__.'/packages/console-application/tests')
+    ->in(__DIR__.'/packages/console-build/src')
+    ->in(__DIR__.'/packages/console-build/tests')
+    ->in(__DIR__.'/packages/console-commands/src')
+    ->in(__DIR__.'/packages/console-commands/tests')
+    ->in(__DIR__.'/packages/console-presentation/src')
+    ->in(__DIR__.'/packages/console-presentation/tests')
+    ->in(__DIR__.'/packages/console-runtime/src')
+    ->in(__DIR__.'/packages/console-runtime/tests')
     ->in(__DIR__.'/packages/database/src')
     ->in(__DIR__.'/packages/database/tests')
     ->in(__DIR__.'/packages/database-application/src')
@@ -73,6 +85,7 @@ $finder = PhpCsFixer\Finder::create()
     ->in(__DIR__.'/tests')
     ->append([
         __DIR__.'/packages/chie/bin/kongono-chie',
+        __DIR__.'/packages/console-application/bin/kongo',
         __DIR__.'/packages/hantei/bin/kongono-hantei',
         __DIR__.'/packages/knowledge/bin/kongono-knowledge',
         __DIR__.'/packages/oshie/bin/kongono-oshie',

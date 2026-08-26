@@ -12,6 +12,25 @@ The minimal skeleton owns only `app:build`, `app:check`, and `app:run`. Success 
 
 `app:run` must check before loading. It may invoke exactly one resolved installed PHP-CGI executable for one fixed local request. Its CGI snapshot uses the inert fixed query marker `kongono_proof=1` to retain command-line hardening behavior on the one-shot Windows executable; routing and application behavior must remain independent of that marker. Array-form process execution, bounded captured output, a sanitized child environment, disabled trusted presentation, and immediate exit are required. Never add `-b`, a socket, listener, port, watcher, supervisor, worker loop, or daemon behavior.
 
+Phase 8G separately implements the official one-shot `kongo` edge with exactly
+`application:build`. The caller supplies explicit application-root and
+output-directory inputs and exactly one of `--plan` or `--apply`. Plan performs
+complete in-memory validation/generation and predicts stable output identities
+without filesystem mutation. Apply is explicit authority to publish the two
+predicted Composition outputs atomically, contained, content-addressed,
+initial-only, and no-clobber, followed by an exact-current recheck.
+
+The command has no prompt; `--no-interaction` is automation-safe. Only the bin
+source reads process globals and exits. No alias, second command, daemon,
+watcher, shell, installer, deployment manager, fake capability snapshot, or
+relationship to the Phase 5 `app:run` fixture workflow is introduced.
+
+Phase 8H externally exercises this command through both the direct source and
+Composer proxy using fresh argv-array PHP processes. It proves zero-write plan,
+identity-matched apply, idempotence, and exit-3 no-clobber conflict behavior in
+one fully owned temporary application. See the
+[Phase 8 external acceptance guide](../architecture/phase-8-external-acceptance.md).
+
 ## Skeleton changes
 
 Treat `skeletons/minimal/kongono.skeleton.json` as inert ownership metadata. Its sorted path inventory must match the template exactly. It contains no self-hash, timestamp, host path, or environment data.

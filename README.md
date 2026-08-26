@@ -12,10 +12,14 @@ Kongono is a planned modern application framework for applications that must be 
 
 ## Current status
 
-Phase 2A through 2H are complete at checkpoint
-`647053d4bddc4c76090bca9bf3d693faa5880c52`. Kongono has exactly fourteen
-acyclic first-party production packages and is fixture-runnable through
-root-owned black-box test infrastructure. Run
+Phase 7 is complete at checkpoint
+`b09b0c654f8b67f7cac3807f839f665e8c5b5469`. Phase 8G adds the upper
+`kongono/console-application` boundary, bringing the current topology to exactly
+thirty-six acyclic first-party production packages. The official one-shot
+`kongo` executable implements exactly `application:build`.
+
+The earlier Phase 2 fixture remains runnable through root-owned black-box test
+infrastructure. Run
 `php tests/BlackBox/Fixture/run.php production matched-a` to exercise the real
 Web Runtime, Web Application, routing, middleware, HTTP message, and Kernel path.
 The [fixture model](docs/architecture/phase-2-runnable-fixture.md) documents its
@@ -251,7 +255,8 @@ Nothing is Stable. Public API status means supported consumer use under Kongono'
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
 
-The official future CLI name is `kongo`; no executable is implemented in this phase.
+The official executable identity accepted in Phase 8A is exactly `kongo`; that
+architecture-only phase implemented neither an alias nor an executable.
 
 Phase 2A through 2H are complete across thirteen acyclic production packages and
 one test-owned runnable fixture. Run the bounded proof with
@@ -509,7 +514,7 @@ the [Data Platform guide](docs/architecture/data-platform.md), the
 [performance baseline guide](docs/engineering/database-performance-baseline.md), and the
 [Phase 6 roadmap](docs/architecture/phase-6-roadmap.md).
 
-## Implemented Phase 7 single-entity persistence runtime boundary
+## Completed Phase 7 Deterministic Persistence milestone
 
 Phase 7A accepts an optional upper persistence capability commonly called an
 ORM, but retains Kongono's explicit build, lifecycle, security, and I/O
@@ -562,3 +567,72 @@ cleanup/nondisclosure proof, documentation, and an exact checkpoint. See
 [ADR 0095](docs/adr/0095-phase-7-external-persistence-acceptance-and-checkpoint.md),
 the [Deterministic Persistence guide](docs/architecture/deterministic-persistence.md),
 and the [Phase 7 roadmap](docs/architecture/phase-7-roadmap.md).
+
+## Implemented Phase 8A through Phase 8H Structured CLI edge
+
+The official executable is exactly `kongo`; no alias is accepted.
+Phase 8A separates immutable command meaning, one explicit invocation producing
+a neutral result, and human or versioned machine presentation plus outer process
+adaptation. The neutral engine does not read ambient process, stream,
+environment, directory, terminal, signal, clock, randomness, credential, or
+registry state.
+
+Command definitions must become deterministic provenance-bearing build evidence
+and fail closed when missing, stale, partial, mixed, ambiguous, unsupported, or
+unverifiable. Runtime scanning, Reflection discovery, mutable registries,
+service location, hidden interaction, direct handler printing, and handler
+process exit are rejected. Human and machine output share one result and
+diagnostic identity; machine mode never silently prompts, mutation requires
+honest dry-run and explicit authority, and each invocation owns explicit cleanup
+with sequential same-process isolation.
+
+Phase 8C extends the Experimental `kongono/console` package with immutable
+specifications and deterministic parsing of explicit tokens. Sensitive values
+use a separate carrier and mutation-capable commands require exactly one of
+plan or apply. The separate Experimental `kongono/console-build` package
+compiles one inert versioned `kongono.commands.json` source to canonical model
+and artifact evidence and validates complete exact-current bytes. It adds no
+publication, loading, handler binding, registry, discovery, executor, concrete
+operation, command, presenter, executable, installer, deployment behavior, or
+Stable API. Phase 8D adds immutable exact handler bindings, one fresh operation
+per dispatch, explicit cancellation evidence, bounded reverse cleanup, combined
+failure preservation, reentrancy rejection, and sequential reuse in the
+separate `kongono/console-runtime` package. It adds no presentation, process
+adapter, executable, real command, registry/discovery, or application
+integration. Phase 8E adds bounded neutral result records, deterministic plain
+human output, canonical version-1 result/help JSON, a shared exit map, and one
+explicit one-write delivery adapter. Protected values are omitted. The package
+graph then contained thirty-four packages. Phase 8F adds the Experimental
+`kongono/console-commands` package with the exact read-only
+`graph:inspect`, `composition:inspect`, and `quality:inspect` family. Its typed
+handlers consume only accepted capabilities, run through Console Runtime, and
+share the Phase 8E human/machine presentation contract. Exact generated
+Composition wiring proves one application-owned command family and fresh
+operation roots without creating `kongo`, a native process adapter, mutation,
+or ambient authority. The graph now contains thirty-five packages and the PHP
+8.5 current-minor policy remains unchanged. See
+[ADR 0096](docs/adr/0096-explicit-structured-cli-and-automation-boundary.md),
+[ADR 0097](docs/adr/0097-deterministic-command-lifecycle-and-presentation-separation.md),
+[ADR 0098](docs/adr/0098-neutral-structured-cli-contracts-and-package-boundary.md),
+[ADR 0099](docs/adr/0099-deterministic-command-parsing-and-definition-evidence.md),
+[ADR 0100](docs/adr/0100-operation-scoped-command-execution-and-cleanup.md),
+[ADR 0101](docs/adr/0101-deterministic-command-presentation-and-process-adaptation.md),
+[ADR 0102](docs/adr/0102-first-read-only-framework-capability-commands.md),
+[ADR 0103](docs/adr/0103-supported-kongo-edge-and-honest-application-build.md),
+the [Structured CLI guide](docs/architecture/structured-cli.md), and the
+[Phase 8 roadmap](docs/architecture/phase-8-roadmap.md).
+
+Phase 8G implements the official extensionless `kongo` executable and exactly
+`application:build`. `--plan` performs a non-mutating dry run and returns the
+predicted content-addressed output identities; `--apply` grants explicit
+authority to publish those outputs atomically, within the requested directory,
+and without clobbering existing content. No prompt exists and
+`--no-interaction` is automation-safe. Human and machine forms share one result
+and exit map. Phase 8F snapshot handlers remain programmatic until truthful
+application snapshots exist. No alias, second command, daemon, watcher,
+installer, deployment manager, or shell is introduced. Phase 8H externally
+proves both executable edges, human/machine parity, non-mutating plan, explicit
+apply, exit-3 no-clobber conflicts, recovery, nondisclosure, and cleanup through
+`composer acceptance:phase8`. See [ADR 0104](docs/adr/0104-phase-8-external-cli-acceptance-and-checkpoint.md)
+and the [external acceptance guide](docs/architecture/phase-8-external-acceptance.md).
+Phase 9 remains unimplemented.

@@ -114,7 +114,7 @@ final class GeneratedWiringValidator
 
     private function validateTokens(string $bytes): void
     {
-        foreach (['Reflection', 'DependencyResolver', 'ApplicationGraph', 'class_exists', 'interface_exists', 'method_exists', 'call_user_func', 'eval(', '$GLOBALS', '$_SERVER', 'getenv(', 'putenv(', 'container', 'service locator', 'services:'] as $forbidden) {
+        foreach (['Reflection', 'DependencyResolver', 'class_exists', 'interface_exists', 'method_exists', 'call_user_func', 'eval(', '$GLOBALS', '$_SERVER', 'getenv(', 'putenv(', 'container', 'service locator', 'services:'] as $forbidden) {
             if (false !== stripos($bytes, $forbidden)) {
                 $this->invalid('forbidden_construct');
             }

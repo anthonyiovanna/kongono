@@ -335,3 +335,56 @@ See [ADR 0087](../adr/0087-explicit-persistence-model-and-compile-time-orm-bound
 [persistence performance evidence](persistence-performance-baseline.md),
 the [Deterministic Persistence guide](../architecture/deterministic-persistence.md),
 and the [Phase 7 roadmap](../architecture/phase-7-roadmap.md).
+
+## Phase 8B through Phase 8G Console proof
+
+Phase 8B adds eight focused `kongono/console` unit-test files. Phase 8C adds four
+Console parser/specification test files, ten `kongono/console-build` test files,
+and extends the root API architecture suite. The exact inventory becomes
+thirty-five package manifests, 609 production package PHP files, 320 package
+test PHP files, and 49 root test PHP files. Enum-owned production diagnostics
+become 290 unique values and the combined production diagnostic/Hantei identity
+becomes 298 unique values, including exactly `KGN-CONSOLE-1001` through
+`KGN-CONSOLE-1010` and `KGN-CONSOLE-BUILD-1001` through
+`KGN-CONSOLE-BUILD-1005`.
+
+The focused tests execute identifier, summary, input, invocation, failure, and
+result bounds and invariants; detachment, order, lookup, and policy combinations;
+exact lifecycle and handler signatures; diagnostic context safety; exception
+marker behavior; optional previous-cause retention; safe stringification; and
+adversarial nondisclosure. The architecture test proves one exact API-status
+attribute per production declaration, the Experimental/Internal/Public split,
+the exact package dependency and tooling boundary, validator equality, and the
+absence of forbidden dependencies, ambient globals, parsing, registries,
+presentation, process behavior, and concrete lifecycle implementations.
+
+Focused tests prove deterministic already-tokenized parsing, secure-carrier
+nondisclosure, strict source compilation, canonical artifact evidence,
+path/read safety, invariant-owner rehydration, and exact-current validation.
+
+Phase 8D adds nine `kongono/console-runtime` test files and extends the Console
+contract test. They prove exact immutable binding and lookup, fresh operations,
+one explicit cancellation check, result identity, cooperative cancellation, no
+late relabeling, reverse every-attempt cleanup, retire-before-release, primary
+and cleanup identity/order, hostile-message nondisclosure, early-retirement and
+reentrancy misuse, different-dispatcher independence, and sequential recovery
+after success, cancellation, handler failure, and cleanup failure. Phase 8E
+adds result-record boundary tests plus deterministic human/machine result and
+help parity, canonical key/type ordering, Protected sentinel absence, unknown
+data rejection, exact one-port writes, and safe output-failure proofs. Phase 8F
+adds exact family/definition, typed handler, adversarial disclosure, presentation
+parity, generated-output, external lint/PHPStan/style, operation lifecycle, and
+Composition lease-cleanup proofs. Phase 8G adds focused package and root
+integration tests for exact source/model/enum/factory definition parity, all
+accepted and rejected process grammars, argument bounds, nondisclosure,
+non-mutating absent/current planning, partial/tampered/linked/outside failure,
+explicit atomic/idempotent/no-clobber application, changing-source identities,
+human/machine and exit parity, stream selection, one-write failure without
+retry, cleanup, sequential isolation, direct-source and Composer-proxy `kongo`
+execution, and zero repository mutation from fresh external temporary roots.
+Phase 8H adds `composer acceptance:phase8`, a root-owned real-process profile
+covering both executable edges, human/machine parity, malformed grammar and
+source, plan/apply identity truth, exit-3 no-clobber conflict, recovery,
+nondisclosure, status preservation, and cleanup. Current execution evidence is
+Windows; argv arrays and the absence of shell syntax define the portability
+boundary without claiming execution on every operating system.

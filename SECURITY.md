@@ -606,3 +606,33 @@ Phase 5F has not begun. See [ADR 0070](docs/adr/0070-versioned-composition-sourc
 [ADR 0072](docs/adr/0072-deterministic-composition-artifact-and-publication.md), and the
 [ADR 0073](docs/adr/0073-generated-typed-wiring-and-lifecycle-boundary.md), and the
 [composition source guide](docs/architecture/composition-source.md).
+
+## Phase 8G native CLI and build-publication security
+
+Phase 8G implements the one-shot `kongo` edge with exactly
+`application:build`. Only the extensionless package binary reads process
+arguments or native streams and terminates the process; inner production code
+receives explicit bounded tokens and ports. Human and canonical machine forms
+derive from one neutral result and exit map, and the selected stream receives
+one completed document in one write without retry after an output failure.
+
+`--plan` is a non-mutating dry run: it performs validation, generation, path
+containment, and current-output assessment in memory without creating,
+deleting, renaming, touching, or rewriting a path. `--apply` is the sole
+mutation authority and publishes exactly the predicted Composition artifact
+and generated wiring through their content-addressed, atomic, contained,
+initial-only, no-clobber publishers before rechecking their identities. Linked,
+partial, tampered, outside-root, or changing targets fail closed without
+residue.
+
+No prompt exists and `--no-interaction` is automation-safe. Diagnostics contain
+only bounded Safe fields and never raw values, paths, source text, exception
+messages, credentials, environment data, ANSI control sequences, banners, or
+debug output. Phase 8F snapshot handlers remain programmatic because the
+application supplies no fabricated snapshots. No alias, second command,
+daemon, watcher, shell, installer, or deployment manager is introduced. Phase
+8H externally proves those boundaries through fresh argv-array processes and
+an owned temporary application root. A conflicting target is a nondisclosing
+Precondition at exit 3 and remains byte-for-byte unchanged; exit 6 remains the
+Infrastructure category. The harness removes all owned paths before success and
+requires byte-identical repository status. See [ADR 0104](docs/adr/0104-phase-8-external-cli-acceptance-and-checkpoint.md).

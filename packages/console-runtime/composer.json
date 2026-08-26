@@ -1,0 +1,21 @@
+{
+    "name": "kongono/console-runtime",
+    "description": "Operation-scoped Structured CLI command execution for Kongono Framework.",
+    "type": "library",
+    "require": {
+        "kongono/api-metadata": "*",
+        "kongono/console": "*",
+        "kongono/diagnostics": "*",
+        "php": ">=8.5.0 <8.6.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kongono\\ConsoleRuntime\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kongono\\ConsoleRuntime\\Tests\\": "tests/"
+        }
+    }
+}

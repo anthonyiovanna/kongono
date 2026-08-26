@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6d1c53d63b8a8d2d98f4425b291b6960",
+    "content-hash": "2487a4a73c3ea21155eb01e1bf74bf30",
     "packages": [
         {
             "name": "kongono/api-metadata",
@@ -124,6 +124,203 @@
                 }
             },
             "description": "Deterministic composition artifacts, generated typed wiring, and lifecycle support for Kongono.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/console",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/console",
+                "reference": "9917f9bbd7c6f4783afa8117e4cd362b415eb8f3"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Console\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Console\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral Structured CLI contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/console-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/console-application",
+                "reference": "435179b2ddec109a249743ace55f3bcf652ec577"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/composition": "*",
+                "kongono/console": "*",
+                "kongono/console-presentation": "*",
+                "kongono/console-runtime": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "kongono/console-build": "*"
+            },
+            "bin": [
+                "bin/kongo"
+            ],
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ConsoleApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ConsoleApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Supported one-shot kongo application and process edge for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/console-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/console-build",
+                "reference": "18bbf6a9721cc475778e6e4e6d2b796294fb06fe"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/console": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ConsoleBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ConsoleBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic build-time command definition compilation and validation.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/console-commands",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/console-commands",
+                "reference": "8d4fcc156e78a81c0ffea62ea62d4973a5877aad"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph": "*",
+                "kongono/composition": "*",
+                "kongono/console": "*",
+                "kongono/console-runtime": "*",
+                "kongono/diagnostics": "*",
+                "kongono/hantei": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "kongono/console-build": "*"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ConsoleCommands\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ConsoleCommands\\Tests\\": "tests/"
+                }
+            },
+            "description": "First read-only framework capability commands for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/console-presentation",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/console-presentation",
+                "reference": "0607d1151500db48c3666a874c79ae27b66a688f"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/console": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ConsolePresentation\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ConsolePresentation\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic human and machine command presentation for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/console-runtime",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/console-runtime",
+                "reference": "9856e70cf29dd9b2e3caf19b615a9d358f986fcb"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/console": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ConsoleRuntime\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ConsoleRuntime\\Tests\\": "tests/"
+                }
+            },
+            "description": "Operation-scoped Structured CLI command execution for Kongono Framework.",
             "transport-options": {
                 "relative": true
             }
@@ -5978,6 +6175,12 @@
         "kongono/application-graph": 20,
         "kongono/chie": 20,
         "kongono/composition": 20,
+        "kongono/console": 20,
+        "kongono/console-application": 20,
+        "kongono/console-build": 20,
+        "kongono/console-commands": 20,
+        "kongono/console-presentation": 20,
+        "kongono/console-runtime": 20,
         "kongono/database": 20,
         "kongono/database-application": 20,
         "kongono/database-mapping": 20,

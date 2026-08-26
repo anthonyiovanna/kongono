@@ -77,7 +77,7 @@ diagnostic context.
 
 MVC remains a friendly default at the HTTP and UI edge. Business logic must not be structurally trapped in controllers. Applications should be able to evolve toward actions or use cases, modular monoliths, domain-driven architecture, ports and adapters, justified CQRS, events, and durable workflows without switching frameworks.
 
-Flexibility at application architecture layers does not weaken framework invariants. Phase 0F implements only explicit typed constructor resolution with transient construction. Broader dependency injection, the authoritative Application Graph, structured CLI contracts, architecture validation, security metadata, telemetry, and other machine-readable contracts remain planned.
+Flexibility at application architecture layers does not weaken framework invariants. Phase 0F implements only explicit typed constructor resolution with transient construction. Phase 8E implements only deterministic Console result/help presentation and explicit one-write delivery; real commands, native process integration, executable behavior, and application integration remain unimplemented. Broader dependency injection, the authoritative Application Graph, architecture validation, security metadata, telemetry, and other machine-readable contracts remain bounded by their current accepted state.
 
 ## Persistent-runtime-first lifecycle
 
@@ -238,7 +238,70 @@ implemented Web Application bootstrap and Kernel operation-scope composition bou
 
 ## Structured CLI
 
-The official future executable is `kongo`. Meaningful commands should eventually support machine-readable and automation-safe behavior such as `--json`, `--dry-run`, and `--no-interaction` where applicable. No CLI architecture or executable exists in Phase 0A.
+The official executable is exactly `kongo`; no alias is accepted.
+Phase 8A accepts Structured CLI architecture. Phase 8B implements the neutral
+`kongono/console` contract foundation. Phase 8C adds immutable specifications,
+a pure already-tokenized parser with explicit mutation authority and a separate
+secure-input carrier, and the build-only `kongono/console-build` package.
+Phase 8D adds immutable explicit handler bindings and the separate
+`kongono/console-runtime` boundary. One bound dispatch owns one fresh operation,
+one explicit pre-execution cancellation check, bounded reverse cleanup, safe
+combined failure preservation, reentrancy rejection, and sequential isolation.
+Phase 8E adds bounded neutral result records and the separate
+`kongono/console-presentation` boundary. Human and canonical machine output
+share one neutral result/help projection and exit map, omit Protected values,
+and deliver one completed document through one explicit caller-owned port.
+Phase 8F adds the upper Experimental `kongono/console-commands` package with
+three exact read-only handlers over Application Graph, Composition, and Hantei
+evidence. The handlers run through Console Runtime and exact generated
+Composition roots without acquiring mutation or process authority.
+
+Phase 8G adds the upper Experimental `kongono/console-application` package and
+exactly `application:build`. Its `--plan` mode is a non-mutating dry run;
+`--apply` is explicit authority for the existing atomic, content-addressed,
+contained, initial-only, no-clobber Composition publishers. No prompt exists,
+and `--no-interaction` is automation-safe. Human and machine forms share one
+result and exit map. Phase 8F snapshot handlers remain programmatic until an
+application supplies truthful snapshots; this edge fabricates none.
+
+Command meaning, one explicit invocation producing a neutral result, and human
+or versioned machine presentation plus outer process adaptation are separate.
+Handlers do not print, style output, read global input, prompt invisibly, or
+call `exit`. Presenters do not execute behavior or redefine success. The
+neutral engine receives explicit tokens, ports, and detached values rather than
+ambient process, stream, environment, directory, terminal, signal, clock,
+randomness, credential, or registry state.
+
+Definitions and provenance must be deterministic build evidence and fail closed
+when missing, stale, partial, mixed, ambiguous, unsupported, or unverifiable.
+Runtime scanning, Reflection discovery, mutable registries, plugin probing,
+network discovery, service location, hidden autowiring, proxies, and `eval` are
+rejected. Human and machine presentations derive from the same neutral result
+and diagnostic identity. Machine mode is a bounded versioned contract and never
+silently prompts. Declared interaction, `--no-interaction`, destructive intent,
+confirmation, apply authority, and honest `--dry-run` behavior remain explicit.
+
+Each invocation owns one bounded operation lifecycle with explicit reverse
+cleanup, combined-failure preservation, and sequential same-process isolation.
+Existing nondisclosure doctrine applies unchanged. Neutral CLI contracts remain
+independent of capability adapters; the executable is an upper
+Composition leaf. See [ADR 0012](adr/0012-structured-cli-contract.md),
+[ADR 0096](adr/0096-explicit-structured-cli-and-automation-boundary.md),
+[ADR 0097](adr/0097-deterministic-command-lifecycle-and-presentation-separation.md),
+[ADR 0098](adr/0098-neutral-structured-cli-contracts-and-package-boundary.md),
+[ADR 0099](adr/0099-deterministic-command-parsing-and-definition-evidence.md),
+[ADR 0100](adr/0100-operation-scoped-command-execution-and-cleanup.md),
+[ADR 0101](adr/0101-deterministic-command-presentation-and-process-adaptation.md),
+[ADR 0102](adr/0102-first-read-only-framework-capability-commands.md),
+[ADR 0103](adr/0103-supported-kongo-edge-and-honest-application-build.md), the
+[Structured CLI guide](architecture/structured-cli.md), and the
+[Phase 8 roadmap](architecture/phase-8-roadmap.md). The versioned command source,
+model, and artifact are deterministic evidence only. Phase 8G adds no mutable
+registry, discovery, alias, second command, daemon, watcher, installer,
+deployment manager, or shell. Phase 8H adds root-owned real-process evidence
+and the exact local checkpoint under
+[ADR 0104](adr/0104-phase-8-external-cli-acceptance-and-checkpoint.md). It does
+not widen command, process, filesystem, Git, deployment, or runtime authority.
 
 ## Smallest correct implementation
 

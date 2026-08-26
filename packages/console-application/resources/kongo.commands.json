@@ -1,0 +1,1 @@
+{"schema":"kongono.command-source","version":1,"commands":[{"identifier":"application:build","summary":"Build exact current application composition outputs","interaction":"none","mutation":"mutation_capable","inputs":[{"name":"application-root","required":true,"sensitivity":"ordinary"},{"name":"output-directory","required":true,"sensitivity":"ordinary"}]}]}

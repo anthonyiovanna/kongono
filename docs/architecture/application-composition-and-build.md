@@ -250,3 +250,31 @@ checkpoint; it does not add production behavior.
 - [Application workflow engineering guide](../engineering/application-workflow.md)
 - [ADR 0076](../adr/0076-phase-5-external-application-acceptance.md)
 - [Phase 5 external acceptance](phase-5-external-acceptance.md)
+
+## Phase 8G supported application build edge
+
+Phase 8G exposes the existing Composition build capabilities through exactly
+`kongo application:build`. Planning resolves and validates the application
+source, builds the artifact and generated wiring in memory, computes their
+content-addressed basenames and SHA-256 identities, and assesses exact-current
+output without filesystem mutation. Both outputs must be absent or both must
+be exact current; partial, tampered, linked, outside, or changed targets fail
+closed.
+
+Apply authority is explicit. `--apply` replans, invokes the existing atomic,
+contained, initial-only, no-clobber publishers for exactly those two files, and
+then replans to prove the predicted identities current. Existing current output
+is idempotent and prior content-addressed output is never deleted or selected
+after the source changes. `--plan` never creates, deletes, renames, touches, or
+rewrites any file or metadata.
+
+The application has no prompt, and `--no-interaction` is automation-safe. It
+adds no schema change, runtime loader, service locator, daemon, watcher,
+installer, deployment manager, or second command. See
+[ADR 0103](../adr/0103-supported-kongo-edge-and-honest-application-build.md).
+
+Phase 8H externally verifies the same boundary through the direct source and
+Composer proxy. Plan writes nothing; apply publishes exactly the predicted
+pair; repeated apply is idempotent; and a conflicting target exits 3 while
+preserving no-clobber behavior. See [ADR 0104](../adr/0104-phase-8-external-cli-acceptance-and-checkpoint.md)
+and the [Phase 8 external acceptance guide](phase-8-external-acceptance.md).

@@ -29,7 +29,7 @@ Increasing rigor should be driven by application needs rather than framework cer
 
 ## Invariants
 
-Architectural flexibility does not authorize arbitrary framework behavior. Phase 0F now supplies only explicit interface-to-implementation constructor resolution with transient construction; autowiring, service scopes, and application-architecture conventions remain unselected. Application Graph knowledge, structured CLI output, broader architecture validation, security metadata, telemetry, and other machine-readable contracts remain planned.
+Architectural flexibility does not authorize arbitrary framework behavior. Phase 0F now supplies only explicit interface-to-implementation constructor resolution with transient construction; autowiring, service scopes, and application-architecture conventions remain unselected. Phase 8E now supplies only deterministic Console result/help presentation and explicit one-write delivery; real commands, native process adaptation, executable behavior, and application integration remain unselected. Broader Application Graph knowledge, architecture validation, security metadata, telemetry, and other machine-readable contracts remain bounded by their current accepted state.
 
 ## Data progression
 
@@ -70,6 +70,42 @@ contracts, and generated stateless aggregate repositories. Command behavior
 remains deferred; Phase 7G adds the optional exact-current generated loading and
 Composition workflow.
 
+## CLI progression
+
+Phase 8A makes Structured CLI architecture an Accepted optional progression
+above existing capabilities. Phase 8B adds the neutral `kongono/console`
+contract package above API Metadata and Diagnostics. Phase 8C adds immutable
+specifications and already-tokenized parsing plus the separate
+`kongono/console-build` evidence layer. Phase 8D adds the optional
+`kongono/console-runtime` execution layer with explicit handlers, cancellation,
+reverse cleanup, and sequential isolation. Phase 8E adds the optional
+`kongono/console-presentation` layer above Console with canonical human/machine
+forms and explicit ports. Phase 8F adds the upper
+`kongono/console-commands` capability layer with three exact read-only handlers
+and generated Composition roots. Applications may continue to use lower
+capabilities directly; no lower production package depends on the capability
+layer. Phase 8G adds the upper `kongono/console-application` package and the
+official one-shot `kongo` executable with exactly `application:build`.
+
+Progression remains ordered: neutral definitions and invocation values,
+bounded parsing and exact-current build evidence, operation-scoped execution,
+human and versioned machine presentation, a first read-only command family, a
+supported one-shot executable plus narrowly reviewed mutation, and external
+acceptance. The sequence through the supported executable is implemented. Command
+meaning, execution, and presentation remain separate.
+Hidden host reads, runtime discovery, service location, hidden interaction,
+false dry runs, direct handler output, and process-exit cleanup are rejected.
+
+Phase 8G changes the topology from thirty-five to thirty-six packages and adds
+only the supported process/application edge. `--plan` is non-mutating;
+`--apply` explicitly authorizes contained, atomic, content-addressed,
+no-clobber Composition publication. No prompt exists and `--no-interaction` is
+automation-safe. Phase 8F snapshots remain programmatic rather than fabricated.
+It changes no Application Graph or Composition schema, Kernel lifecycle, PHP
+policy, or Stable API status. Phase 8H supplies root-owned external acceptance
+and the exact Phase 8 checkpoint without changing that topology or production
+authority. See the [Phase 8 external acceptance guide](phase-8-external-acceptance.md).
+
 ## Do not use this doctrine to
 
 - Put all business behavior in controllers because MVC is supported.
@@ -93,3 +129,8 @@ The progressive-architecture direction is **LOCKED**. Specific scaffolds, module
 - [Persistence build engineering guide](../engineering/persistence-build.md)
 - [Persistence generation engineering guide](../engineering/persistence-generation.md)
 - [Phase 7 roadmap](phase-7-roadmap.md)
+- [Structured CLI](structured-cli.md)
+- [Phase 8 roadmap](phase-8-roadmap.md)
+- [Phase 8 external acceptance](phase-8-external-acceptance.md)
+- [ADR 0096](../adr/0096-explicit-structured-cli-and-automation-boundary.md)
+- [ADR 0097](../adr/0097-deterministic-command-lifecycle-and-presentation-separation.md)

@@ -326,6 +326,7 @@ final class ApiStatusConventionTest extends TestCase
         CompositionArtifactValidator::class => ApiStatus::Experimental,
         ApplicationBuildWorkflow::class => ApiStatus::Experimental,
         CurrentApplicationBuild::class => ApiStatus::Experimental,
+        'Kongono\\Composition\\Workflow\\PlannedApplicationBuild' => ApiStatus::Experimental,
         ApplicationWorkflowException::class => ApiStatus::Experimental,
         CompositionDiagnostic::class => ApiStatus::Internal,
         CompositionExceptionInterface::class => ApiStatus::Public,
@@ -352,6 +353,109 @@ final class ApiStatusConventionTest extends TestCase
         GeneratedApplicationBoundary::class => ApiStatus::Experimental,
         GeneratedWiringLoader::class => ApiStatus::Experimental,
         LoadedGeneratedWiring::class => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandCancellation' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandCleanup' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandDefinition' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandExecutionIntent' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandFailure' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandFailureCategory' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandHandler' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandIdentifier' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandInput' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandInputDefinition' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandInputName' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandInputRequirement' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandInputSensitivity' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandInputValue' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandInteractionMode' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandInteractionPolicy' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandInvocation' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandLifecycleState' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandMutationPolicy' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandOperation' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandOutcome' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandParseResult' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandResult' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandResultData' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandResultField' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandResultFieldDisclosure' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandResultFieldLabel' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandResultFieldName' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandResultRecord' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandResultValue' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandResultValueKind' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandSpecification' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandSpecificationSet' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandSummary' => ApiStatus::Experimental,
+        'Kongono\\Console\\CommandTokenParser' => ApiStatus::Experimental,
+        'Kongono\\Console\\Diagnostic\\ConsoleDiagnostic' => ApiStatus::Internal,
+        'Kongono\\Console\\Exception\\ConsoleException' => ApiStatus::Internal,
+        'Kongono\\Console\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\Console\\Exception\\InvalidConsoleValueException' => ApiStatus::Experimental,
+        'Kongono\\ConsoleApplication\\Diagnostic\\ConsoleApplicationDiagnostic' => ApiStatus::Internal,
+        'Kongono\\ConsoleApplication\\Exception\\ConsoleApplicationException' => ApiStatus::Internal,
+        'Kongono\\ConsoleApplication\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\ConsoleApplication\\Exception\\InvalidConsoleApplicationValueException' => ApiStatus::Experimental,
+        'Kongono\\ConsoleApplication\\Handler\\ApplicationBuildCommandHandler' => ApiStatus::Experimental,
+        'Kongono\\ConsoleApplication\\Internal\\KongoCommandValidator' => ApiStatus::Internal,
+        'Kongono\\ConsoleApplication\\KongoApplication' => ApiStatus::Experimental,
+        'Kongono\\ConsoleApplication\\KongoApplicationFactory' => ApiStatus::Experimental,
+        'Kongono\\ConsoleApplication\\KongoCommand' => ApiStatus::Experimental,
+        'Kongono\\ConsoleApplication\\KongoProcessRequest' => ApiStatus::Experimental,
+        'Kongono\\ConsoleApplication\\Process\\NativeKongoEntrypoint' => ApiStatus::Experimental,
+        'Kongono\\ConsoleApplication\\Process\\NativeStreamOutputPort' => ApiStatus::Experimental,
+        'Kongono\\ConsoleApplication\\Process\\NeverCancelled' => ApiStatus::Experimental,
+        'Kongono\\ConsoleBuild\\Build\\ConsoleArtifact' => ApiStatus::Experimental,
+        'Kongono\\ConsoleBuild\\Build\\ConsoleArtifactBuilder' => ApiStatus::Experimental,
+        'Kongono\\ConsoleBuild\\Build\\ConsoleArtifactValidator' => ApiStatus::Experimental,
+        'Kongono\\ConsoleBuild\\Diagnostic\\ConsoleBuildDiagnostic' => ApiStatus::Internal,
+        'Kongono\\ConsoleBuild\\Exception\\ConsoleBuildException' => ApiStatus::Internal,
+        'Kongono\\ConsoleBuild\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\ConsoleBuild\\Exception\\InvalidConsoleArtifactException' => ApiStatus::Experimental,
+        'Kongono\\ConsoleBuild\\Exception\\InvalidConsoleSourceException' => ApiStatus::Experimental,
+        'Kongono\\ConsoleBuild\\Exception\\StaleConsoleArtifactException' => ApiStatus::Experimental,
+        'Kongono\\ConsoleBuild\\Internal\\CanonicalJson' => ApiStatus::Internal,
+        'Kongono\\ConsoleBuild\\Internal\\ConsoleBuildFailureCategory' => ApiStatus::Internal,
+        'Kongono\\ConsoleBuild\\Internal\\ConsoleBuildImplementation' => ApiStatus::Internal,
+        'Kongono\\ConsoleBuild\\Internal\\ConsoleModelCompiler' => ApiStatus::Internal,
+        'Kongono\\ConsoleBuild\\Internal\\PathGuard' => ApiStatus::Internal,
+        'Kongono\\ConsoleBuild\\Internal\\StrictJsonDecoder' => ApiStatus::Internal,
+        'Kongono\\ConsoleBuild\\Model\\ConsoleModel' => ApiStatus::Experimental,
+        'Kongono\\ConsoleCommands\\Diagnostic\\ConsoleCommandsDiagnostic' => ApiStatus::Internal,
+        'Kongono\\ConsoleCommands\\Exception\\ConsoleCommandsException' => ApiStatus::Internal,
+        'Kongono\\ConsoleCommands\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\ConsoleCommands\\Exception\\InvalidConsoleCommandsValueException' => ApiStatus::Experimental,
+        'Kongono\\ConsoleCommands\\Handler\\CompositionInspectCommandHandler' => ApiStatus::Experimental,
+        'Kongono\\ConsoleCommands\\Handler\\GraphInspectCommandHandler' => ApiStatus::Experimental,
+        'Kongono\\ConsoleCommands\\Handler\\QualityInspectCommandHandler' => ApiStatus::Experimental,
+        'Kongono\\ConsoleCommands\\Internal\\ReadOnlyCommandFamilyValidator' => ApiStatus::Internal,
+        'Kongono\\ConsoleCommands\\ReadOnlyFrameworkCommand' => ApiStatus::Experimental,
+        'Kongono\\ConsoleCommands\\ReadOnlyFrameworkCommandFamily' => ApiStatus::Experimental,
+        'Kongono\\ConsolePresentation\\CommandExitStatus' => ApiStatus::Experimental,
+        'Kongono\\ConsolePresentation\\CommandMediaType' => ApiStatus::Experimental,
+        'Kongono\\ConsolePresentation\\CommandOutputPort' => ApiStatus::Experimental,
+        'Kongono\\ConsolePresentation\\CommandPresentation' => ApiStatus::Experimental,
+        'Kongono\\ConsolePresentation\\CommandPresentationAdapter' => ApiStatus::Experimental,
+        'Kongono\\ConsolePresentation\\HumanCommandPresenter' => ApiStatus::Experimental,
+        'Kongono\\ConsolePresentation\\MachineCommandPresenter' => ApiStatus::Experimental,
+        'Kongono\\ConsolePresentation\\Diagnostic\\ConsolePresentationDiagnostic' => ApiStatus::Internal,
+        'Kongono\\ConsolePresentation\\Exception\\CommandOutputException' => ApiStatus::Public,
+        'Kongono\\ConsolePresentation\\Exception\\ConsolePresentationException' => ApiStatus::Internal,
+        'Kongono\\ConsolePresentation\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\ConsolePresentation\\Exception\\InvalidConsolePresentationException' => ApiStatus::Experimental,
+        'Kongono\\ConsolePresentation\\Internal\\CanonicalJson' => ApiStatus::Internal,
+        'Kongono\\ConsolePresentation\\Internal\\CommandHelpProjection' => ApiStatus::Internal,
+        'Kongono\\ConsolePresentation\\Internal\\CommandResultProjection' => ApiStatus::Internal,
+        'Kongono\\ConsolePresentation\\Internal\\HumanValueFormatter' => ApiStatus::Internal,
+        'Kongono\\ConsoleRuntime\\CommandDispatcher' => ApiStatus::Experimental,
+        'Kongono\\ConsoleRuntime\\CommandExecutionOperation' => ApiStatus::Experimental,
+        'Kongono\\ConsoleRuntime\\CommandHandlerBinding' => ApiStatus::Experimental,
+        'Kongono\\ConsoleRuntime\\CommandHandlerSet' => ApiStatus::Experimental,
+        'Kongono\\ConsoleRuntime\\Diagnostic\\ConsoleRuntimeDiagnostic' => ApiStatus::Internal,
+        'Kongono\\ConsoleRuntime\\Exception\\CommandExecutionException' => ApiStatus::Public,
+        'Kongono\\ConsoleRuntime\\Exception\\ConsoleRuntimeException' => ApiStatus::Internal,
+        'Kongono\\ConsoleRuntime\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\ConsoleRuntime\\Exception\\InvalidCommandRuntimeValueException' => ApiStatus::Experimental,
         'Kongono\\Database\\CommandResult' => ApiStatus::Experimental,
         'Kongono\\Database\\DatabaseCapabilities' => ApiStatus::Experimental,
         'Kongono\\Database\\DatabaseCapability' => ApiStatus::Experimental,
@@ -803,7 +907,7 @@ final class ApiStatusConventionTest extends TestCase
     public function testProductionDeclarationsExactlyMatchAuthorizedInventoryAndAreAutoloadable(): void
     {
         $types = $this->discoverProductionTypes();
-        self::assertCount(519, $types);
+        self::assertCount(623, $types);
 
         self::assertFalse(class_exists('Kongono\\Kernel\\Api\\Api'));
         self::assertFalse(enum_exists('Kongono\\Kernel\\Api\\ApiStatus'));
@@ -816,6 +920,370 @@ final class ApiStatusConventionTest extends TestCase
         sort($expected);
 
         self::assertSame($expected, $types);
+    }
+
+    public function testConsolePackageBoundaryInventoryAndToolingAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/console/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/console', $manifest['name']);
+        self::assertSame('Neutral Structured CLI contracts for Kongono Framework.', $manifest['description']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $manifest['require']);
+        self::assertIsArray($manifest['autoload']);
+        self::assertIsArray($manifest['autoload']['psr-4']);
+        self::assertIsArray($manifest['autoload-dev']);
+        self::assertIsArray($manifest['autoload-dev']['psr-4']);
+        self::assertSame(['Kongono\\Console\\' => 'src/'], $manifest['autoload']['psr-4']);
+        self::assertSame(['Kongono\\Console\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
+
+        $sourceFiles = $this->recursivePhpFiles($root . '/packages/console/src');
+        $testFiles = $this->recursivePhpFiles($root . '/packages/console/tests');
+        self::assertCount(39, $sourceFiles);
+        self::assertCount(15, $testFiles);
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        self::assertIsArray($rootManifest['require']);
+        self::assertIsArray($rootManifest['autoload-dev']);
+        self::assertIsArray($rootManifest['autoload-dev']['psr-4']);
+        self::assertIsArray($rootManifest['scripts']);
+        self::assertIsArray($rootManifest['scripts']['validate:packages']);
+        self::assertSame('@dev', $rootManifest['require']['kongono/console']);
+        self::assertSame('packages/console/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Console\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/console validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+
+        foreach (['.php-cs-fixer.dist.php', 'phpstan.neon.dist', 'phpunit.xml.dist'] as $configuration) {
+            $contents = file_get_contents($root . '/' . $configuration);
+            self::assertIsString($contents);
+            self::assertSame(1, substr_count($contents, 'packages/console/src'));
+            self::assertSame(1, substr_count($contents, 'packages/console/tests'));
+        }
+
+        foreach ($sourceFiles as $sourceFile) {
+            $source = file_get_contents($sourceFile);
+            self::assertIsString($source);
+            self::assertSame(0, preg_match('/Kongono\\\\(?:Kernel|DependencyInjection|ApplicationGraph|Http|Routing|Web|PhpCgi|Database|Persistence|Chie|Hantei|Oshie)|Symfony|Reflection|ServiceLocator|Container|Registry|Presenter|\$_(?:SERVER|ENV|GET|POST|COOKIE|FILES|REQUEST)|getenv\s*\(|eval\s*\(/i', $source));
+        }
+
+        foreach ([
+            'Kongono\\Console\\CommandCancellation',
+            'Kongono\\Console\\CommandCleanup',
+            'Kongono\\Console\\CommandHandler',
+        ] as $interface) {
+            $implementations = [];
+            foreach ($this->discoverProductionTypes() as $type) {
+                if ($type === $interface || !class_exists($type)) {
+                    continue;
+                }
+                if ((new ReflectionClass($type))->implementsInterface($interface)) {
+                    $implementations[] = $type;
+                }
+            }
+            $expectedImplementations = match ($interface) {
+                'Kongono\\Console\\CommandCancellation' => [
+                    'Kongono\\ConsoleApplication\\Process\\NeverCancelled',
+                ],
+                'Kongono\\Console\\CommandHandler' => [
+                    'Kongono\\ConsoleApplication\\Handler\\ApplicationBuildCommandHandler',
+                    'Kongono\\ConsoleCommands\\Handler\\CompositionInspectCommandHandler',
+                    'Kongono\\ConsoleCommands\\Handler\\GraphInspectCommandHandler',
+                    'Kongono\\ConsoleCommands\\Handler\\QualityInspectCommandHandler',
+                ],
+                default => [],
+            };
+            self::assertSame($expectedImplementations, $implementations, sprintf('%s must match the exact Phase 8G production inventory.', $interface));
+        }
+        self::assertTrue((new ReflectionClass('Kongono\\Console\\CommandResultRecord'))->implementsInterface('Kongono\\Console\\CommandResultData'));
+
+        $identifiers = [];
+        foreach ($this->discoverProductionTypes() as $type) {
+            if (!enum_exists($type) || !(new ReflectionClass($type))->isEnum()) {
+                continue;
+            }
+            foreach ($type::cases() as $case) {
+                if ($case instanceof \BackedEnum && is_string($case->value) && 1 === preg_match('/^KGN-[A-Z0-9]+(?:-[A-Z0-9]+)*-[0-9]{4}$/D', $case->value)) {
+                    $identifiers[] = $case->value;
+                }
+            }
+        }
+        self::assertCount(293, $identifiers);
+        self::assertCount(293, array_unique($identifiers));
+        $productionDiagnosticIdentifiers = [...$identifiers, ...array_keys(HanteiCheckEvidence::CHECKS)];
+        self::assertCount(301, $productionDiagnosticIdentifiers);
+        self::assertCount(301, array_unique($productionDiagnosticIdentifiers));
+        self::assertSame([
+            'KGN-CONSOLE-1001',
+            'KGN-CONSOLE-1002',
+            'KGN-CONSOLE-1003',
+            'KGN-CONSOLE-1004',
+            'KGN-CONSOLE-1005',
+            'KGN-CONSOLE-1006',
+            'KGN-CONSOLE-1007',
+            'KGN-CONSOLE-1008',
+            'KGN-CONSOLE-1009',
+            'KGN-CONSOLE-1010',
+        ], array_values(array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CONSOLE-1\\d{3}$/D', $identifier))));
+        self::assertSame([
+            'KGN-CONSOLE-BUILD-1001',
+            'KGN-CONSOLE-BUILD-1002',
+            'KGN-CONSOLE-BUILD-1003',
+            'KGN-CONSOLE-BUILD-1004',
+            'KGN-CONSOLE-BUILD-1005',
+        ], array_values(array_filter($identifiers, static fn(string $identifier): bool => str_starts_with($identifier, 'KGN-CONSOLE-BUILD-'))));
+        self::assertSame([
+            'KGN-CONSOLE-RUNTIME-1001',
+            'KGN-CONSOLE-RUNTIME-1002',
+            'KGN-CONSOLE-RUNTIME-1003',
+            'KGN-CONSOLE-RUNTIME-1004',
+            'KGN-CONSOLE-RUNTIME-1005',
+            'KGN-CONSOLE-RUNTIME-1006',
+        ], array_values(array_filter($identifiers, static fn(string $identifier): bool => str_starts_with($identifier, 'KGN-CONSOLE-RUNTIME-'))));
+        self::assertSame([
+            'KGN-CONSOLE-COMMANDS-1001',
+            'KGN-CONSOLE-COMMANDS-1002',
+            'KGN-CONSOLE-COMMANDS-1003',
+        ], array_values(array_filter($identifiers, static fn(string $identifier): bool => str_starts_with($identifier, 'KGN-CONSOLE-COMMANDS-'))));
+        self::assertSame([
+            'KGN-CONSOLE-PRESENTATION-1001',
+            'KGN-CONSOLE-PRESENTATION-1002',
+            'KGN-CONSOLE-PRESENTATION-1003',
+            'KGN-CONSOLE-PRESENTATION-1004',
+            'KGN-CONSOLE-PRESENTATION-1005',
+        ], array_values(array_filter($identifiers, static fn(string $identifier): bool => str_starts_with($identifier, 'KGN-CONSOLE-PRESENTATION-'))));
+        self::assertSame([
+            'KGN-CONSOLE-APPLICATION-1001',
+            'KGN-CONSOLE-APPLICATION-1002',
+            'KGN-CONSOLE-APPLICATION-1003',
+        ], array_values(array_filter($identifiers, static fn(string $identifier): bool => str_starts_with($identifier, 'KGN-CONSOLE-APPLICATION-'))));
+    }
+
+    public function testConsoleBuildBoundaryAndPhase8CContractsAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/console-build/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/console-build', $manifest['name']);
+        self::assertSame([
+            'ext-hash' => '*',
+            'ext-json' => '*',
+            'kongono/api-metadata' => '*',
+            'kongono/console' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $manifest['require']);
+        $autoload = $manifest['autoload'];
+        $autoloadDev = $manifest['autoload-dev'];
+        self::assertIsArray($autoload);
+        self::assertIsArray($autoloadDev);
+        self::assertSame(['Kongono\\ConsoleBuild\\' => 'src/'], $autoload['psr-4']);
+        self::assertSame(['Kongono\\ConsoleBuild\\Tests\\' => 'tests/'], $autoloadDev['psr-4']);
+        self::assertCount(16, $this->recursivePhpFiles($root . '/packages/console-build/src'));
+        self::assertCount(10, $this->recursivePhpFiles($root . '/packages/console-build/tests'));
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        $rootRequire = $rootManifest['require'];
+        $rootAutoloadDev = $rootManifest['autoload-dev'];
+        $rootScripts = $rootManifest['scripts'];
+        self::assertIsArray($rootRequire);
+        self::assertIsArray($rootAutoloadDev);
+        self::assertIsArray($rootScripts);
+        $rootAutoloadDevPsr4 = $rootAutoloadDev['psr-4'];
+        $validatePackages = $rootScripts['validate:packages'];
+        self::assertIsArray($rootAutoloadDevPsr4);
+        self::assertIsArray($validatePackages);
+        self::assertSame('@dev', $rootRequire['kongono/console-build']);
+        self::assertSame('packages/console-build/tests/', $rootAutoloadDevPsr4['Kongono\\ConsoleBuild\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/console-build validate --no-check-publish', $validatePackages);
+        foreach (['.php-cs-fixer.dist.php', 'phpstan.neon.dist', 'phpunit.xml.dist'] as $configuration) {
+            $contents = file_get_contents($root . '/' . $configuration);
+            self::assertIsString($contents);
+            self::assertSame(1, substr_count($contents, 'packages/console-build/src'));
+            self::assertSame(1, substr_count($contents, 'packages/console-build/tests'));
+        }
+
+        self::assertSame(['__construct', 'name', 'requirement', 'sensitivity'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\Console\\CommandInputDefinition')));
+        self::assertSame(['__construct', 'definition', 'hasInput', 'input', 'inputs'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\Console\\CommandSpecification')));
+        self::assertSame(['__construct', 'command', 'commands', 'hasCommand'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\Console\\CommandSpecificationSet')));
+        self::assertSame(['accepted', 'failure', 'invocation', 'isAccepted', 'rejected'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\Console\\CommandParseResult')));
+        self::assertSame(['parse'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\Console\\CommandTokenParser')));
+        self::assertSame(['__construct', 'artifactSha256', 'builderImplementationSha256', 'canonicalBytes', 'model', 'modelSha256', 'sourceSha256'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsoleBuild\\Build\\ConsoleArtifact')));
+        self::assertSame(['build'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsoleBuild\\Build\\ConsoleArtifactBuilder')));
+        self::assertSame(['validateCurrent', 'validateStructure'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsoleBuild\\Build\\ConsoleArtifactValidator')));
+        self::assertSame(['__construct', 'specifications'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsoleBuild\\Model\\ConsoleModel')));
+        self::assertCount(16, \Kongono\ConsoleBuild\Internal\ConsoleBuildImplementation::BUILDER_PATHS);
+
+        $source = '';
+        foreach ($this->recursivePhpFiles($root . '/packages/console-build/src') as $file) {
+            $bytes = file_get_contents($file);
+            self::assertIsString($bytes);
+            $source .= $bytes;
+        }
+        self::assertSame(0, preg_match('/Kongono\\\\(?:Kernel|Composition|ApplicationGraph|DependencyInjection|Http|Routing|Web|PhpCgi|Database|Persistence|Chie|Hantei|Oshie)|Symfony\\\\Component\\\\Console|Reflection|ServiceLocator|Registry|Presenter|Dispatcher|Executor|\$_(?:SERVER|ENV)|getenv\s*\(|eval\s*\(/i', $source));
+        foreach (['bin', 'src/Execution', 'src/Presentation', 'src/Runtime', 'src/Registry'] as $absent) {
+            self::assertDirectoryDoesNotExist($root . '/packages/console-build/' . $absent);
+        }
+    }
+
+    public function testConsoleRuntimeBoundaryAndPhase8DContractsAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/console-runtime/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/console-runtime', $manifest['name']);
+        self::assertSame('Operation-scoped Structured CLI command execution for Kongono Framework.', $manifest['description']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'kongono/console' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $manifest['require']);
+        self::assertIsArray($manifest['autoload']);
+        self::assertIsArray($manifest['autoload-dev']);
+        self::assertIsArray($manifest['autoload']['psr-4']);
+        self::assertIsArray($manifest['autoload-dev']['psr-4']);
+        self::assertSame(['Kongono\\ConsoleRuntime\\' => 'src/'], $manifest['autoload']['psr-4']);
+        self::assertSame(['Kongono\\ConsoleRuntime\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
+        self::assertCount(9, $this->recursivePhpFiles($root . '/packages/console-runtime/src'));
+        self::assertCount(9, $this->recursivePhpFiles($root . '/packages/console-runtime/tests'));
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        self::assertIsArray($rootManifest['require']);
+        self::assertIsArray($rootManifest['autoload-dev']);
+        self::assertIsArray($rootManifest['autoload-dev']['psr-4']);
+        self::assertIsArray($rootManifest['scripts']);
+        self::assertIsArray($rootManifest['scripts']['validate:packages']);
+        self::assertSame('@dev', $rootManifest['require']['kongono/console-runtime']);
+        self::assertSame('packages/console-runtime/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\ConsoleRuntime\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/console-runtime validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        foreach (['.php-cs-fixer.dist.php', 'phpstan.neon.dist', 'phpunit.xml.dist'] as $configuration) {
+            $contents = file_get_contents($root . '/' . $configuration);
+            self::assertIsString($contents);
+            self::assertSame(1, substr_count($contents, 'packages/console-runtime/src'));
+            self::assertSame(1, substr_count($contents, 'packages/console-runtime/tests'));
+        }
+
+        self::assertSame(['release'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\Console\\CommandCleanup')));
+        self::assertSame(['cancellation', 'defer', 'invocation', 'retire', 'state'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\Console\\CommandOperation')));
+        self::assertSame(['__construct', 'handler', 'identifier'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsoleRuntime\\CommandHandlerBinding')));
+        self::assertSame(['__construct', 'binding', 'bindings', 'hasBinding'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsoleRuntime\\CommandHandlerSet')));
+        self::assertSame(['__construct', 'cancellation', 'defer', 'invocation', 'retire', 'state'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsoleRuntime\\CommandExecutionOperation')));
+        self::assertSame(['__construct', 'dispatch'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsoleRuntime\\CommandDispatcher')));
+        self::assertSame(['cleanupFailures', 'forFailures', 'primaryFailure'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsoleRuntime\\Exception\\CommandExecutionException')));
+        self::assertSame(['binding', 'handlerSet', 'operationLifecycle', 'reentrantDispatch'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsoleRuntime\\Exception\\InvalidCommandRuntimeValueException')));
+
+        $operation = new ReflectionClass('Kongono\\ConsoleRuntime\\CommandExecutionOperation');
+        self::assertTrue($operation->isFinal());
+        self::assertTrue($operation->implementsInterface('Kongono\\Console\\CommandOperation'));
+        $binding = new ReflectionClass('Kongono\\ConsoleRuntime\\CommandHandlerBinding');
+        $set = new ReflectionClass('Kongono\\ConsoleRuntime\\CommandHandlerSet');
+        self::assertTrue($binding->isFinal());
+        self::assertTrue($binding->isReadOnly());
+        self::assertTrue($set->isFinal());
+        self::assertTrue($set->isReadOnly());
+
+        $source = '';
+        foreach ($this->recursivePhpFiles($root . '/packages/console-runtime/src') as $file) {
+            $bytes = file_get_contents($file);
+            self::assertIsString($bytes);
+            $source .= $bytes;
+        }
+        self::assertSame(0, preg_match('/Kongono\\\\(?:ConsoleBuild|Kernel|Composition|ApplicationGraph|DependencyInjection|Http|Routing|Web|PhpCgi|Database|Persistence|Chie|Hantei|Oshie)|Symfony\\\\Component\\\\Console|Reflection|ServiceLocator|Container|Registry|Presenter|Middleware|\\$_(?:SERVER|ENV|GET|POST|COOKIE|FILES|REQUEST)|\\b(?:getenv|putenv|chdir|getcwd|fopen|file_get_contents|print|printf|echo|exit|die|eval)\\s*\\(/i', $source));
+        foreach (['bin', 'src/Build', 'src/Presentation', 'src/Process', 'src/Registry', 'src/Command'] as $absent) {
+            self::assertDirectoryDoesNotExist($root . '/packages/console-runtime/' . $absent);
+        }
+        $packageManifestPaths = glob($root . '/packages/*/composer.json');
+        self::assertIsArray($packageManifestPaths);
+        foreach ($packageManifestPaths as $packageManifestPath) {
+            $normalizedManifestPath = str_replace('\\', '/', $packageManifestPath);
+            if (str_ends_with($normalizedManifestPath, '/console-runtime/composer.json')
+                || str_ends_with($normalizedManifestPath, '/console-commands/composer.json')
+                || str_ends_with($normalizedManifestPath, '/console-application/composer.json')) {
+                continue;
+            }
+            $otherManifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($otherManifest);
+            self::assertIsArray($otherManifest['require']);
+            self::assertArrayNotHasKey('kongono/console-runtime', $otherManifest['require']);
+        }
+        foreach (['8e', '8f', '8g', '8h', 'kongo'] as $absent) {
+            self::assertFileDoesNotExist($root . '/packages/console-runtime/' . $absent);
+        }
+    }
+
+    public function testConsolePresentationBoundaryAndPhase8EContractsAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/console-presentation/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/console-presentation', $manifest['name']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'kongono/console' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $manifest['require']);
+        self::assertIsArray($manifest['autoload']);
+        self::assertIsArray($manifest['autoload-dev']);
+        self::assertIsArray($manifest['autoload']['psr-4']);
+        self::assertIsArray($manifest['autoload-dev']['psr-4']);
+        self::assertSame(['Kongono\\ConsolePresentation\\' => 'src/'], $manifest['autoload']['psr-4']);
+        self::assertSame(['Kongono\\ConsolePresentation\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
+        self::assertCount(16, $this->recursivePhpFiles($root . '/packages/console-presentation/src'));
+        self::assertCount(10, $this->recursivePhpFiles($root . '/packages/console-presentation/tests'));
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        self::assertIsArray($rootManifest['require']);
+        self::assertIsArray($rootManifest['autoload-dev']);
+        self::assertIsArray($rootManifest['autoload-dev']['psr-4']);
+        self::assertIsArray($rootManifest['scripts']);
+        self::assertIsArray($rootManifest['scripts']['validate:packages']);
+        self::assertSame('@dev', $rootManifest['require']['kongono/console-presentation']);
+        self::assertSame('packages/console-presentation/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\ConsolePresentation\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/console-presentation validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        foreach (['.php-cs-fixer.dist.php', 'phpstan.neon.dist', 'phpunit.xml.dist'] as $configuration) {
+            $contents = file_get_contents($root . '/' . $configuration);
+            self::assertIsString($contents);
+            self::assertSame(1, substr_count($contents, 'packages/console-presentation/src'));
+            self::assertSame(1, substr_count($contents, 'packages/console-presentation/tests'));
+        }
+
+        self::assertSame(['Succeeded', 'InvalidInput', 'Precondition', 'Denied', 'Capability', 'Infrastructure', 'Cancelled'], array_column(\Kongono\ConsolePresentation\CommandExitStatus::cases(), 'name'));
+        self::assertSame([0, 2, 3, 4, 5, 6, 7], array_column(\Kongono\ConsolePresentation\CommandExitStatus::cases(), 'value'));
+        self::assertSame(['text/plain;charset=utf-8', 'application/vnd.kongono.command-result+json;version=1', 'application/vnd.kongono.command-help+json;version=1'], array_column(\Kongono\ConsolePresentation\CommandMediaType::cases(), 'value'));
+        self::assertSame(['write'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsolePresentation\\CommandOutputPort')));
+        self::assertSame(['__construct', 'exitStatus', 'mediaType', 'stderr', 'stdout'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsolePresentation\\CommandPresentation')));
+        self::assertSame(['deliver'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsolePresentation\\CommandPresentationAdapter')));
+        self::assertSame(['presentCommandHelp', 'presentHelp', 'presentResult'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsolePresentation\\HumanCommandPresenter')));
+        self::assertSame(['presentCommandHelp', 'presentHelp', 'presentResult'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\ConsolePresentation\\MachineCommandPresenter')));
+
+        $source = '';
+        foreach ($this->recursivePhpFiles($root . '/packages/console-presentation/src') as $file) {
+            $bytes = file_get_contents($file);
+            self::assertIsString($bytes);
+            $source .= $bytes;
+        }
+        self::assertSame(0, preg_match('/Kongono\\\\(?:ConsoleRuntime|ConsoleBuild|Kernel|Composition|ApplicationGraph|DependencyInjection|Http|Routing|Web|PhpCgi|Database|Persistence|Chie|Hantei|Oshie)|Symfony\\\\Component\\\\Console|Reflection|ServiceLocator|Container|Registry|Middleware|\$_(?:SERVER|ENV|GET|POST|COOKIE|FILES|REQUEST)|\$argv|\b(?:getenv|putenv|chdir|getcwd|fopen|file_get_contents|print|printf|echo|exit|die|eval)\s*\(/i', $source));
+        $packageManifestPaths = glob($root . '/packages/*/composer.json');
+        self::assertIsArray($packageManifestPaths);
+        foreach ($packageManifestPaths as $packageManifestPath) {
+            $normalizedManifestPath = str_replace('\\', '/', $packageManifestPath);
+            if (str_ends_with($normalizedManifestPath, '/console-presentation/composer.json')
+                || str_ends_with($normalizedManifestPath, '/console-application/composer.json')) {
+                continue;
+            }
+            $otherManifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($otherManifest);
+            self::assertIsArray($otherManifest['require']);
+            self::assertArrayNotHasKey('kongono/console-presentation', $otherManifest['require']);
+        }
     }
 
     public function testCompositionBuildApiAndDiagnosticsMatchThePhase5DBoundary(): void
@@ -835,8 +1303,9 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['close', 'isClosed'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedOperationBoundary::class)));
         self::assertSame(['loadCurrent'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringLoader::class)));
         self::assertSame(['__construct', 'applicationClass', 'isStarted', 'operationClass', 'start', 'wiringSha256'], $this->declaredPublicMethodNames(new ReflectionClass(LoadedGeneratedWiring::class)));
-        self::assertSame(['build', 'check'], $this->declaredPublicMethodNames(new ReflectionClass(ApplicationBuildWorkflow::class)));
+        self::assertSame(['build', 'check', 'plan'], $this->declaredPublicMethodNames(new ReflectionClass(ApplicationBuildWorkflow::class)));
         self::assertSame(['__construct', 'artifactSha256', 'compositionArtifactBytes', 'compositionArtifactPath', 'generatedPhpPath', 'generatedWiringSha256'], $this->declaredPublicMethodNames(new ReflectionClass(CurrentApplicationBuild::class)));
+        self::assertSame(['__construct', 'artifactSha256', 'compositionArtifactBasename', 'generatedPhpBasename', 'generatedWiringSha256', 'publicationRequired'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\Composition\\Workflow\\PlannedApplicationBuild')));
 
         $generatedArtifact = new ReflectionClass(GeneratedWiringArtifact::class);
         self::assertTrue($generatedArtifact->isFinal());
@@ -1151,7 +1620,7 @@ final class ApiStatusConventionTest extends TestCase
 
         $packageManifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(30, $packageManifests);
+        self::assertCount(36, $packageManifests);
         foreach ($packageManifests as $packageManifest) {
             if (
                 str_ends_with(str_replace('\\', '/', $packageManifest), '/persistence/composer.json')
@@ -1185,9 +1654,9 @@ final class ApiStatusConventionTest extends TestCase
                 $packageTestCount += count($this->recursivePhpFiles($packageDirectory . '/tests'));
             }
         }
-        self::assertSame(519, $productionCount);
-        self::assertSame(268, $packageTestCount);
-        self::assertCount(48, $this->recursivePhpFiles($root . '/tests'));
+        self::assertSame(623, $productionCount);
+        self::assertSame(329, $packageTestCount);
+        self::assertCount(56, $this->recursivePhpFiles($root . '/tests'));
 
         foreach ([
             'Kongono\\Persistence\\Exception\\InvalidPersistenceValueException',
@@ -1283,7 +1752,7 @@ final class ApiStatusConventionTest extends TestCase
 
         $packageManifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(30, $packageManifests);
+        self::assertCount(36, $packageManifests);
         foreach ($packageManifests as $packageManifest) {
             if (str_ends_with(str_replace('\\', '/', $packageManifest), '/persistence-build/composer.json')
                 || str_ends_with(str_replace('\\', '/', $packageManifest), '/persistence-application/composer.json')) {
@@ -1363,7 +1832,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('@dev', $rootRequire['kongono/database-sql-pgsql']);
         self::assertSame('packages/database-sql/tests/', $rootAutoloadDevPsr4['Kongono\\DatabaseSql\\Tests\\']);
         self::assertSame('packages/database-sql-pgsql/tests/', $rootAutoloadDevPsr4['Kongono\\DatabaseSqlPgsql\\Tests\\']);
-        self::assertCount(30, $validatePackages);
+        self::assertCount(36, $validatePackages);
 
         self::assertSame(
             ['KGN-SQL-1001', 'KGN-SQL-1002', 'KGN-SQL-1003'],
@@ -1689,6 +2158,12 @@ final class ApiStatusConventionTest extends TestCase
             SqlExceptionInterface::class,
             PersistenceExceptionInterface::class,
             PersistenceBuildExceptionInterface::class,
+            'Kongono\\Console\\Exception\\ExceptionInterface',
+            'Kongono\\ConsoleApplication\\Exception\\ExceptionInterface',
+            'Kongono\\ConsoleBuild\\Exception\\ExceptionInterface',
+            'Kongono\\ConsoleCommands\\Exception\\ExceptionInterface',
+            'Kongono\\ConsoleRuntime\\Exception\\ExceptionInterface',
+            'Kongono\\ConsolePresentation\\Exception\\ExceptionInterface',
         ];
 
         foreach ($markers as $position => $marker) {
@@ -1774,6 +2249,16 @@ final class ApiStatusConventionTest extends TestCase
             ['Kongono\\PersistenceBuild\\Exception\\PersistenceArtifactPublicationException', PersistenceBuildExceptionInterface::class],
             ['Kongono\\PersistenceBuild\\Exception\\InvalidGeneratedPersistenceStateException', PersistenceBuildExceptionInterface::class],
             ['Kongono\\PersistenceBuild\\Exception\\GeneratedPersistenceStatePublicationException', PersistenceBuildExceptionInterface::class],
+            ['Kongono\\Console\\Exception\\InvalidConsoleValueException', 'Kongono\\Console\\Exception\\ExceptionInterface'],
+            ['Kongono\\ConsoleApplication\\Exception\\InvalidConsoleApplicationValueException', 'Kongono\\ConsoleApplication\\Exception\\ExceptionInterface'],
+            ['Kongono\\ConsoleBuild\\Exception\\InvalidConsoleSourceException', 'Kongono\\ConsoleBuild\\Exception\\ExceptionInterface'],
+            ['Kongono\\ConsoleBuild\\Exception\\InvalidConsoleArtifactException', 'Kongono\\ConsoleBuild\\Exception\\ExceptionInterface'],
+            ['Kongono\\ConsoleBuild\\Exception\\StaleConsoleArtifactException', 'Kongono\\ConsoleBuild\\Exception\\ExceptionInterface'],
+            ['Kongono\\ConsoleCommands\\Exception\\InvalidConsoleCommandsValueException', 'Kongono\\ConsoleCommands\\Exception\\ExceptionInterface'],
+            ['Kongono\\ConsoleRuntime\\Exception\\InvalidCommandRuntimeValueException', 'Kongono\\ConsoleRuntime\\Exception\\ExceptionInterface'],
+            ['Kongono\\ConsoleRuntime\\Exception\\CommandExecutionException', 'Kongono\\ConsoleRuntime\\Exception\\ExceptionInterface'],
+            ['Kongono\\ConsolePresentation\\Exception\\InvalidConsolePresentationException', 'Kongono\\ConsolePresentation\\Exception\\ExceptionInterface'],
+            ['Kongono\\ConsolePresentation\\Exception\\CommandOutputException', 'Kongono\\ConsolePresentation\\Exception\\ExceptionInterface'],
         ] as [$failure, $expectedMarker]) {
             self::assertExceptionMarkerMembership($failure, $expectedMarker, array_values(array_diff($markers, [$expectedMarker])));
         }
@@ -1799,6 +2284,11 @@ final class ApiStatusConventionTest extends TestCase
                 ...ChieDiagnostic::cases(),
                 ...HanteiDiagnostic::cases(),
                 ...CompositionDiagnostic::cases(),
+                ...\Kongono\Console\Diagnostic\ConsoleDiagnostic::cases(),
+                ...\Kongono\ConsoleApplication\Diagnostic\ConsoleApplicationDiagnostic::cases(),
+                ...\Kongono\ConsoleBuild\Diagnostic\ConsoleBuildDiagnostic::cases(),
+                ...\Kongono\ConsoleRuntime\Diagnostic\ConsoleRuntimeDiagnostic::cases(),
+                ...\Kongono\ConsolePresentation\Diagnostic\ConsolePresentationDiagnostic::cases(),
                 ...DatabaseDiagnostic::cases(),
                 ...MappingDiagnostic::cases(),
                 ...MigrationDiagnostic::cases(),
@@ -1809,8 +2299,8 @@ final class ApiStatusConventionTest extends TestCase
             ],
         );
 
-        self::assertCount(248, $identifiers);
-        self::assertCount(248, array_unique($identifiers));
+        self::assertCount(277, $identifiers);
+        self::assertCount(277, array_unique($identifiers));
         self::assertCount(6, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-KERNEL-1\\d{3}$/D', $identifier)));
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-GRAPH-1\\d{3}$/D', $identifier)));
         self::assertCount(25, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-DI-1\\d{3}$/D', $identifier)));
@@ -1826,6 +2316,10 @@ final class ApiStatusConventionTest extends TestCase
         self::assertCount(18, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CHIE-1\\d{3}$/D', $identifier)));
         self::assertCount(3, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-SQL-1\\d{3}$/D', $identifier)));
         self::assertCount(18, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-COMPOSITION-1\\d{3}$/D', $identifier)));
+        self::assertCount(10, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CONSOLE-1\\d{3}$/D', $identifier)));
+        self::assertCount(3, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CONSOLE-APPLICATION-1\\d{3}$/D', $identifier)));
+        self::assertCount(5, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CONSOLE-BUILD-1\\d{3}$/D', $identifier)));
+        self::assertCount(6, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CONSOLE-RUNTIME-1\\d{3}$/D', $identifier)));
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-DATABASE-1\\d{3}$/D', $identifier)));
         self::assertCount(9, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-MAPPING-1\\d{3}$/D', $identifier)));
         self::assertCount(7, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-MIGRATION-1\\d{3}$/D', $identifier)));
@@ -1866,6 +2360,12 @@ final class ApiStatusConventionTest extends TestCase
             SqlExceptionInterface::class,
             PersistenceExceptionInterface::class,
             PersistenceBuildExceptionInterface::class,
+            'Kongono\\Console\\Exception\\ExceptionInterface',
+            'Kongono\\ConsoleApplication\\Exception\\ExceptionInterface',
+            'Kongono\\ConsoleBuild\\Exception\\ExceptionInterface',
+            'Kongono\\ConsoleCommands\\Exception\\ExceptionInterface',
+            'Kongono\\ConsoleRuntime\\Exception\\ExceptionInterface',
+            'Kongono\\ConsolePresentation\\Exception\\ExceptionInterface',
         ] as $marker) {
             $reflection = new ReflectionClass($marker);
             $methods = array_values(array_filter(
@@ -1876,13 +2376,13 @@ final class ApiStatusConventionTest extends TestCase
             sort($methodNames);
 
             self::assertSame([Throwable::class, \Stringable::class], $reflection->getInterfaceNames());
-            $expectedMethods = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class, DatabaseExceptionInterface::class, MigrationExceptionInterface::class, SqlExceptionInterface::class, PersistenceExceptionInterface::class, PersistenceBuildExceptionInterface::class], true)
+            $expectedMethods = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class, DatabaseExceptionInterface::class, MigrationExceptionInterface::class, SqlExceptionInterface::class, PersistenceExceptionInterface::class, PersistenceBuildExceptionInterface::class, 'Kongono\\Console\\Exception\\ExceptionInterface', 'Kongono\\ConsoleApplication\\Exception\\ExceptionInterface', 'Kongono\\ConsoleBuild\\Exception\\ExceptionInterface', 'Kongono\\ConsoleCommands\\Exception\\ExceptionInterface', 'Kongono\\ConsoleRuntime\\Exception\\ExceptionInterface', 'Kongono\\ConsolePresentation\\Exception\\ExceptionInterface'], true)
                 ? ['diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle']
                 : ['diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'];
             self::assertSame($expectedMethods, $methodNames);
 
             foreach ($methods as $method) {
-                $expectedReturnType = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class, DatabaseExceptionInterface::class, MigrationExceptionInterface::class, SqlExceptionInterface::class, PersistenceExceptionInterface::class, PersistenceBuildExceptionInterface::class], true)
+                $expectedReturnType = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class, DatabaseExceptionInterface::class, MigrationExceptionInterface::class, SqlExceptionInterface::class, PersistenceExceptionInterface::class, PersistenceBuildExceptionInterface::class, 'Kongono\\Console\\Exception\\ExceptionInterface', 'Kongono\\ConsoleApplication\\Exception\\ExceptionInterface', 'Kongono\\ConsoleBuild\\Exception\\ExceptionInterface', 'Kongono\\ConsoleCommands\\Exception\\ExceptionInterface', 'Kongono\\ConsoleRuntime\\Exception\\ExceptionInterface', 'Kongono\\ConsolePresentation\\Exception\\ExceptionInterface'], true)
                     && 'diagnosticContext' === $method->getName()
                     ? DiagnosticContext::class
                     : 'string';
@@ -2332,7 +2832,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertDirectoryDoesNotExist($compositionRoot . '/bin');
         self::assertDirectoryDoesNotExist($compositionRoot . '/resources');
         $compositionCounts = [];
-        foreach (['src' => 35, 'tests' => 32] as $directory => $expectedCount) {
+        foreach (['src' => 36, 'tests' => 32] as $directory => $expectedCount) {
             $count = 0;
             foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($compositionRoot . '/' . $directory, FilesystemIterator::SKIP_DOTS)) as $compositionFile) {
                 if (!$compositionFile instanceof SplFileInfo) {
@@ -2346,7 +2846,7 @@ final class ApiStatusConventionTest extends TestCase
             self::assertSame($expectedCount, $count);
             $compositionCounts[$directory] = $count;
         }
-        self::assertSame(['src' => 35, 'tests' => 32], $compositionCounts);
+        self::assertSame(['src' => 36, 'tests' => 32], $compositionCounts);
 
         $webApplicationManifest = json_decode(
             (string) file_get_contents(dirname(__DIR__, 2) . '/packages/web-application/composer.json'),
@@ -2402,6 +2902,12 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/application-graph' => '@dev',
             'kongono/chie' => '@dev',
             'kongono/composition' => '@dev',
+            'kongono/console' => '@dev',
+            'kongono/console-application' => '@dev',
+            'kongono/console-build' => '@dev',
+            'kongono/console-commands' => '@dev',
+            'kongono/console-presentation' => '@dev',
+            'kongono/console-runtime' => '@dev',
             'kongono/database' => '@dev',
             'kongono/database-application' => '@dev',
             'kongono/database-mapping' => '@dev',
@@ -2449,6 +2955,12 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('packages/http-server/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Http\\Server\\Tests\\']);
         self::assertSame('packages/chie/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Chie\\Tests\\']);
         self::assertSame('packages/composition/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Composition\\Tests\\']);
+        self::assertSame('packages/console/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Console\\Tests\\']);
+        self::assertSame('packages/console-application/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\ConsoleApplication\\Tests\\']);
+        self::assertSame('packages/console-build/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\ConsoleBuild\\Tests\\']);
+        self::assertSame('packages/console-commands/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\ConsoleCommands\\Tests\\']);
+        self::assertSame('packages/console-presentation/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\ConsolePresentation\\Tests\\']);
+        self::assertSame('packages/console-runtime/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\ConsoleRuntime\\Tests\\']);
         self::assertSame('packages/database-application/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\DatabaseApplication\\Tests\\']);
         self::assertSame('packages/database-mapping/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\DatabaseMapping\\Tests\\']);
         self::assertSame('packages/knowledge/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Knowledge\\Tests\\']);
@@ -2469,6 +2981,12 @@ final class ApiStatusConventionTest extends TestCase
         self::assertContains('composer --working-dir=packages/http-server validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/chie validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/composition validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/console validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/console-application validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/console-build validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/console-commands validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/console-presentation validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/console-runtime validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/database-application validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/database-mapping validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/knowledge validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
@@ -2492,7 +3010,7 @@ final class ApiStatusConventionTest extends TestCase
 
         $allPackageManifests = glob(dirname(__DIR__, 2) . '/packages/*/composer.json');
         self::assertIsArray($allPackageManifests);
-        self::assertCount(30, $allPackageManifests);
+        self::assertCount(36, $allPackageManifests);
         self::assertSame('>=8.5.0 <8.6.0', $rootManifest['require']['php']);
         foreach ($allPackageManifests as $packageManifestPath) {
             $manifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
@@ -2756,9 +3274,9 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['process'], $this->declaredPublicMethodNames(new ReflectionClass(MiddlewareInterface::class)));
 
         foreach ([
-            '.php-cs-fixer.dist.php' => ['packages/routing/src', 'packages/routing/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests', 'packages/persistence/src', 'packages/persistence/tests', 'packages/persistence-build/src', 'packages/persistence-build/tests', 'packages/persistence-application/src', 'packages/persistence-application/tests', 'skeletons/persistence-minimal/src'],
-            'phpstan.neon.dist' => ['packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests', 'packages/persistence/src', 'packages/persistence/tests', 'packages/persistence-build/src', 'packages/persistence-build/tests', 'packages/persistence-application/src', 'packages/persistence-application/tests', 'skeletons/persistence-minimal/src'],
-            'phpunit.xml.dist' => ['packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests', 'packages/persistence/src', 'packages/persistence/tests', 'packages/persistence-build/src', 'packages/persistence-build/tests', 'packages/persistence-application/src', 'packages/persistence-application/tests'],
+            '.php-cs-fixer.dist.php' => ['packages/console/src', 'packages/console/tests', 'packages/console-build/src', 'packages/console-build/tests', 'packages/console-runtime/src', 'packages/console-runtime/tests', 'packages/routing/src', 'packages/routing/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests', 'packages/persistence/src', 'packages/persistence/tests', 'packages/persistence-build/src', 'packages/persistence-build/tests', 'packages/persistence-application/src', 'packages/persistence-application/tests', 'skeletons/persistence-minimal/src'],
+            'phpstan.neon.dist' => ['packages/console/src', 'packages/console/tests', 'packages/console-build/src', 'packages/console-build/tests', 'packages/console-runtime/src', 'packages/console-runtime/tests', 'packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests', 'packages/persistence/src', 'packages/persistence/tests', 'packages/persistence-build/src', 'packages/persistence-build/tests', 'packages/persistence-application/src', 'packages/persistence-application/tests', 'skeletons/persistence-minimal/src'],
+            'phpunit.xml.dist' => ['packages/console/src', 'packages/console/tests', 'packages/console-build/src', 'packages/console-build/tests', 'packages/console-runtime/src', 'packages/console-runtime/tests', 'packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests', 'packages/persistence/src', 'packages/persistence/tests', 'packages/persistence-build/src', 'packages/persistence-build/tests', 'packages/persistence-application/src', 'packages/persistence-application/tests'],
         ] as $configuration => $needles) {
             $contents = file_get_contents(dirname(__DIR__, 2) . '/' . $configuration);
             self::assertIsString($contents);
@@ -2858,7 +3376,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['Kongono\\PhpCgi\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
         $packageManifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(30, $packageManifests);
+        self::assertCount(36, $packageManifests);
         foreach ($packageManifests as $packageManifestPath) {
             if (str_ends_with(str_replace('\\', '/', $packageManifestPath), '/php-cgi/composer.json')) {
                 continue;
@@ -2980,7 +3498,7 @@ final class ApiStatusConventionTest extends TestCase
         $productionFiles = [];
         $sourceDirectories = glob($root . '/packages/*/src', GLOB_ONLYDIR);
         self::assertIsArray($sourceDirectories);
-        self::assertCount(30, $sourceDirectories);
+        self::assertCount(36, $sourceDirectories);
         foreach ($sourceDirectories as $sourceDirectory) {
             $sourceIterator = new RecursiveIteratorIterator(
                 new RecursiveDirectoryIterator($sourceDirectory, FilesystemIterator::SKIP_DOTS),
@@ -2992,7 +3510,7 @@ final class ApiStatusConventionTest extends TestCase
                 }
             }
         }
-        self::assertCount(519, $productionFiles);
+        self::assertCount(623, $productionFiles);
         foreach ($productionFiles as $productionFile) {
             $source = file_get_contents($productionFile);
             self::assertIsString($source);
@@ -3003,7 +3521,7 @@ final class ApiStatusConventionTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(30, $manifests);
+        self::assertCount(36, $manifests);
         foreach ($manifests as $manifest) {
             $contents = file_get_contents($manifest);
             self::assertIsString($contents);
@@ -3086,10 +3604,10 @@ final class ApiStatusConventionTest extends TestCase
         }
 
         sort($packageSourceDirectories);
-        self::assertCount(30, $packageSourceDirectories);
+        self::assertCount(36, $packageSourceDirectories);
         $packageManifests = glob(dirname(__DIR__, 2) . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(30, $packageManifests);
+        self::assertCount(36, $packageManifests);
         $types = [];
 
         foreach ($packageSourceDirectories as $sourceDirectory) {

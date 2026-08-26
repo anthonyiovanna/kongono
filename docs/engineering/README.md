@@ -4,7 +4,7 @@
   Phase 4E verifier, subject identity, evidence, process, and mutation boundary.
 ## Purpose and current scope
 
-Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all thirty production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
+Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all thirty-five production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
 
 Phase 0X expands the automatically discovered inventory with eight Diagnostic
 Presentation declarations and six focused package tests. Existing quality rules
@@ -16,7 +16,7 @@ The root command is:
 composer quality
 ```
 
-It validates the root and all thirty package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
+It validates the root and all thirty-five package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
 
 ## Guides
 
@@ -39,6 +39,8 @@ It validates the root and all thirty package manifests in lexicographic order, a
 - [Phase 5 roadmap](../architecture/phase-5-roadmap.md)
 - [Phase 7 external acceptance](../architecture/phase-7-external-acceptance.md)
 - [Persistence performance baseline](persistence-performance-baseline.md)
+- [Structured CLI architecture](../architecture/structured-cli.md)
+- [Phase 8 roadmap](../architecture/phase-8-roadmap.md)
 
 ## Authority and exceptions
 
@@ -176,7 +178,7 @@ the [SQL plan engineering guide](database-sql-plans.md), the
 [migration engineering guide](database-migrations.md), and the
 [mapping engineering guide](database-mapping.md).
 
-## Phase 7B-7D persistence build and generation boundary
+## Phase 7 persistence engineering boundary
 
 Phase 6 is complete at checkpoint
 `f5903134e77bb2ecfaece6ee6b435a8ab2ecbd05` with twenty-seven production
@@ -227,3 +229,52 @@ See [ADR 0087](../adr/0087-explicit-persistence-model-and-compile-time-orm-bound
 [persistence generation engineering](persistence-generation.md),
 the [Deterministic Persistence guide](../architecture/deterministic-persistence.md),
 and the [Phase 7 roadmap](../architecture/phase-7-roadmap.md).
+
+## Phase 8A through Phase 8H Structured CLI engineering boundary
+
+Phase 8C extends the Experimental `kongono/console` package with six production
+declarations and four focused tests, and adds `kongono/console-build` with 16
+production declarations and ten focused tests. Exact root and Hantei quality
+integration now covers the root and all thirty-five production packages on the
+accepted PHP 8.5 current-minor line.
+
+The accepted direction separates command meaning, one explicit invocation and
+neutral result, and presentation/process adaptation. Later definition evidence
+must be deterministic, provenance-bearing, exact-current, and validated without
+execution. Runtime scanning, Reflection discovery, mutable registries, service
+location, hidden autowiring, direct handler output, ambient host reads, hidden
+interaction, and handler process exit are prohibited.
+
+Human and versioned machine output must derive from the same neutral result.
+Mutation requires declared interaction, explicit authority, and honest dry-run
+behavior. Each invocation owns bounded reverse cleanup, combined failure, and
+sequential same-process isolation under existing nondisclosure rules. See
+[ADR 0096](../adr/0096-explicit-structured-cli-and-automation-boundary.md),
+[ADR 0097](../adr/0097-deterministic-command-lifecycle-and-presentation-separation.md),
+[ADR 0098](../adr/0098-neutral-structured-cli-contracts-and-package-boundary.md),
+[ADR 0100](../adr/0100-operation-scoped-command-execution-and-cleanup.md),
+[ADR 0101](../adr/0101-deterministic-command-presentation-and-process-adaptation.md),
+[ADR 0102](../adr/0102-first-read-only-framework-capability-commands.md),
+[ADR 0103](../adr/0103-supported-kongo-edge-and-honest-application-build.md),
+the [Structured CLI guide](../architecture/structured-cli.md), and the
+[Phase 8 roadmap](../architecture/phase-8-roadmap.md). Phase 8D adds nine
+Console Runtime test files proving explicit binding, fresh operations,
+cancellation precedence, reverse every-attempt cleanup, primary/cleanup failure
+identity, nondisclosure, reentrancy rejection, and sequential recovery. Phase
+8E adds three Console result-model tests and ten Console Presentation tests for
+canonical human/machine parity, Protected omission, help projection, exact
+media/exit/stream behavior, output failure, and sequential isolation. Phase 8F
+adds eight Console Commands tests and one root integration test proving exact
+definitions, typed handlers, read-only evidence, presentation parity,
+nondisclosure, generated Composition wiring, lease cleanup, and external
+generated lint/PHPStan/style. Phase 8G adds the upper
+`kongono/console-application` package and nine focused package-test paths plus
+one root integration test. They prove the exact one-command definition/factory,
+closed process grammar and help, non-mutating plan, explicit atomic apply,
+human/machine and exit parity, one-write failure behavior, nondisclosure,
+same-process isolation, direct-source and Composer-proxy execution, and zero
+repository mutation from external temporary-root builds. Phase 8H adds the
+root-owned `composer acceptance:phase8` real-process profile. It proves both
+executable edges, deterministic help/results, corrected exit-3 conflict
+no-clobber, plan/apply truth, recovery, nondisclosure, repository preservation,
+and complete owned-temp cleanup. See the [external acceptance guide](../architecture/phase-8-external-acceptance.md).

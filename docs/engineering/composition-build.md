@@ -1,5 +1,28 @@
 # Building and Validating Composition Artifacts
 
+## Phase 8G planning and application
+
+`ApplicationBuildWorkflow::plan()` is the non-mutating counterpart to the
+existing build workflow. It resolves the same guarded application and output
+paths, builds the Composition artifact and generated wiring in memory, computes
+their content-addressed basenames and SHA-256 identities, and assesses the two
+expected output paths. Both absent predicts publication; both exact current
+predicts no publication. Partial, linked, tampered, outside, or changing state
+fails closed.
+
+The Phase 8G `application:build` handler uses plan without writing for
+`--plan`. For `--apply`, it plans, calls the existing atomic, contained,
+initial-only, no-clobber publication workflow, then replans and requires the
+same predicted identities to be exact current. It never deletes or chooses an
+older content-addressed output after source changes. No transaction, runtime
+loader, provider, deployment, or cleanup authority is added.
+
+Phase 8H runs the supported command through both executable edges and verifies
+that predicted hashes match exact published bytes. A pre-existing conflicting
+content-addressed target remains unchanged, publishes no sibling partial, and
+returns the accepted Precondition exit 3. The root-owned proof is
+`composer acceptance:phase8`; see the [external acceptance guide](../architecture/phase-8-external-acceptance.md).
+
 Phase 5D exposes an Experimental PHP API, not a command. Callers provide an
 explicit resolved application root containing ordinary exact-case
 `kongono.composition.json`, `composer.json`, `composer.lock`, and the source

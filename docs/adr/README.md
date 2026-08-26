@@ -261,3 +261,38 @@ documentation, cleanup/nondisclosure, and the exact checkpoint.
 - [ADR 0093: Explicit load plans, bounded cascades, and generated aggregate repositories](0093-explicit-load-plans-bounded-cascades-and-generated-aggregate-repositories.md)
 - [ADR 0094: Exact-current generated persistence application integration](0094-exact-current-generated-persistence-application-integration.md)
 - [ADR 0095: Phase 7 external persistence acceptance and checkpoint](0095-phase-7-external-persistence-acceptance-and-checkpoint.md)
+- [ADR 0096: Explicit Structured CLI and Automation Boundary](0096-explicit-structured-cli-and-automation-boundary.md)
+- [ADR 0097: Deterministic Command Lifecycle and Presentation Separation](0097-deterministic-command-lifecycle-and-presentation-separation.md)
+- [ADR 0098: Neutral Structured CLI Contracts and Package Boundary](0098-neutral-structured-cli-contracts-and-package-boundary.md)
+- [ADR 0099: Deterministic Command Parsing and Definition Evidence](0099-deterministic-command-parsing-and-definition-evidence.md)
+- [ADR 0100: Operation-Scoped Command Execution and Cleanup](0100-operation-scoped-command-execution-and-cleanup.md)
+- [ADR 0101: Deterministic Command Presentation and Process Adaptation](0101-deterministic-command-presentation-and-process-adaptation.md)
+- [ADR 0102: First Read-Only Framework Capability Commands](0102-first-read-only-framework-capability-commands.md)
+- [ADR 0103: Supported `kongo` Edge and Honest Application Build](0103-supported-kongo-edge-and-honest-application-build.md)
+- [ADR 0104: Phase 8 External CLI Acceptance and Checkpoint](0104-phase-8-external-cli-acceptance-and-checkpoint.md)
+
+Phase 7 is complete at checkpoint
+`b09b0c654f8b67f7cac3807f839f665e8c5b5469` with thirty acyclic production
+packages. Phase 8A accepts ADRs 0096 and 0097, the
+[Structured CLI guide](../architecture/structured-cli.md), and the fixed
+[Phase 8 roadmap](../architecture/phase-8-roadmap.md) as documentation
+architecture. Phase 8B accepts ADR 0098 and adds the Experimental neutral
+`kongono/console` package. Phase 8C accepts ADR 0099, adds deterministic
+already-tokenized parsing, and adds Experimental `kongono/console-build` for
+canonical exact-current command-definition evidence. Phase 8D accepts ADR 0100
+and adds Experimental `kongono/console-runtime` for explicit handler binding,
+one fresh operation per dispatch, cancellation, reverse cleanup, combined
+failure preservation, and sequential isolation. Phase 8E accepts ADR 0101,
+adds bounded result records and Experimental `kongono/console-presentation`.
+Phase 8F accepts ADR 0102 and adds Experimental `kongono/console-commands` with
+three exact read-only capability handlers and generated Composition wiring.
+Phase 8G accepts ADR 0103 and adds Experimental
+`kongono/console-application`, bringing the topology to thirty-six packages.
+The official one-shot `kongo` executable implements exactly
+`application:build`: non-mutating `--plan`, explicit `--apply`, no prompt, and
+shared human/machine result and exit semantics. Phase 8F snapshots remain
+programmatic rather than fabricated. Phase 8H accepts ADR 0104 and adds only
+root-owned real-process acceptance plus the exact local Phase 8 checkpoint.
+Conflicting output remains a no-clobber Precondition at exit 3; exit 6 remains
+Infrastructure. Command meaning, explicit invocation, and presentation remain
+separate. Phase 8A through Phase 8H are implemented; Phase 9 has not begun.

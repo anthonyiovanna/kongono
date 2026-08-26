@@ -81,8 +81,10 @@ final class GeneratedWiringEmitter
             '',
             'namespace ' . $namespace . ';',
             '',
-            'use Kongono\\Composition\\Diagnostic\\CompositionDiagnostic;',
-            'use Kongono\\Composition\\Exception\\RetiredCompositionBoundaryException;',
+            ...([] === $this->operationRoots ? [] : [
+                'use Kongono\\Composition\\Diagnostic\\CompositionDiagnostic;',
+                'use Kongono\\Composition\\Exception\\RetiredCompositionBoundaryException;',
+            ]),
             'use Kongono\\Composition\\Runtime\\GeneratedApplicationBoundary;',
             'use Kongono\\Composition\\Runtime\\GeneratedApplicationState;',
             'use Kongono\\Composition\\Runtime\\GeneratedOperationBoundary;',
@@ -439,21 +441,26 @@ final class GeneratedWiringEmitter
         foreach (array_keys($this->operationProperties) as $class) {
             $this->construct($class);
         }
-        $lines[] = '        $construct = function (): void {';
-        foreach ($this->generatedConstructionLines() as $line) {
-            $lines[] = '            ' . $line;
+        $constructionLines = $this->generatedConstructionLines();
+        if ([] === $constructionLines) {
+            $lines[array_key_last($lines)] = '    ) {}';
+        } else {
+            $lines[] = '        $construct = function (): void {';
+            foreach ($constructionLines as $line) {
+                $lines[] = '            ' . $line;
+            }
+            $lines[] = '        };';
+            $lines[] = '        try {';
+            $lines[] = '            $construct();';
+            $lines[] = '        } catch (Throwable $primaryFailure) {';
+            $lines[] = '            $this->closed = true;';
+            $lines[] = '            $cleanupFailures = $this->runCleanup();';
+            $lines[] = '            $this->owner->releaseOperationLease();';
+            $lines[] = "            LifecycleFailureComposer::throwIfNeeded('operation-construction', \$primaryFailure, \$cleanupFailures);";
+            $lines[] = '            throw $primaryFailure;';
+            $lines[] = '        }';
+            $lines[] = '    }';
         }
-        $lines[] = '        };';
-        $lines[] = '        try {';
-        $lines[] = '            $construct();';
-        $lines[] = '        } catch (Throwable $primaryFailure) {';
-        $lines[] = '            $this->closed = true;';
-        $lines[] = '            $cleanupFailures = $this->runCleanup();';
-        $lines[] = '            $this->owner->releaseOperationLease();';
-        $lines[] = "            LifecycleFailureComposer::throwIfNeeded('operation-construction', \$primaryFailure, \$cleanupFailures);";
-        $lines[] = '            throw $primaryFailure;';
-        $lines[] = '        }';
-        $lines[] = '    }';
         foreach ($this->operationRoots as $index => $root) {
             $class = $this->resolve($root['contract']);
             $lines[] = '';
@@ -479,13 +486,15 @@ final class GeneratedWiringEmitter
         $lines[] = '    {';
         $lines[] = '        return $this->closed;';
         $lines[] = '    }';
-        $lines[] = '';
-        $lines[] = '    private function assertOpen(): void';
-        $lines[] = '    {';
-        $lines[] = '        if ($this->closed) {';
-        $lines[] = "            throw new RetiredCompositionBoundaryException(CompositionDiagnostic::CompositionBoundaryUnavailable, 'operation_closed');";
-        $lines[] = '        }';
-        $lines[] = '    }';
+        if ([] !== $this->operationRoots) {
+            $lines[] = '';
+            $lines[] = '    private function assertOpen(): void';
+            $lines[] = '    {';
+            $lines[] = '        if ($this->closed) {';
+            $lines[] = "            throw new RetiredCompositionBoundaryException(CompositionDiagnostic::CompositionBoundaryUnavailable, 'operation_closed');";
+            $lines[] = '        }';
+            $lines[] = '    }';
+        }
         $lines[] = '';
         $lines[] = '    /** @return list<Throwable> */';
         $lines[] = '    private function runCleanup(): array';

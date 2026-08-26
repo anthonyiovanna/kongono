@@ -2,9 +2,14 @@
 
 ## Current reality
 
-Phase 2A through 2H are complete at checkpoint
-`647053d4bddc4c76090bca9bf3d693faa5880c52`. The repository has exactly fourteen
-acyclic production packages and a root-owned, test-owned runnable fixture. The
+Phase 7 is complete at checkpoint
+`b09b0c654f8b67f7cac3807f839f665e8c5b5469`, tree
+`c0b6fed92dbb43d0bb91891b4e4496e84c0c85e4`. Phase 8G adds the upper
+`kongono/console-application` boundary, bringing the topology to exactly
+thirty-six acyclic production packages. The official one-shot `kongo`
+executable implements exactly `application:build`. The earlier Phase 2 checkpoint
+`647053d4bddc4c76090bca9bf3d693faa5880c52` retains its root-owned, test-owned
+runnable fixture. The
 fixture externally proves bounded first-party HTTP messages, deterministic
 routing, explicit PSR-15 middleware, Web Application's sole Kernel scope,
 ports-only Web Runtime failure/delivery orchestration, exact cleanup, and
@@ -57,15 +62,15 @@ to gain Kongono metadata.
 
 No stable Graph identity, domain schema, metadata, serialization, persistence,
 mutation, discovery, compiler, Graph/framework integration, runtime adapter,
-HTTP or CLI mapping, development error
+HTTP or CLI runtime mapping, development error
 page, production error surface, logging, telemetry, retry, cleanup, incident
 system, extension host, agent runtime, query plan, performance budget, or CLI
 executable is implemented.
 
-The current package topology has twenty-eight packages. `kongono/api-metadata` owns
+The current package topology has thirty-five packages. `kongono/api-metadata` owns
 `Kongono\ApiMetadata\Api` and `ApiStatus` and requires PHP only. Kernel,
 Diagnostics, Application Graph, and Dependency Injection depend directly on it;
-the framework root consumes all twenty-eight packages and Graph retains its Diagnostics
+the framework root consumes all thirty-five packages and Graph retains its Diagnostics
 dependency. Phase 0T also makes Kernel, and Phase 0U makes DI, depend directly
 on Diagnostics. Phase 1C adds `kongono/diagnostic-activation`, which requires
 only API Metadata and PHP and owns the Experimental unbacked typed bootstrap
@@ -250,7 +255,7 @@ Only the structural core is implemented. The surrounding flow expresses intended
 
 ## Framework shape
 
-The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. Diagnostic Activation owns the implemented typed trusted-bootstrap and adapter-controlled delivery permissions. Diagnostic Presentation owns the implemented pure trusted-developer projection core and pure HTML renderer but does not depend on Diagnostic Activation or own activation decisions. Diagnostic Handler is the only lower package depending on both and owns eligibility-first neutral sequencing. HTTP Message owns the selected server-side message and factory roles plus 28 bounded diagnostics. Routing owns bounded route declarations and deterministic matching; HTTP Server owns PSR-15 composition. Web Application owns application-call Kernel scope cleanup. Web Runtime owns outer request-independent evidence sequencing, fixed generic or eligible trusted response selection, and exact send/close attempts. PHP CGI owns bounded explicit inbound conversion. The root-owned Phase 2 fixture supplies the only concrete runnable integration and is test infrastructure, not production behavior. No production SAPI/server/listener/emitter, trusted network authorization mechanism, or supported deployment profile exists. The monorepo retains atomic root validation across all twenty-eight implemented packages.
+The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. Diagnostic Activation owns the implemented typed trusted-bootstrap and adapter-controlled delivery permissions. Diagnostic Presentation owns the implemented pure trusted-developer projection core and pure HTML renderer but does not depend on Diagnostic Activation or own activation decisions. Diagnostic Handler is the only lower package depending on both and owns eligibility-first neutral sequencing. HTTP Message owns the selected server-side message and factory roles plus 28 bounded diagnostics. Routing owns bounded route declarations and deterministic matching; HTTP Server owns PSR-15 composition. Web Application owns application-call Kernel scope cleanup. Web Runtime owns outer request-independent evidence sequencing, fixed generic or eligible trusted response selection, and exact send/close attempts. PHP CGI owns bounded explicit inbound conversion. The root-owned Phase 2 fixture supplies the only concrete runnable integration and is test infrastructure, not production behavior. No production SAPI/server/listener/emitter, trusted network authorization mechanism, or supported deployment profile exists. The monorepo retains atomic root validation across all thirty implemented packages.
 
 ## Interoperability boundaries
 
@@ -508,7 +513,7 @@ the [mapping guide](database-mapping.md),
 the [engineering contract tables](../engineering/database-contracts.md), and the
 [Phase 6 roadmap](phase-6-roadmap.md).
 
-## Accepted Phase 7 architecture through generated state evidence
+## Completed Phase 7 Deterministic Persistence milestone
 
 Phase 7A accepts an optional upper persistence capability while preserving all
 direct Phase 6 paths. Domain objects remain application-owned plain PHP classes;
@@ -542,12 +547,75 @@ transaction/resource ownership remains external, and terminal uncertainty
 releases retained domain references. Phase 7F adds explicit bounded one-level
 relationship loads/cascades and deterministic generated aggregate repositories.
 Generated-code loading, SQL generation, transaction ownership, and Composition
-remain absent. See [ADR 0087](../adr/0087-explicit-persistence-model-and-compile-time-orm-boundary.md),
+remain absent at Phase 7F. Phase 7G adds exact-current persistence loading and
+the outer Composition workflow in `kongono/persistence-application`, bringing
+the graph to thirty packages. Phase 7H closes the milestone through isolated
+PostgreSQL 18.6 acceptance, PostgreSQL 17.2 Phase 6 regression, cleanup and
+nondisclosure proof, documentation, and the exact checkpoint. See [ADR 0087](../adr/0087-explicit-persistence-model-and-compile-time-orm-boundary.md),
 [ADR 0088](../adr/0088-operation-scoped-identity-change-tracking-and-transaction-authority.md),
 [ADR 0089](../adr/0089-neutral-persistence-contracts-and-package-boundary.md),
 [ADR 0090](../adr/0090-deterministic-persistence-model-and-artifact-compilation.md),
 [ADR 0091](../adr/0091-deterministic-generated-persistence-state-evidence.md),
 [ADR 0092](../adr/0092-operation-scoped-persistence-context-and-explicit-unit-of-work.md),
 [ADR 0093](../adr/0093-explicit-load-plans-bounded-cascades-and-generated-aggregate-repositories.md),
+[ADR 0094](../adr/0094-exact-current-generated-persistence-application-integration.md),
+[ADR 0095](../adr/0095-phase-7-external-persistence-acceptance-and-checkpoint.md),
 the [Deterministic Persistence guide](deterministic-persistence.md), and the
 [Phase 7 roadmap](phase-7-roadmap.md).
+
+## Implemented Phase 8A through Phase 8H Structured CLI edge
+
+Phase 8A accepts the future `kongo` executable identity, with no alias, and a
+deterministic automation-first architecture. Command meaning, one explicit
+invocation with a neutral result, and presentation/process adaptation are
+separate. Ambient host reads, direct handler output, hidden interaction,
+service location, and handler process exit are rejected.
+
+Definitions and provenance must become immutable exact-current build evidence;
+runtime scanning, Reflection discovery, mutable registries, plugin probing, and
+network discovery are prohibited. Human and versioned machine rendering derive
+from the same neutral result. Prompt capability, no-interaction behavior,
+mutation authority, destructive intent, confirmation, apply, and honest dry-run
+remain explicit. Each invocation owns bounded reverse cleanup and sequential
+same-process isolation under existing nondisclosing diagnostic doctrine.
+
+The neutral CLI layer remains below capability adapters, while the future
+executable is an upper Composition leaf. Phase 8C extends the Experimental
+`kongono/console` neutral package with immutable specifications and a pure
+already-tokenized parser. The separate Experimental `kongono/console-build`
+package compiles one explicit inert `kongono.commands.json` source to ordinal,
+canonical, exact-current definition evidence. It creates no publication,
+loader, registry, discovery, handler binding, executor, concrete operation,
+command, presenter, or executable. Phase 8D adds the separate Experimental
+`kongono/console-runtime` package above Console. Immutable explicit bindings
+select one already-constructed handler; each dispatch creates one fresh
+operation with explicit cancellation, bounded reverse cleanup, combined failure
+preservation, same-instance reentrancy rejection, and sequential same-process
+isolation. It performs no presentation, process adaptation, discovery, service
+location, application integration, or real command behavior. Phase 8E adds
+bounded result records and a separate deterministic human/machine presentation
+package with canonical version-1 JSON, shared exit mapping, Protected-field
+omission, and one explicit selected-port write. Phase 8F adds the Experimental
+`kongono/console-commands` upper package with three exact read-only handlers,
+explicit accepted capability inputs, Console Runtime execution, and generated
+Composition roots. Phase 8G adds `kongono/console-application`, the official
+extensionless `kongo` Composer binary, and exactly `application:build`.
+`--plan` is non-mutating and `--apply` explicitly authorizes the two atomic,
+content-addressed, contained, no-clobber Composition publications. There is no
+prompt; `--no-interaction` is automation-safe. Human and machine forms share
+one result and exit map. The Phase 8F handlers stay programmatic until truthful
+snapshots can be supplied. No second command, alias, daemon, watcher, installer,
+deployment manager, shell, runtime
+discovery, service location, or ambient authority exists.
+See [ADR 0096](../adr/0096-explicit-structured-cli-and-automation-boundary.md),
+[ADR 0097](../adr/0097-deterministic-command-lifecycle-and-presentation-separation.md),
+[ADR 0098](../adr/0098-neutral-structured-cli-contracts-and-package-boundary.md),
+[ADR 0099](../adr/0099-deterministic-command-parsing-and-definition-evidence.md),
+[ADR 0100](../adr/0100-operation-scoped-command-execution-and-cleanup.md),
+[ADR 0101](../adr/0101-deterministic-command-presentation-and-process-adaptation.md),
+[ADR 0102](../adr/0102-first-read-only-framework-capability-commands.md),
+[ADR 0103](../adr/0103-supported-kongo-edge-and-honest-application-build.md),
+[ADR 0104](../adr/0104-phase-8-external-cli-acceptance-and-checkpoint.md),
+the [Structured CLI guide](structured-cli.md), the [Phase 8 external acceptance guide](phase-8-external-acceptance.md),
+and the [Phase 8 roadmap](phase-8-roadmap.md). Phase 8H adds test evidence and
+the local checkpoint only; it changes no production package or command.

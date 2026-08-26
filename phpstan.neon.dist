@@ -17,6 +17,19 @@ parameters:
         - packages/chie/bin/kongono-chie
         - packages/composition/src
         - packages/composition/tests
+        - packages/console/src
+        - packages/console/tests
+        - packages/console-application/src
+        - packages/console-application/tests
+        - packages/console-application/bin/kongo
+        - packages/console-build/src
+        - packages/console-build/tests
+        - packages/console-commands/src
+        - packages/console-commands/tests
+        - packages/console-presentation/src
+        - packages/console-presentation/tests
+        - packages/console-runtime/src
+        - packages/console-runtime/tests
         - packages/database/src
         - packages/database/tests
         - packages/database-application/src

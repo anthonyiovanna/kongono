@@ -142,13 +142,13 @@ send/close orchestration without selecting a production SAPI, server, listener,
 emitter, or deployment profile.
 
 Composer does not import a dependency's `autoload-dev` mapping into the consuming
-root project. The monorepo root therefore maps all twenty-eight package test namespaces in
+root project. The monorepo root therefore maps all thirty-five package test namespaces in
 its own `autoload-dev`, alongside the root `Kongono\Tests\` mapping. This makes
 package tests directly autoloadable during root development without exposing
 them through production `autoload`.
 
 The root manifest uses one canonical Composer path repository at `packages/*`
-and requires all twenty-eight local packages with exact `@dev` constraints. These per-package
+and requires all thirty-five local packages with exact `@dev` constraints. These per-package
 stability flags permit untagged local packages without changing repository-wide
 minimum stability or inventing versions. Composer generates the lock and root
 autoload metadata; manual lock edits and custom autoloaders remain prohibited.
@@ -159,7 +159,7 @@ Run package-manifest validation from the root with:
 composer validate:packages
 ```
 
-The command validates all twenty-eight package manifests in deterministic
+The command validates all thirty-five package manifests in deterministic
 lexicographic package-directory order and is part of `composer quality`
 immediately after root-manifest validation. Source uses package-owned production
 namespaces, package tests use package development namespaces, and all package
@@ -169,7 +169,7 @@ root architecture suite rather than any package.
 
 ## Boundaries and stability
 
-The twenty-eight physical package boundaries are implemented. The root-owned Phase
+The thirty-five physical package boundaries are implemented. The root-owned Phase
 2 fixture is test infrastructure, not a package or production application.
 Other package boundaries and dependency
 rules remain open. Independent publishing, splitting, versioning, and release
@@ -278,17 +278,30 @@ php-cgi -> api-metadata
 php-cgi -> diagnostics
 php-cgi -> http-message
 php-cgi -> psr/http-message
-framework root -> all twenty-eight packages
+console-runtime -> api-metadata
+console-runtime -> console
+console-runtime -> diagnostics
+console-presentation -> api-metadata
+console-presentation -> console
+console-presentation -> diagnostics
+console-commands -> api-metadata
+console-commands -> application-graph
+console-commands -> composition
+console-commands -> console
+console-commands -> console-runtime
+console-commands -> diagnostics
+console-commands -> hantei
+framework root -> all thirty-five packages
 ```
 
-The eighteen API Metadata consuming package-manifest constraints are
+The twenty API Metadata consuming package-manifest constraints are
 `"kongono/api-metadata": "*"`; the root constraint is
 `"kongono/api-metadata": "@dev"`. Cycles, overlapping production namespaces,
 self-dependencies, and undeclared package dependencies remain prohibited.
 The former `Kongono\Kernel\Api\*` namespace is absent and no compatibility shim
 exists. Kernel, Graph, and DI independently require Diagnostics; none requires
 another semantic consumer. Current Composer/autoload behavior implements the
-twenty-eight-package graph documented above.
+thirty-five-package graph documented above.
 
 ## Implemented Diagnostic Activation foundation
 
@@ -369,7 +382,7 @@ Kernel, Application Graph, and Dependency Injection are direct dependencies
 because their three separate exception markers form the presenter's
 accepted source union. Diagnostic Handler has no direct dependency on
 Diagnostics. Web Runtime depends on Diagnostic Handler, while Handler retains no
-reverse edge; the framework root consumes all twenty-eight packages.
+reverse edge; the framework root consumes all thirty-five packages.
 
 The sole production declaration is the Experimental final
 readonly `Kongono\DiagnosticHandler\TrustedDeveloperDiagnosticHtmlPresenter`.
@@ -673,10 +686,10 @@ production package. See the
 [mapping guide](../architecture/database-mapping.md),
 [engineering contract tables](database-contracts.md), and [Phase 6 roadmap](../architecture/phase-6-roadmap.md).
 
-## Phase 7B-7D persistence package boundary
+## Phase 7 persistence package boundary
 
-The current graph has exactly twenty-nine production packages and twenty-nine
-package manifests. Phase 7B adds `kongono/persistence` with the
+At the Phase 7 checkpoint, the graph had exactly thirty production packages and
+thirty package manifests. Phase 7B adds `kongono/persistence` with the
 `Kongono\Persistence\` production namespace and package-owned test namespace.
 Phase 7C adds `kongono/persistence-build` with `Kongono\PersistenceBuild\`. The
 upper build package depends on API Metadata, Database Mapping, Diagnostics,
@@ -690,7 +703,7 @@ depend upward on it, and direct SQL/Data Mapper use remains first-class. The
 Phase 7C build package implements strict source/model/artifact compilation,
 validation, and guarded publication. Phase 7D extends the same package with
 generated ordinary PHP state evidence, structural/current validation, and
-content-addressed publication; it adds no package or dependency. It implements
+content-addressed publication; it adds no package or dependency.
 Phase 7E adds `kongono/database` as the sole new direct dependency of
 `kongono/persistence` and implements one concrete single-entity operation
 context there. Lower database packages do not depend upward; `persistence-build`
@@ -713,3 +726,54 @@ See [ADR 0087](../adr/0087-explicit-persistence-model-and-compile-time-orm-bound
 [persistence generation engineering](persistence-generation.md),
 the [Deterministic Persistence guide](../architecture/deterministic-persistence.md),
 and the [Phase 7 roadmap](../architecture/phase-7-roadmap.md).
+
+## Phase 8A through Phase 8G Structured CLI package boundary
+
+Phase 8B adds `kongono/console` under `Kongono\Console\` with a package-owned
+test namespace. It depends only on API Metadata, Diagnostics, and PHP. The root
+requires it and includes its source and tests in Composer autoloading, package
+validation, style, PHPStan, PHPUnit, Hantei, and API-status/inventory proof.
+Phase 8C adds `kongono/console-build` under `Kongono\ConsoleBuild\`. It depends
+only on Console, API Metadata, Diagnostics, Hash, JSON, and PHP, and participates
+in the same root quality surfaces. Phase 8D adds `kongono/console-runtime` under
+`Kongono\ConsoleRuntime\`. It depends only on Console, API Metadata,
+Diagnostics, and PHP and participates in the same root quality surfaces. Phase
+8E adds `kongono/console-presentation` under
+`Kongono\ConsolePresentation\`, depending only on Console, API Metadata,
+Diagnostics, and PHP. Phase 8F adds `kongono/console-commands` under
+`Kongono\ConsoleCommands\`. Its production dependencies are exactly API
+Metadata, Application Graph, Composition, Console, Console Runtime,
+Diagnostics, Hantei, and PHP; Console Build is development-only. Phase 8G adds
+`kongono/console-application` under `Kongono\ConsoleApplication\`. Its exact
+production dependencies are API Metadata, Composition, Console, Console
+Presentation, Console Runtime, Diagnostics, and PHP; Console Build is
+development-only. It owns the sole package binary source, `bin/kongo`. The
+graph now has exactly thirty-six acyclic production packages and manifests.
+Existing Kernel, Application Graph, Composition, HTTP, database, persistence,
+and developer-intelligence ownership remains unchanged.
+
+The neutral CLI contracts remain independent of capability
+adapters. Capability adapters may depend inward on them; lower packages never
+depend on the outer executable. The executable and application
+integration are an upper Composition leaf. Runtime scanning, Reflection
+discovery, mutable registries, service location, container injection, hidden
+autowiring, and property-hook dependency resolution are rejected.
+
+Phase 8A accepts [ADR 0096](../adr/0096-explicit-structured-cli-and-automation-boundary.md),
+[ADR 0097](../adr/0097-deterministic-command-lifecycle-and-presentation-separation.md),
+the [Structured CLI guide](../architecture/structured-cli.md), and the
+[Phase 8 roadmap](../architecture/phase-8-roadmap.md). Exact package ownership
+for later implementation is fixed by
+[ADR 0098](../adr/0098-neutral-structured-cli-contracts-and-package-boundary.md).
+[ADR 0099](../adr/0099-deterministic-command-parsing-and-definition-evidence.md)
+owns the parser and build-evidence boundary. [ADR 0100](../adr/0100-operation-scoped-command-execution-and-cleanup.md)
+owns the explicit operation-scoped execution boundary. ADR 0101 owns the
+implemented deterministic presentation boundary. ADR 0102 owns the implemented
+read-only framework capability package and exact generated Composition wiring.
+ADR 0103 owns the implemented `kongono/console-application` upper leaf, the
+official one-shot `kongo` executable, and exactly `application:build` with
+non-mutating plan and explicit apply. No lower dependency, alias, second
+command, daemon, watcher, installer, deployment manager, or shell is added.
+Phase 8H adds only four root test PHP files and two documentation authorities;
+it adds no package or production dependency. Its real-process contract is
+documented in the [Phase 8 external acceptance guide](../architecture/phase-8-external-acceptance.md).

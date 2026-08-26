@@ -7,6 +7,7 @@ namespace Kongono\Composition\Tests\Unit;
 use Kongono\Composition\Exception\ApplicationWorkflowException;
 use Kongono\Composition\Workflow\ApplicationBuildWorkflow;
 use Kongono\Composition\Workflow\CurrentApplicationBuild;
+use Kongono\Composition\Workflow\PlannedApplicationBuild;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
@@ -52,7 +53,7 @@ final class ApplicationBuildWorkflowTest extends TestCase
             array_filter($workflow->getMethods(\ReflectionMethod::IS_PUBLIC), static fn(\ReflectionMethod $method): bool => $method->getDeclaringClass()->getName() === ApplicationBuildWorkflow::class),
         );
         sort($methods, SORT_STRING);
-        self::assertSame(['build', 'check'], $methods);
+        self::assertSame(['build', 'check', 'plan'], $methods);
         self::assertTrue($workflow->isFinal());
 
         $result = new ReflectionClass(CurrentApplicationBuild::class);
@@ -67,6 +68,44 @@ final class ApplicationBuildWorkflowTest extends TestCase
             ['artifactSha256', 'compositionArtifactBytes', 'compositionArtifactPath', 'generatedPhpPath', 'generatedWiringSha256'],
             $resultMethods,
         );
+
+        $plan = new ReflectionClass(PlannedApplicationBuild::class);
+        self::assertTrue($plan->isFinal());
+        self::assertTrue($plan->isReadOnly());
+        $planMethods = array_values(array_filter(array_map(
+            static fn(\ReflectionMethod $method): string => $method->getName(),
+            $plan->getMethods(\ReflectionMethod::IS_PUBLIC),
+        ), static fn(string $name): bool => '__construct' !== $name));
+        sort($planMethods, SORT_STRING);
+        self::assertSame(
+            ['artifactSha256', 'compositionArtifactBasename', 'generatedPhpBasename', 'generatedWiringSha256', 'publicationRequired'],
+            $planMethods,
+        );
+    }
+
+    public function testPlanPredictsAbsentAndCurrentOutputsWithoutMutation(): void
+    {
+        $workflow = new ApplicationBuildWorkflow();
+        clearstatcache(true);
+        $before = self::treeIdentity(self::$root);
+        $absent = $workflow->plan(self::$root, self::$output);
+        clearstatcache(true);
+
+        self::assertTrue($absent->publicationRequired());
+        self::assertSame($before, self::treeIdentity(self::$root));
+        self::assertSame('kongono-composition-v1-' . $absent->artifactSha256() . '.json', $absent->compositionArtifactBasename());
+        self::assertSame('kongono-wiring-v1-' . $absent->generatedWiringSha256() . '.php', $absent->generatedPhpBasename());
+
+        $current = $workflow->build(self::$root, self::$output);
+        clearstatcache(true);
+        $published = self::treeIdentity(self::$root);
+        $exact = $workflow->plan(self::$root, self::$output);
+        clearstatcache(true);
+
+        self::assertFalse($exact->publicationRequired());
+        self::assertSame($published, self::treeIdentity(self::$root));
+        self::assertSame($current->artifactSha256(), $exact->artifactSha256());
+        self::assertSame($current->generatedWiringSha256(), $exact->generatedWiringSha256());
     }
 
     public function testBuildCheckAndIdenticalRebuildReturnTheSameCurrentResult(): void
@@ -123,6 +162,89 @@ final class ApplicationBuildWorkflowTest extends TestCase
         $this->expectWorkflowFailure(static fn(): CurrentApplicationBuild => $workflow->check(self::$root, self::$output));
 
         $this->expectWorkflowFailure(static fn(): CurrentApplicationBuild => $workflow->check(self::$root, dirname(self::$root)));
+    }
+
+    public function testPlanRejectsPartialAndTamperedOutputsWithoutResidue(): void
+    {
+        $workflow = new ApplicationBuildWorkflow();
+        $current = $workflow->build(self::$root, self::$output);
+        self::assertTrue(unlink($current->generatedPhpPath()));
+        clearstatcache(true);
+        $partial = self::treeIdentity(self::$root);
+        $this->expectWorkflowFailure(static fn(): PlannedApplicationBuild => $workflow->plan(self::$root, self::$output));
+        clearstatcache(true);
+        self::assertSame($partial, self::treeIdentity(self::$root));
+
+        $current = $workflow->build(self::$root, self::$output);
+        self::write($current->compositionArtifactPath(), "tampered\n");
+        clearstatcache(true);
+        $tampered = self::treeIdentity(self::$root);
+        $this->expectWorkflowFailure(static fn(): PlannedApplicationBuild => $workflow->plan(self::$root, self::$output));
+        clearstatcache(true);
+        self::assertSame($tampered, self::treeIdentity(self::$root));
+    }
+
+    public function testPlanRejectsLinkedOutputDirectoryWithoutPublication(): void
+    {
+        $target = self::$root . '/linked-target';
+        $linked = self::$root . '/linked-output';
+        self::assertTrue(mkdir($target, 0700));
+        self::assertTrue(self::createDirectoryLink($target, $linked));
+
+        try {
+            $this->expectWorkflowFailure(static fn(): PlannedApplicationBuild => (new ApplicationBuildWorkflow())->plan(self::$root, $linked));
+            self::assertSame([], self::files($target));
+        } finally {
+            self::assertTrue(rmdir($linked));
+            self::assertTrue(rmdir($target));
+        }
+    }
+
+    public function testPlanRejectsOutputChangingDuringReadWithoutTemporaryResidue(): void
+    {
+        $workflow = new ApplicationBuildWorkflow();
+        $current = $workflow->build(self::$root, self::$output);
+        $artifact = $current->compositionArtifactPath();
+        $original = (string) file_get_contents($artifact);
+        $marker = self::$root . '/writer-ready';
+        $script = <<<'PHP'
+$path = $argv[1];
+$marker = $argv[2];
+$original = base64_decode($argv[3], true);
+if (!is_string($original)) { exit(9); }
+file_put_contents($path, "tampered\n");
+file_put_contents($marker, "ready\n");
+$until = microtime(true) + 1.0;
+while (microtime(true) < $until) {
+    file_put_contents($path, $original);
+    file_put_contents($path, "tampered\n");
+}
+PHP;
+        $pipes = [];
+        $process = proc_open([PHP_BINARY, '-r', $script, $artifact, $marker, base64_encode($original)], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        self::assertIsResource($process);
+        self::assertTrue(fclose($pipes[0]));
+        for ($attempt = 0; $attempt < 100 && !is_file($marker); ++$attempt) {
+            usleep(10_000);
+        }
+        self::assertFileExists($marker);
+
+        try {
+            $this->expectWorkflowFailure(static fn(): PlannedApplicationBuild => $workflow->plan(self::$root, self::$output));
+        } finally {
+            proc_terminate($process);
+            stream_get_contents($pipes[1]);
+            stream_get_contents($pipes[2]);
+            self::assertTrue(fclose($pipes[1]));
+            self::assertTrue(fclose($pipes[2]));
+            proc_close($process);
+            self::assertTrue(unlink($marker));
+        }
+        self::assertSame(2, count(self::files(self::$output)));
+        self::assertSame([], array_values(array_filter(
+            self::files(self::$output),
+            static fn(string $path): bool => str_contains(basename($path), '.tmp'),
+        )));
     }
 
     public function testDiagnosticIsBoundedAndProductionDoesNotScanOrMaintainPointers(): void
@@ -231,6 +353,35 @@ final class ApplicationBuildWorkflowTest extends TestCase
         self::assertTrue(mkdir($path, 0700, true));
 
         return $path;
+    }
+
+    private static function createDirectoryLink(string $target, string $link): bool
+    {
+        if ('Windows' !== PHP_OS_FAMILY) {
+            return symlink($target, $link);
+        }
+
+        $pipes = [];
+        $command = "New-Item -ItemType Junction -Path '"
+            . str_replace("'", "''", $link)
+            . "' -Target '"
+            . str_replace("'", "''", $target)
+            . "' | Out-Null";
+        $process = proc_open(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', $command], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        if (!is_resource($process)) {
+            return false;
+        }
+        fclose($pipes[0]);
+        $stdout = stream_get_contents($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $status = proc_close($process);
+        if (0 !== $status) {
+            throw new \RuntimeException('Directory-link setup failed: ' . $stdout . $stderr);
+        }
+
+        return is_dir($link);
     }
 
     private static function write(string $path, string $bytes): void
