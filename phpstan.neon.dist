@@ -6,6 +6,7 @@ parameters:
     phpVersion: 80500
     scanFiles:
         - packages/database-application/tests/StaticAnalysis/KongonoDataMinimalAccountRepository.phpstan
+        - packages/persistence-application/tests/StaticAnalysis/PersistenceMinimalGenerated.phpstan
     paths:
         - packages/api-metadata/src
         - packages/api-metadata/tests
@@ -57,6 +58,12 @@ parameters:
         - packages/oshie/src
         - packages/oshie/tests
         - packages/oshie/bin/kongono-oshie
+        - packages/persistence/src
+        - packages/persistence/tests
+        - packages/persistence-application/src
+        - packages/persistence-application/tests
+        - packages/persistence-build/src
+        - packages/persistence-build/tests
         - packages/php-cgi/src
         - packages/php-cgi/tests
         - packages/routing/src
@@ -67,6 +74,7 @@ parameters:
         - packages/web-runtime/tests
         - skeletons/data-minimal/bin
         - skeletons/data-minimal/src
+        - skeletons/persistence-minimal/src
         - skeletons/minimal/bin
         - skeletons/minimal/public
         - skeletons/minimal/src

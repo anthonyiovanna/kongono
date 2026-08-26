@@ -1,0 +1,76 @@
+<?php
+
+declare(strict_types=1);
+
+namespace KongonoPersistenceMinimal\GeneratedData;
+
+use Kongono\Database\CommandResult;
+use Kongono\Database\DatabaseExecutor;
+use Kongono\DatabaseSql\SqlDialectCompiler;
+use KongonoPersistenceMinimal\Data\AccountRecord;
+
+interface AccountRepository
+{
+    public function __construct(DatabaseExecutor $executor, SqlDialectCompiler $compiler);
+
+    public function find(int $identity): ?AccountRecord;
+
+    public function insert(AccountRecord $record): CommandResult;
+
+    public function update(AccountRecord $record): CommandResult;
+
+    public function delete(int $identity): CommandResult;
+}
+
+namespace KongonoPersistenceMinimal\GeneratedPersistence\Artifact_6d074c84987ad34e2c760bd5389cfdd3;
+
+use Kongono\Persistence\ChangeSet;
+use Kongono\Persistence\EntityIdentity;
+use KongonoPersistenceMinimal\Domain\Account;
+use LogicException;
+
+final class EntityState_0001
+{
+    public static function identity(Account $entity): EntityIdentity
+    {
+        throw new LogicException();
+    }
+
+    /** @return array<string, bool|float|int|string|null> */
+    public static function snapshot(Account $entity): array
+    {
+        throw new LogicException();
+    }
+
+    /** @param array<string, bool|float|int|string|null> $snapshot */
+    public static function changes(Account $entity, array $snapshot): ChangeSet
+    {
+        throw new LogicException();
+    }
+
+    public static function insertion(Account $entity): ChangeSet
+    {
+        throw new LogicException();
+    }
+
+    public static function deletion(Account $entity): ChangeSet
+    {
+        throw new LogicException();
+    }
+}
+
+namespace KongonoPersistenceMinimal\GeneratedAggregateRepositories;
+
+use Kongono\Database\DatabaseExecutor;
+use Kongono\Persistence\AggregateCascadeExecutor;
+use Kongono\Persistence\AggregateLoadExecutor;
+use Kongono\Persistence\EntityIdentity;
+use Kongono\Persistence\FlushResult;
+use Kongono\Persistence\LoadedAggregate;
+
+interface AccountAggregateRepository
+{
+    public function loadWithProfiles(EntityIdentity $identity, DatabaseExecutor $database, AggregateLoadExecutor $executor): ?LoadedAggregate;
+
+    public function persist(LoadedAggregate $aggregate, DatabaseExecutor $database, AggregateCascadeExecutor $executor): FlushResult;
+}

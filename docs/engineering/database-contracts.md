@@ -1,5 +1,14 @@
 # Database Contracts Engineering Guide
 
+## Persistence consumption boundary
+
+Phase 7E permits the upper `kongono/persistence` package to accept an explicit
+caller-owned `DatabaseExecutor` for one single-entity flush. The persistence
+context passes that exact object to one explicit change executor and neither
+retains nor inspects it. Session and transaction begin, commit, rollback, close,
+retry, reconnect, isolation, and provider authority remain with the caller.
+Neutral Database and every lower Phase 6 path remain independent of persistence.
+
 ## Status and use
 
 This guide describes the Accepted Phase 6B contract as implemented by Phase 6C.
@@ -213,6 +222,13 @@ expressions, migration discovery or schema inference, mapping, repositories,
 composition integration, or Phase 6F behavior. Phase 6E uses these ports from a
 separate higher layer without changing their ownership.
 
+Phase 7F generated aggregate repositories receive a caller-owned
+`DatabaseExecutor` on each named load, persist, or remove call and forward that
+exact capability once to a caller-supplied aggregate executor. Repositories do
+not acquire sessions, begin/commit/rollback/close transactions, retry, reconnect,
+or select a provider. Aggregate orchestration therefore does not widen the
+neutral database contract.
+
 ## Related material
 
 - [Database contract architecture](../architecture/database-contract.md)
@@ -229,3 +245,4 @@ separate higher layer without changing their ownership.
 - [SQL plan engineering guide](database-sql-plans.md)
 - [Migration engineering guide](database-migrations.md)
 - [Phase 6 roadmap](../architecture/phase-6-roadmap.md)
+- [Aggregate repository engineering guide](aggregate-repositories.md)

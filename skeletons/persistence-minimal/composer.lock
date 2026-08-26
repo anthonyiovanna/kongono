@@ -1,0 +1,412 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "c56c7a0f6b21b7309317e68a287e229d",
+    "packages": [
+        {
+            "name": "kongono/api-metadata",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/api-metadata",
+                "reference": "0f63b0d67331ff0c6eef3450cb8b115b2985c9c6"
+            },
+            "require": {
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ApiMetadata\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ApiMetadata\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral API compatibility metadata for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/composition",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/composition",
+                "reference": "8830ff0877ee0de8b236a6cfc0558ff735811ccc"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Composition\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Composition\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic composition artifacts, generated typed wiring, and lifecycle support for Kongono.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/database",
+                "reference": "426fca180d0e4ed489f18868a0bdfcff03e2f209"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Database\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Database\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral bounded database execution and lifecycle contracts for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/database-application",
+                "reference": "78e072729f9d5563b9a49ecd78afe97231fc4c5c"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/composition": "*",
+                "kongono/database": "*",
+                "kongono/database-mapping": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabaseApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabaseApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Generated data-application composition and operation-owned persistence for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-mapping",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/database-mapping",
+                "reference": "3223816883055a0fa5b74ad74b1ad7bc815b9928"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/database": "*",
+                "kongono/database-sql": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabaseMapping\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabaseMapping\\Tests\\": "tests/"
+                }
+            },
+            "description": "Compile-time mapping artifacts and generated typed data access for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-pdo-pgsql",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/database-pdo-pgsql",
+                "reference": "46ebecbc9d12bfd5a16a480b4e3fb488bf4ccda4"
+            },
+            "require": {
+                "ext-pdo": "*",
+                "ext-pdo_pgsql": "*",
+                "kongono/database": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabasePdoPgsql\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabasePdoPgsql\\Tests\\": "tests/"
+                }
+            },
+            "description": "PostgreSQL PDO proof adapter for Kongono's neutral database contracts.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-sql",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/database-sql",
+                "reference": "61ecfd95cf5406cc0738ef9dfbc554220c170fac"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/database": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabaseSql\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabaseSql\\Tests\\": "tests/"
+                }
+            },
+            "description": "Immutable bounded SQL plans and dialect contracts for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/database-sql-pgsql",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/database-sql-pgsql",
+                "reference": "ef7023a77008f77a852840f9486e2cdf25826f24"
+            },
+            "require": {
+                "kongono/database": "*",
+                "kongono/database-sql": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\DatabaseSqlPgsql\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\DatabaseSqlPgsql\\Tests\\": "tests/"
+                }
+            },
+            "description": "PostgreSQL 17 compiler for Kongono immutable SQL plans.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/diagnostics",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/diagnostics",
+                "reference": "a6a39bda1b021d6d09956b5acedcc4c2be23bdcf"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Diagnostics\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Diagnostics\\Tests\\": "tests/"
+                }
+            },
+            "description": "Presentation-neutral bounded diagnostic values for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/persistence",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/persistence",
+                "reference": "425558b008d9cc4e9befc693228bdd0188c05322"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/database": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Persistence\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Persistence\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral operation-scoped persistence contracts for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/persistence-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/persistence-application",
+                "reference": "4c275ed20f0467aa60a3fbeaac2e8e5d950a0fb4"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/composition": "*",
+                "kongono/database-application": "*",
+                "kongono/diagnostics": "*",
+                "kongono/persistence-build": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\PersistenceApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\PersistenceApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Exact-current generated persistence and application composition workflow for Kongono Framework.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/persistence-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "../../packages/persistence-build",
+                "reference": "e5bd061850d390d613661326ee6672aaef0ed864"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/database": "*",
+                "kongono/database-mapping": "*",
+                "kongono/diagnostics": "*",
+                "kongono/persistence": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\PersistenceBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\PersistenceBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic build-time persistence model compilation and artifact publication.",
+            "transport-options": {
+                "symlink": false,
+                "relative": true
+            }
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "dev",
+    "stability-flags": {
+        "kongono/composition": 20,
+        "kongono/database": 20,
+        "kongono/database-application": 20,
+        "kongono/database-mapping": 20,
+        "kongono/database-pdo-pgsql": 20,
+        "kongono/database-sql": 20,
+        "kongono/database-sql-pgsql": 20,
+        "kongono/persistence": 20,
+        "kongono/persistence-application": 20,
+        "kongono/persistence-build": 20
+    },
+    "prefer-stable": true,
+    "prefer-lowest": false,
+    "platform": {
+        "php": ">=8.5.0 <8.6.0"
+    },
+    "platform-dev": {},
+    "platform-overrides": {
+        "php": "8.5.0"
+    },
+    "plugin-api-version": "2.9.0"
+}

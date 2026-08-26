@@ -62,10 +62,10 @@ page, production error surface, logging, telemetry, retry, cleanup, incident
 system, extension host, agent runtime, query plan, performance budget, or CLI
 executable is implemented.
 
-The current package topology has twenty-seven packages. `kongono/api-metadata` owns
+The current package topology has twenty-eight packages. `kongono/api-metadata` owns
 `Kongono\ApiMetadata\Api` and `ApiStatus` and requires PHP only. Kernel,
 Diagnostics, Application Graph, and Dependency Injection depend directly on it;
-the framework root consumes all twenty-seven packages and Graph retains its Diagnostics
+the framework root consumes all twenty-eight packages and Graph retains its Diagnostics
 dependency. Phase 0T also makes Kernel, and Phase 0U makes DI, depend directly
 on Diagnostics. Phase 1C adds `kongono/diagnostic-activation`, which requires
 only API Metadata and PHP and owns the Experimental unbacked typed bootstrap
@@ -250,7 +250,7 @@ Only the structural core is implemented. The surrounding flow expresses intended
 
 ## Framework shape
 
-The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. Diagnostic Activation owns the implemented typed trusted-bootstrap and adapter-controlled delivery permissions. Diagnostic Presentation owns the implemented pure trusted-developer projection core and pure HTML renderer but does not depend on Diagnostic Activation or own activation decisions. Diagnostic Handler is the only lower package depending on both and owns eligibility-first neutral sequencing. HTTP Message owns the selected server-side message and factory roles plus 28 bounded diagnostics. Routing owns bounded route declarations and deterministic matching; HTTP Server owns PSR-15 composition. Web Application owns application-call Kernel scope cleanup. Web Runtime owns outer request-independent evidence sequencing, fixed generic or eligible trusted response selection, and exact send/close attempts. PHP CGI owns bounded explicit inbound conversion. The root-owned Phase 2 fixture supplies the only concrete runnable integration and is test infrastructure, not production behavior. No production SAPI/server/listener/emitter, trusted network authorization mechanism, or supported deployment profile exists. The monorepo retains atomic root validation across all twenty-seven implemented packages.
+The Kernel owns boot and shutdown state, operation-scope identity and ownership, active-operation accounting, lifecycle misuse detection, its exception family, and six exact diagnostic-context schemas and values. API Metadata neutrally owns compatibility classification. The Application Graph package owns only the immutable structural snapshot, its local exception family, and its 11 diagnostic-context schemas and values. Dependency Injection separately owns explicit definitions, definition-graph validation, transient construction, and 25 diagnostic schemas across 26 throw sites. Diagnostics owns presentation-neutral bounded values and its construction-failure boundary. Diagnostic Activation owns the implemented typed trusted-bootstrap and adapter-controlled delivery permissions. Diagnostic Presentation owns the implemented pure trusted-developer projection core and pure HTML renderer but does not depend on Diagnostic Activation or own activation decisions. Diagnostic Handler is the only lower package depending on both and owns eligibility-first neutral sequencing. HTTP Message owns the selected server-side message and factory roles plus 28 bounded diagnostics. Routing owns bounded route declarations and deterministic matching; HTTP Server owns PSR-15 composition. Web Application owns application-call Kernel scope cleanup. Web Runtime owns outer request-independent evidence sequencing, fixed generic or eligible trusted response selection, and exact send/close attempts. PHP CGI owns bounded explicit inbound conversion. The root-owned Phase 2 fixture supplies the only concrete runnable integration and is test infrastructure, not production behavior. No production SAPI/server/listener/emitter, trusted network authorization mechanism, or supported deployment profile exists. The monorepo retains atomic root validation across all twenty-eight implemented packages.
 
 ## Interoperability boundaries
 
@@ -443,9 +443,10 @@ the [composition guide](application-composition-and-build.md), the
 [declaration guide](../engineering/composition-declarations.md), and the
 [Phase 5 roadmap](phase-5-roadmap.md).
 
-## Accepted Phase 6B database contract direction
+## Completed Phase 6 Data Platform boundary
 
-Phase 6A accepts a layered Deterministic Data Platform without implementing it.
+Phase 6 is complete at checkpoint
+`f5903134e77bb2ecfaece6ee6b435a8ab2ecbd05`. Phase 6A accepts a layered Deterministic Data Platform without implementing it.
 Its conceptual dependency direction runs from low-level connectivity and
 execution through explicit SQL plans and dialect compilation, schema and
 migrations, optional generated Data Mapper support, and finally composition
@@ -485,10 +486,13 @@ are visible. Phase 6F adds optional Experimental compile-time mapping,
 provenance-bound artifacts, and generated typed mappers/repositories. Generated
 output is derived and not checked in; raw SQL and typed plans remain first-class.
 Phase 6G adds the provider-neutral outer database-application integration layer,
-bringing the current topology to 27 packages.
+bringing that phase's topology to twenty-seven packages. Phase 6H adds the
+root-owned whole-platform PostgreSQL 17 acceptance, four-scenario local
+observational measurement evidence, documentation reconciliation, and exact
+checkpoint without another production package.
 
-No ORM, pooling, migration startup, deployment entrypoint, performance baseline,
-or Phase 6H behavior exists. Kongono remains
+No ORM, pooling, migration startup, deployment entrypoint, runtime telemetry, or
+production provider service exists. Kongono remains
 pre-1.0 and not production-ready. See [ADR 0077](../adr/0077-layered-data-platform-and-explicit-sql-boundary.md),
 [ADR 0078](../adr/0078-deterministic-data-plans-and-operation-scoped-persistence.md),
 [ADR 0079](../adr/0079-neutral-database-session-and-provider-capability-contract.md),
@@ -503,3 +507,47 @@ the [migration guide](database-migrations.md),
 the [mapping guide](database-mapping.md),
 the [engineering contract tables](../engineering/database-contracts.md), and the
 [Phase 6 roadmap](phase-6-roadmap.md).
+
+## Accepted Phase 7 architecture through generated state evidence
+
+Phase 7A accepts an optional upper persistence capability while preserving all
+direct Phase 6 paths. Domain objects remain application-owned plain PHP classes;
+future metadata is bounded compile-time authority transformed into deterministic
+models, artifacts, and ordinary generated PHP evidence. Runtime Reflection
+mapping, proxies, hidden lazy I/O, Active Record inheritance, private-state
+bypass, service location, and automatic flush are rejected.
+
+Future persistence contexts, identity maps, snapshots, and change sets are
+operation-scoped and retired before fallible cleanup. The caller owns
+transactions, flush is explicit, uncertain failure is terminal, and load plans,
+aggregate boundaries, relationships, ordering, and cascades are visible and
+bounded. Direct SQL, plans, migrations, generated Data Mappers, and repositories
+remain first-class without persistence.
+
+Phase 7B adds the Experimental neutral `kongono/persistence` package. Phase 7C
+adds Experimental `kongono/persistence-build` and brings the topology to twenty-
+nine packages. The neutral identity, opaque token, state,
+value-free change, context-interface, flush-result, diagnostic, and failure
+contracts provide no runtime behavior. The build package validates application
+persistence intent against exact current mapping and domain evidence and emits a
+detached canonical provenance artifact. No concrete context, identity map, unit
+of work, generated PHP, runtime loader, database execution, transaction helper,
+runtime relationship, repository, command, or integration exists. Phase 7D adds
+deterministic content-addressed ordinary PHP state adapters for public
+construction/accessor hydration, extraction, identity, snapshots, and neutral
+change evidence. Their validation is non-executing, structural, exact-current,
+and fail closed. Phase 7E adds one concrete single-entity operation context over
+a caller-owned database executor. Explicit flush executes at most one change;
+transaction/resource ownership remains external, and terminal uncertainty
+releases retained domain references. Phase 7F adds explicit bounded one-level
+relationship loads/cascades and deterministic generated aggregate repositories.
+Generated-code loading, SQL generation, transaction ownership, and Composition
+remain absent. See [ADR 0087](../adr/0087-explicit-persistence-model-and-compile-time-orm-boundary.md),
+[ADR 0088](../adr/0088-operation-scoped-identity-change-tracking-and-transaction-authority.md),
+[ADR 0089](../adr/0089-neutral-persistence-contracts-and-package-boundary.md),
+[ADR 0090](../adr/0090-deterministic-persistence-model-and-artifact-compilation.md),
+[ADR 0091](../adr/0091-deterministic-generated-persistence-state-evidence.md),
+[ADR 0092](../adr/0092-operation-scoped-persistence-context-and-explicit-unit-of-work.md),
+[ADR 0093](../adr/0093-explicit-load-plans-bounded-cascades-and-generated-aggregate-repositories.md),
+the [Deterministic Persistence guide](deterministic-persistence.md), and the
+[Phase 7 roadmap](phase-7-roadmap.md).

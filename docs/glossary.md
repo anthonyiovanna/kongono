@@ -1059,3 +1059,105 @@ nearest-rank summaries for four ordered scenarios. Its values are neither exact
 build identities nor SLAs, budgets, regression thresholds, portability claims,
 or framework rankings; compatible profiles must be compared cautiously and
 material environment changes require re-baselining.
+
+## Deterministic Persistence
+
+The optional Phase 7 capability above the completed Data Platform that provides
+the developer-facing role commonly called an ORM through compile-time metadata,
+ordinary generated PHP evidence, explicit I/O, and operation-scoped state.
+Phase 7A accepts the architecture. Phase 7B implements the Experimental neutral
+contract package. Phase 7C implements the Experimental persistence build source,
+detached model, and provenance artifact. Phase 7D implements deterministic
+ordinary PHP state-adapter evidence with structural/current validation and
+guarded publication. Phase 7E implements one single-entity operation context
+through explicit generic adapter and change-executor capabilities, without
+loading generated PHP or owning transaction authority; direct SQL and Data
+Mapper paths remain first-class.
+
+## Generated Persistence State Artifact
+
+The Phase 7D canonical ordinary PHP evidence emitted from one exact-current
+Phase 7C artifact. Its content-addressed namespace contains one final adapter per
+entity for public hydration/extraction, typed identity, snapshots, and neutral
+change records. Structural validation never executes the candidate; exact-
+current validation separately regenerates and compares exact bytes. It is not a
+runtime loader, context, identity map, unit of work, repository, or database
+authority.
+
+## Persistence Build Artifact
+
+The Phase 7C canonical JSON evidence compiled by `kongono/persistence-build`
+from one strict application-owned persistence source, exact current mapping
+evidence, typed domain construction/accessors, root Composer identities, and
+builder identities. Structural validation proves canonical internal consistency;
+exact-current validation separately rebuilds every explicit input. The artifact
+is derived evidence, not runtime authority, generated PHP, or a usable ORM.
+
+## Persistence Context
+
+An operation-scoped contract for observing entity identity/state and changes
+and explicitly retiring owned references. Phase 7E's concrete
+`OperationPersistenceContext` owns exactly one entity, snapshot, identity, and
+state, and executes at most one reviewed change per explicit flush. It cannot be
+static, application-shared, process-global, reused after retirement, or treated
+as session/transaction authority. It loads no generated PHP and provides no
+relationship, cascade, repository, or multi-entity unit of work.
+
+## Identity Map
+
+An operation/context-local association between an explicit persistent identity
+and one in-memory domain object. Phase 7H externally proves reuse within one
+operation and isolation across overlapping operations. Its guarantee ends with
+that operation and grants no process cache, authorization, ownership, or
+distributed consistency.
+
+## Change Set
+
+A deterministic ordered list of Phase 7B immutable `PersistenceChange` records.
+The neutral record exposes an entity reference, change kind, optional identity,
+field names without values, and optional expected concurrency token. It performs
+no automatic diff or I/O and carries no snapshot, SQL, parameters, relationship
+contents, executor, or transaction authority.
+
+## Explicit Flush
+
+The caller-invoked Phase 7E boundary that reviews and attempts at most one known
+persistence change with an explicit result. No destructor, response completion,
+shutdown, property access, or arbitrary method call flushes automatically. The
+caller retains transaction authority, and uncertain executor or synchronization
+failure retires the context.
+
+## Load Plan
+
+The bounded Phase 7F declaration of aggregate and relationship data a named
+generated repository method intends to load, including visible ordering and I/O
+breadth. It rejects lazy proxies, property-hook queries, hidden N+1 behavior,
+implicit joins, and unlimited graph traversal.
+
+## Aggregate Boundary
+
+An application-owned domain consistency boundary that constrains a future named
+load or write operation. Relationship ownership, cascades, destructive scope,
+and multi-aggregate work require explicit later contracts; an aggregate boundary
+does not authorize recursive graph persistence.
+
+## Optimistic Concurrency
+
+An explicit write-time check that detects when an accepted concurrency token no
+longer matches. Phase 7E preserves conflict as a distinct zero-applied outcome,
+and Phase 7H proves it against the real provider without retry or disclosure of
+identity or token values. The caller still owns token policy and transactions.
+
+## Named Aggregate Load Plan
+
+Phase 7F runtime evidence for one concrete generated repository method. It names
+the aggregate/root and carries an ordered list of relationship targets,
+cardinality, nullability, ordering evidence, per-relationship bounds, and one
+exact total bound. It is inert and grants no database or transaction authority.
+
+## Loaded Aggregate
+
+Explicit Phase 7F evidence containing one root object and an ordinal map of
+bounded relationship values. It is not a proxy, identity map, transparent
+collection, or mutated domain graph. Generated repositories validate its exact
+declared shape; the caller releases it at the operation boundary.

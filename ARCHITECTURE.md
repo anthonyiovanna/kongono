@@ -53,7 +53,7 @@ repository behavior.
 
 ## Package dependency topology
 
-The current runtime has twenty-seven packages. `kongono/api-metadata` requires
+The current runtime has twenty-eight packages. `kongono/api-metadata` requires
 PHP only and owns `Kongono\ApiMetadata\Api` and `ApiStatus`. Kernel,
 Diagnostics, and Dependency Injection each require API Metadata; Kernel,
 Application Graph, Dependency Injection, HTTP Message, Routing, and HTTP Server
@@ -66,7 +66,7 @@ does not depend on the concrete HTTP Message package. Web Runtime is the top-lev
 delivery leaf above Web Application and the trusted-diagnostic foundations.
 `kongono/php-cgi` is an outer leaf over API Metadata, Diagnostic Activation,
 Diagnostics, HTTP Message, Web Runtime, PSR-7, and PHP. It has no direct Web
-Application dependency. The root consumes all twenty-seven. This graph is acyclic,
+Application dependency. The root consumes all twenty-eight. This graph is acyclic,
 and no package depends on Kernel merely for compatibility metadata.
 
 Phase 1C implements `kongono/diagnostic-activation` as an acyclic package that
@@ -530,9 +530,11 @@ the [generated wiring guide](docs/engineering/generated-wiring.md),
 the [application workflow guide](docs/engineering/application-workflow.md), and
 the [declaration guide](docs/engineering/composition-declarations.md).
 
-## Accepted Phase 6B low-level database contract architecture
+## Completed Phase 6 Deterministic Data Platform
 
-Phase 6A accepts documentation architecture for a layered Deterministic Data
+Phase 6 is complete at checkpoint
+`f5903134e77bb2ecfaece6ee6b435a8ab2ecbd05` with twenty-seven production
+packages. Phase 6A accepts documentation architecture for a layered Deterministic Data
 Platform. Its five conceptual layers are low-level connectivity and execution;
 explicit SQL/query/command plans and dialect compilation; schema and migration
 work; optional generated Data Mapper and repository ergonomics; and composition
@@ -610,3 +612,66 @@ the [Data Platform guide](docs/architecture/data-platform.md), the
 [engineering contract tables](docs/engineering/database-contracts.md), the
 [performance baseline guide](docs/engineering/database-performance-baseline.md), and the
 [Phase 6 roadmap](docs/architecture/phase-6-roadmap.md).
+
+## Implemented Phase 7 architecture through the single-entity runtime boundary
+
+Phase 7A accepts an optional Deterministic Persistence capability above Phase 6,
+providing the developer-facing role commonly called an ORM without classic
+runtime-magic ORM machinery. Neutral Database, raw parameter-bound SQL,
+immutable plans, migrations, generated Data Mappers, and direct repositories
+remain first-class paths that require no persistence capability. Lower Phase 6
+packages cannot depend upward on the future layer.
+
+Application domain objects remain plain PHP classes owned by the application.
+Constructors and named factories preserve invariants; hydration cannot write
+private state through Reflection, serialization tricks, or uninitialized-object
+bypasses. Future metadata is deterministic, versioned, bounded, reviewable, and
+compiled before runtime into ordinary generated PHP evidence. Runtime mapping
+Reflection, scanning, proxies, `eval`, mutable registries, Active Record base
+classes, magic properties, service location, and hidden lazy I/O are rejected.
+
+Future persistence contexts, identity maps, snapshots, and change sets are
+bounded to one explicit operation. An explicit flush is the only accepted write
+boundary; callers retain transaction authority, and terminal or uncertain
+failure retires the context without automatic replay. Relationships, aggregate
+boundaries, load plans, ordering, and cascades must be explicit and bounded.
+Diagnostics remain non-disclosing, and persistent workers must release all
+operation-owned domain references.
+
+Phase 7A remains accepted architecture. Phase 7B adds the neutral Experimental
+`kongono/persistence` package. Phase 7C adds the upper Experimental
+`kongono/persistence-build` package, bringing the graph to twenty-nine packages. It
+defines operation-scoped identity and state vocabulary, opaque concurrency
+tokens, immutable value-free changes and flush results, a read-only-plus-retire
+context interface, and bounded diagnostic/exception contracts. Phase 7C also
+validates one strict application-owned persistence source against current mapping
+evidence and build-time-reflected domain contracts, producing a detached model
+and canonical provenance artifact with structural/current validation and safe
+publication. Phase 7D adds deterministic content-addressed ordinary PHP state
+adapters which use public application construction and accessors for hydration,
+extraction, identity, snapshots, and neutral change evidence. Validation is
+non-executing and both structural and exact-current; publication remains atomic
+and no-clobber. Phase 7E adds one operation-scoped concrete context and explicit
+single-entity unit of work inside `kongono/persistence`. It accepts a caller-
+owned `DatabaseExecutor` only for one explicit flush, executes at most one
+reviewed change, distinguishes absent/conflict from terminal uncertainty, and
+releases operation-owned references on failure or retirement. It does not load
+generated state, own transactions, or generate SQL. Phase 7F adds only explicit
+one-level load/cascade evidence and deterministic generated aggregate repositories
+over caller-supplied database/load/cascade executors. Phase 7G adds an upper
+exact-current loader and Composition workflow while leaving provider and
+transaction authority explicit. Phase 7H closes the thirty-package milestone
+with root-owned PostgreSQL 18.6 acceptance, historical PostgreSQL 17.2 Phase 6
+regression, deterministic performance summaries, documentation, and an exact
+checkpoint.
+See [ADR 0087](docs/adr/0087-explicit-persistence-model-and-compile-time-orm-boundary.md),
+[ADR 0088](docs/adr/0088-operation-scoped-identity-change-tracking-and-transaction-authority.md),
+[ADR 0089](docs/adr/0089-neutral-persistence-contracts-and-package-boundary.md),
+[ADR 0090](docs/adr/0090-deterministic-persistence-model-and-artifact-compilation.md),
+[ADR 0091](docs/adr/0091-deterministic-generated-persistence-state-evidence.md),
+[ADR 0092](docs/adr/0092-operation-scoped-persistence-context-and-explicit-unit-of-work.md),
+[ADR 0093](docs/adr/0093-explicit-load-plans-bounded-cascades-and-generated-aggregate-repositories.md),
+[ADR 0094](docs/adr/0094-exact-current-generated-persistence-application-integration.md),
+[ADR 0095](docs/adr/0095-phase-7-external-persistence-acceptance-and-checkpoint.md),
+the [Deterministic Persistence guide](docs/architecture/deterministic-persistence.md),
+and the [Phase 7 roadmap](docs/architecture/phase-7-roadmap.md).

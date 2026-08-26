@@ -192,6 +192,11 @@ or production authority.
 84. [Compile-Time Data Mapping and Generated Repositories](0084-compile-time-data-mapping-and-generated-repositories.md) — Implements explicit compile-time mapping evidence and generated typed Data Mappers/repositories without ORM runtime behavior.
 85. [Generated Data Application and Operation-Owned Sessions](0085-generated-data-application-and-operation-owned-sessions.md) — Implements mapping-before-composition, exact-current loading, one-operation-root integration, and operation-owned session cleanup.
 86. [Phase 6 External Data Platform Acceptance and Checkpoint](0086-phase-6-external-data-platform-acceptance-and-checkpoint.md) — Accepts the root whole-platform PostgreSQL 17 proof, local observational measurement protocol, nondisclosure, cleanup, and exact Phase 6 checkpoint boundary.
+87. [Explicit Persistence Model and Compile-Time ORM Boundary](0087-explicit-persistence-model-and-compile-time-orm-boundary.md) — Accepts optional Deterministic Persistence above Phase 6, plain PHP domain ownership, compile-time metadata and ordinary generated PHP direction, explicit load plans, and rejection of runtime-magic ORM defaults.
+88. [Operation-Scoped Identity, Change Tracking, and Transaction Authority](0088-operation-scoped-identity-change-tracking-and-transaction-authority.md) — Accepts operation-bounded identity and change state, explicit flush and caller-owned transactions, terminal retirement, concurrency distinction, bounded cascades, and strict nondisclosure.
+89. [Neutral Persistence Contracts and Package Boundary](0089-neutral-persistence-contracts-and-package-boundary.md) — Implements the Experimental neutral identity, concurrency, state, value-free change, context-interface, flush-result, diagnostic, and exception vocabulary without a persistence runtime.
+90. [Deterministic Persistence Model and Artifact Compilation](0090-deterministic-persistence-model-and-artifact-compilation.md) — Implements one strict application-owned persistence source, current mapping and domain validation, a detached deterministic model, provenance artifact, distinct structural/current proofs, and guarded content-addressed publication without runtime ORM behavior.
+91. [Deterministic Generated Persistence State Evidence](0091-deterministic-generated-persistence-state-evidence.md) — Implements deterministic content-addressed ordinary PHP state adapters, non-executing structural and exact-current validation, and guarded publication without a persistence runtime.
 
 Phase 4A through 4H are implemented and externally accepted at the bounded
 Phase 4 checkpoint `358e412929d6bb7316195d3a1748c346a2de0e1b`. Phase 5A
@@ -229,3 +234,30 @@ accepts ADR 0076 and adds only the root-owned external harness, documentation
 reconciliation, and exact Phase 5 checkpoint. The milestone is a supported
 pre-1.0 application-composition slice, not Stable API, a full framework,
 production-readiness certification, deployment behavior, or Phase 6 authority.
+
+Phase 6 is complete at checkpoint
+`f5903134e77bb2ecfaece6ee6b435a8ab2ecbd05` with twenty-seven production
+packages. Phase 7A accepts ADRs 0087 and 0088, the
+[Deterministic Persistence guide](../architecture/deterministic-persistence.md),
+and the fixed [Phase 7 roadmap](../architecture/phase-7-roadmap.md) as
+architecture. Phase 7B accepts ADR 0089 and adds the Experimental neutral
+`kongono/persistence` contract package. Phase 7C accepts ADR 0090 and adds the
+Experimental `kongono/persistence-build` package, bringing the current graph to
+twenty-nine packages. Direct Phase 6 SQL and Data Mapper paths remain first-
+class. The package provides bounded build-time source/model/artifact evidence,
+then Phase 7D adds deterministic content-addressed ordinary PHP state adapters,
+non-executing structural/current validation, and guarded publication. Phase 7E
+accepts [ADR 0092](0092-operation-scoped-persistence-context-and-explicit-unit-of-work.md)
+and implements one operation-scoped single-entity context over a caller-owned
+database executor. Phase 7F accepts ADR 0093 and adds a separate repository
+source, bounded neutral aggregate evidence, and deterministic stateless generated
+repositories. It adds no generated-code loading, transaction ownership, SQL
+generation, or Composition integration. Phase 7G accepts ADR 0094 and adds the
+outer exact-current loading/Composition workflow. Phase 7H accepts ADR 0095 and
+closes the thirty-package milestone through PostgreSQL 18.6 external acceptance,
+PostgreSQL 17.2 historical regression, named performance evidence,
+documentation, cleanup/nondisclosure, and the exact checkpoint.
+
+- [ADR 0093: Explicit load plans, bounded cascades, and generated aggregate repositories](0093-explicit-load-plans-bounded-cascades-and-generated-aggregate-repositories.md)
+- [ADR 0094: Exact-current generated persistence application integration](0094-exact-current-generated-persistence-application-integration.md)
+- [ADR 0095: Phase 7 external persistence acceptance and checkpoint](0095-phase-7-external-persistence-acceptance-and-checkpoint.md)

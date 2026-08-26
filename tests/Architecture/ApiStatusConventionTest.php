@@ -197,6 +197,11 @@ use Kongono\Oshie\OshieOperation;
 use Kongono\Oshie\OshieRequest;
 use Kongono\Oshie\OshieResponse;
 use Kongono\Oshie\OshieStatus;
+use Kongono\Persistence\Diagnostic\PersistenceDiagnostic;
+use Kongono\Persistence\Exception\ExceptionInterface as PersistenceExceptionInterface;
+use Kongono\PersistenceApplication\Diagnostic\PersistenceApplicationDiagnostic;
+use Kongono\PersistenceBuild\Diagnostic\PersistenceBuildDiagnostic;
+use Kongono\PersistenceBuild\Exception\ExceptionInterface as PersistenceBuildExceptionInterface;
 use Kongono\PhpCgi\Bootstrap\CgiOperatorBootstrap;
 use Kongono\PhpCgi\Bootstrap\CgiOperatorProfile;
 use Kongono\PhpCgi\Delivery\CgiWebDelivery;
@@ -381,6 +386,94 @@ final class ApiStatusConventionTest extends TestCase
         'Kongono\\Database\\Exception\\InvalidDatabaseStateException' => ApiStatus::Experimental,
         'Kongono\\Database\\Exception\\InvalidDatabaseValueException' => ApiStatus::Experimental,
         'Kongono\\Database\\Exception\\UnsupportedDatabaseCapabilityException' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\AggregateCascadeExecutor' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\AggregateCascadePlan' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\AggregateLoadExecutor' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\AggregateLoadPlan' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\AggregateRepository' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\CascadeAction' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\ChangeKind' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\ChangeExecutionOutcome' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\ChangeSet' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\ConcurrencyToken' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\ContextState' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\Diagnostic\\PersistenceDiagnostic' => ApiStatus::Internal,
+        'Kongono\\Persistence\\EntityIdentity' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\EntityState' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\Exception\\CombinedPersistenceFailureException' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\Persistence\\Exception\\InvalidAggregatePersistenceException' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\Exception\\InvalidPersistenceStateException' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\Exception\\InvalidPersistenceValueException' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\Exception\\PersistenceCleanupException' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\Exception\\PersistenceException' => ApiStatus::Internal,
+        'Kongono\\Persistence\\Exception\\PersistenceOperationException' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\Exception\\PersistenceUncertainStateException' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\FlushOutcome' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\FlushResult' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\Internal\\TrackedEntity' => ApiStatus::Internal,
+        'Kongono\\Persistence\\LoadedAggregate' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\OperationPersistenceContext' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\PersistenceChange' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\PersistenceChangeExecutor' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\PersistenceContext' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\PersistenceStateAdapter' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\PersistenceUnitOfWork' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\RelationshipCardinality' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\RelationshipCascadePolicy' => ApiStatus::Experimental,
+        'Kongono\\Persistence\\RelationshipLoad' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Build\\PersistenceArtifact' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Build\\PersistenceArtifactBuilder' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Build\\PersistenceArtifactPublisher' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Build\\PersistenceArtifactValidator' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Diagnostic\\PersistenceBuildDiagnostic' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\PersistenceBuild\\Exception\\GeneratedPersistenceLoadException' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Exception\\GeneratedPersistenceStatePublicationException' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Exception\\InvalidGeneratedPersistenceStateException' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Exception\\InvalidPersistenceArtifactException' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Exception\\InvalidPersistenceSourceException' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Exception\\PersistenceArtifactPublicationException' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Exception\\PersistenceBuildException' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Exception\\StalePersistenceArtifactException' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Generated\\GeneratedAggregateRepositoryArtifact' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Generated\\GeneratedAggregateRepositoryGenerator' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Generated\\GeneratedAggregateRepositoryPublisher' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Generated\\GeneratedAggregateRepositoryValidator' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Generated\\GeneratedPersistenceStateArtifact' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Generated\\GeneratedPersistenceStateGenerator' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Generated\\GeneratedPersistenceStatePublisher' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Generated\\GeneratedPersistenceStateValidator' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Internal\\AggregateRepositoryGenerationImplementation' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Internal\\AggregateRepositorySourceCompiler' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Internal\\CanonicalJson' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Internal\\GeneratedAggregateRepositoryEmitter' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Internal\\GeneratedPersistenceStateEmitter' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Internal\\PathGuard' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Internal\\PersistenceBuildFailureCategory' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Internal\\PersistenceBuildImplementation' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Internal\\PersistenceGenerationImplementation' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Internal\\PersistenceModelCompiler' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Internal\\StrictJsonDecoder' => ApiStatus::Internal,
+        'Kongono\\PersistenceBuild\\Model\\AggregateDefinition' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\AggregateRepositoryDefinition' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\ConstructionDefinition' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\ConstructionKind' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\EntityDefinition' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\FieldDefinition' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\FieldRole' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\FieldValueKind' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\LoadPlanDefinition' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\PersistenceModel' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\RelationshipCardinality' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\RelationshipCascadeDefinition' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\RelationshipDefinition' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\RelationshipOrder' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\RelationshipLoadDefinition' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\RelationshipOwnership' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Model\\SortDirection' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Runtime\\GeneratedPersistenceLoader' => ApiStatus::Experimental,
+        'Kongono\\PersistenceBuild\\Runtime\\LoadedGeneratedPersistence' => ApiStatus::Experimental,
         'Kongono\\DatabaseApplication\\DataOperationRoot' => ApiStatus::Experimental,
         'Kongono\\DatabaseApplication\\Diagnostic\\DatabaseApplicationDiagnostic' => ApiStatus::Internal,
         'Kongono\\DatabaseApplication\\Exception\\DataApplicationLifecycleException' => ApiStatus::Public,
@@ -393,7 +486,16 @@ final class ApiStatusConventionTest extends TestCase
         'Kongono\\DatabaseApplication\\GeneratedDataOperation' => ApiStatus::Experimental,
         'Kongono\\DatabaseApplication\\OperationDatabaseSession' => ApiStatus::Experimental,
         'Kongono\\DatabaseApplication\\Workflow\\CurrentDataApplicationBuild' => ApiStatus::Experimental,
+        'Kongono\\DatabaseApplication\\Workflow\\CurrentDataAccessBuild' => ApiStatus::Experimental,
         'Kongono\\DatabaseApplication\\Workflow\\DataApplicationBuildWorkflow' => ApiStatus::Experimental,
+        'Kongono\\DatabaseApplication\\Workflow\\DataAccessBuildWorkflow' => ApiStatus::Experimental,
+        'Kongono\\DatabaseApplication\\Workflow\\PreparedDataAccessBuild' => ApiStatus::Experimental,
+        'Kongono\\PersistenceApplication\\Diagnostic\\PersistenceApplicationDiagnostic' => ApiStatus::Internal,
+        'Kongono\\PersistenceApplication\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\PersistenceApplication\\Exception\\PersistenceApplicationException' => ApiStatus::Internal,
+        'Kongono\\PersistenceApplication\\Exception\\PersistenceApplicationWorkflowException' => ApiStatus::Experimental,
+        'Kongono\\PersistenceApplication\\Workflow\\CurrentPersistenceApplicationBuild' => ApiStatus::Experimental,
+        'Kongono\\PersistenceApplication\\Workflow\\PersistenceApplicationBuildWorkflow' => ApiStatus::Experimental,
         'Kongono\\DatabaseMapping\\Build\\MappingArtifact' => ApiStatus::Experimental,
         'Kongono\\DatabaseMapping\\Build\\MappingArtifactBuilder' => ApiStatus::Experimental,
         'Kongono\\DatabaseMapping\\Build\\MappingArtifactPublisher' => ApiStatus::Experimental,
@@ -701,7 +803,7 @@ final class ApiStatusConventionTest extends TestCase
     public function testProductionDeclarationsExactlyMatchAuthorizedInventoryAndAreAutoloadable(): void
     {
         $types = $this->discoverProductionTypes();
-        self::assertCount(422, $types);
+        self::assertCount(519, $types);
 
         self::assertFalse(class_exists('Kongono\\Kernel\\Api\\Api'));
         self::assertFalse(enum_exists('Kongono\\Kernel\\Api\\ApiStatus'));
@@ -869,6 +971,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('packages/database/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Database\\Tests\\']);
         self::assertSame('packages/database-pdo-pgsql/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\DatabasePdoPgsql\\Tests\\']);
         self::assertSame('@php tests/External/Database/run.php', $rootManifest['scripts']['acceptance:phase6']);
+        self::assertSame('@php tests/External/Persistence/run.php', $rootManifest['scripts']['acceptance:phase7']);
         self::assertContains('composer --working-dir=packages/database validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/database-pdo-pgsql validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
 
@@ -921,6 +1024,282 @@ final class ApiStatusConventionTest extends TestCase
             $reflection = new ReflectionClass($failure);
             self::assertTrue($reflection->isFinal());
             self::assertTrue($reflection->implementsInterface(DatabaseExceptionInterface::class));
+        }
+    }
+
+    public function testPersistencePackageContractsDependenciesDiagnosticsAndIsolationAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/persistence/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/persistence', $manifest['name']);
+        self::assertSame('Neutral operation-scoped persistence contracts for Kongono Framework.', $manifest['description']);
+        self::assertSame('library', $manifest['type']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'kongono/database' => '*',
+            'kongono/diagnostics' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $manifest['require']);
+        $autoload = $manifest['autoload'];
+        $autoloadDev = $manifest['autoload-dev'];
+        self::assertIsArray($autoload);
+        self::assertIsArray($autoloadDev);
+        self::assertSame(['Kongono\\Persistence\\' => 'src/'], $autoload['psr-4']);
+        self::assertSame(['Kongono\\Persistence\\Tests\\' => 'tests/'], $autoloadDev['psr-4']);
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        $rootRequire = $rootManifest['require'];
+        $rootAutoloadDev = $rootManifest['autoload-dev'];
+        $rootScripts = $rootManifest['scripts'];
+        self::assertIsArray($rootRequire);
+        self::assertIsArray($rootAutoloadDev);
+        self::assertIsArray($rootScripts);
+        $rootAutoloadDevPsr4 = $rootAutoloadDev['psr-4'];
+        $validatePackages = $rootScripts['validate:packages'];
+        self::assertIsArray($rootAutoloadDevPsr4);
+        self::assertIsArray($validatePackages);
+        self::assertSame('@dev', $rootRequire['kongono/persistence']);
+        self::assertSame('packages/persistence/tests/', $rootAutoloadDevPsr4['Kongono\\Persistence\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/persistence validate --no-check-publish', $validatePackages);
+
+        self::assertSame(
+            array_map(static fn(int $ordinal): string => sprintf('KGN-PERSISTENCE-%04d', $ordinal), range(1001, 1009)),
+            array_map(static fn(PersistenceDiagnostic $diagnostic): string => $diagnostic->value, PersistenceDiagnostic::cases()),
+        );
+        self::assertSame([
+            'Kongono\\Persistence\\AggregateCascadeExecutor' => ['execute'],
+            'Kongono\\Persistence\\AggregateCascadePlan' => ['__construct', 'aggregateName', 'maxChanges', 'policies', 'rootType'],
+            'Kongono\\Persistence\\AggregateLoadExecutor' => ['load'],
+            'Kongono\\Persistence\\AggregateLoadPlan' => ['__construct', 'aggregateName', 'maxTotalObjects', 'methodName', 'relationships', 'rootType'],
+            'Kongono\\Persistence\\AggregateRepository' => ['aggregateName', 'cascadePlan', 'loadPlans', 'rootType'],
+            'Kongono\\Persistence\\CascadeAction' => ['cases', 'from', 'tryFrom'],
+            'Kongono\\Persistence\\ChangeExecutionOutcome' => ['cases'],
+            'Kongono\\Persistence\\ChangeKind' => ['cases'],
+            'Kongono\\Persistence\\ChangeSet' => ['__construct', 'changes', 'count', 'isEmpty'],
+            'Kongono\\Persistence\\ConcurrencyToken' => ['__construct', 'equals', 'scheme', 'value'],
+            'Kongono\\Persistence\\ContextState' => ['cases'],
+            'Kongono\\Persistence\\EntityIdentity' => ['__construct', 'entityType', 'equals', 'key'],
+            'Kongono\\Persistence\\EntityState' => ['cases'],
+            'Kongono\\Persistence\\FlushOutcome' => ['cases'],
+            'Kongono\\Persistence\\FlushResult' => ['__construct', 'absentCount', 'appliedCount', 'attemptedCount', 'conflictCount', 'outcome'],
+            'Kongono\\Persistence\\LoadedAggregate' => ['__construct', 'relationship', 'relationships', 'root'],
+            'Kongono\\Persistence\\OperationPersistenceContext' => ['changes', 'entityForIdentity', 'entityState', 'flush', 'forManaged', 'forNew', 'identityOf', 'markRemoved', 'retire', 'state'],
+            'Kongono\\Persistence\\PersistenceChange' => ['__construct', 'changedFields', 'entity', 'expectedConcurrencyToken', 'identity', 'kind'],
+            'Kongono\\Persistence\\PersistenceChangeExecutor' => ['execute'],
+            'Kongono\\Persistence\\PersistenceContext' => ['changes', 'entityForIdentity', 'entityState', 'identityOf', 'retire', 'state'],
+            'Kongono\\Persistence\\PersistenceStateAdapter' => ['changes', 'deletion', 'entityType', 'identity', 'insertion', 'snapshot'],
+            'Kongono\\Persistence\\PersistenceUnitOfWork' => ['flush', 'markRemoved'],
+            'Kongono\\Persistence\\RelationshipCardinality' => ['cases', 'from', 'tryFrom'],
+            'Kongono\\Persistence\\RelationshipCascadePolicy' => ['__construct', 'persist', 'relationshipName', 'remove', 'targetType'],
+            'Kongono\\Persistence\\RelationshipLoad' => ['__construct', 'cardinality', 'maxRelated', 'nullable', 'order', 'relationshipName', 'targetType'],
+        ], array_combine(
+            $surfaceTypes = [
+                'Kongono\\Persistence\\AggregateCascadeExecutor',
+                'Kongono\\Persistence\\AggregateCascadePlan',
+                'Kongono\\Persistence\\AggregateLoadExecutor',
+                'Kongono\\Persistence\\AggregateLoadPlan',
+                'Kongono\\Persistence\\AggregateRepository',
+                'Kongono\\Persistence\\CascadeAction',
+                'Kongono\\Persistence\\ChangeExecutionOutcome',
+                'Kongono\\Persistence\\ChangeKind',
+                'Kongono\\Persistence\\ChangeSet',
+                'Kongono\\Persistence\\ConcurrencyToken',
+                'Kongono\\Persistence\\ContextState',
+                'Kongono\\Persistence\\EntityIdentity',
+                'Kongono\\Persistence\\EntityState',
+                'Kongono\\Persistence\\FlushOutcome',
+                'Kongono\\Persistence\\FlushResult',
+                'Kongono\\Persistence\\LoadedAggregate',
+                'Kongono\\Persistence\\OperationPersistenceContext',
+                'Kongono\\Persistence\\PersistenceChange',
+                'Kongono\\Persistence\\PersistenceChangeExecutor',
+                'Kongono\\Persistence\\PersistenceContext',
+                'Kongono\\Persistence\\PersistenceStateAdapter',
+                'Kongono\\Persistence\\PersistenceUnitOfWork',
+                'Kongono\\Persistence\\RelationshipCardinality',
+                'Kongono\\Persistence\\RelationshipCascadePolicy',
+                'Kongono\\Persistence\\RelationshipLoad',
+            ],
+            array_map(fn(string $type): array => $this->declaredPublicMethodNames(new ReflectionClass($type)), $surfaceTypes),
+        ));
+
+        $context = new ReflectionClass('Kongono\\Persistence\\PersistenceContext');
+        self::assertTrue($context->isInterface());
+        self::assertSame(['Kongono\\Persistence\\OperationPersistenceContext'], array_values(array_filter(get_declared_classes(), static fn(string $class): bool => is_subclass_of($class, $context->getName()))));
+        foreach (['flush', 'persist', 'remove', 'find', 'attach', 'detach', 'clear', 'execute', 'beginTransaction'] as $forbiddenMethod) {
+            self::assertFalse($context->hasMethod($forbiddenMethod));
+        }
+
+        $sourceFiles = $this->recursivePhpFiles($root . '/packages/persistence/src');
+        $testFiles = $this->recursivePhpFiles($root . '/packages/persistence/tests');
+        self::assertCount(36, $sourceFiles);
+        self::assertCount(22, $testFiles);
+        $statuses = array_count_values(array_map(
+            static fn(string $type): string => self::EXPECTED_STATUS[$type]->value,
+            array_filter(array_keys(self::EXPECTED_STATUS), static fn(string $type): bool => str_starts_with($type, 'Kongono\\Persistence\\')),
+        ));
+        self::assertSame(['experimental' => 32, 'internal' => 3, 'public' => 1], $statuses);
+        foreach ($sourceFiles as $sourceFile) {
+            $source = file_get_contents($sourceFile);
+            self::assertIsString($source);
+            self::assertSame(0, preg_match('/Kongono\\\\(?:DatabaseSql|DatabaseMapping|DatabaseApplication|Composition|Kernel|DependencyInjection|Http)|\\bPDO\\b|Reflection|Proxy|Generator|ServiceLocator|Container|IdentityMap|ActiveRecord|LazyLoad|eval\\s*\\(/i', $source));
+            self::assertStringNotContainsString('JsonSerializable', $source);
+            self::assertStringNotContainsString('Stringable', $source);
+        }
+
+        $packageManifests = glob($root . '/packages/*/composer.json');
+        self::assertIsArray($packageManifests);
+        self::assertCount(30, $packageManifests);
+        foreach ($packageManifests as $packageManifest) {
+            if (
+                str_ends_with(str_replace('\\', '/', $packageManifest), '/persistence/composer.json')
+                || str_ends_with(str_replace('\\', '/', $packageManifest), '/persistence-build/composer.json')
+            ) {
+                continue;
+            }
+            $other = json_decode((string) file_get_contents($packageManifest), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($other);
+            $otherRequire = $other['require'];
+            self::assertIsArray($otherRequire);
+            self::assertArrayNotHasKey('kongono/persistence', $otherRequire);
+        }
+
+        foreach (['.php-cs-fixer.dist.php', 'phpstan.neon.dist', 'phpunit.xml.dist'] as $configuration) {
+            $contents = file_get_contents($root . '/' . $configuration);
+            self::assertIsString($contents);
+            self::assertSame(1, substr_count($contents, 'packages/persistence/src'));
+            self::assertSame(1, substr_count($contents, 'packages/persistence/tests'));
+        }
+
+        $productionCount = 0;
+        $packageTestCount = 0;
+        $packageDirectories = glob($root . '/packages/*', GLOB_ONLYDIR);
+        self::assertIsArray($packageDirectories);
+        foreach ($packageDirectories as $packageDirectory) {
+            if (is_dir($packageDirectory . '/src')) {
+                $productionCount += count($this->recursivePhpFiles($packageDirectory . '/src'));
+            }
+            if (is_dir($packageDirectory . '/tests')) {
+                $packageTestCount += count($this->recursivePhpFiles($packageDirectory . '/tests'));
+            }
+        }
+        self::assertSame(519, $productionCount);
+        self::assertSame(268, $packageTestCount);
+        self::assertCount(48, $this->recursivePhpFiles($root . '/tests'));
+
+        foreach ([
+            'Kongono\\Persistence\\Exception\\InvalidPersistenceValueException',
+            'Kongono\\Persistence\\Exception\\InvalidPersistenceStateException',
+            'Kongono\\Persistence\\Exception\\InvalidAggregatePersistenceException',
+            'Kongono\\Persistence\\Exception\\PersistenceOperationException',
+            'Kongono\\Persistence\\Exception\\PersistenceCleanupException',
+            'Kongono\\Persistence\\Exception\\CombinedPersistenceFailureException',
+            'Kongono\\Persistence\\Exception\\PersistenceUncertainStateException',
+        ] as $failure) {
+            $reflection = new ReflectionClass($failure);
+            self::assertTrue($reflection->isFinal());
+            self::assertTrue($reflection->implementsInterface(PersistenceExceptionInterface::class));
+            $parent = $reflection->getParentClass();
+            self::assertNotFalse($parent);
+            self::assertSame('Kongono\\Persistence\\Exception\\PersistenceException', $parent->getName());
+        }
+    }
+
+    public function testPersistenceBuildPackageBoundaryStatusesAndToolingAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/persistence-build/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/persistence-build', $manifest['name']);
+        self::assertSame('library', $manifest['type']);
+        self::assertSame([
+            'ext-hash' => '*',
+            'ext-json' => '*',
+            'kongono/api-metadata' => '*',
+            'kongono/database' => '*',
+            'kongono/database-mapping' => '*',
+            'kongono/diagnostics' => '*',
+            'kongono/persistence' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $manifest['require']);
+        $autoload = $manifest['autoload'];
+        $autoloadDev = $manifest['autoload-dev'];
+        self::assertIsArray($autoload);
+        self::assertIsArray($autoloadDev);
+        self::assertIsArray($autoload['psr-4']);
+        self::assertIsArray($autoloadDev['psr-4']);
+        self::assertSame(['Kongono\\PersistenceBuild\\' => 'src/'], $autoload['psr-4']);
+        self::assertSame(['Kongono\\PersistenceBuild\\Tests\\' => 'tests/'], $autoloadDev['psr-4']);
+        self::assertArrayNotHasKey('scripts', $manifest);
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        $rootRequire = $rootManifest['require'];
+        $rootAutoloadDev = $rootManifest['autoload-dev'];
+        $rootScripts = $rootManifest['scripts'];
+        self::assertIsArray($rootRequire);
+        self::assertIsArray($rootAutoloadDev);
+        self::assertIsArray($rootScripts);
+        $rootAutoloadDevPsr4 = $rootAutoloadDev['psr-4'];
+        $validatePackages = $rootScripts['validate:packages'];
+        self::assertIsArray($rootAutoloadDevPsr4);
+        self::assertIsArray($validatePackages);
+        self::assertSame('@dev', $rootRequire['kongono/persistence-build']);
+        self::assertSame('packages/persistence-build/tests/', $rootAutoloadDevPsr4['Kongono\\PersistenceBuild\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/persistence-build validate --no-check-publish', $validatePackages);
+
+        $productionFiles = $this->recursivePhpFiles($root . '/packages/persistence-build/src');
+        $testFiles = $this->recursivePhpFiles($root . '/packages/persistence-build/tests');
+        self::assertCount(52, $productionFiles);
+        self::assertCount(28, $testFiles);
+        $statuses = array_count_values(array_map(
+            static fn(string $type): string => self::EXPECTED_STATUS[$type]->value,
+            array_filter(array_keys(self::EXPECTED_STATUS), static fn(string $type): bool => str_starts_with($type, 'Kongono\\PersistenceBuild\\')),
+        ));
+        self::assertSame(['experimental' => 38, 'internal' => 13, 'public' => 1], $statuses);
+        self::assertSame(
+            array_map(static fn(int $ordinal): string => sprintf('KGN-PERSISTENCE-BUILD-%04d', $ordinal), range(1001, 1020)),
+            array_map(static fn(PersistenceBuildDiagnostic $diagnostic): string => $diagnostic->value, PersistenceBuildDiagnostic::cases()),
+        );
+
+        foreach ([
+            'Kongono\\PersistenceBuild\\Generated\\GeneratedAggregateRepositoryArtifact' => ['__construct', 'aggregateRepositoryGeneratorImplementationSha256', 'canonicalBytes', 'classMap', 'generatedFileSha256', 'generatedNamespace', 'persistenceArtifactSha256', 'persistenceModelSha256', 'persistenceStateGeneratorImplementationSha256', 'sourcePath', 'sourceSha256'],
+            'Kongono\\PersistenceBuild\\Generated\\GeneratedAggregateRepositoryGenerator' => ['generate'],
+            'Kongono\\PersistenceBuild\\Generated\\GeneratedAggregateRepositoryPublisher' => ['publish'],
+            'Kongono\\PersistenceBuild\\Generated\\GeneratedAggregateRepositoryValidator' => ['validateCurrent', 'validateStructure'],
+            'Kongono\\PersistenceBuild\\Generated\\GeneratedPersistenceStateArtifact' => ['__construct', 'canonicalBytes', 'classMap', 'generatedFileSha256', 'generatedNamespace', 'persistenceArtifactSha256', 'persistenceBuilderImplementationSha256', 'persistenceGeneratorImplementationSha256', 'persistenceModelSha256'],
+            'Kongono\\PersistenceBuild\\Generated\\GeneratedPersistenceStateGenerator' => ['generate'],
+            'Kongono\\PersistenceBuild\\Generated\\GeneratedPersistenceStatePublisher' => ['publish'],
+            'Kongono\\PersistenceBuild\\Generated\\GeneratedPersistenceStateValidator' => ['validateCurrent', 'validateStructure'],
+            'Kongono\\PersistenceBuild\\Runtime\\GeneratedPersistenceLoader' => ['loadCurrent'],
+            'Kongono\\PersistenceBuild\\Runtime\\LoadedGeneratedPersistence' => ['__construct', 'aggregateRepositoryClasses', 'entityStateClasses', 'generatedRepositoryNamespace', 'generatedRepositoryPath', 'generatedRepositorySha256', 'generatedStateNamespace', 'generatedStatePath', 'generatedStateSha256', 'persistenceArtifactSha256'],
+        ] as $type => $methods) {
+            $reflection = new ReflectionClass($type);
+            self::assertTrue($reflection->isFinal());
+            self::assertSame($methods, $this->declaredPublicMethodNames($reflection));
+        }
+
+        $packageManifests = glob($root . '/packages/*/composer.json');
+        self::assertIsArray($packageManifests);
+        self::assertCount(30, $packageManifests);
+        foreach ($packageManifests as $packageManifest) {
+            if (str_ends_with(str_replace('\\', '/', $packageManifest), '/persistence-build/composer.json')
+                || str_ends_with(str_replace('\\', '/', $packageManifest), '/persistence-application/composer.json')) {
+                continue;
+            }
+            $other = json_decode((string) file_get_contents($packageManifest), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($other);
+            $otherRequire = $other['require'];
+            self::assertIsArray($otherRequire);
+            self::assertArrayNotHasKey('kongono/persistence-build', $otherRequire);
+        }
+        foreach (['.php-cs-fixer.dist.php', 'phpstan.neon.dist', 'phpunit.xml.dist'] as $configuration) {
+            $contents = file_get_contents($root . '/' . $configuration);
+            self::assertIsString($contents);
+            self::assertSame(1, substr_count($contents, 'packages/persistence-build/src'));
+            self::assertSame(1, substr_count($contents, 'packages/persistence-build/tests'));
         }
     }
 
@@ -984,7 +1363,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('@dev', $rootRequire['kongono/database-sql-pgsql']);
         self::assertSame('packages/database-sql/tests/', $rootAutoloadDevPsr4['Kongono\\DatabaseSql\\Tests\\']);
         self::assertSame('packages/database-sql-pgsql/tests/', $rootAutoloadDevPsr4['Kongono\\DatabaseSqlPgsql\\Tests\\']);
-        self::assertCount(27, $validatePackages);
+        self::assertCount(30, $validatePackages);
 
         self::assertSame(
             ['KGN-SQL-1001', 'KGN-SQL-1002', 'KGN-SQL-1003'],
@@ -1112,13 +1491,16 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['beginOperation', 'isRetired', 'shutdown', 'start'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseApplication\\GeneratedDataApplication')));
         self::assertSame(['__construct', 'close', 'isClosed', 'root'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseApplication\\GeneratedDataOperation')));
         self::assertSame(['build', 'check'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseApplication\\Workflow\\DataApplicationBuildWorkflow')));
+        self::assertSame(['build', 'check', 'loadPrepared', 'prepareBuild', 'prepareCheck', 'reverify'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseApplication\\Workflow\\DataAccessBuildWorkflow')));
+        self::assertSame(['__construct', 'applicationRoot', 'generatedDataAccessPath', 'generatedDataAccessSha256', 'generatedSnapshot', 'loadedDataAccess', 'mappingArtifactBytes', 'mappingArtifactPath', 'mappingArtifactSha256', 'mappingSnapshot'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseApplication\\Workflow\\CurrentDataAccessBuild')));
+        self::assertSame(['__construct', 'applicationRoot', 'generatedDataAccessSha256', 'generatedSnapshot', 'mappingArtifactSha256', 'mappingSnapshot', 'mappingSourceRelativePath'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\DatabaseApplication\\Workflow\\PreparedDataAccessBuild')));
         self::assertSame(
             ['KGN-DATABASE-APPLICATION-1001', 'KGN-DATABASE-APPLICATION-1002', 'KGN-DATABASE-APPLICATION-1003', 'KGN-DATABASE-APPLICATION-1004'],
             array_map(static fn(\Kongono\DatabaseApplication\Diagnostic\DatabaseApplicationDiagnostic $diagnostic): string => $diagnostic->value, \Kongono\DatabaseApplication\Diagnostic\DatabaseApplicationDiagnostic::cases()),
         );
 
         $sourceFiles = $this->recursivePhpFiles($root . '/packages/database-application/src');
-        self::assertCount(13, $sourceFiles);
+        self::assertCount(16, $sourceFiles);
         foreach ($sourceFiles as $file) {
             $source = file_get_contents($file);
             self::assertIsString($source);
@@ -1305,6 +1687,8 @@ final class ApiStatusConventionTest extends TestCase
             DatabaseExceptionInterface::class,
             MigrationExceptionInterface::class,
             SqlExceptionInterface::class,
+            PersistenceExceptionInterface::class,
+            PersistenceBuildExceptionInterface::class,
         ];
 
         foreach ($markers as $position => $marker) {
@@ -1379,6 +1763,17 @@ final class ApiStatusConventionTest extends TestCase
             ['Kongono\\DatabaseSql\\Exception\\InvalidSqlPlanException', SqlExceptionInterface::class],
             ['Kongono\\DatabaseSql\\Exception\\UnsupportedDialectCapabilityException', SqlExceptionInterface::class],
             ['Kongono\\DatabaseSql\\Exception\\SqlCompilationException', SqlExceptionInterface::class],
+            ['Kongono\\Persistence\\Exception\\InvalidPersistenceValueException', PersistenceExceptionInterface::class],
+            ['Kongono\\Persistence\\Exception\\InvalidPersistenceStateException', PersistenceExceptionInterface::class],
+            ['Kongono\\Persistence\\Exception\\PersistenceOperationException', PersistenceExceptionInterface::class],
+            ['Kongono\\Persistence\\Exception\\PersistenceCleanupException', PersistenceExceptionInterface::class],
+            ['Kongono\\Persistence\\Exception\\CombinedPersistenceFailureException', PersistenceExceptionInterface::class],
+            ['Kongono\\PersistenceBuild\\Exception\\InvalidPersistenceSourceException', PersistenceBuildExceptionInterface::class],
+            ['Kongono\\PersistenceBuild\\Exception\\InvalidPersistenceArtifactException', PersistenceBuildExceptionInterface::class],
+            ['Kongono\\PersistenceBuild\\Exception\\StalePersistenceArtifactException', PersistenceBuildExceptionInterface::class],
+            ['Kongono\\PersistenceBuild\\Exception\\PersistenceArtifactPublicationException', PersistenceBuildExceptionInterface::class],
+            ['Kongono\\PersistenceBuild\\Exception\\InvalidGeneratedPersistenceStateException', PersistenceBuildExceptionInterface::class],
+            ['Kongono\\PersistenceBuild\\Exception\\GeneratedPersistenceStatePublicationException', PersistenceBuildExceptionInterface::class],
         ] as [$failure, $expectedMarker]) {
             self::assertExceptionMarkerMembership($failure, $expectedMarker, array_values(array_diff($markers, [$expectedMarker])));
         }
@@ -1408,11 +1803,14 @@ final class ApiStatusConventionTest extends TestCase
                 ...MappingDiagnostic::cases(),
                 ...MigrationDiagnostic::cases(),
                 ...SqlDiagnostic::cases(),
+                ...PersistenceDiagnostic::cases(),
+                ...PersistenceBuildDiagnostic::cases(),
+                ...PersistenceApplicationDiagnostic::cases(),
             ],
         );
 
-        self::assertCount(218, $identifiers);
-        self::assertCount(218, array_unique($identifiers));
+        self::assertCount(248, $identifiers);
+        self::assertCount(248, array_unique($identifiers));
         self::assertCount(6, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-KERNEL-1\\d{3}$/D', $identifier)));
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-GRAPH-1\\d{3}$/D', $identifier)));
         self::assertCount(25, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-DI-1\\d{3}$/D', $identifier)));
@@ -1431,6 +1829,9 @@ final class ApiStatusConventionTest extends TestCase
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-DATABASE-1\\d{3}$/D', $identifier)));
         self::assertCount(9, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-MAPPING-1\\d{3}$/D', $identifier)));
         self::assertCount(7, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-MIGRATION-1\\d{3}$/D', $identifier)));
+        self::assertCount(9, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-PERSISTENCE-1\\d{3}$/D', $identifier)));
+        self::assertCount(20, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-PERSISTENCE-BUILD-1\\d{3}$/D', $identifier)));
+        self::assertCount(1, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-PERSISTENCE-APPLICATION-1\\d{3}$/D', $identifier)));
 
         $productionHttpIdentifiers = array_map(
             static fn(\BackedEnum $diagnostic): string => $diagnostic->value,
@@ -1463,6 +1864,8 @@ final class ApiStatusConventionTest extends TestCase
             DatabaseExceptionInterface::class,
             MigrationExceptionInterface::class,
             SqlExceptionInterface::class,
+            PersistenceExceptionInterface::class,
+            PersistenceBuildExceptionInterface::class,
         ] as $marker) {
             $reflection = new ReflectionClass($marker);
             $methods = array_values(array_filter(
@@ -1473,13 +1876,13 @@ final class ApiStatusConventionTest extends TestCase
             sort($methodNames);
 
             self::assertSame([Throwable::class, \Stringable::class], $reflection->getInterfaceNames());
-            $expectedMethods = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class, DatabaseExceptionInterface::class, MigrationExceptionInterface::class, SqlExceptionInterface::class], true)
+            $expectedMethods = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class, DatabaseExceptionInterface::class, MigrationExceptionInterface::class, SqlExceptionInterface::class, PersistenceExceptionInterface::class, PersistenceBuildExceptionInterface::class], true)
                 ? ['diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle']
                 : ['diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'];
             self::assertSame($expectedMethods, $methodNames);
 
             foreach ($methods as $method) {
-                $expectedReturnType = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class, DatabaseExceptionInterface::class, MigrationExceptionInterface::class, SqlExceptionInterface::class], true)
+                $expectedReturnType = in_array($marker, [KernelExceptionInterface::class, GraphExceptionInterface::class, DependencyInjectionExceptionInterface::class, HttpMessageExceptionInterface::class, HttpServerExceptionInterface::class, RoutingExceptionInterface::class, WebApplicationExceptionInterface::class, WebRuntimeExceptionInterface::class, PhpCgiExceptionInterface::class, KnowledgeExceptionInterface::class, ChieExceptionInterface::class, CompositionExceptionInterface::class, DatabaseExceptionInterface::class, MigrationExceptionInterface::class, SqlExceptionInterface::class, PersistenceExceptionInterface::class, PersistenceBuildExceptionInterface::class], true)
                     && 'diagnosticContext' === $method->getName()
                     ? DiagnosticContext::class
                     : 'string';
@@ -1607,6 +2010,8 @@ final class ApiStatusConventionTest extends TestCase
             DatabaseExceptionInterface::class,
             MigrationExceptionInterface::class,
             SqlExceptionInterface::class,
+            PersistenceExceptionInterface::class,
+            PersistenceBuildExceptionInterface::class,
         ] as $marker) {
             self::assertFalse($chieValueFailure->implementsInterface($marker));
         }
@@ -2016,6 +2421,9 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/kernel' => '@dev',
             'kongono/knowledge' => '@dev',
             'kongono/oshie' => '@dev',
+            'kongono/persistence' => '@dev',
+            'kongono/persistence-application' => '@dev',
+            'kongono/persistence-build' => '@dev',
             'kongono/php-cgi' => '@dev',
             'kongono/routing' => '@dev',
             'kongono/web-application' => '@dev',
@@ -2045,6 +2453,9 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('packages/database-mapping/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\DatabaseMapping\\Tests\\']);
         self::assertSame('packages/knowledge/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Knowledge\\Tests\\']);
         self::assertSame('packages/oshie/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Oshie\\Tests\\']);
+        self::assertSame('packages/persistence/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Persistence\\Tests\\']);
+        self::assertSame('packages/persistence-build/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\PersistenceBuild\\Tests\\']);
+        self::assertSame('packages/persistence-application/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\PersistenceApplication\\Tests\\']);
         self::assertSame('packages/hantei/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Hantei\\Tests\\']);
         self::assertSame('packages/routing/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Routing\\Tests\\']);
         self::assertSame('packages/web-application/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Web\\Application\\Tests\\']);
@@ -2062,6 +2473,9 @@ final class ApiStatusConventionTest extends TestCase
         self::assertContains('composer --working-dir=packages/database-mapping validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/knowledge validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/oshie validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/persistence validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/persistence-build validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/persistence-application validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/hantei validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/routing validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/php-cgi validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
@@ -2071,13 +2485,14 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame([
             'composer --working-dir=skeletons/data-minimal validate --no-check-publish',
             'composer --working-dir=skeletons/minimal validate --no-check-publish',
+            'composer --working-dir=skeletons/persistence-minimal validate --no-check-publish',
         ], $rootManifest['scripts']['validate:skeleton']);
         self::assertIsArray($rootManifest['scripts']['quality']);
         self::assertSame('@validate:skeleton', $rootManifest['scripts']['quality'][2]);
 
         $allPackageManifests = glob(dirname(__DIR__, 2) . '/packages/*/composer.json');
         self::assertIsArray($allPackageManifests);
-        self::assertCount(27, $allPackageManifests);
+        self::assertCount(30, $allPackageManifests);
         self::assertSame('>=8.5.0 <8.6.0', $rootManifest['require']['php']);
         foreach ($allPackageManifests as $packageManifestPath) {
             $manifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
@@ -2341,15 +2756,16 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['process'], $this->declaredPublicMethodNames(new ReflectionClass(MiddlewareInterface::class)));
 
         foreach ([
-            '.php-cs-fixer.dist.php' => ['packages/routing/src', 'packages/routing/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests'],
-            'phpstan.neon.dist' => ['packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests'],
-            'phpunit.xml.dist' => ['packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests'],
+            '.php-cs-fixer.dist.php' => ['packages/routing/src', 'packages/routing/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests', 'packages/persistence/src', 'packages/persistence/tests', 'packages/persistence-build/src', 'packages/persistence-build/tests', 'packages/persistence-application/src', 'packages/persistence-application/tests', 'skeletons/persistence-minimal/src'],
+            'phpstan.neon.dist' => ['packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests', 'packages/persistence/src', 'packages/persistence/tests', 'packages/persistence-build/src', 'packages/persistence-build/tests', 'packages/persistence-application/src', 'packages/persistence-application/tests', 'skeletons/persistence-minimal/src'],
+            'phpunit.xml.dist' => ['packages/routing/src', 'packages/routing/tests', 'packages/http-server/src', 'packages/http-server/tests', 'packages/web-application/src', 'packages/web-application/tests', 'packages/web-runtime/src', 'packages/web-runtime/tests', 'packages/php-cgi/src', 'packages/php-cgi/tests', 'packages/persistence/src', 'packages/persistence/tests', 'packages/persistence-build/src', 'packages/persistence-build/tests', 'packages/persistence-application/src', 'packages/persistence-application/tests'],
         ] as $configuration => $needles) {
             $contents = file_get_contents(dirname(__DIR__, 2) . '/' . $configuration);
             self::assertIsString($contents);
             foreach ($needles as $needle) {
                 self::assertStringContainsString($needle, $contents);
-                self::assertSame(1, substr_count($contents, $needle));
+                $expectedOccurrences = 'phpstan.neon.dist' === $configuration && 'packages/persistence-application/tests' === $needle ? 2 : 1;
+                self::assertSame($expectedOccurrences, substr_count($contents, $needle));
             }
         }
 
@@ -2442,7 +2858,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['Kongono\\PhpCgi\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
         $packageManifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(27, $packageManifests);
+        self::assertCount(30, $packageManifests);
         foreach ($packageManifests as $packageManifestPath) {
             if (str_ends_with(str_replace('\\', '/', $packageManifestPath), '/php-cgi/composer.json')) {
                 continue;
@@ -2564,7 +2980,7 @@ final class ApiStatusConventionTest extends TestCase
         $productionFiles = [];
         $sourceDirectories = glob($root . '/packages/*/src', GLOB_ONLYDIR);
         self::assertIsArray($sourceDirectories);
-        self::assertCount(27, $sourceDirectories);
+        self::assertCount(30, $sourceDirectories);
         foreach ($sourceDirectories as $sourceDirectory) {
             $sourceIterator = new RecursiveIteratorIterator(
                 new RecursiveDirectoryIterator($sourceDirectory, FilesystemIterator::SKIP_DOTS),
@@ -2576,7 +2992,7 @@ final class ApiStatusConventionTest extends TestCase
                 }
             }
         }
-        self::assertCount(422, $productionFiles);
+        self::assertCount(519, $productionFiles);
         foreach ($productionFiles as $productionFile) {
             $source = file_get_contents($productionFile);
             self::assertIsString($source);
@@ -2587,7 +3003,7 @@ final class ApiStatusConventionTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(27, $manifests);
+        self::assertCount(30, $manifests);
         foreach ($manifests as $manifest) {
             $contents = file_get_contents($manifest);
             self::assertIsString($contents);
@@ -2670,10 +3086,10 @@ final class ApiStatusConventionTest extends TestCase
         }
 
         sort($packageSourceDirectories);
-        self::assertCount(27, $packageSourceDirectories);
+        self::assertCount(30, $packageSourceDirectories);
         $packageManifests = glob(dirname(__DIR__, 2) . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(27, $packageManifests);
+        self::assertCount(30, $packageManifests);
         $types = [];
 
         foreach ($packageSourceDirectories as $sourceDirectory) {

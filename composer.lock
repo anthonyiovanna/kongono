@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e116a9257fbbfd4a4c44c23f99367fb2",
+    "content-hash": "6d1c53d63b8a8d2d98f4425b291b6960",
     "packages": [
         {
             "name": "kongono/api-metadata",
@@ -718,6 +718,102 @@
                 }
             },
             "description": "Deterministic read-only cited learning and exact-answer exercises for Kongono.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/persistence",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/persistence",
+                "reference": "b68a681b5ddec4757a42ff2706b3ab120e433a5e"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/database": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Persistence\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Persistence\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral operation-scoped persistence contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/persistence-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/persistence-application",
+                "reference": "cae93281f45a0c745127bb91b23edfdf5dbacf8c"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/composition": "*",
+                "kongono/database-application": "*",
+                "kongono/diagnostics": "*",
+                "kongono/persistence-build": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\PersistenceApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\PersistenceApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Exact-current generated persistence and application composition workflow for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/persistence-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/persistence-build",
+                "reference": "88b6b65a0c6d4ae54d5ecbef73b9a2a8a8ce0369"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/database": "*",
+                "kongono/database-mapping": "*",
+                "kongono/diagnostics": "*",
+                "kongono/persistence": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\PersistenceBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\PersistenceBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic build-time persistence model compilation and artifact publication.",
             "transport-options": {
                 "relative": true
             }
@@ -5901,6 +5997,9 @@
         "kongono/kernel": 20,
         "kongono/knowledge": 20,
         "kongono/oshie": 20,
+        "kongono/persistence": 20,
+        "kongono/persistence-application": 20,
+        "kongono/persistence-build": 20,
         "kongono/php-cgi": 20,
         "kongono/routing": 20,
         "kongono/web-application": 20,

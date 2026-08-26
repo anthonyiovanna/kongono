@@ -32,6 +32,9 @@
     "kongono/kernel": "@dev",
     "kongono/knowledge": "@dev",
     "kongono/oshie": "@dev",
+    "kongono/persistence": "@dev",
+    "kongono/persistence-application": "@dev",
+    "kongono/persistence-build": "@dev",
     "kongono/php-cgi": "@dev",
     "kongono/routing": "@dev",
     "kongono/web-application": "@dev",
@@ -70,11 +73,15 @@
       "Kongono\\Kernel\\Tests\\": "packages/kernel/tests/",
       "Kongono\\Knowledge\\Tests\\": "packages/knowledge/tests/",
       "Kongono\\Oshie\\Tests\\": "packages/oshie/tests/",
+      "Kongono\\Persistence\\Tests\\": "packages/persistence/tests/",
+      "Kongono\\PersistenceApplication\\Tests\\": "packages/persistence-application/tests/",
+      "Kongono\\PersistenceBuild\\Tests\\": "packages/persistence-build/tests/",
       "Kongono\\PhpCgi\\Tests\\": "packages/php-cgi/tests/",
       "Kongono\\Routing\\Tests\\": "packages/routing/tests/",
       "Kongono\\Web\\Application\\Tests\\": "packages/web-application/tests/",
       "Kongono\\Web\\Runtime\\Tests\\": "packages/web-runtime/tests/",
       "KongonoDataMinimal\\": "skeletons/data-minimal/src/",
+      "KongonoPersistenceMinimal\\": "skeletons/persistence-minimal/src/",
       "Kongono\\Tests\\": "tests/"
     }
   },
@@ -109,6 +116,7 @@
     "acceptance:phase4": "@php tests/External/DeveloperIntelligence/run.php",
     "acceptance:phase5": "@php tests/External/Application/run.php",
     "acceptance:phase6": "@php tests/External/Database/run.php",
+    "acceptance:phase7": "@php tests/External/Persistence/run.php",
     "analyse": "@php -d memory_limit=512M vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress",
     "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
     "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
@@ -139,6 +147,9 @@
       "composer --working-dir=packages/kernel validate --no-check-publish",
       "composer --working-dir=packages/knowledge validate --no-check-publish",
       "composer --working-dir=packages/oshie validate --no-check-publish",
+      "composer --working-dir=packages/persistence validate --no-check-publish",
+      "composer --working-dir=packages/persistence-application validate --no-check-publish",
+      "composer --working-dir=packages/persistence-build validate --no-check-publish",
       "composer --working-dir=packages/php-cgi validate --no-check-publish",
       "composer --working-dir=packages/routing validate --no-check-publish",
       "composer --working-dir=packages/web-application validate --no-check-publish",
@@ -146,7 +157,8 @@
     ],
     "validate:skeleton": [
       "composer --working-dir=skeletons/data-minimal validate --no-check-publish",
-      "composer --working-dir=skeletons/minimal validate --no-check-publish"
+      "composer --working-dir=skeletons/minimal validate --no-check-publish",
+      "composer --working-dir=skeletons/persistence-minimal validate --no-check-publish"
     ],
     "knowledge:check": "@php packages/knowledge/bin/kongono-knowledge check .",
     "hantei:verify": "@php packages/hantei/bin/kongono-hantei verify .",

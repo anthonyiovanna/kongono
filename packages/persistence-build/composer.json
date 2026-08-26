@@ -1,0 +1,25 @@
+{
+    "name": "kongono/persistence-build",
+    "description": "Deterministic build-time persistence model compilation and artifact publication.",
+    "type": "library",
+    "require": {
+        "ext-hash": "*",
+        "ext-json": "*",
+        "kongono/api-metadata": "*",
+        "kongono/database": "*",
+        "kongono/database-mapping": "*",
+        "kongono/diagnostics": "*",
+        "kongono/persistence": "*",
+        "php": ">=8.5.0 <8.6.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kongono\\PersistenceBuild\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kongono\\PersistenceBuild\\Tests\\": "tests/"
+        }
+    }
+}

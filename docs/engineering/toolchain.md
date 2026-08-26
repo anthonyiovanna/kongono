@@ -243,3 +243,19 @@ and contains summaries rather than raw samples. It is not part of `composer
 quality`, production autoload, runtime telemetry, an SLA, or a regression
 threshold. See the [Phase 6 external guide](../architecture/phase-6-external-acceptance.md)
 and [performance baseline guide](database-performance-baseline.md).
+
+## Phase 7 external acceptance command
+
+`composer acceptance:phase7 -- "<PostgreSQL-18-bin>"` invokes the root-owned
+persistence harness with one explicit ordinary binary directory. The accepted
+checkpoint profile is PostgreSQL 18.6; PostgreSQL 18 is the current primary
+major, while PostgreSQL 17.2 remains historical Phase 6 regression evidence.
+
+The command builds an exact temporary application, reproduces current generated
+persistence, data-access, repository, and Composition identities, executes the
+bounded operation and aggregate scenarios against a fresh loopback provider,
+emits one canonical success object, and removes every owned resource. Its four
+timing summaries are local observations, not thresholds or production claims.
+Another provider minor or major requires fresh acceptance evidence. See the
+[Phase 7 external guide](../architecture/phase-7-external-acceptance.md) and
+[persistence performance guide](persistence-performance-baseline.md).

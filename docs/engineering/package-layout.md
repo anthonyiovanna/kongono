@@ -142,13 +142,13 @@ send/close orchestration without selecting a production SAPI, server, listener,
 emitter, or deployment profile.
 
 Composer does not import a dependency's `autoload-dev` mapping into the consuming
-root project. The monorepo root therefore maps all twenty-seven package test namespaces in
+root project. The monorepo root therefore maps all twenty-eight package test namespaces in
 its own `autoload-dev`, alongside the root `Kongono\Tests\` mapping. This makes
 package tests directly autoloadable during root development without exposing
 them through production `autoload`.
 
 The root manifest uses one canonical Composer path repository at `packages/*`
-and requires all twenty-seven local packages with exact `@dev` constraints. These per-package
+and requires all twenty-eight local packages with exact `@dev` constraints. These per-package
 stability flags permit untagged local packages without changing repository-wide
 minimum stability or inventing versions. Composer generates the lock and root
 autoload metadata; manual lock edits and custom autoloaders remain prohibited.
@@ -159,7 +159,7 @@ Run package-manifest validation from the root with:
 composer validate:packages
 ```
 
-The command validates all twenty-seven package manifests in deterministic
+The command validates all twenty-eight package manifests in deterministic
 lexicographic package-directory order and is part of `composer quality`
 immediately after root-manifest validation. Source uses package-owned production
 namespaces, package tests use package development namespaces, and all package
@@ -169,7 +169,7 @@ root architecture suite rather than any package.
 
 ## Boundaries and stability
 
-The twenty-seven physical package boundaries are implemented. The root-owned Phase
+The twenty-eight physical package boundaries are implemented. The root-owned Phase
 2 fixture is test infrastructure, not a package or production application.
 Other package boundaries and dependency
 rules remain open. Independent publishing, splitting, versioning, and release
@@ -278,7 +278,7 @@ php-cgi -> api-metadata
 php-cgi -> diagnostics
 php-cgi -> http-message
 php-cgi -> psr/http-message
-framework root -> all twenty-seven packages
+framework root -> all twenty-eight packages
 ```
 
 The eighteen API Metadata consuming package-manifest constraints are
@@ -288,7 +288,7 @@ self-dependencies, and undeclared package dependencies remain prohibited.
 The former `Kongono\Kernel\Api\*` namespace is absent and no compatibility shim
 exists. Kernel, Graph, and DI independently require Diagnostics; none requires
 another semantic consumer. Current Composer/autoload behavior implements the
-twenty-seven-package graph documented above.
+twenty-eight-package graph documented above.
 
 ## Implemented Diagnostic Activation foundation
 
@@ -369,7 +369,7 @@ Kernel, Application Graph, and Dependency Injection are direct dependencies
 because their three separate exception markers form the presenter's
 accepted source union. Diagnostic Handler has no direct dependency on
 Diagnostics. Web Runtime depends on Diagnostic Handler, while Handler retains no
-reverse edge; the framework root consumes all twenty-seven packages.
+reverse edge; the framework root consumes all twenty-eight packages.
 
 The sole production declaration is the Experimental final
 readonly `Kongono\DiagnosticHandler\TrustedDeveloperDiagnosticHtmlPresenter`.
@@ -651,7 +651,7 @@ Phase 6G adds one provider-neutral outer boundary:
 | `kongono/database-application` | `Kongono\DatabaseApplication\` | PHP `>=8.5.0 <8.6.0`; `kongono/api-metadata @dev`; `kongono/composition @dev`; `kongono/database @dev`; `kongono/database-mapping @dev`; `kongono/diagnostics @dev` |
 
 Phase 6G adds `kongono/database-application` as the eighth Data Platform package.
-The current graph has twenty-seven package manifests. The SQL compiler depends one
+That phase brought the graph to twenty-seven package manifests. The SQL compiler depends one
 way on neutral plans; neither low-level package depends on either higher layer.
 The migration executor depends one way on the neutral migration model and lower
 database/SQL contracts. Mapping depends one way on the neutral database and SQL
@@ -662,9 +662,54 @@ PDO stays internal to the existing adapter, and the provider harness remains
 external test evidence. Mapping source and generated output remain application-
 owned derived build evidence and are not checked in. The outer integration
 package owns exact-current loading, composition, and operation sessions. No ORM,
-pooling, migration startup, deployment behavior, or Phase 6H behavior exists. See the
+pooling, migration startup, deployment behavior, or runtime telemetry exists.
+Phase 6H completes the milestone at checkpoint
+`f5903134e77bb2ecfaece6ee6b435a8ab2ecbd05` with external acceptance,
+observational measurement evidence, documentation reconciliation, and no new
+production package. See the
 [Data Platform guide](../architecture/data-platform.md), [database contract](../architecture/database-contract.md),
 [SQL plan guide](../architecture/database-sql-plans.md),
 [migration guide](../architecture/database-migrations.md),
 [mapping guide](../architecture/database-mapping.md),
 [engineering contract tables](database-contracts.md), and [Phase 6 roadmap](../architecture/phase-6-roadmap.md).
+
+## Phase 7B-7D persistence package boundary
+
+The current graph has exactly twenty-nine production packages and twenty-nine
+package manifests. Phase 7B adds `kongono/persistence` with the
+`Kongono\Persistence\` production namespace and package-owned test namespace.
+Phase 7C adds `kongono/persistence-build` with `Kongono\PersistenceBuild\`. The
+upper build package depends on API Metadata, Database Mapping, Diagnostics,
+neutral Persistence, and PHP. Neither neutral Persistence nor Database Mapping
+depends upward on it. The root registers both for Composer, style, static
+analysis, PHPUnit, Hantei, and API-status/inventory validation.
+
+The persistence capability remains an optional upper layer. Lower Phase 6
+Database, SQL, migration, mapping, and database-application packages must not
+depend upward on it, and direct SQL/Data Mapper use remains first-class. The
+Phase 7C build package implements strict source/model/artifact compilation,
+validation, and guarded publication. Phase 7D extends the same package with
+generated ordinary PHP state evidence, structural/current validation, and
+content-addressed publication; it adds no package or dependency. It implements
+Phase 7E adds `kongono/database` as the sole new direct dependency of
+`kongono/persistence` and implements one concrete single-entity operation
+context there. Lower database packages do not depend upward; `persistence-build`
+remains above persistence. Phase 7F adds repository-source compilation and
+generated aggregate repositories within these two existing packages. No new
+package, generated-code loader, transaction ownership, SQL generation, command,
+skeleton, or Composition integration exists. Phase 7G adds the upper
+`kongono/persistence-application` package, exact-current loaders, and optional
+`persistence-minimal` skeleton without changing lower-package ownership. This
+brings the graph to thirty production packages. Phase 7H closes the milestone
+with root-owned external acceptance and adds no production package or upward
+authority to a lower package.
+See [ADR 0087](../adr/0087-explicit-persistence-model-and-compile-time-orm-boundary.md),
+[ADR 0088](../adr/0088-operation-scoped-identity-change-tracking-and-transaction-authority.md),
+[ADR 0089](../adr/0089-neutral-persistence-contracts-and-package-boundary.md),
+[ADR 0090](../adr/0090-deterministic-persistence-model-and-artifact-compilation.md),
+[ADR 0091](../adr/0091-deterministic-generated-persistence-state-evidence.md),
+[ADR 0095](../adr/0095-phase-7-external-persistence-acceptance-and-checkpoint.md),
+[persistence build engineering](persistence-build.md),
+[persistence generation engineering](persistence-generation.md),
+the [Deterministic Persistence guide](../architecture/deterministic-persistence.md),
+and the [Phase 7 roadmap](../architecture/phase-7-roadmap.md).

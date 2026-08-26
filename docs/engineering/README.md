@@ -4,7 +4,7 @@
   Phase 4E verifier, subject identity, evidence, process, and mutation boundary.
 ## Purpose and current scope
 
-Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all twenty-seven production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
+Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all thirty production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
 
 Phase 0X expands the automatically discovered inventory with eight Diagnostic
 Presentation declarations and six focused package tests. Existing quality rules
@@ -16,7 +16,7 @@ The root command is:
 composer quality
 ```
 
-It validates the root and all twenty-seven package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
+It validates the root and all thirty package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
 
 ## Guides
 
@@ -37,6 +37,8 @@ It validates the root and all twenty-seven package manifests in lexicographic or
 - [Phase 4 external acceptance](../architecture/phase-4-external-acceptance.md)
 - [Application composition and build](../architecture/application-composition-and-build.md)
 - [Phase 5 roadmap](../architecture/phase-5-roadmap.md)
+- [Phase 7 external acceptance](../architecture/phase-7-external-acceptance.md)
+- [Persistence performance baseline](persistence-performance-baseline.md)
 
 ## Authority and exceptions
 
@@ -157,7 +159,7 @@ PostgreSQL 17 migration compiler/executor. Phase 6F adds optional Experimental
 compile-time mapping, provenance artifacts, and generated typed
 mappers/repositories. Phase 6G adds the outer database-application workflow,
 exact-current loading, operation-owned sessions, and optional data skeleton.
-The package graph now has twenty-seven packages and the current PHP range
+Phase 6G brought the package graph to twenty-seven packages and the current PHP range
 remains `>=8.5.0 <8.6.0`. Generated output is derived and not checked in; raw
 SQL and typed plans remain first-class. Phase 6H adds the root-owned whole-
 platform PostgreSQL 17 acceptance proof and a versioned local observational
@@ -173,3 +175,55 @@ deployment, runtime telemetry, pooling, retry, or further provider exists. See [
 the [SQL plan engineering guide](database-sql-plans.md), the
 [migration engineering guide](database-migrations.md), and the
 [mapping engineering guide](database-mapping.md).
+
+## Phase 7B-7D persistence build and generation boundary
+
+Phase 6 is complete at checkpoint
+`f5903134e77bb2ecfaece6ee6b435a8ab2ecbd05` with twenty-seven production
+packages. Phase 7A accepts documentation architecture. Phase 7B adds the
+Experimental neutral `kongono/persistence` package. Phase 7C adds Experimental
+`kongono/persistence-build` as package twenty-nine and registers its source/tests
+in package validation, style, maximum static analysis, PHPUnit, root autoload,
+Hantei, and API-status inventory.
+
+The accepted direction keeps application domain classes plain, compiles bounded
+versioned metadata before runtime, generates ordinary reviewable PHP evidence,
+and scopes any later identity map, snapshot, change set, or persistence context
+to one operation. Flush and transaction authority remain explicit; uncertain
+failure retires the context. Relationships, load plans, aggregates, cascades,
+concurrency, diagnostics, cleanup, and performance claims require visible
+bounded contracts and separate proof.
+
+The neutral package supplies identity, opaque concurrency-token, state, immutable
+value-free change/flush, context-interface, diagnostic, and exception contracts.
+The build package supplies one strict source, mapping-builder consumption,
+build-time domain validation, detached model, provenance artifact, separate
+structural/current proof, and safe publication. Phase 7D adds deterministic
+ordinary PHP state adapters from one exact-current artifact, a closed generated
+API, non-executing fail-closed validation, and content-addressed atomic
+publication. Phase 7E adds one concrete single-entity operation context and
+explicit unit-of-work flush over a caller-supplied database executor. It owns no
+session, transaction, retry, SQL, provider, or generated-state loader. Phase 7F
+adds separate-source generated aggregate repositories with explicit bounded
+relationship loads and one-level cascades. Direct Phase 6 SQL and generated Data
+Mapper workflows remain supported. Phase 7G adds the optional exact-current
+Composition workflow documented in the
+[persistence application workflow](persistence-application-workflow.md). See
+also the [persistence context guide](persistence-context.md) and [aggregate
+repository guide](aggregate-repositories.md).
+Phase 7H closes the thirty-package milestone with a root-owned PostgreSQL 18.6
+acceptance harness and local observational timing evidence. PostgreSQL 18 is
+the current primary major; the exact accepted minor is 18.6, while PostgreSQL
+17.2 remains historical Phase 6 regression evidence. Exact-current evidence is
+narrower than universal compatibility, and another provider version requires
+fresh acceptance. The external proof adds no runtime telemetry, hidden
+transaction, production-readiness, or Stable-API claim.
+See [ADR 0087](../adr/0087-explicit-persistence-model-and-compile-time-orm-boundary.md),
+[ADR 0088](../adr/0088-operation-scoped-identity-change-tracking-and-transaction-authority.md),
+[ADR 0089](../adr/0089-neutral-persistence-contracts-and-package-boundary.md),
+[ADR 0090](../adr/0090-deterministic-persistence-model-and-artifact-compilation.md),
+[ADR 0091](../adr/0091-deterministic-generated-persistence-state-evidence.md),
+[persistence build engineering](persistence-build.md),
+[persistence generation engineering](persistence-generation.md),
+the [Deterministic Persistence guide](../architecture/deterministic-persistence.md),
+and the [Phase 7 roadmap](../architecture/phase-7-roadmap.md).

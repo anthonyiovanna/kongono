@@ -1,0 +1,23 @@
+{
+  "schema": "kongono.persistence-repositories",
+  "version": 1,
+  "persistence_source": "packages/persistence-build/tests/Fixture/Application/kongono.persistence.json",
+  "generated_namespace": "Kongono\\PersistenceBuild\\Tests\\GeneratedAggregateRepositories",
+  "repositories": [
+    {
+      "aggregate": "account",
+      "class": "AccountAggregateRepository",
+      "load_methods": [
+        {
+          "method": "loadWithProfiles",
+          "relationships": [
+            {"relationship": "account_profiles", "max_related": 32}
+          ]
+        }
+      ],
+      "cascades": [
+        {"relationship": "account_profiles", "persist": true, "remove": true}
+      ]
+    }
+  ]
+}

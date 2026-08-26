@@ -279,3 +279,59 @@ the [Data Platform guide](../architecture/data-platform.md),
 [migration guide](../architecture/database-migrations.md),
 [mapping guide](../architecture/database-mapping.md),
 [engineering contract tables](database-contracts.md), and [Phase 6 roadmap](../architecture/phase-6-roadmap.md).
+
+## Phase 7B-7D persistence build and generation proof
+
+Phase 6 is complete at checkpoint
+`f5903134e77bb2ecfaece6ee6b435a8ab2ecbd05`. Phase 7A accepts documentation
+architecture. Phase 7B adds eight focused package test files for the neutral
+contract package. Phase 7C adds ten focused test files and four PHP fixtures for
+the build package and strengthens the root architecture suite. The canonical
+quality gate now covers twenty-nine package manifests, 478 production package
+PHP files, 244 package test/fixture PHP files, and the unchanged 43 root tests.
+
+Phase 7B tests prove exact identity/token validation without autoloading or
+stringification; immutable detached bounded changes and change sets; exact
+context signatures and absence of an implementation; flush-result invariants;
+seven non-disclosing diagnostics; the exception family; API statuses; package
+direction; and absence of prohibited runtime/mapping/database/integration code.
+Later metadata, generated evidence, concrete contexts, relationships, and
+external PostgreSQL proof require their own authenticated phases and focused
+tests. Phase 7C tests add deterministic repeated builds; strict JSON/schema and
+bounds; construction/field/aggregate/relationship validation; current mapping
+consumption; canonical provenance; structural/current distinction; guarded
+publication; changed-input and path rejection; disclosure safety; exact API
+statuses; and prohibited-runtime scans. Phase 7D adds six focused test files for
+deterministic emission, the exact generated API, invariant-preserving hydration,
+typed extraction/identity/snapshot/change behavior, structural/current
+validation, unexpected executable-syntax no-execution, malicious-token and
+stale rejection, content-addressed no-clobber publication, and external fresh-
+output lint/maximum-static-analysis/style/load proof. Phase 7E adds focused
+proof for exact one-entity ownership, managed/new/removed state, zero-or-one
+change execution, explicit absence/conflict outcomes, caller database identity,
+zero transaction lifecycle calls, terminal uncertainty, reference release,
+nondisclosure, isolation, no retry, and no automatic flush. Phase 7F adds proof
+for strict separate source admission, deterministic generated repository bytes,
+non-executing/current validation, content-addressed no-clobber publication,
+exact one-call capability forwarding, bounded loaded shapes, one-level cascade
+policy, absence/conflict distinction, operation isolation, and reference release.
+Phase 7G adds exact-current generated loading and whole-workflow build/check
+proof. Phase 7H adds the root-owned PostgreSQL 18.6 external matrix, including
+operation-local identity behavior, overlapping-operation isolation, explicit
+transaction control, optimistic conflicts, bounded aggregate loads and
+one-level cascades, nondisclosure, cleanup, and deterministic performance-
+summary math. The independent Phase 6 command continues to prove the historical
+PostgreSQL 17.2 regression profile.
+
+See [ADR 0087](../adr/0087-explicit-persistence-model-and-compile-time-orm-boundary.md),
+[ADR 0088](../adr/0088-operation-scoped-identity-change-tracking-and-transaction-authority.md),
+[ADR 0089](../adr/0089-neutral-persistence-contracts-and-package-boundary.md),
+[ADR 0090](../adr/0090-deterministic-persistence-model-and-artifact-compilation.md),
+[ADR 0091](../adr/0091-deterministic-generated-persistence-state-evidence.md),
+[ADR 0095](../adr/0095-phase-7-external-persistence-acceptance-and-checkpoint.md),
+[persistence build engineering](persistence-build.md),
+[persistence generation engineering](persistence-generation.md),
+[Phase 7 external acceptance](../architecture/phase-7-external-acceptance.md),
+[persistence performance evidence](persistence-performance-baseline.md),
+the [Deterministic Persistence guide](../architecture/deterministic-persistence.md),
+and the [Phase 7 roadmap](../architecture/phase-7-roadmap.md).
