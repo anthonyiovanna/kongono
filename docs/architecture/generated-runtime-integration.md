@@ -37,6 +37,23 @@ does not inspect constructors, discover services, or execute during a request.
 It exposes no arbitrary root, service, input, resolver, registry, or container
 lookup.
 
+## Exact Security Runtime shape
+
+Phase 9E adds a separate outer profile over the same exact-current loader:
+
+```text
+Generated application assembly
+  -> no application root
+  -> exactly one SecurityContext operation input
+  -> exactly one SecurityOperationRoot operation root
+```
+
+`GeneratedSecurityApplication` completes bounded profile reflection before
+generated startup. Each explicit anonymous or authenticated entry constructs a
+fresh context and calls `beginOperationWithInputs()`. Operation entry performs
+no reflection or lookup, and generated application state retains no context.
+This profile performs no authorization or protected-capability enforcement.
+
 ## Request and shutdown path
 
 ```text
@@ -88,3 +105,4 @@ copy-once skeleton without moving lifecycle ownership.
 - [Web Runtime model](web-runtime-model.md)
 - [PHP-CGI FastCGI profile](php-cgi-fastcgi-profile.md)
 - [Minimal application workflow](minimal-application-workflow.md)
+- [Operation-scoped Security Context](operation-scoped-security-context.md)

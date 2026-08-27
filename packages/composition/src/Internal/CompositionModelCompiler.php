@@ -14,7 +14,7 @@ use ReflectionNamedType;
 use ReflectionParameter;
 use Throwable;
 
-/** Validates and canonicalizes the complete version-1 declaration model. */
+/** Validates and canonicalizes one complete supported composition declaration model. */
 #[Api(ApiStatus::Internal)]
 final class CompositionModelCompiler
 {
@@ -37,6 +37,10 @@ final class CompositionModelCompiler
      */
     public function compile(string $resolvedRoot, array $source): array
     {
+        $version = $source['version'] ?? null;
+        if (!is_int($version) || !in_array($version, [1, 2], true)) {
+            $this->invalidDeclaration('source_version');
+        }
         $inputs = $this->declarationList($source['inputs'] ?? null, 'inputs', self::MAX_INPUTS);
         $services = $this->declarationList($source['services'] ?? null, 'services', self::MAX_SERVICES);
         $bindings = $this->declarationList($source['bindings'] ?? null, 'bindings', self::MAX_BINDINGS);
@@ -45,7 +49,7 @@ final class CompositionModelCompiler
             $this->invalidDeclaration('roots_empty');
         }
 
-        $canonicalInputs = $this->shapeInputs($inputs);
+        $canonicalInputs = $this->shapeInputs($inputs, $version);
         $canonicalServices = $this->shapeServices($services);
         $canonicalBindings = $this->shapeBindings($bindings);
         $canonicalRoots = $this->shapeRoots($roots);
@@ -98,18 +102,21 @@ final class CompositionModelCompiler
             $serviceByClass[$class] = $service;
         }
 
-        /** @var array<string, true> $inputSet */
-        $inputSet = [];
+        /** @var array<string, string> $inputLifetimes */
+        $inputLifetimes = [];
         foreach ($canonicalInputs as $input) {
             $contract = $input['contract'];
-            if (isset($inputSet[$contract])) {
+            if (isset($inputLifetimes[$contract])) {
                 $this->invalidDeclaration('duplicate_input');
             }
             $reflection = $this->symbols[$contract];
-            if ((!$reflection->isInterface() && !$reflection->isInstantiable()) || $reflection->isTrait() || $reflection->isEnum() || $reflection->isInternal()) {
+            if ($reflection->isTrait() || $reflection->isEnum() || $reflection->isInternal()) {
                 $this->invalidDeclaration('invalid_input_contract');
             }
-            $inputSet[$contract] = true;
+            $inputLifetimes[$contract] = $input['lifetime'] ?? 'application';
+        }
+        if (2 === $version && count(array_filter($inputLifetimes, static fn(string $lifetime): bool => 'operation' === $lifetime)) > 32) {
+            throw new InvalidCompositionSourceException(CompositionDiagnostic::CompositionLimitExceeded, 'operation_input_count');
         }
 
         /** @var array<string, string> $bindingMap */
@@ -155,7 +162,7 @@ final class CompositionModelCompiler
                 if (!$constructor->isPublic() || count($constructor->getParameters()) !== count($arguments)) {
                     $this->invalidDeclaration('constructor_contract');
                 }
-                $edges[$class] = $this->validateArguments($constructor, $arguments, $serviceByClass, $bindingMap, $inputSet);
+                $edges[$class] = $this->validateArguments($constructor, $arguments, $serviceByClass, $bindingMap, $inputLifetimes);
             }
             $this->validateCleanup($reflection, $service['cleanup']);
         }
@@ -168,6 +175,7 @@ final class CompositionModelCompiler
         }
         $this->validateCycles($edges);
         $this->validateReachability($canonicalRoots, $serviceByClass, $bindingMap, $edges);
+        $this->validateOperationInputIsolation($canonicalRoots, $serviceByClass, $bindingMap, $inputLifetimes);
 
         $snapshotsByPath = [];
         foreach ($this->symbols as $reflection) {
@@ -187,7 +195,7 @@ final class CompositionModelCompiler
         return [
             'model' => [
                 'schema' => 'kongono.composition',
-                'version' => 1,
+                'version' => $version,
                 'inputs' => $canonicalInputs,
                 'services' => $canonicalServices,
                 'bindings' => $canonicalBindings,
@@ -218,14 +226,23 @@ final class CompositionModelCompiler
     }
 
     /** @param list<array<string, mixed>> $records
-     * @return list<array{contract:string}>
+     * @return list<array{contract:string}|array{contract:string,lifetime:string}>
      */
-    private function shapeInputs(array $records): array
+    private function shapeInputs(array $records, int $version): array
     {
         $result = [];
         foreach ($records as $record) {
-            $this->assertKeys($record, ['contract'], 'input_shape');
-            $result[] = ['contract' => $this->symbol($record['contract'] ?? null)];
+            if (1 === $version) {
+                $this->assertKeys($record, ['contract'], 'input_shape');
+                $result[] = ['contract' => $this->symbol($record['contract'] ?? null)];
+                continue;
+            }
+            $this->assertKeys($record, ['contract', 'lifetime'], 'input_shape');
+            $lifetime = $record['lifetime'] ?? null;
+            if (!is_string($lifetime) || !in_array($lifetime, ['application', 'operation'], true)) {
+                $this->invalidDeclaration('input_lifetime');
+            }
+            $result[] = ['contract' => $this->symbol($record['contract'] ?? null), 'lifetime' => $lifetime];
         }
 
         return $result;
@@ -406,10 +423,10 @@ final class CompositionModelCompiler
      * @param list<array<string, mixed>> $arguments
      * @param array<string, array{class:string,lifetime:string,arguments:list<array<string,mixed>>,cleanup:null|string}> $serviceByClass
      * @param array<string, string> $bindingMap
-     * @param array<string, true> $inputSet
+     * @param array<string, string> $inputLifetimes
      * @return list<string>
      */
-    private function validateArguments(ReflectionMethod $constructor, array $arguments, array $serviceByClass, array $bindingMap, array $inputSet): array
+    private function validateArguments(ReflectionMethod $constructor, array $arguments, array $serviceByClass, array $bindingMap, array $inputLifetimes): array
     {
         $edges = [];
         foreach ($constructor->getParameters() as $position => $parameter) {
@@ -426,7 +443,7 @@ final class CompositionModelCompiler
             }
             if (isset($argument['input'])) {
                 $contract = $argument['input'];
-                if (!is_string($contract) || !isset($inputSet[$contract]) || $contract !== $typeName) {
+                if (!is_string($contract) || !isset($inputLifetimes[$contract]) || $contract !== $typeName) {
                     $this->invalidGraph('input_resolution');
                 }
                 continue;
@@ -556,6 +573,63 @@ final class CompositionModelCompiler
         }
         foreach ($edges[$service] ?? [] as $target) {
             $this->walkReachability($target, $boundary, $serviceByClass, $edges, $seen);
+        }
+    }
+
+    /**
+     * @param list<array{kind:string,contract:string}> $roots
+     * @param array<string, array{class:string,lifetime:string,arguments:list<array<string,mixed>>,cleanup:null|string}> $serviceByClass
+     * @param array<string, string> $bindingMap
+     * @param array<string, string> $inputLifetimes
+     */
+    private function validateOperationInputIsolation(array $roots, array $serviceByClass, array $bindingMap, array $inputLifetimes): void
+    {
+        foreach ($serviceByClass as $class => $service) {
+            if ('application' !== $service['lifetime']) {
+                continue;
+            }
+            $seen = [];
+            $this->walkOperationInputIsolation($class, $serviceByClass, $bindingMap, $inputLifetimes, $seen);
+        }
+        foreach ($roots as $root) {
+            if ('application' !== $root['kind']) {
+                continue;
+            }
+            $class = $this->resolveService($root['contract'], $serviceByClass, $bindingMap);
+            if (null === $class) {
+                $this->invalidGraph('invalid_root');
+            }
+            $seen = [];
+            $this->walkOperationInputIsolation($class, $serviceByClass, $bindingMap, $inputLifetimes, $seen);
+        }
+    }
+
+    /**
+     * @param array<string, array{class:string,lifetime:string,arguments:list<array<string,mixed>>,cleanup:null|string}> $serviceByClass
+     * @param array<string, string> $bindingMap
+     * @param array<string, string> $inputLifetimes
+     * @param array<string, true> $seen
+     */
+    private function walkOperationInputIsolation(string $class, array $serviceByClass, array $bindingMap, array $inputLifetimes, array &$seen): void
+    {
+        if (isset($seen[$class])) {
+            return;
+        }
+        $seen[$class] = true;
+        foreach ($serviceByClass[$class]['arguments'] as $argument) {
+            $input = $argument['input'] ?? null;
+            if (is_string($input) && 'operation' === ($inputLifetimes[$input] ?? null)) {
+                $this->invalidGraph('application_reaches_operation_input');
+            }
+            $service = $argument['service'] ?? null;
+            if (!is_string($service)) {
+                continue;
+            }
+            $target = $this->resolveService($service, $serviceByClass, $bindingMap);
+            if (null === $target) {
+                $this->invalidGraph('missing_service');
+            }
+            $this->walkOperationInputIsolation($target, $serviceByClass, $bindingMap, $inputLifetimes, $seen);
         }
     }
 

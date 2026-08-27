@@ -18,7 +18,8 @@
   existing web lifecycle integration.
 - **Implemented in Phase 5G:** one reusable build/check workflow and copy-once
   minimal application skeleton.
-- **Planned:** Phase 5H externally accepts and checkpoints the milestone.
+- **Implemented in Phase 9E:** source version 2 requires explicit application
+  or operation lifetime on every input while version 1 remains compatible.
 
 This guide explains the conceptual contract selected by [ADR 0070](../adr/0070-versioned-composition-source-and-provenance.md)
 and [ADR 0071](../adr/0071-roots-bindings-lifetimes-and-cleanup.md). It is not a
@@ -132,7 +133,9 @@ valid application project are consumable by the explicit build API.
 }
 ```
 
-An input has exactly `contract`. A service has exactly `class`, `lifetime`,
+In version 1, an input has exactly `contract` and remains application-lifetime.
+In version 2, an input has exactly `contract` and mandatory `lifetime`, whose
+value is `application` or `operation`. A service has exactly `class`, `lifetime`,
 `arguments`, and `cleanup`. Each ordered argument has exactly `parameter` and
 one of `service`, `input`, or `default: true`. A binding has exactly
 `contract` and `service`. Each root has exactly `kind` and `contract`; roots are
@@ -212,6 +215,9 @@ fails closed; it is never truncated or guessed.
 A transient inherits the requesting boundary for reachability and cleanup.
 Cycles always fail. Application services must remain concurrency-safe and must
 not retain operation-specific request, identity, route, failure, input, or scope
+state. In version 2, an application service or root must not directly or
+transitively reach an operation input. Operation inputs are supplied only when
+the generated operation begins and are never retained by generated application
 state.
 
 ## Cleanup and failure flow
@@ -264,6 +270,10 @@ inspectable artifact. Phase 5E generates typed constructor wiring and owns its
 isolated lifetime support. Phase 5F owns production loading and integration
 with runtime boundaries. Runtime
 requests do not discover, parse, reflect, build, repair, or locate services.
+
+Phase 9E adds only the version-2 input-lifetime evolution and explicit bounded
+operation-input runtime path. Version-1 source and generated semantics remain
+compatible. See [ADR 0110](../adr/0110-operation-scoped-security-context-and-generated-composition-inputs.md).
 
 The current Dependency Injection resolver retains its existing explicit
 runtime-definition behavior. The Application Graph, Kernel, routes, middleware,

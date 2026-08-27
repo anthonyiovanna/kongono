@@ -32,6 +32,7 @@ final class CompositionArtifactBuilder
         'src/Exception/CompositionPublicationException.php',
         'src/Exception/ExceptionInterface.php',
         'src/Exception/GeneratedWiringPublicationException.php',
+        'src/Exception/InvalidGeneratedOperationInputsException.php',
         'src/Exception/InvalidCompositionArtifactException.php',
         'src/Exception/InvalidCompositionSourceException.php',
         'src/Exception/InvalidGeneratedWiringException.php',
@@ -49,6 +50,8 @@ final class CompositionArtifactBuilder
         'src/Internal/StrictJsonDecoder.php',
         'src/Runtime/GeneratedApplicationBoundary.php',
         'src/Runtime/GeneratedApplicationState.php',
+        'src/Runtime/GeneratedOperationInputApplicationBoundary.php',
+        'src/Runtime/GeneratedOperationInputs.php',
         'src/Runtime/GeneratedOperationBoundary.php',
         'src/Runtime/LifecycleFailureComposer.php',
     ];
@@ -68,7 +71,7 @@ final class CompositionArtifactBuilder
         if (['bindings', 'inputs', 'roots', 'schema', 'services', 'version'] !== $keys) {
             throw new InvalidCompositionSourceException(CompositionDiagnostic::UnsupportedSourceSchema, 'top_level_members');
         }
-        if ('kongono.composition' !== $source['schema'] || 1 !== $source['version']) {
+        if ('kongono.composition' !== $source['schema'] || !in_array($source['version'], [1, 2], true)) {
             throw new InvalidCompositionSourceException(CompositionDiagnostic::UnsupportedSourceSchema, 'schema_or_version');
         }
 

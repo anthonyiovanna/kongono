@@ -1,0 +1,20 @@
+{
+  "name": "kongono/identity-access",
+  "description": "Neutral identity and access contracts for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\IdentityAccess\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\IdentityAccess\\Tests\\": "tests/"
+    }
+  }
+}

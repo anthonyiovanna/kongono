@@ -4,7 +4,7 @@
   Phase 4E verifier, subject identity, evidence, process, and mutation boundary.
 ## Purpose and current scope
 
-Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all thirty-five production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
+Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all thirty-six production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
 
 Phase 0X expands the automatically discovered inventory with eight Diagnostic
 Presentation declarations and six focused package tests. Existing quality rules
@@ -16,7 +16,7 @@ The root command is:
 composer quality
 ```
 
-It validates the root and all thirty-five package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
+It validates the root and all thirty-six package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
 
 ## Guides
 
@@ -41,6 +41,8 @@ It validates the root and all thirty-five package manifests in lexicographic ord
 - [Persistence performance baseline](persistence-performance-baseline.md)
 - [Structured CLI architecture](../architecture/structured-cli.md)
 - [Phase 8 roadmap](../architecture/phase-8-roadmap.md)
+- [Identity and Access Security](../architecture/identity-and-access-security.md)
+- [Phase 9 roadmap](../architecture/phase-9-roadmap.md)
 
 ## Authority and exceptions
 
@@ -235,7 +237,7 @@ and the [Phase 7 roadmap](../architecture/phase-7-roadmap.md).
 Phase 8C extends the Experimental `kongono/console` package with six production
 declarations and four focused tests, and adds `kongono/console-build` with 16
 production declarations and ten focused tests. Exact root and Hantei quality
-integration now covers the root and all thirty-five production packages on the
+integration now covers the root and all thirty-six production packages on the
 accepted PHP 8.5 current-minor line.
 
 The accepted direction separates command meaning, one explicit invocation and
@@ -278,3 +280,30 @@ root-owned `composer acceptance:phase8` real-process profile. It proves both
 executable edges, deterministic help/results, corrected exit-3 conflict
 no-clobber, plan/apply truth, recovery, nondisclosure, repository preservation,
 and complete owned-temp cleanup. See the [external acceptance guide](../architecture/phase-8-external-acceptance.md).
+
+## Phase 9A Identity and Access Security engineering boundary
+
+Phase 9A adds documentation architecture only. It defines explicit separation,
+deny-by-default evaluation, protected-capability enforcement, immutable
+operation-scoped security state, deterministic policy provenance, credential
+opacity, and nondisclosure. It does not add a package, contract, PHP source,
+dependency, schema, verifier, provider, policy engine, session, HTTP adapter,
+test, tool command, generated output, or runtime integration.
+
+Later engineering must keep neutral contracts below transport and application
+adapters, pass security inputs through explicit typed Composition, validate
+policy evidence before runtime, and prove cleanup and sequential/reentrant
+isolation without networks, globals, ambient clocks, or real secrets. Hantei
+may inspect deterministic evidence but grants no authority. See the
+[Identity and Access Security guide](../architecture/identity-and-access-security.md)
+and fixed [Phase 9 roadmap](../architecture/phase-9-roadmap.md).
+
+## Phase 9H external security engineering boundary
+
+Phase 9H adds four root test PHP files and two documentation authorities. The
+`composer acceptance:phase9` profile proves the selected security workflow
+through explicit child-process argument arrays and one cleanup-owned temporary
+application. It adds no production PHP, package, dependency, skeleton source,
+provider, policy semantics, or runtime authority. See
+[ADR 0113](../adr/0113-phase-9-external-security-acceptance-and-checkpoint.md)
+and the [external acceptance guide](../architecture/phase-9-external-acceptance.md).

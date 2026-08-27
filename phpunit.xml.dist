@@ -16,6 +16,8 @@
         <testsuite name="Kongono">
             <directory>packages/api-metadata/tests</directory>
             <directory>packages/application-graph/tests</directory>
+            <directory>packages/authentication/tests</directory>
+            <directory>packages/authorization/tests</directory>
             <directory>packages/chie/tests</directory>
             <directory>packages/composition/tests</directory>
             <directory>packages/console/tests</directory>
@@ -40,6 +42,7 @@
             <directory>packages/hantei/tests</directory>
             <directory>packages/http-message/tests</directory>
             <directory>packages/http-server/tests</directory>
+            <directory>packages/identity-access/tests</directory>
             <directory>packages/kernel/tests</directory>
             <directory>packages/knowledge/tests</directory>
             <directory>packages/oshie/tests</directory>
@@ -48,6 +51,11 @@
             <directory>packages/persistence-build/tests</directory>
             <directory>packages/php-cgi/tests</directory>
             <directory>packages/routing/tests</directory>
+            <directory>packages/security-application/tests</directory>
+            <directory>packages/security-enforcement/tests</directory>
+            <directory>packages/security-http/tests</directory>
+            <directory>packages/security-policy-build/tests</directory>
+            <directory>packages/security-runtime/tests</directory>
             <directory>packages/web-application/tests</directory>
             <directory>packages/web-runtime/tests</directory>
             <directory>tests</directory>
@@ -57,6 +65,8 @@
         <include>
             <directory>packages/api-metadata/src</directory>
             <directory>packages/application-graph/src</directory>
+            <directory>packages/authentication/src</directory>
+            <directory>packages/authorization/src</directory>
             <directory>packages/chie/src</directory>
             <directory>packages/composition/src</directory>
             <directory>packages/console/src</directory>
@@ -81,6 +91,7 @@
             <directory>packages/hantei/src</directory>
             <directory>packages/http-message/src</directory>
             <directory>packages/http-server/src</directory>
+            <directory>packages/identity-access/src</directory>
             <directory>packages/kernel/src</directory>
             <directory>packages/knowledge/src</directory>
             <directory>packages/oshie/src</directory>
@@ -89,11 +100,17 @@
             <directory>packages/persistence-build/src</directory>
             <directory>packages/php-cgi/src</directory>
             <directory>packages/routing/src</directory>
+            <directory>packages/security-application/src</directory>
+            <directory>packages/security-enforcement/src</directory>
+            <directory>packages/security-http/src</directory>
+            <directory>packages/security-policy-build/src</directory>
+            <directory>packages/security-runtime/src</directory>
             <directory>packages/web-application/src</directory>
             <directory>packages/web-runtime/src</directory>
             <directory>skeletons/data-minimal/src</directory>
             <directory>skeletons/minimal/src</directory>
             <directory>skeletons/persistence-minimal/src</directory>
+            <directory>skeletons/security-minimal/src</directory>
         </include>
     </source>
 </phpunit>

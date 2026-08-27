@@ -120,7 +120,8 @@ final class CompositionArtifactValidator
     private function validateModel(array $model): void
     {
         $this->assertKeys($model, ['schema', 'version', 'inputs', 'services', 'bindings', 'roots']);
-        if ('kongono.composition' !== ($model['schema'] ?? null) || 1 !== ($model['version'] ?? null)) {
+        $modelVersion = $model['version'] ?? null;
+        if ('kongono.composition' !== ($model['schema'] ?? null) || !in_array($modelVersion, [1, 2], true)) {
             $this->invalid('model_schema');
         }
         $inputs = $this->list($model['inputs'] ?? null);
@@ -134,10 +135,16 @@ final class CompositionArtifactValidator
         $previous = null;
         foreach ($inputs as $value) {
             $record = $this->object($value);
-            $this->assertKeys($record, ['contract']);
+            $this->assertKeys($record, 1 === $modelVersion ? ['contract'] : ['contract', 'lifetime']);
             $contract = $this->symbol($record['contract'] ?? null);
+            if (2 === $modelVersion && !in_array($record['lifetime'] ?? null, ['application', 'operation'], true)) {
+                $this->invalid('model_input_lifetime');
+            }
             $this->assertIncreasing($previous, $contract);
             $previous = $contract;
+        }
+        if (2 === $modelVersion && count(array_filter($inputs, static fn(mixed $input): bool => is_array($input) && 'operation' === ($input['lifetime'] ?? null))) > 32) {
+            $this->invalid('model_bounds');
         }
 
         $previous = null;

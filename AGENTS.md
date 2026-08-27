@@ -468,4 +468,117 @@ application fabricates no snapshot defaults. Phase 8H accepts
 [ADR 0104](docs/adr/0104-phase-8-external-cli-acceptance-and-checkpoint.md),
 adds only root-owned real-process acceptance for both executable edges, and
 closes the exact Phase 8 checkpoint. Conflicting output is a no-clobber
-Precondition at exit 3; exit 6 remains Infrastructure. Phase 9 is unimplemented.
+Precondition at exit 3; exit 6 remains Infrastructure. Phase 9 runtime is
+unimplemented.
+
+## Identity and Access Security policy
+
+Phase 9A accepts
+[ADR 0105](docs/adr/0105-explicit-identity-authentication-and-authorization-boundary.md),
+[ADR 0106](docs/adr/0106-fail-closed-security-context-and-policy-separation.md),
+the [Identity and Access Security guide](docs/architecture/identity-and-access-security.md),
+and the fixed [Phase 9 roadmap](docs/architecture/phase-9-roadmap.md) as
+architecture only. It adds no package, PHP, dependency, schema, API, command,
+provider, authenticator, policy engine, session, HTTP adapter, enforcement,
+audit store, telemetry, or runtime behavior. The production graph remains
+exactly thirty-six acyclic packages at the accepted Phase 8 checkpoint.
+
+Identity, authentication, authorization, credential/session transport,
+protected-capability enforcement, disclosure, audit, and telemetry remain
+separate. Authentication success grants no authorization. Principal kinds,
+roles, sessions, routes, middleware, bindings, discovery, and diagnostic modes
+grant nothing by themselves. Authorization is deny by default and fail closed:
+only an exact `Permit` over one immutable operation Security Context, exact
+application-owned Action and Resource, exact current Policy Evidence, and
+explicit environmental facts may proceed.
+
+Enforcement occurs at the typed protected capability before protected reads,
+external or database effects, secret disclosure, filesystem publication, or
+mutation apply. Security Context is immutable, explicit, operation-scoped, and
+fully released during cleanup; no static current user, ambient `Auth`, thread
+local, service locator, request singleton authority, or Kernel security state is
+permitted. Credentials remain opaque and nondisclosing, Kongono invents no
+cryptographic primitive, and policy truth must be deterministic, versioned,
+provenance-bound, exact-current, and validated before runtime.
+
+Phase 9B accepts
+[ADR 0107](docs/adr/0107-neutral-identity-and-access-contracts-and-package-boundary.md)
+and implements only the Experimental `kongono/identity-access` neutral contract
+package. Its five principal kinds, opaque principal/resource identifiers,
+principal/resource references, eight authentication outcomes, inert
+Permit/Deny/Indeterminate vocabulary, canonical Action/ResourceType names, and
+explicit anonymous/authenticated Security Context are immutable values and
+grant no authority. Only Authenticated outcomes carry a principal; neither that
+shape nor `Permit` performs verification, policy evaluation, or enforcement.
+
+Identity Access depends only on API Metadata, Diagnostics, and PHP and brings
+the graph to exactly thirty-seven acyclic packages at Phase 9B. Its package-owned
+diagnostics and exceptions are bounded and non-disclosing. Phase 9B adds no
+authenticator, verifier, credential, cryptography, policy, evaluator, receipt,
+session, HTTP/Composition integration, provider, command, audit, telemetry, or
+application workflow.
+
+Phase 9C accepts
+[ADR 0108](docs/adr/0108-deterministic-explicit-authentication-orchestration.md)
+and implements the separate Experimental `kongono/authentication` package.
+It selects exactly one explicitly registered verifier from zero or one supplied
+evidence item, owns one verify/retire lifecycle, preserves primary and cleanup
+failures, and evaluates only explicit mechanism, instant, validity, strength,
+and maximum-age facts. Equality at validity and age bounds remains valid.
+Evidence and provider-specific attempt state stay caller/adapter-owned, and the
+orchestrator retains no call state across sequential or reentrant calls.
+
+Authentication depends only on API Metadata, Diagnostics, Identity Access, and
+PHP and brings the graph to exactly thirty-eight acyclic packages. It adds no
+credential, provider, session/cookie transport, HTTP adapter, authorization or
+policy evaluation, Security Context construction, Composition wiring, audit,
+telemetry, command, application workflow, or Phase 9D behavior. Do not infer
+authority from authenticated facts, mechanism, strength, principal, or outcome.
+
+Phase 9D accepts
+[ADR 0109](docs/adr/0109-deterministic-deny-by-default-authorization-evaluation.md)
+and implements the separate Experimental `kongono/authorization` package. One
+explicit request carries exact Security Context, Action, Resource Reference,
+independently expected policy identity, opaque policy evidence, and opaque
+environmental evidence. Exact evidence mismatch or unsupported policy returns
+Indeterminate without evaluator execution; the sole exact evaluator's Permit,
+Deny, or Indeterminate result is preserved, and evaluator failure never permits.
+
+Authorization depends only on API Metadata, Diagnostics, Identity Access, and
+PHP and brings the graph to exactly thirty-nine acyclic packages. Its bounded
+receipt is evidence only and grants no authority. Phase 9D adds no policy
+language/build/loader, roles or permission semantics, ambient guard,
+protected-capability enforcement, Security Context construction, HTTP/session
+transport, Composition wiring, database enforcement, audit, telemetry, AI
+authority, or Phase 9E behavior.
+
+Phase 9E accepts ADR 0110, adds explicit Composition version-2 application and
+operation inputs, and implements the Experimental `kongono/security-runtime`
+package. One immutable anonymous or exactly authenticated Security Context is
+constructed for one generated operation and fully released at cleanup.
+Authentication success grants no authorization and generated application state
+retains no operation security state.
+
+Phase 9F accepts ADR 0111 and implements the Experimental
+`kongono/security-http` and `kongono/security-enforcement` packages. The sole
+selected profile is same-origin HTTPS `browser.session.v1` with exact reserved
+session-cookie and CSRF evidence. Session syntax is not session truth or
+cryptography. Only exact Permit over identical explicit inputs invokes one
+protected capability; every other outcome fails closed.
+
+Phase 9G accepts ADR 0112 and implements the Experimental
+`kongono/security-policy-build` and `kongono/security-application` packages.
+Rule-free policy evidence binds exact source, model, builder, identity, and
+provenance without granting authority. The supported workflow begins one
+browser-session operation, evaluates one exact request, enforces once, and
+closes once. The copy-once skeleton and read-only `security:inspect` and
+`security:check` commands add no provider or framework policy semantics.
+
+Phase 9H accepts ADR 0113 and adds only the root-owned
+`composer acceptance:phase9` external profile and exact local Phase 9
+checkpoint. Synthetic fixtures, fresh child processes, and one owned temporary
+application prove authentication/authorization separation, exact-Permit
+enforcement, lifecycle isolation, policy currentness, nondisclosure, and
+cleanup. Phase 9H adds no production PHP, package, dependency, provider,
+cryptography, policy language, audit, telemetry, deployment, security
+certification, or Phase 10 behavior. Kongono remains pre-1.0.

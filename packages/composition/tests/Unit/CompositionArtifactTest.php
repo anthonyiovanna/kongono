@@ -13,6 +13,7 @@ use Kongono\Composition\Exception\GeneratedWiringLoadException;
 use Kongono\Composition\Exception\GeneratedWiringPublicationException;
 use Kongono\Composition\Exception\InvalidCompositionArtifactException;
 use Kongono\Composition\Exception\InvalidCompositionSourceException;
+use Kongono\Composition\Exception\InvalidGeneratedOperationInputsException;
 use Kongono\Composition\Exception\InvalidGeneratedWiringException;
 use Kongono\Composition\Exception\RetiredCompositionBoundaryException;
 use Kongono\Composition\Exception\StaleCompositionArtifactException;
@@ -21,13 +22,18 @@ use Kongono\Composition\Generated\GeneratedWiringGenerator;
 use Kongono\Composition\Generated\GeneratedWiringPublisher;
 use Kongono\Composition\Generated\GeneratedWiringValidator;
 use Kongono\Composition\Runtime\GeneratedApplicationBoundary;
+use Kongono\Composition\Runtime\GeneratedOperationInputApplicationBoundary;
+use Kongono\Composition\Runtime\GeneratedOperationInputs;
 use Kongono\Composition\Runtime\GeneratedWiringLoader;
 use Kongono\Composition\Tests\Fixture\ApplicationService;
 use Kongono\Composition\Tests\Fixture\ConfigInput;
 use Kongono\Composition\Tests\Fixture\DefaultLogger;
 use Kongono\Composition\Tests\Fixture\HandlerCollection;
 use Kongono\Composition\Tests\Fixture\LifecycleRecorder;
+use Kongono\Composition\Tests\Fixture\OperationInput;
+use Kongono\Composition\Tests\Fixture\OperationInputRoot;
 use Kongono\Composition\Tests\Fixture\OperationService;
+use Kongono\Composition\Tests\Fixture\SecondaryOperationInput;
 use Kongono\Composition\Tests\Fixture\TrackedApplicationRoot;
 use Kongono\Composition\Tests\Fixture\TrackedOperationRoot;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -41,7 +47,7 @@ use Throwable;
  * @phpstan-type Source array{
  *     schema: string,
  *     version: int,
- *     inputs: list<array{contract: string}>,
+ *     inputs: list<array{contract: string, lifetime?: string}>,
  *     services: list<SourceService>,
  *     bindings: list<array{contract: string, service: string}>,
  *     roots: list<array{kind: string, contract: string}>
@@ -69,12 +75,45 @@ final class CompositionArtifactTest extends TestCase
             'LifecycleRecorder.php', 'TrackedApplicationLeaf.php', 'TrackedApplicationRoot.php',
             'TrackedOperationLeaf.php', 'TrackedTransient.php', 'TrackedOperationRoot.php',
             'FailingApplicationRoot.php', 'FailingOperationRoot.php',
+            'OperationInput.php', 'SecondaryOperationInput.php', 'OperationInputRoot.php',
         ] as $fixtureName) {
             $fixture = dirname(__DIR__) . '/Fixture/' . $fixtureName;
             $target = self::$applicationRoot . '/src/' . $fixtureName;
             self::assertTrue(copy($fixture, $target));
             require $target;
         }
+        $privateInputFixture = self::$applicationRoot . '/src/PrivateConstructorInput.php';
+        self::writeFile(
+            $privateInputFixture,
+            <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace Kongono\Composition\Tests\Fixture;
+
+final readonly class PrivateConstructorInput
+{
+    private function __construct() {}
+
+    public static function create(): self
+    {
+        return new self();
+    }
+}
+
+final readonly class PrivateConstructorInputRoot
+{
+    public function __construct(private PrivateConstructorInput $input) {}
+
+    public function input(): PrivateConstructorInput
+    {
+        return $this->input;
+    }
+}
+PHP
+        );
+        require $privateInputFixture;
         self::writeFile(self::$applicationRoot . '/composer.json', "{\"name\":\"example/application\"}\n");
         self::writeFile(self::$applicationRoot . '/composer.lock', "{\"packages\":[]}\n");
         self::writeSource(self::validSource());
@@ -456,13 +495,14 @@ final class CompositionArtifactTest extends TestCase
         $implementationPaths = [
             'src/Build/CompositionArtifact.php', 'src/Build/CompositionArtifactBuilder.php', 'src/Build/CompositionArtifactPublisher.php', 'src/Build/CompositionArtifactValidator.php',
             'src/Diagnostic/CompositionDiagnostic.php', 'src/Exception/CompositionException.php', 'src/Exception/CompositionLifecycleException.php', 'src/Exception/CompositionPublicationException.php',
-            'src/Exception/ExceptionInterface.php', 'src/Exception/GeneratedWiringPublicationException.php', 'src/Exception/InvalidCompositionArtifactException.php',
+            'src/Exception/ExceptionInterface.php', 'src/Exception/GeneratedWiringPublicationException.php', 'src/Exception/InvalidGeneratedOperationInputsException.php', 'src/Exception/InvalidCompositionArtifactException.php',
             'src/Exception/InvalidCompositionSourceException.php', 'src/Exception/InvalidGeneratedWiringException.php', 'src/Exception/RetiredCompositionBoundaryException.php',
             'src/Exception/StaleCompositionArtifactException.php', 'src/Generated/GeneratedWiringArtifact.php', 'src/Generated/GeneratedWiringGenerator.php',
             'src/Generated/GeneratedWiringPublisher.php', 'src/Generated/GeneratedWiringValidator.php', 'src/Internal/CanonicalJson.php',
             'src/Internal/CompositionModelCompiler.php', 'src/Internal/GeneratedWiringEmitter.php', 'src/Internal/GeneratedWiringImplementation.php',
             'src/Internal/PathGuard.php', 'src/Internal/StrictJsonDecoder.php', 'src/Runtime/GeneratedApplicationBoundary.php',
-            'src/Runtime/GeneratedApplicationState.php', 'src/Runtime/GeneratedOperationBoundary.php', 'src/Runtime/LifecycleFailureComposer.php',
+            'src/Runtime/GeneratedApplicationState.php', 'src/Runtime/GeneratedOperationInputApplicationBoundary.php', 'src/Runtime/GeneratedOperationInputs.php',
+            'src/Runtime/GeneratedOperationBoundary.php', 'src/Runtime/LifecycleFailureComposer.php',
         ];
         $implementationRecords = [];
         $packageRoot = dirname(__DIR__, 2);
@@ -602,6 +642,156 @@ final class CompositionArtifactTest extends TestCase
                 self::assertSame('forbidden_construct', $exception->diagnosticContext()->fields()[0]->value());
             }
         }
+    }
+
+    public function testCallerSuppliedPrivateConstructorInputIsAcceptedWithoutBecomingAConstructibleService(): void
+    {
+        $inputClass = self::loadedClass('Kongono\\Composition\\Tests\\Fixture\\PrivateConstructorInput');
+        $rootClass = self::loadedClass('Kongono\\Composition\\Tests\\Fixture\\PrivateConstructorInputRoot');
+        $source = [
+            'schema' => 'kongono.composition',
+            'version' => 1,
+            'inputs' => [['contract' => $inputClass]],
+            'services' => [[
+                'class' => $rootClass,
+                'lifetime' => 'application',
+                'arguments' => [['parameter' => 'input', 'input' => $inputClass]],
+                'cleanup' => null,
+            ]],
+            'bindings' => [],
+            'roots' => [['kind' => 'application', 'contract' => $rootClass]],
+        ];
+        self::writeSource($source);
+
+        $composition = (new CompositionArtifactBuilder())->build(self::$applicationRoot);
+        $generator = new GeneratedWiringGenerator();
+        $first = $generator->generate(self::$applicationRoot, $composition->canonicalBytes());
+        $second = $generator->generate(self::$applicationRoot, $composition->canonicalBytes());
+        self::assertSame($first->canonicalBytes(), $second->canonicalBytes());
+        foreach (['Reflection', 'DependencyResolver', 'class_exists', 'interface_exists', 'method_exists', 'eval('] as $forbidden) {
+            self::assertStringNotContainsStringIgnoringCase($forbidden, $first->canonicalBytes());
+        }
+
+        $input = (new ReflectionClass($inputClass))->getMethod('create')->invoke(null);
+        self::assertIsObject($input);
+        $application = self::startGenerated($first, $input);
+        $root = self::invokeRoot($first->applicationClass(), 'applicationRoot1', $application);
+        self::assertInstanceOf($rootClass, $root);
+        self::assertSame($input, (new ReflectionClass($rootClass))->getMethod('input')->invoke($root));
+        $application->shutdown();
+
+        $source['inputs'] = [];
+        $source['services'] = [[
+            'class' => $inputClass,
+            'lifetime' => 'application',
+            'arguments' => [],
+            'cleanup' => null,
+        ]];
+        $source['roots'] = [['kind' => 'application', 'contract' => $inputClass]];
+        self::writeSource($source);
+        $exception = $this->captureSourceFailure();
+        self::assertSame('KGN-COMPOSITION-1007', $exception->diagnosticId());
+        self::assertSame('service_not_instantiable', $exception->diagnosticContext()->fields()[0]->value());
+
+        self::writeSource(self::validSource());
+        self::assertNotSame('', (new CompositionArtifactBuilder())->build(self::$applicationRoot)->canonicalBytes());
+    }
+
+    public function testVersionTwoSeparatesApplicationAndOperationInputsBeforeLeaseOrConstruction(): void
+    {
+        OperationInputRoot::$constructionCount = 0;
+        OperationInputRoot::$cleanupCount = 0;
+        self::writeSource(self::versionTwoOperationInputSource());
+        $composition = (new CompositionArtifactBuilder())->build(self::$applicationRoot);
+        $decoded = self::decode($composition->canonicalBytes());
+        $model = $decoded['model'] ?? null;
+        self::assertIsArray($model);
+        self::assertSame(2, $model['version'] ?? null);
+        self::assertSame([
+            ['contract' => ConfigInput::class, 'lifetime' => 'application'],
+            ['contract' => OperationInput::class, 'lifetime' => 'operation'],
+            ['contract' => SecondaryOperationInput::class, 'lifetime' => 'operation'],
+        ], $model['inputs'] ?? null);
+
+        $wiring = (new GeneratedWiringGenerator())->generate(self::$applicationRoot, $composition->canonicalBytes());
+        self::assertSame(2, $wiring->compositionSourceVersion());
+        self::assertStringContainsString('implements GeneratedOperationInputApplicationBoundary', $wiring->canonicalBytes());
+        self::assertStringContainsString('public function beginOperationWithInputs(GeneratedOperationInputs $inputs): OperationAssembly', $wiring->canonicalBytes());
+        $applicationOffset = strpos($wiring->canonicalBytes(), 'final class ApplicationAssembly');
+        self::assertIsInt($applicationOffset);
+        self::assertStringNotContainsString('private \\' . OperationInput::class . ' $input2', substr($wiring->canonicalBytes(), $applicationOffset));
+        self::assertGeneratedPhpPassesExternalGates($wiring);
+
+        $config = new class implements ConfigInput {};
+        $application = self::startGenerated($wiring, $config);
+        self::assertInstanceOf(GeneratedOperationInputApplicationBoundary::class, $application);
+        self::assertSame([OperationInput::class, SecondaryOperationInput::class], $application::expectedOperationInputContracts());
+
+        foreach ([
+            GeneratedOperationInputs::none(),
+            GeneratedOperationInputs::of(new SecondaryOperationInput(), new OperationInput()),
+            GeneratedOperationInputs::of(new OperationInput(), new OperationInput()),
+        ] as $invalidInputs) {
+            try {
+                $application->beginOperationWithInputs($invalidInputs);
+                self::fail('Invalid operation inputs must fail before construction.');
+            } catch (InvalidGeneratedOperationInputsException $exception) {
+                self::assertSame('KGN-COMPOSITION-1019', $exception->diagnosticId());
+                self::assertSame(0, OperationInputRoot::$constructionCount);
+            }
+        }
+
+        $primary = new OperationInput();
+        $secondary = new SecondaryOperationInput();
+        $operation = $application->beginOperationWithInputs(GeneratedOperationInputs::of($primary, $secondary));
+        $root = self::invokeRoot($wiring->operationClass(), 'operationRoot1', $operation);
+        self::assertInstanceOf(OperationInputRoot::class, $root);
+        self::assertSame([$config, $primary, $secondary], $root->inputs());
+        self::assertSame(1, OperationInputRoot::$constructionCount);
+        foreach ((new ReflectionClass($application))->getProperties() as $property) {
+            self::assertNotSame($primary, $property->getValue($application));
+            self::assertNotSame($secondary, $property->getValue($application));
+        }
+        try {
+            $application->shutdown();
+            self::fail('An active version-2 operation lease must block shutdown.');
+        } catch (RetiredCompositionBoundaryException) {
+            self::assertFalse($application->isRetired());
+        }
+        $operation->close();
+        self::assertSame(1, OperationInputRoot::$cleanupCount);
+        try {
+            self::invokeRoot($wiring->operationClass(), 'operationRoot1', $operation);
+            self::fail('Closed version-2 operation root access must fail.');
+        } catch (RetiredCompositionBoundaryException) {
+        }
+        foreach ((new ReflectionClass($operation))->getProperties() as $property) {
+            $value = $property->getValue($operation);
+            self::assertNotSame($primary, $value);
+            self::assertNotSame($secondary, $value);
+            self::assertNotSame($root, $value);
+        }
+        $application->shutdown();
+        self::assertTrue($application->isRetired());
+    }
+
+    public function testVersionTwoRejectsMissingUnknownAndCrossScopeInputLifetimes(): void
+    {
+        $source = self::versionTwoOperationInputSource();
+        $source['inputs'] = [['contract' => ConfigInput::class]];
+        self::writeSource($source);
+        $this->assertSourceFailure('KGN-COMPOSITION-1007');
+
+        $source = self::versionTwoOperationInputSource();
+        $source['inputs'][0] = ['contract' => ConfigInput::class, 'lifetime' => 'transient'];
+        self::writeSource($source);
+        $this->assertSourceFailure('KGN-COMPOSITION-1007');
+
+        $source = self::validSource();
+        $source['version'] = 2;
+        $source['inputs'] = [['contract' => ConfigInput::class, 'lifetime' => 'operation']];
+        self::writeSource($source);
+        $this->assertSourceFailure('KGN-COMPOSITION-1008');
     }
 
     public function testEmptyOperationEmissionOmitsUnusedMachineryAndRetainsLeaseLifecycle(): void
@@ -1150,6 +1340,32 @@ final class CompositionArtifactTest extends TestCase
                 ['kind' => 'application', 'contract' => $namespace . 'ApplicationService'],
                 ['kind' => 'operation', 'contract' => $namespace . 'OperationService'],
             ],
+        ];
+    }
+
+    /** @return Source */
+    private static function versionTwoOperationInputSource(): array
+    {
+        return [
+            'schema' => 'kongono.composition',
+            'version' => 2,
+            'inputs' => [
+                ['contract' => ConfigInput::class, 'lifetime' => 'application'],
+                ['contract' => OperationInput::class, 'lifetime' => 'operation'],
+                ['contract' => SecondaryOperationInput::class, 'lifetime' => 'operation'],
+            ],
+            'services' => [[
+                'class' => OperationInputRoot::class,
+                'lifetime' => 'operation',
+                'arguments' => [
+                    ['parameter' => 'applicationInput', 'input' => ConfigInput::class],
+                    ['parameter' => 'operationInput', 'input' => OperationInput::class],
+                    ['parameter' => 'secondaryOperationInput', 'input' => SecondaryOperationInput::class],
+                ],
+                'cleanup' => 'close',
+            ]],
+            'bindings' => [],
+            'roots' => [['kind' => 'operation', 'contract' => OperationInputRoot::class]],
         ];
     }
 

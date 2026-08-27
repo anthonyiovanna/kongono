@@ -3,9 +3,10 @@
 ## Current boundary
 
 Phase 5D implements the Experimental `kongono/composition` build-time package.
-It admits the exact Phase 5C `kongono.composition.json` source, validates its
-closed version-1 declarations and inspected symbols, constructs a detached
-canonical model, and returns one immutable artifact value.
+Phase 9E extends its admitted source set to versions 1 and 2. Version 1 retains
+its closed compatible declarations; version 2 requires an explicit application
+or operation lifetime on every input. Both paths validate inspected symbols,
+construct a detached canonical model, and return one immutable artifact value.
 
 The public build surface is intentionally small:
 
@@ -25,6 +26,10 @@ Canonical model bytes sort inputs, services, bindings, and roots ordinally;
 constructor arguments preserve their semantic order, including the separate
 member edges of an explicit typed aggregate. Thus non-semantic declaration reordering does not change model bytes or
 `model_sha256`.
+
+The canonical model preserves the admitted source contract version and each
+input lifetime. Cross-scope application reachability to an operation input
+fails before artifact construction.
 
 The complete artifact also preserves the exact raw source byte count and hash.
 Two semantically equal but byte-different sources therefore have different
@@ -58,3 +63,7 @@ web lifecycle integration. Phase 5G's `ApplicationBuildWorkflow` composes these
 build-time APIs, publishes both exact identities, and checks them without a
 directory scan or mutable pointer. See the
 [minimal application workflow](minimal-application-workflow.md).
+
+Phase 9E does not make the build artifact runtime authority. Its source-version
+identity feeds exact generated wiring and current validation; operation inputs
+remain explicit caller values and never appear in artifact bytes.

@@ -102,17 +102,55 @@ final class ConsoleAcceptance
                 ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
             ],
         ];
+        $expectedGlobalHelp = [
+            $expectedHelp,
+            [
+                'identifier' => 'security:check',
+                'summary' => 'Check exact current security policy evidence',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'security:inspect',
+                'summary' => 'Inspect planned security policy evidence',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+        ];
         $expectedHumanHelp = "Command: application:build\n"
             . "Summary: Build exact current application composition outputs\n"
             . "Usage: kongo application:build --application-root=<value> --output-directory=<value>\n"
             . "Interaction: none\nMutation: mutation_capable\nInputs:\n"
             . "  --application-root=<value> (required, ordinary)\n"
             . "  --output-directory=<value> (required, ordinary)\n";
+        $expectedGlobalHumanHelp = $expectedHumanHelp
+            . "\nCommand: security:check\n"
+            . "Summary: Check exact current security policy evidence\n"
+            . "Usage: kongo security:check --application-root=<value> --output-directory=<value>\n"
+            . "Interaction: none\nMutation: read_only\nInputs:\n"
+            . "  --application-root=<value> (required, ordinary)\n"
+            . "  --output-directory=<value> (required, ordinary)\n"
+            . "\nCommand: security:inspect\n"
+            . "Summary: Inspect planned security policy evidence\n"
+            . "Usage: kongo security:inspect --application-root=<value> --output-directory=<value>\n"
+            . "Interaction: none\nMutation: read_only\nInputs:\n"
+            . "  --application-root=<value> (required, ordinary)\n"
+            . "  --output-directory=<value> (required, ordinary)\n";
 
         $directHumanHelp = $this->execute($application, $this->source, []);
-        $this->expect($directHumanHelp, 0, $expectedHumanHelp, '');
+        $this->expect($directHumanHelp, 0, $expectedGlobalHumanHelp, '');
         $this->human($directHumanHelp->stdout());
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: application:build'), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: security:check'), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: security:inspect'), 'human_help_command_count');
         $this->caseCompleted();
 
         $directMachineHelp = $this->execute($application, $this->source, ['--json']);
@@ -120,7 +158,7 @@ final class ConsoleAcceptance
         $directHelpDocument = $this->machine($directMachineHelp->stdout());
         $this->require(['schema', 'version', 'commands'] === array_keys($directHelpDocument), 'help_keys_invalid');
         $this->require('kongono.command-help' === $directHelpDocument['schema'] && 1 === $directHelpDocument['version'], 'help_identity_invalid');
-        $this->require([$expectedHelp] === $directHelpDocument['commands'], 'help_semantics_invalid');
+        $this->require($expectedGlobalHelp === $directHelpDocument['commands'], 'help_semantics_invalid');
         $this->caseCompleted();
 
         $proxyHumanHelp = $this->execute($application, $this->proxy, ['application:build', '--help']);
@@ -130,7 +168,12 @@ final class ConsoleAcceptance
 
         $proxyMachineHelp = $this->execute($application, $this->proxy, ['--json', 'application:build', '--help']);
         $this->expectExitAndChannel($proxyMachineHelp, 0, true);
-        $this->require($directHelpDocument === $this->machine($proxyMachineHelp->stdout()), 'proxy_help_mismatch');
+        $proxyHelpDocument = $this->machine($proxyMachineHelp->stdout());
+        $this->require([
+            'schema' => 'kongono.command-help',
+            'version' => 1,
+            'commands' => [$expectedHelp],
+        ] === $proxyHelpDocument, 'proxy_help_mismatch');
         $this->caseCompleted();
 
         $unknown = $this->execute($application, $this->source, ['--json', 'unknown:command']);
@@ -220,7 +263,13 @@ final class ConsoleAcceptance
         $this->require($outputIdentity === $application->outputIdentity(), 'recovery_changed_outputs');
         $this->caseCompleted();
 
-        $this->require($expectedHumanHelp === $directHumanHelp->stdout() && $directHelpDocument === $this->machine($proxyMachineHelp->stdout()), 'help_parity_lost');
+        $this->require(
+            $expectedGlobalHumanHelp === $directHumanHelp->stdout()
+            && $expectedGlobalHelp === $directHelpDocument['commands']
+            && $expectedHumanHelp === $proxyHumanHelp->stdout()
+            && [$expectedHelp] === $proxyHelpDocument['commands'],
+            'help_parity_lost',
+        );
         $this->caseCompleted();
 
         $allOutput = implode('', $this->observedOutput);

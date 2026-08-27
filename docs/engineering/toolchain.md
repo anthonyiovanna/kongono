@@ -259,3 +259,22 @@ timing summaries are local observations, not thresholds or production claims.
 Another provider minor or major requires fresh acceptance evidence. See the
 [Phase 7 external guide](../architecture/phase-7-external-acceptance.md) and
 [persistence performance guide](persistence-performance-baseline.md).
+
+## Phase 9G local package and skeleton coverage
+
+Root validation now covers exactly forty-four production manifests and four
+copy-once skeleton manifests. PHPStan at maximum level with 512 MB, PHP CS
+Fixer dry-run, and PHPUnit include both Phase 9G package source/test trees and
+the security-minimal first-party scripts/source. Hantei's fixed
+`framework-quality-v1` profile mirrors those exact root script arrays. No rule,
+baseline, suppression, advisory exception, plugin authorization, or third-party
+dependency changes because of Phase 9G.
+
+## Phase 9H external acceptance command
+
+`composer acceptance:phase9` invokes exactly
+`@php tests/External/Security/run.php`. Hantei records the same root definition,
+but the command is not an additional quality check. It performs a local/offline
+temporary skeleton install and external security matrix with bounded output and
+complete cleanup. No dependency, lockfile, plugin authorization, baseline,
+suppression, or advisory-policy exception is added.

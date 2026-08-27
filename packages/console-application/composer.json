@@ -9,6 +9,7 @@
         "kongono/console-presentation": "*",
         "kongono/console-runtime": "*",
         "kongono/diagnostics": "*",
+        "kongono/security-policy-build": "*",
         "php": ">=8.5.0 <8.6.0"
     },
     "require-dev": {

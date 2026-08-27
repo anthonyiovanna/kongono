@@ -34,6 +34,7 @@ enum CompositionDiagnostic: string
     case CompositionBoundaryUnavailable = 'KGN-COMPOSITION-1016';
     case GeneratedWiringLoadFailed = 'KGN-COMPOSITION-1017';
     case ApplicationWorkflowFailed = 'KGN-COMPOSITION-1018';
+    case InvalidGeneratedOperationInputs = 'KGN-COMPOSITION-1019';
 
     public function context(string $violation): DiagnosticContext
     {
@@ -89,6 +90,7 @@ enum CompositionDiagnostic: string
             self::CompositionBoundaryUnavailable => 'Use generated composition boundary',
             self::GeneratedWiringLoadFailed => 'Load current generated composition wiring',
             self::ApplicationWorkflowFailed => 'Build or check current application composition',
+            self::InvalidGeneratedOperationInputs => 'Validate generated operation inputs',
         };
     }
 
@@ -101,8 +103,8 @@ enum CompositionDiagnostic: string
             self::InvalidSourceJson => 'The source must be strict JSON without duplicate members or extension syntax',
             self::UnsupportedSourceSchema => 'The source must use the exact supported schema, version, and top-level members',
             self::CompositionLimitExceeded => 'Every source, declaration, edge, depth, and artifact count must remain within fixed bounds',
-            self::InvalidDeclaration => 'Every declaration and inspected symbol must match the complete version-1 contract',
-            self::InvalidCompositionGraph => 'Bindings, roots, dependencies, lifetimes, and cycles must satisfy the version-1 graph contract',
+            self::InvalidDeclaration => 'Every declaration and inspected symbol must match one complete supported source contract',
+            self::InvalidCompositionGraph => 'Bindings, roots, dependencies, input lifetimes, service lifetimes, and cycles must satisfy the declared graph contract',
             self::InvalidProvenance => 'Every project and declaring source identity must remain exact, contained, and stable',
             self::InvalidArtifact => 'The artifact must be canonical and match its exact schema and internally derived identities',
             self::StaleArtifact => 'The artifact must be byte-identical to a complete build from current application state',
@@ -113,6 +115,7 @@ enum CompositionDiagnostic: string
             self::CompositionBoundaryUnavailable => 'A retired, closed, or leased boundary must reject unavailable lifecycle work without cleanup',
             self::GeneratedWiringLoadFailed => 'Only one exact current contained generated assembly may be loaded and started once',
             self::ApplicationWorkflowFailed => 'Every workflow stage must produce exact current contained content-addressed output',
+            self::InvalidGeneratedOperationInputs => 'Operation inputs must match the generated bounded count, order, and native contract before work begins',
         };
     }
 
@@ -137,6 +140,7 @@ enum CompositionDiagnostic: string
             self::CompositionBoundaryUnavailable => 'Composition boundary unavailable',
             self::GeneratedWiringLoadFailed => 'Generated wiring load failed',
             self::ApplicationWorkflowFailed => 'Application workflow failed',
+            self::InvalidGeneratedOperationInputs => 'Invalid generated operation inputs',
         };
     }
 
@@ -147,8 +151,8 @@ enum CompositionDiagnostic: string
             self::UnsafeCompositionSource => 'Use ordinary exact-case files beneath the explicit application root',
             self::InvalidSourceBytes => 'Correct the source encoding and final line ending within the fixed byte limit',
             self::InvalidSourceJson => 'Correct the strict JSON syntax and remove duplicate members',
-            self::UnsupportedSourceSchema => 'Use the exact kongono.composition version-1 top-level contract',
-            self::CompositionLimitExceeded => 'Reduce the source within the fixed version-1 bounds',
+            self::UnsupportedSourceSchema => 'Use the exact kongono.composition version-1 or version-2 top-level contract',
+            self::CompositionLimitExceeded => 'Reduce the source within the fixed supported bounds',
             self::InvalidDeclaration => 'Correct the indicated declaration category before rebuilding',
             self::InvalidCompositionGraph => 'Correct bindings, roots, dependency edges, lifetimes, or cycles before rebuilding',
             self::InvalidProvenance => 'Restore exact contained project and symbol source state before rebuilding',
@@ -161,6 +165,7 @@ enum CompositionDiagnostic: string
             self::CompositionBoundaryUnavailable => 'Close active operations or stop using the retired or closed boundary before continuing',
             self::GeneratedWiringLoadFailed => 'Restore the exact current generated file and supply its ordered typed startup inputs',
             self::ApplicationWorkflowFailed => 'Run the explicit app:build or app:check command and correct the reported workflow stage and invariant',
+            self::InvalidGeneratedOperationInputs => 'Supply the exact generated count, order, and typed operation inputs and retry with a fresh operation',
         };
     }
 }

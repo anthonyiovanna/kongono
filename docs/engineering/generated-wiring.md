@@ -5,8 +5,10 @@
 This guide gives contributors concrete rules for the Experimental Phase 5E
 generated application wiring. The `kongono/composition` generator, artifact,
 validator, publisher, isolated lifetime interfaces, and Phase 5F exact-current
-loader are implemented. The loader is explicit and one-use; it is not a command,
-application skeleton, container, service locator, or general runtime system.
+loader are implemented. Phase 9E adds explicit version-2 operation inputs while
+preserving version-1 generated semantics. The loader is explicit and one-use;
+it is not a command, application skeleton, container, service locator, or
+general runtime system.
 
 ## Explicit constructor dependencies
 
@@ -72,6 +74,13 @@ operation-specific value. Overlapping, reentrant, and sequential operations
 must remain isolated. Generated code does not make consumer services
 concurrency-safe; each consumer retains responsibility for its own state and
 concurrency contract.
+
+For version 2, generated application startup receives and retains only
+application inputs. `beginOperationWithInputs()` validates a bounded positional
+carrier before acquiring a lease or invoking a constructor, then passes each
+validated object directly through ordinary named calls. Generated operation
+wrappers clear retained roots and services before cleanup. Version-1 inputs
+remain application-lifetime.
 
 Any later accepted lazy dependency must use an explicit typed generated factory
 or proxy. It must document lifetime, failure, cleanup, concurrency, and the
@@ -156,6 +165,11 @@ ownership, Web Runtime retains delivery ownership, and PHP-CGI retains entry
 and shutdown ownership. Current composition remains caller-owned and DI and
 Graph remain unintegrated.
 
+Phase 9E's Security Runtime profile supplies one exact `SecurityContext` as an
+operation input. This explicit wiring is not authorization, does not enforce a
+protected capability, and introduces no HTTP/session transport or ambient
+current-user state.
+
 ## Related material
 
 - [ADR 0069](../adr/0069-generated-typed-wiring-and-no-runtime-service-location.md)
@@ -175,3 +189,5 @@ Graph remain unintegrated.
 - [Generated runtime integration](../architecture/generated-runtime-integration.md)
 - [ADR 0075](../adr/0075-minimal-application-skeleton-and-workflow.md)
 - [Application workflow](application-workflow.md)
+- [ADR 0110](../adr/0110-operation-scoped-security-context-and-generated-composition-inputs.md)
+- [Operation-scoped Security Context](../architecture/operation-scoped-security-context.md)

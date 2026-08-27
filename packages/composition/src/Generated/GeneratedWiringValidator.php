@@ -30,9 +30,13 @@ final class GeneratedWiringValidator
         if (!is_array($metadata) || array_is_list($metadata) || json_encode($metadata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) !== $matches[1]) {
             $this->invalid('metadata_canonical');
         }
-        $expectedKeys = ['schema', 'version', 'composition_artifact_sha256', 'model_sha256', 'generator_implementation_sha256', 'generated_namespace', 'application_class', 'operation_class'];
+        $expectedKeys = ['schema', 'version', 'composition_source_version', 'composition_artifact_sha256', 'model_sha256', 'generator_implementation_sha256', 'generated_namespace', 'application_class', 'operation_class'];
         if (array_keys($metadata) !== $expectedKeys || 'kongono.generated-wiring' !== $metadata['schema'] || 1 !== $metadata['version']) {
             $this->invalid('metadata_shape');
+        }
+        $compositionSourceVersion = $metadata['composition_source_version'] ?? null;
+        if (!is_int($compositionSourceVersion) || !in_array($compositionSourceVersion, [1, 2], true)) {
+            $this->invalid('metadata_source_version');
         }
         $compositionSha256 = $this->digest($metadata['composition_artifact_sha256']);
         $modelSha256 = $this->digest($metadata['model_sha256']);
@@ -49,8 +53,11 @@ final class GeneratedWiringValidator
         }
         $this->validateCanonicalLines($generatedPhpBytes);
         $this->validateTokens($generatedPhpBytes);
-        foreach ([
-            'final class ApplicationAssembly extends GeneratedApplicationState implements GeneratedApplicationBoundary',
+        $applicationBoundary = 2 === $compositionSourceVersion
+            ? 'final class ApplicationAssembly extends GeneratedApplicationState implements GeneratedOperationInputApplicationBoundary'
+            : 'final class ApplicationAssembly extends GeneratedApplicationState implements GeneratedApplicationBoundary';
+        $requiredGrammar = [
+            $applicationBoundary,
             'final class OperationAssembly implements GeneratedOperationBoundary',
             'public static function start(',
             'public function beginOperation(): OperationAssembly',
@@ -58,7 +65,12 @@ final class GeneratedWiringValidator
             'public function isRetired(): bool',
             'public function close(?Throwable $primaryFailure = null): void',
             'public function isClosed(): bool',
-        ] as $required) {
+        ];
+        if (2 === $compositionSourceVersion) {
+            $requiredGrammar[] = 'public static function expectedOperationInputContracts(): array';
+            $requiredGrammar[] = 'public function beginOperationWithInputs(GeneratedOperationInputs $inputs): OperationAssembly';
+        }
+        foreach ($requiredGrammar as $required) {
             if (!str_contains($generatedPhpBytes, $required)) {
                 $this->invalid('generated_grammar');
             }
@@ -70,6 +82,7 @@ final class GeneratedWiringValidator
             $compositionSha256,
             $modelSha256,
             $implementationSha256,
+            $compositionSourceVersion,
             $namespace,
             $applicationClass,
             $operationClass,

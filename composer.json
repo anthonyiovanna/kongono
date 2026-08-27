@@ -5,12 +5,30 @@
   "repositories": [
     {
       "type": "path",
+      "url": "packages/security-enforcement"
+    },
+    {
+      "type": "path",
+      "url": "packages/security-http"
+    },
+    {
+      "type": "path",
+      "url": "packages/security-runtime"
+    },
+    {
+      "type": "path",
+      "url": "packages/authorization"
+    },
+    {
+      "type": "path",
       "url": "packages/*"
     }
   ],
   "require": {
     "kongono/api-metadata": "@dev",
     "kongono/application-graph": "@dev",
+    "kongono/authentication": "@dev",
+    "kongono/authorization": "@dev",
     "kongono/chie": "@dev",
     "kongono/composition": "@dev",
     "kongono/console": "@dev",
@@ -35,6 +53,7 @@
     "kongono/hantei": "@dev",
     "kongono/http-message": "@dev",
     "kongono/http-server": "@dev",
+    "kongono/identity-access": "@dev",
     "kongono/kernel": "@dev",
     "kongono/knowledge": "@dev",
     "kongono/oshie": "@dev",
@@ -43,6 +62,11 @@
     "kongono/persistence-build": "@dev",
     "kongono/php-cgi": "@dev",
     "kongono/routing": "@dev",
+    "kongono/security-application": "@dev",
+    "kongono/security-enforcement": "@dev",
+    "kongono/security-http": "@dev",
+    "kongono/security-policy-build": "@dev",
+    "kongono/security-runtime": "@dev",
     "kongono/web-application": "@dev",
     "kongono/web-runtime": "@dev",
     "php": ">=8.5.0 <8.6.0"
@@ -58,6 +82,8 @@
       "App\\": "skeletons/minimal/src/",
       "Kongono\\ApiMetadata\\Tests\\": "packages/api-metadata/tests/",
       "Kongono\\ApplicationGraph\\Tests\\": "packages/application-graph/tests/",
+      "Kongono\\Authentication\\Tests\\": "packages/authentication/tests/",
+      "Kongono\\Authorization\\Tests\\": "packages/authorization/tests/",
       "Kongono\\Chie\\Tests\\": "packages/chie/tests/",
       "Kongono\\Composition\\Tests\\": "packages/composition/tests/",
       "Kongono\\Console\\Tests\\": "packages/console/tests/",
@@ -82,6 +108,7 @@
       "Kongono\\Hantei\\Tests\\": "packages/hantei/tests/",
       "Kongono\\Http\\Message\\Tests\\": "packages/http-message/tests/",
       "Kongono\\Http\\Server\\Tests\\": "packages/http-server/tests/",
+      "Kongono\\IdentityAccess\\Tests\\": "packages/identity-access/tests/",
       "Kongono\\Kernel\\Tests\\": "packages/kernel/tests/",
       "Kongono\\Knowledge\\Tests\\": "packages/knowledge/tests/",
       "Kongono\\Oshie\\Tests\\": "packages/oshie/tests/",
@@ -90,10 +117,16 @@
       "Kongono\\PersistenceBuild\\Tests\\": "packages/persistence-build/tests/",
       "Kongono\\PhpCgi\\Tests\\": "packages/php-cgi/tests/",
       "Kongono\\Routing\\Tests\\": "packages/routing/tests/",
+      "Kongono\\SecurityApplication\\Tests\\": "packages/security-application/tests/",
+      "Kongono\\SecurityEnforcement\\Tests\\": "packages/security-enforcement/tests/",
+      "Kongono\\SecurityHttp\\Tests\\": "packages/security-http/tests/",
+      "Kongono\\SecurityPolicyBuild\\Tests\\": "packages/security-policy-build/tests/",
+      "Kongono\\SecurityRuntime\\Tests\\": "packages/security-runtime/tests/",
       "Kongono\\Web\\Application\\Tests\\": "packages/web-application/tests/",
       "Kongono\\Web\\Runtime\\Tests\\": "packages/web-runtime/tests/",
       "KongonoDataMinimal\\": "skeletons/data-minimal/src/",
       "KongonoPersistenceMinimal\\": "skeletons/persistence-minimal/src/",
+      "KongonoSecurityMinimal\\": "skeletons/security-minimal/src/",
       "Kongono\\Tests\\": "tests/"
     }
   },
@@ -130,6 +163,7 @@
     "acceptance:phase6": "@php tests/External/Database/run.php",
     "acceptance:phase7": "@php tests/External/Persistence/run.php",
     "acceptance:phase8": "@php tests/External/Console/run.php",
+    "acceptance:phase9": "@php tests/External/Security/run.php",
     "analyse": "@php -d memory_limit=512M vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress",
     "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
     "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
@@ -139,6 +173,8 @@
     "validate:packages": [
       "composer --working-dir=packages/api-metadata validate --no-check-publish",
       "composer --working-dir=packages/application-graph validate --no-check-publish",
+      "composer --working-dir=packages/authentication validate --no-check-publish",
+      "composer --working-dir=packages/authorization validate --no-check-publish",
       "composer --working-dir=packages/chie validate --no-check-publish",
       "composer --working-dir=packages/composition validate --no-check-publish",
       "composer --working-dir=packages/console validate --no-check-publish",
@@ -163,6 +199,7 @@
       "composer --working-dir=packages/hantei validate --no-check-publish",
       "composer --working-dir=packages/http-message validate --no-check-publish",
       "composer --working-dir=packages/http-server validate --no-check-publish",
+      "composer --working-dir=packages/identity-access validate --no-check-publish",
       "composer --working-dir=packages/kernel validate --no-check-publish",
       "composer --working-dir=packages/knowledge validate --no-check-publish",
       "composer --working-dir=packages/oshie validate --no-check-publish",
@@ -171,13 +208,19 @@
       "composer --working-dir=packages/persistence-build validate --no-check-publish",
       "composer --working-dir=packages/php-cgi validate --no-check-publish",
       "composer --working-dir=packages/routing validate --no-check-publish",
+      "composer --working-dir=packages/security-application validate --no-check-publish",
+      "composer --working-dir=packages/security-enforcement validate --no-check-publish",
+      "composer --working-dir=packages/security-http validate --no-check-publish",
+      "composer --working-dir=packages/security-policy-build validate --no-check-publish",
+      "composer --working-dir=packages/security-runtime validate --no-check-publish",
       "composer --working-dir=packages/web-application validate --no-check-publish",
       "composer --working-dir=packages/web-runtime validate --no-check-publish"
     ],
     "validate:skeleton": [
       "composer --working-dir=skeletons/data-minimal validate --no-check-publish",
       "composer --working-dir=skeletons/minimal validate --no-check-publish",
-      "composer --working-dir=skeletons/persistence-minimal validate --no-check-publish"
+      "composer --working-dir=skeletons/persistence-minimal validate --no-check-publish",
+      "composer --working-dir=skeletons/security-minimal validate --no-check-publish"
     ],
     "knowledge:check": "@php packages/knowledge/bin/kongono-knowledge check .",
     "hantei:verify": "@php packages/hantei/bin/kongono-hantei verify .",

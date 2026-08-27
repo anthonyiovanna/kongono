@@ -1,0 +1,22 @@
+{
+  "name": "kongono/security-enforcement",
+  "description": "Exact protected-capability authorization enforcement for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/api-metadata": "*",
+    "kongono/authorization": "*",
+    "kongono/diagnostics": "*",
+    "kongono/identity-access": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\SecurityEnforcement\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\SecurityEnforcement\\Tests\\": "tests/"
+    }
+  }
+}

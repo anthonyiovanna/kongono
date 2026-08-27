@@ -11,7 +11,9 @@ final class KongoCommandTest extends TestCase
 {
     public function testCommandVocabularyIsExact(): void
     {
-        self::assertSame(['application:build'], array_column(KongoCommand::cases(), 'value'));
+        self::assertSame(['application:build', 'security:check', 'security:inspect'], array_column(KongoCommand::cases(), 'value'));
         self::assertSame(KongoCommand::ApplicationBuild, KongoCommand::from('application:build'));
+        self::assertSame(KongoCommand::SecurityCheck, KongoCommand::from('security:check'));
+        self::assertSame(KongoCommand::SecurityInspect, KongoCommand::from('security:inspect'));
     }
 }

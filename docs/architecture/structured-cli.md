@@ -17,8 +17,9 @@ the separate Experimental `kongono/console-runtime` execution package. Phase
 command handlers. Phase 8G adds the Experimental
 `kongono/console-application` upper package and one-shot `kongo` executable,
 bringing the production topology to thirty-six acyclic packages. The supported
-application exposes exactly `application:build`; no mutable registry or runtime
-discovery exists.
+application exposed exactly `application:build` at the Phase 8 checkpoint. Phase
+9G adds exactly `security:check` and `security:inspect`; no mutable registry or
+runtime discovery exists.
 
 ## Current truth and planned truth
 
@@ -35,10 +36,14 @@ the [`kongono/console` guide](../../packages/console/README.md), and the
 [Phase 8 roadmap](phase-8-roadmap.md). They accept doctrine, lifecycle,
 security, automation, dependency direction, and the exact neutral values.
 
-Phase 8G implements only the closed `kongo` help and `application:build`
-grammar. `--plan` is the honest non-mutating dry run, `--apply` is explicit
+The current application implements only the closed three-command `kongo` help
+and grammar. `application:build` retains `--plan` as its honest non-mutating dry
+run and `--apply` as explicit
 mutation authority, and `--no-interaction` is automation-safe because no prompt
-exists. Other commands and option surfaces remain unimplemented.
+exists. `security:check` and `security:inspect` require only ordinary
+application-root/output-directory inputs, are read-only, accept no plan/apply,
+and disclose only bounded artifact/source identities and currentness facts.
+Other commands and option surfaces remain unimplemented.
 
 ## Three-way separation
 

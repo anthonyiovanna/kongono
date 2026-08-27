@@ -15,7 +15,12 @@ These definitions establish architectural vocabulary, not public PHP APIs. Unles
 
 ## Action
 
-A planned explicit application operation or use case that coordinates business behavior behind an authorized calling surface. Its invocation, metadata, transaction, and Graph contracts remain open.
+An exact application-owned identifier for behavior that a later authorization
+evaluation may be asked to permit. Phase 9B implements Experimental
+`Kongono\IdentityAccess\Action` as a 1-128 byte canonical ASCII value matching
+`^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$`. It is distinct from a route, HTTP
+method, handler, command definition, role, and capability instance; it grants
+nothing and performs no evaluation.
 
 ## Actionable Diagnostic
 
@@ -536,7 +541,12 @@ and Phase 2C supplies the five selected stateless first-party factories.
 
 ## Principal
 
-The planned general identity abstraction for an actor that can be authenticated, authorized, delegated to, constrained, and audited. Principal kinds may include Human, Agent, Service, Organization, and System. Exact data and API models remain open.
+An immutable exact reference to an identity known in an application-owned
+domain. Phase 9B implements Experimental `PrincipalReference` as one of the
+exact Human, Service, Organization, System, or Agent `PrincipalKind` values plus
+one opaque 1-512 byte valid-UTF-8 `PrincipalId` without C0/C1 controls. It is not
+the user record, provider object, credential, display name, role, tenant, actor,
+subject, or permission. Kind and reference grant nothing by themselves.
 
 ## Public API
 
@@ -1246,3 +1256,185 @@ Explicit Phase 7F evidence containing one root object and an ordinal map of
 bounded relationship values. It is not a proxy, identity map, transparent
 collection, or mutated domain graph. Generated repositories validate its exact
 declared shape; the caller releases it at the operation boundary.
+
+## Authentication
+
+The deterministic evaluation of explicit detached evidence through one
+explicitly registered verifier to establish bounded facts about an identity
+claim. Phase 9B supplies the inert outcome vocabulary. Phase 9C implements
+provider-neutral orchestration with exact mechanism selection, verifier-attempt
+cleanup, failure composition, explicit strength/freshness requirements, and no
+hidden fallback. Authentication success is evidence, not authorization, and
+grants no access or Security Context.
+
+## Authentication Evidence
+
+An adapter-owned already-detached object offered to one authentication request.
+Phase 9C's Experimental `AuthenticationEvidence` interface exposes only its
+exact `AuthenticationMechanism`. It exposes no payload, credential, secret,
+request, header, cookie, password, token, provider claim, serialization,
+logging, debug, erasure, or network method. Zero evidence means Absent; more
+than one means Ambiguous. Evidence is not a Principal, Security Context,
+session, verification, or authorization decision.
+
+## Authentication Mechanism
+
+Phase 9C's Experimental canonical 1-64 byte ASCII identifier matching
+`^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$`. It selects one explicitly registered
+verifier by exact equality. It does not select a provider protocol, credential
+format, strength meaning, session, policy, or permission.
+
+## Authentication Facts
+
+Phase 9C's Experimental immutable validated tuple containing exactly one
+`PrincipalReference`, mechanism, unnamed ordinal strength, authentication
+instant, and validity-until instant. Validity cannot precede authentication.
+Facts retain no evidence, credential, provider object, issuer, audience, role,
+policy, session, reason, or authorization. They remain evidence rather than
+permission and do not construct a Security Context.
+
+## Authentication Requirement
+
+Phase 9C's Experimental immutable pair of minimum `AuthenticationStrength` and
+maximum age from zero through 31,536,000 seconds. The caller separately supplies
+explicit current time. Equality at minimum strength and maximum age satisfies
+the requirement. A requirement is not a policy, role, session, verifier,
+principal, or authorization decision.
+
+## Authentication Verification
+
+Phase 9C's Experimental immutable result pairing one existing
+`AuthenticationOutcome` with `AuthenticationFacts` only for Authenticated. The
+other seven outcomes contain neither facts nor a principal. A verification
+stores no raw evidence, provider response, reason, exception, diagnostic,
+session, Security Context, policy, or authorization decision.
+
+## Authentication Verifier
+
+An explicitly constructed Phase 9C adapter SPI registered under one exact
+mechanism. It begins one operation from one explicit evidence object and one
+explicit instant. The neutral interface defines no discovery, `supports()`
+probe, priority, fallback, provider protocol, credential accessor, ambient
+request/session/clock read, policy, or authorization behavior.
+
+## Authentication Verifier Operation
+
+One adapter-owned Phase 9C attempt returned by a verifier. Its exact contract is
+`verify()` followed by explicit `retire()`. Verification runs at most once and
+retirement runs exactly once after a successful begin, including after a
+verification failure. It is local to one orchestration call and is not a
+session, context, credential store, retry handle, principal, verification
+cache, or authorization capability.
+
+## Authorization
+
+The planned fail-closed evaluation of one immutable Security Context, exact
+Action, exact Resource, exact current Policy Evidence, and explicit
+environmental facts to produce an Authorization Decision. Phase 9B implements
+only the inert input/result vocabulary. No evaluator or enforcement exists;
+only a later exact `Permit` over exact inputs may permit progress.
+
+## Security Context
+
+Phase 9B's Experimental immutable explicit value that is either Anonymous with
+no principal or Authenticated with exactly one PrincipalReference. It is not a
+static current user, ambient `Auth`, thread local, request singleton authority,
+service-located object, session, or Kernel state. It validates shape only,
+performs no authentication or authorization, and owns no cleanup itself. Phase
+9E explicitly constructs a fresh context for one generated operation and passes
+that same object as a version-2 operation input; generated application state
+never retains it. Authentication success still grants no authorization.
+
+## Generated Operation Input
+
+Phase 9E's Experimental bounded positional object supplied for exactly one
+generated Composition operation. Version-2 source declares its exact contract
+and `operation` lifetime. It is validated before lease or construction and
+passed through ordinary constructor PHP; it is not a container, lookup,
+registry, resolver, serialized value, ambient state, or authority.
+
+## Resource
+
+An exact application-owned reference for a record, object, collection, field,
+capability, or other protected subject of a later authorization evaluation.
+Phase 9B implements `ResourceReference` as one canonical 1-128 byte
+`ResourceType` plus one opaque 1-512 byte valid-UTF-8 `ResourceId` without C0/C1
+controls. It is distinct from a route, URI, repository, database row, or
+provider object and performs no domain loading or authorization.
+
+## Policy Evidence
+
+Deterministic, versioned, bounded, provenance-bound application policy truth
+validated as exact-current before runtime. Missing, stale, partial,
+mixed-version, ambiguous, conflicting, unsupported, or unverifiable evidence
+cannot permit. Phase 9D implements only the opaque
+`AuthorizationPolicyEvidence` interface exposing one exact independently
+comparable name/version/provenance reference. It selects no source, schema,
+language, compiler, digest, artifact, publisher, runtime loader, trust proof, or
+build-currentness mechanism; all such forms remain unimplemented.
+
+## Authorization Decision
+
+Phase 9B's Experimental inert backed enum with exact values `Permit`, `Deny`,
+and `Indeterminate`. It stores no reason, policy, receipt, context, or resource
+and evaluates nothing. Only later separately authorized enforcement may treat
+exact Permit over exact evaluated inputs as permission; the value is not an
+ambient or transferable capability.
+
+## Decision Receipt
+
+Phase 9D's Experimental bounded non-secret evidence for one authorization
+evaluation. It contains exactly decision, reason, expected policy reference,
+Action, Resource Type, Security Context state, and environment profile. It
+retains no principal/resource identifier or opaque evidence payload, cannot
+replay or enforce a grant, and never becomes policy authority. Storage,
+retention, privacy, audit, and telemetry integration remain unimplemented.
+
+## Authorization Environment Profile
+
+Phase 9D's exact canonical 1-64 byte ASCII identifier for one application-owned
+environmental-facts shape. It is not a tenant, role, permission, request
+attribute, claim, or grant. Opaque `AuthorizationEnvironmentEvidence` exposes
+only this profile; fact payloads remain caller-owned and evaluator-specific.
+
+## Browser Session Evidence
+
+Phase 9F's detached opaque evidence for the sole supported
+`browser.session.v1` authentication mechanism. It contains one exact
+43-character unpadded base64url session identifier and, for state-changing
+requests, one same-shape CSRF proof plus an explicit requirement flag. It is
+transport input to the selected verifier, not session truth, a credential
+store, cryptography, login, authorization, or an ambient current session.
+
+## Protected Capability
+
+Phase 9F's typed boundary around one protected read or effect. It declares the
+exact Action and Resource Reference it targets and exposes one execution method.
+Obtaining or constructing it grants nothing. The stateless enforcer may invoke
+it exactly once only after one exact Authorization evaluation returns Permit
+for the identical operation Security Context and equal action/resource. It is
+not a bearer token, receipt, cached decision, route guard, or transferable grant.
+
+## Current Security Policy
+
+Phase 9G's immutable checked policy identity evidence for one running
+application. It binds an application-owned name, version, provenance, exact
+source bytes, detached model, and builder implementation. It contains no policy
+rules and grants no authority; changed source or builder bytes require a new
+build, check, and application start.
+
+## Security Application Workflow
+
+Phase 9G's supported upper lifecycle that begins one browser-session security
+operation, uses its exact Security Context to build one Authorization Request,
+calls the protected-capability enforcer once, and closes the operation once.
+Only an application-owned evaluator's exact Permit at the enforcer executes.
+
+## Phase 9 External Security Acceptance
+
+The root-owned Phase 9H process profile invoked by `composer
+acceptance:phase9`. It uses synthetic application fixtures and fresh temporary
+state to prove the selected authentication, authorization, transport,
+enforcement, lifecycle, policy-currentness, disclosure, and cleanup boundaries.
+It is derived test evidence, not a provider, policy engine, security
+certification, production API, or authority grant.

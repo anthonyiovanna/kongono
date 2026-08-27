@@ -2,14 +2,14 @@
 
 ## Scope and status
 
-This guide governs review of version-1
+This guide governs review of version-1 and version-2
 `<application-root>/kongono.composition.json` sources. Phase 5C accepts the
 contract. Phase 5D implements its strict reader, validator, canonical model,
 provenance-bearing artifact, and publisher in `kongono/composition`. Phase 5E
 implements corrected typed-wiring generation and isolated lifetime support in
 the same package. No schema file, command, production loader, or runtime
-integration exists. Current composition remains caller-owned; Phase 5F has not
-begun.
+integration exists. Phase 9E adds only explicit version-2 operation inputs;
+current composition remains caller-owned.
 
 ## Authoritative source rules
 
@@ -51,6 +51,17 @@ default:  true
 No scalar literal, `false` default marker, environment reference, secret,
 expression, callback, factory, alias, decorator, tag, condition, profile,
 property/setter injection, or extension member is permitted.
+
+## Exact version-2 input evolution
+
+Version 2 preserves the six-member root and all version-1 service, binding,
+root, and argument rules. Its input record has exactly `contract` and mandatory
+`lifetime`, whose value is `application` or `operation`. Version-1 inputs
+continue to mean application lifetime. Do not infer lifetime from consumers.
+
+Reject an application service or application root that directly or transitively
+reaches an operation input. An operation service may receive either input
+lifetime. The same contract remains declared at most once.
 
 Plural collaboration uses an ordinary application-owned typed aggregate
 service. Its constructor declares one named `service` edge for every member in
@@ -130,6 +141,11 @@ objects for concurrency safety and for absence of retained request, response,
 principal, tenant, route, diagnostic failure, Kernel scope, operation input, or
 other operation-specific state.
 
+Generated version-2 startup receives only application inputs. Operation inputs
+must be supplied in exact canonical position for one operation and validated
+before any operation lease or constructor. They must not be retained by
+application state.
+
 ## Cleanup review
 
 `cleanup` is `null` or an exact public, non-static, zero-argument instance
@@ -201,3 +217,5 @@ outside Phase 5C.
 - [ADR 0073](../adr/0073-generated-typed-wiring-and-lifecycle-boundary.md)
 - [ADR 0075](../adr/0075-minimal-application-skeleton-and-workflow.md)
 - [Application workflow](application-workflow.md)
+- [ADR 0110](../adr/0110-operation-scoped-security-context-and-generated-composition-inputs.md)
+- [Operation-scoped Security Context](../architecture/operation-scoped-security-context.md)

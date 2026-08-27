@@ -1,0 +1,25 @@
+{
+    "name": "kongono/security-application",
+    "description": "Supported browser-session protected-capability workflow for Kongono applications.",
+    "type": "library",
+    "require": {
+        "kongono/api-metadata": "*",
+        "kongono/authorization": "*",
+        "kongono/diagnostics": "*",
+        "kongono/security-enforcement": "*",
+        "kongono/security-http": "*",
+        "kongono/security-policy-build": "*",
+        "php": ">=8.5.0 <8.6.0",
+        "psr/http-message": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kongono\\SecurityApplication\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kongono\\SecurityApplication\\Tests\\": "tests/"
+        }
+    }
+}

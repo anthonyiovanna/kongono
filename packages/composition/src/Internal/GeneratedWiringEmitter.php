@@ -19,12 +19,17 @@ use Kongono\Composition\Exception\InvalidGeneratedWiringException;
 #[Api(ApiStatus::Internal)]
 final class GeneratedWiringEmitter
 {
+    private int $modelVersion = 1;
     /** @var array<string, Service> */
     private array $services = [];
     /** @var array<string, string> */
     private array $bindings = [];
     /** @var array<string, int> */
     private array $inputIndexes = [];
+    /** @var array<string, string> */
+    private array $inputLifetimes = [];
+    /** @var array<string, true> */
+    private array $declaredOperationInputs = [];
     /** @var list<Root> */
     private array $applicationRoots = [];
     /** @var list<Root> */
@@ -64,6 +69,7 @@ final class GeneratedWiringEmitter
         $metadata = json_encode([
             'schema' => 'kongono.generated-wiring',
             'version' => 1,
+            'composition_source_version' => $this->modelVersion,
             'composition_artifact_sha256' => $compositionArtifactSha256,
             'model_sha256' => $modelSha256,
             'generator_implementation_sha256' => $implementationSha256,
@@ -85,9 +91,13 @@ final class GeneratedWiringEmitter
                 'use Kongono\\Composition\\Diagnostic\\CompositionDiagnostic;',
                 'use Kongono\\Composition\\Exception\\RetiredCompositionBoundaryException;',
             ]),
-            'use Kongono\\Composition\\Runtime\\GeneratedApplicationBoundary;',
+            ...(1 !== $this->modelVersion ? [] : ['use Kongono\\Composition\\Runtime\\GeneratedApplicationBoundary;']),
             'use Kongono\\Composition\\Runtime\\GeneratedApplicationState;',
             'use Kongono\\Composition\\Runtime\\GeneratedOperationBoundary;',
+            ...(2 !== $this->modelVersion ? [] : [
+                'use Kongono\\Composition\\Runtime\\GeneratedOperationInputApplicationBoundary;',
+                'use Kongono\\Composition\\Runtime\\GeneratedOperationInputs;',
+            ]),
             'use Kongono\\Composition\\Runtime\\LifecycleFailureComposer;',
             'use Throwable;',
             '',
@@ -102,10 +112,23 @@ final class GeneratedWiringEmitter
     /** @param array<string, mixed> $model */
     private function loadModel(array $model): void
     {
+        $version = $model['version'] ?? null;
+        if (!is_int($version) || !in_array($version, [1, 2], true)) {
+            $this->invalid('model_version');
+        }
+        $this->modelVersion = $version;
         $inputs = $this->records($model['inputs'] ?? null);
         foreach ($inputs as $index => $input) {
             $contract = $this->string($input['contract'] ?? null);
             $this->inputIndexes[$contract] = $index + 1;
+            $lifetime = 1 === $version ? 'application' : $this->string($input['lifetime'] ?? null);
+            if (!in_array($lifetime, ['application', 'operation'], true)) {
+                $this->invalid('model_input_lifetime');
+            }
+            $this->inputLifetimes[$contract] = $lifetime;
+            if ('operation' === $lifetime) {
+                $this->declaredOperationInputs[$contract] = true;
+            }
         }
         foreach ($this->records($model['services'] ?? null) as $record) {
             $class = $this->string($record['class'] ?? null);
@@ -224,8 +247,11 @@ final class GeneratedWiringEmitter
             $applicationScope = false;
         }
         foreach ($service['arguments'] as $argument) {
-            if ($applicationScope && isset($argument['input'])) {
-                $this->applicationInputs[$argument['input']] = true;
+            if (isset($argument['input'])) {
+                $contract = $argument['input'];
+                if (1 === $this->modelVersion ? $applicationScope : $applicationScope && 'application' === $this->inputLifetimes[$contract]) {
+                    $this->applicationInputs[$contract] = true;
+                }
             }
             if (isset($argument['service'])) {
                 $this->collectApplicationInputs($this->resolve($argument['service']), $applicationScope, $seen);
@@ -263,10 +289,14 @@ final class GeneratedWiringEmitter
     /** @return list<string> */
     private function applicationClassLines(): array
     {
-        $lines = ['final class ApplicationAssembly extends GeneratedApplicationState implements GeneratedApplicationBoundary', '{'];
+        $applicationBoundary = 2 === $this->modelVersion ? 'GeneratedOperationInputApplicationBoundary' : 'GeneratedApplicationBoundary';
+        $lines = ['final class ApplicationAssembly extends GeneratedApplicationState implements ' . $applicationBoundary, '{'];
         $lines[] = '    /** @var list<\\Closure(): void> */';
         $lines[] = '    private array $cleanup = [];';
         foreach ($this->operationInputs as $contract => $_) {
+            if (2 === $this->modelVersion && 'application' !== $this->inputLifetimes[$contract]) {
+                continue;
+            }
             $lines[] = '    private \\' . $contract . ' $input' . $this->inputIndexes[$contract] . ';';
         }
         foreach ($this->applicationProperties as $class => $index) {
@@ -280,6 +310,9 @@ final class GeneratedWiringEmitter
         $lines[] = '';
         $parameters = [];
         foreach ($this->inputIndexes as $contract => $index) {
+            if (2 === $this->modelVersion && 'application' !== $this->inputLifetimes[$contract]) {
+                continue;
+            }
             $parameters[] = '\\' . $contract . ' $input' . $index;
         }
         if ([] === $parameters) {
@@ -294,6 +327,9 @@ final class GeneratedWiringEmitter
         }
         $lines[] = '        $assembly = new self();';
         foreach ($this->operationInputs as $contract => $_) {
+            if (2 === $this->modelVersion && 'application' !== $this->inputLifetimes[$contract]) {
+                continue;
+            }
             $index = $this->inputIndexes[$contract];
             $lines[] = '        $assembly->input' . $index . ' = $input' . $index . ';';
         }
@@ -304,25 +340,28 @@ final class GeneratedWiringEmitter
         foreach (array_keys($this->applicationProperties) as $class) {
             $this->construct($class);
         }
-        $captures = ['$assembly'];
-        foreach ($this->applicationInputs as $contract => $_) {
-            $index = $this->inputIndexes[$contract];
-            $captures[] = '$input' . $index;
+        $applicationConstructionLines = $this->generatedConstructionLines();
+        if (1 === $this->modelVersion || [] !== $applicationConstructionLines) {
+            $captures = ['$assembly'];
+            foreach ($this->applicationInputs as $contract => $_) {
+                $index = $this->inputIndexes[$contract];
+                $captures[] = '$input' . $index;
+            }
+            $lines[] = '        $construct = static function () use (' . implode(', ', $captures) . '): void {';
+            foreach ($applicationConstructionLines as $line) {
+                $lines[] = '            ' . $line;
+            }
+            $lines[] = '        };';
+            $lines[] = '        try {';
+            $lines[] = '            $construct();';
+            $lines[] = '        } catch (Throwable $primaryFailure) {';
+            $lines[] = '            $assembly->retireAfterConstructionFailure();';
+            $lines[] = '            $cleanupFailures = $assembly->runCleanup();';
+            $lines[] = "            LifecycleFailureComposer::throwIfNeeded('application-construction', \$primaryFailure, \$cleanupFailures);";
+            $lines[] = '            throw $primaryFailure;';
+            $lines[] = '        }';
+            $lines[] = '';
         }
-        $lines[] = '        $construct = static function () use (' . implode(', ', $captures) . '): void {';
-        foreach ($this->generatedConstructionLines() as $line) {
-            $lines[] = '            ' . $line;
-        }
-        $lines[] = '        };';
-        $lines[] = '        try {';
-        $lines[] = '            $construct();';
-        $lines[] = '        } catch (Throwable $primaryFailure) {';
-        $lines[] = '            $assembly->retireAfterConstructionFailure();';
-        $lines[] = '            $cleanupFailures = $assembly->runCleanup();';
-        $lines[] = "            LifecycleFailureComposer::throwIfNeeded('application-construction', \$primaryFailure, \$cleanupFailures);";
-        $lines[] = '            throw $primaryFailure;';
-        $lines[] = '        }';
-        $lines[] = '';
         $lines[] = '        return $assembly;';
         $lines[] = '    }';
         foreach ($this->applicationRoots as $index => $root) {
@@ -337,7 +376,31 @@ final class GeneratedWiringEmitter
         $lines[] = '';
         $lines[] = '    public function beginOperation(): OperationAssembly';
         $lines[] = '    {';
+        if (2 === $this->modelVersion) {
+            $lines[] = '        return $this->beginOperationWithInputs(GeneratedOperationInputs::none());';
+            $lines[] = '    }';
+            $lines[] = '';
+            $lines[] = '    /** @return list<class-string> */';
+            $lines[] = '    public static function expectedOperationInputContracts(): array';
+            $lines[] = '    {';
+            $lines[] = '        return [';
+            foreach ($this->declaredOperationInputs as $contract => $_) {
+                $lines[] = '            \\' . $contract . '::class,';
+            }
+            $lines[] = '        ];';
+            $lines[] = '    }';
+            $lines[] = '';
+            $lines[] = '    public function beginOperationWithInputs(GeneratedOperationInputs $inputs): OperationAssembly';
+            $lines[] = '    {';
+        }
         $lines[] = "        \$this->assertNotRetired('application_retired');";
+        if (2 === $this->modelVersion) {
+            $lines[] = '        $inputs->validateCount(' . count($this->declaredOperationInputs) . ');';
+            foreach (array_keys($this->declaredOperationInputs) as $position => $contract) {
+                $index = $this->inputIndexes[$contract];
+                $lines[] = '        $input' . $index . ' = $inputs->validatedAt(' . $position . ', \\' . $contract . '::class);';
+            }
+        }
         $lines[] = '        $this->acquireOperationLease();';
         $lines[] = '';
         $lines[] = '        return new OperationAssembly(';
@@ -349,7 +412,10 @@ final class GeneratedWiringEmitter
         }
         foreach ($this->operationInputs as $contract => $_) {
             $index = $this->inputIndexes[$contract];
-            $lines[] = '            input' . $index . ': $this->input' . $index . ',';
+            $expression = 2 === $this->modelVersion && 'operation' === $this->inputLifetimes[$contract]
+                ? '$input' . $index
+                : '$this->input' . $index;
+            $lines[] = '            input' . $index . ': ' . $expression . ',';
         }
         $lines[] = '        );';
         $lines[] = '    }';
@@ -400,13 +466,18 @@ final class GeneratedWiringEmitter
             }
         }
         foreach ($this->operationInputs as $contract => $_) {
+            if (2 === $this->modelVersion) {
+                continue;
+            }
             $lines[] = '    private \\' . $contract . ' $input' . $this->inputIndexes[$contract] . ';';
         }
         foreach ($this->operationProperties as $class => $index) {
             if (!isset($this->retainedOperation[$class])) {
                 continue;
             }
-            $lines[] = '    private \\' . $class . ' $operationService' . $index . ';';
+            $type = 2 === $this->modelVersion ? '?\\' . $class : '\\' . $class;
+            $default = 2 === $this->modelVersion ? ' = null' : '';
+            $lines[] = '    private ' . $type . ' $operationService' . $index . $default . ';';
         }
         $lines[] = '';
         $lines[] = '    public function __construct(';
@@ -426,6 +497,9 @@ final class GeneratedWiringEmitter
             }
         }
         foreach ($this->operationInputs as $contract => $_) {
+            if (2 === $this->modelVersion) {
+                continue;
+            }
             $index = $this->inputIndexes[$contract];
             $lines[] = '        $this->input' . $index . ' = $input' . $index . ';';
         }
@@ -445,7 +519,14 @@ final class GeneratedWiringEmitter
         if ([] === $constructionLines) {
             $lines[array_key_last($lines)] = '    ) {}';
         } else {
-            $lines[] = '        $construct = function (): void {';
+            $operationCaptures = [];
+            if (2 === $this->modelVersion) {
+                foreach ($this->operationInputs as $contract => $_) {
+                    $operationCaptures[] = '$input' . $this->inputIndexes[$contract];
+                }
+            }
+            $captureClause = [] === $operationCaptures ? '' : ' use (' . implode(', ', $operationCaptures) . ')';
+            $lines[] = '        $construct = function ()' . $captureClause . ': void {';
             foreach ($constructionLines as $line) {
                 $lines[] = '            ' . $line;
             }
@@ -454,6 +535,13 @@ final class GeneratedWiringEmitter
             $lines[] = '            $construct();';
             $lines[] = '        } catch (Throwable $primaryFailure) {';
             $lines[] = '            $this->closed = true;';
+            if (2 === $this->modelVersion) {
+                foreach ($this->operationProperties as $class => $index) {
+                    if (isset($this->retainedOperation[$class])) {
+                        $lines[] = '            $this->operationService' . $index . ' = null;';
+                    }
+                }
+            }
             $lines[] = '            $cleanupFailures = $this->runCleanup();';
             $lines[] = '            $this->owner->releaseOperationLease();';
             $lines[] = "            LifecycleFailureComposer::throwIfNeeded('operation-construction', \$primaryFailure, \$cleanupFailures);";
@@ -467,7 +555,11 @@ final class GeneratedWiringEmitter
             $lines[] = '    public function operationRoot' . ($index + 1) . '(): \\' . $root['contract'];
             $lines[] = '    {';
             $lines[] = '        $this->assertOpen();';
-            $lines[] = '        return $this->operationService' . $this->operationProperties[$class] . ';';
+            $expression = '$this->operationService' . $this->operationProperties[$class];
+            if (2 === $this->modelVersion) {
+                $expression .= " ?? throw new RetiredCompositionBoundaryException(CompositionDiagnostic::CompositionBoundaryUnavailable, 'operation_closed')";
+            }
+            $lines[] = '        return ' . $expression . ';';
             $lines[] = '    }';
         }
         $lines[] = '';
@@ -477,6 +569,13 @@ final class GeneratedWiringEmitter
         $lines[] = '            return;';
         $lines[] = '        }';
         $lines[] = '        $this->closed = true;';
+        if (2 === $this->modelVersion) {
+            foreach ($this->operationProperties as $class => $index) {
+                if (isset($this->retainedOperation[$class])) {
+                    $lines[] = '        $this->operationService' . $index . ' = null;';
+                }
+            }
+        }
         $lines[] = '        $cleanupFailures = $this->runCleanup();';
         $lines[] = '        $this->owner->releaseOperationLease();';
         $lines[] = "        LifecycleFailureComposer::throwIfNeeded('operation', \$primaryFailure, \$cleanupFailures);";
@@ -545,7 +644,8 @@ final class GeneratedWiringEmitter
             }
             if (isset($argument['input'])) {
                 $index = $this->inputIndexes[$argument['input']];
-                $arguments[] = [$argument['parameter'], 'application' === $this->scope ? '$input' . $index : '$this->input' . $index];
+                $operationExpression = 2 === $this->modelVersion ? '$input' . $index : '$this->input' . $index;
+                $arguments[] = [$argument['parameter'], 'application' === $this->scope ? '$input' . $index : $operationExpression];
             } else {
                 $contract = $argument['service'] ?? $this->invalid('model_argument');
                 $arguments[] = [$argument['parameter'], $this->construct($this->resolve($contract))];

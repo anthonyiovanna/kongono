@@ -388,3 +388,126 @@ source, plan/apply identity truth, exit-3 no-clobber conflict, recovery,
 nondisclosure, status preservation, and cleanup. Current execution evidence is
 Windows; argv arrays and the absence of shell syntax define the portability
 boundary without claiming execution on every operating system.
+
+## Phase 9B neutral Identity Access proof
+
+Phase 9B adds eight focused `kongono/identity-access` unit-test files and extends
+the root architecture suite. The repository inventory becomes exactly
+thirty-seven package directories/manifests, 639 production package PHP files,
+337 package test PHP files, and 56 root test PHP files.
+
+The focused tests prove every byte boundary for opaque principal/resource
+identifiers and canonical action/resource-type names; valid UTF-8 and C0/C1
+control rejection; exact preservation, equality, case sensitivity, and absence
+of normalization or autoloading; all five principal kinds; all eight
+authentication outcome factories and principal-presence rules; the exact inert
+Permit/Deny/Indeterminate vocabulary; resource-reference access without domain
+loading; explicit anonymous/authenticated Security Context shape without
+ambient state; and exact final/readonly/enum/property/method surfaces.
+
+Diagnostic and exception tests prove five unique `KGN-ACCESS-1001` through
+`KGN-ACCESS-1005` identities, exact categories/titles/remediations, Safe bounded
+context, package-marker membership, cached detached context, previous-cause
+identity, safe stringification, and rejected-input nondisclosure. Reflection
+and architecture proofs reject Stringable, JSON/array/serialization/debug magic,
+global I/O, discovery, forbidden dependencies, extra public APIs, and any
+lower-package dependency on Identity Access. These tests use synthetic values,
+not real credentials, providers, sessions, networks, clocks, randomness,
+environment state, or private data.
+
+See [ADR 0107](../adr/0107-neutral-identity-and-access-contracts-and-package-boundary.md),
+the [Identity and Access Security guide](../architecture/identity-and-access-security.md),
+and the [Phase 9 roadmap](../architecture/phase-9-roadmap.md).
+
+## Phase 9C deterministic Authentication proof
+
+Phase 9C adds eight focused `kongono/authentication` unit-test files and extends
+the root architecture suite. At Phase 9D the current repository inventory is
+exactly thirty-nine package directories/manifests, 674 production package PHP
+files, 353 package test PHP files, and 56 root test PHP files.
+
+Value tests prove exact mechanism grammar and equality, explicit instant
+ordering and elapsed time, strength bounds/comparison, requirement bounds,
+facts invariants and object identity, and request detachment/order at zero, one,
+eight, and invalid entry counts. Verification tests prove all eight outcomes,
+including facts and principal presence only for Authenticated.
+
+Orchestrator tests prove Absent, Ambiguous, and Unsupported without unintended
+verifier calls; exact mechanism selection with no priority or fallback; one
+begin/verify/retire order; non-authenticated pass-through; mechanism mismatch,
+future authentication, insufficient strength, expired validity, and excessive
+age handling; and inclusive validity, age, and strength equality bounds.
+Lifecycle fixtures prove unchanged begin/verification failure propagation,
+cleanup-only and combined failure preservation, exactly-once retirement, fresh
+sequential operations, and independent reentrant call state.
+
+Diagnostic and exception tests prove all eight identifiers, exact marker/base/
+subclass shapes, Safe bounded context, safe stringification, and exact retained
+cause identities without disclosure. Architecture proofs enforce 39 acyclic
+manifests, exact Authentication dependencies, no lower-package dependency,
+seventeen production declarations with exact API status and public shape, and
+absence of ambient globals, clock/request/session/network access, credentials,
+provider SDKs, authorization/policy APIs, Security Context construction,
+serialization, mutable/static call state, and extra capability imports. Tests
+use synthetic non-secret evidence only.
+
+See [ADR 0108](../adr/0108-deterministic-explicit-authentication-orchestration.md),
+the [Identity and Access Security guide](../architecture/identity-and-access-security.md),
+and the [Phase 9 roadmap](../architecture/phase-9-roadmap.md).
+
+## Phase 9D deterministic Authorization proof
+
+Phase 9D adds exactly eight focused `kongono/authorization` unit-test files and
+extends the root architecture suite. Value tests prove every canonical bound
+and exact three-field policy-reference equality. Request and evidence tests
+prove constructor order, exact object identity, and evidence interfaces limited
+to `reference()` or `profile()`.
+
+Engine tests prove one/32 registration and zero/33/non-list/non-evaluator/
+duplicate rejection; one evidence-reference read; mismatch and unsupported
+Indeterminate results without evaluator execution; exact name/version/
+provenance selection; identical request delivery exactly once; exact Permit,
+Deny, and Indeterminate preservation; safely wrapped failure; and sequential/
+reentrant isolation. Receipt tests prove only the bounded fields, forced
+Indeterminate mismatch/unsupported shapes, and absence of guard, enforcement,
+serialization, replay, identifier, payload, evaluator, and failure surfaces.
+
+Diagnostic, exception, and architecture proofs enforce six unique identifiers,
+Safe fresh contexts, nondisclosure, exact native previous, exact API statuses
+and public methods, eighteen production files, eight test files, 39 acyclic
+manifests, no lower-package dependency on Authorization, and absence of policy
+language/loading, role/permission semantics, ambient state, HTTP/session,
+Composition, database enforcement, audit, telemetry, and Phase 9E surfaces.
+Tests use inert synthetic non-secret fixtures only.
+
+See [ADR 0109](../adr/0109-deterministic-deny-by-default-authorization-evaluation.md),
+the [Identity and Access Security guide](../architecture/identity-and-access-security.md),
+and the [Phase 9 roadmap](../architecture/phase-9-roadmap.md).
+
+## Phase 9G policy and supported workflow proof
+
+Phase 9G focused tests prove the closed bounded policy source, canonical
+root-independent artifact identity, separate structural/current validation,
+write-free inspect/check, atomic idempotent publication, conflict no-clobber,
+source/builder currentness, path containment, and bounded nondisclosure. The
+supported application tests prove one operation context, one authorization
+request/evaluation, exact-Permit-only execution, deny/indeterminate prevention,
+and exactly-once cleanup. Console and architecture tests prove the exact three-
+command edge and forty-four acyclic manifests.
+
+Gate D additionally copies `skeletons/security-minimal` to a fresh external
+temporary root, installs from local package mirrors with network and plugins
+disabled, builds, checks, runs Permit and Deny scenarios, and confirms the
+repository and permanent environment remain unchanged. This is implementation
+proof, not the Phase 9H external acceptance harness.
+
+## Phase 9H external security proof
+
+`composer acceptance:phase9` runs the root-owned security harness with no
+arguments. It uses fresh child processes and one owned temporary application,
+proves exact-Permit enforcement, authentication/authorization separation,
+transport rejection, operation cleanup and isolation, policy currentness,
+read-only tooling, Phase 8 compatibility, nondisclosure, and complete cleanup.
+Success is one canonical `kongono-phase9-security` JSON line; failure is only
+the fixed `phase9_acceptance_failed` stderr token. This profile is milestone
+evidence, not a production provider or security certification.

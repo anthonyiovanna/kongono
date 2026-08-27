@@ -26,26 +26,28 @@ final readonly class KongoProcessRequest
 
     private bool $commandHelp;
 
+    private ?string $helpCommandIdentifier;
+
     /** @param array<array-key, mixed> $arguments */
     public function __construct(array $arguments)
     {
-        [$this->valid, $this->machine, $this->fullHelp, $this->commandHelp, $this->commandTokens] = self::validate($arguments);
+        [$this->valid, $this->machine, $this->fullHelp, $this->commandHelp, $this->helpCommandIdentifier, $this->commandTokens] = self::validate($arguments);
     }
 
     /**
      * @param array<array-key, mixed> $arguments
-     * @return array{bool, bool, bool, bool, list<string>}
+     * @return array{bool, bool, bool, bool, ?string, list<string>}
      */
     private static function validate(array $arguments): array
     {
         $accepted = [];
         $total = 0;
         if (count($arguments) > self::MAX_ARGUMENTS) {
-            return [false, false, false, false, []];
+            return [false, false, false, false, null, []];
         }
         foreach ($arguments as $argument) {
             if (!is_string($argument)) {
-                return [false, false, false, false, []];
+                return [false, false, false, false, null, []];
             }
             $length = strlen($argument);
             $total += $length;
@@ -56,7 +58,7 @@ final readonly class KongoProcessRequest
                 || 1 !== preg_match('//u', $argument)
                 || 1 === preg_match('/[\x{0000}-\x{001F}\x{007F}-\x{009F}]/u', $argument)
             ) {
-                return [false, false, false, false, []];
+                return [false, false, false, false, null, []];
             }
             $accepted[] = $argument;
         }
@@ -66,22 +68,26 @@ final readonly class KongoProcessRequest
             array_shift($accepted);
         }
         if (in_array('--json', $accepted, true)) {
-            return [false, false, false, false, []];
+            return [false, false, false, false, null, []];
         }
         if ([] === $accepted || ['--help'] === $accepted) {
-            return [true, $machine, true, false, []];
+            return [true, $machine, true, false, null, []];
         }
-        if ([KongoCommand::ApplicationBuild->value, '--help'] === $accepted) {
-            return [true, $machine, false, true, []];
+        $commandIdentifiers = array_map(
+            static fn(KongoCommand $command): string => $command->value,
+            KongoCommand::cases(),
+        );
+        if (2 === count($accepted) && '--help' === $accepted[1] && in_array($accepted[0], $commandIdentifiers, true)) {
+            return [true, $machine, false, true, $accepted[0], []];
         }
         if (
-            KongoCommand::ApplicationBuild->value !== $accepted[0]
+            !in_array($accepted[0], $commandIdentifiers, true)
             || in_array('--help', $accepted, true)
         ) {
-            return [false, $machine, false, false, []];
+            return [false, $machine, false, false, null, []];
         }
 
-        return [true, $machine, false, false, $accepted];
+        return [true, $machine, false, false, null, $accepted];
     }
 
     public function isValid(): bool
@@ -102,6 +108,11 @@ final readonly class KongoProcessRequest
     public function requestsCommandHelp(): bool
     {
         return $this->commandHelp;
+    }
+
+    public function helpCommandIdentifier(): ?string
+    {
+        return $this->helpCommandIdentifier;
     }
 
     /** @return list<string> */

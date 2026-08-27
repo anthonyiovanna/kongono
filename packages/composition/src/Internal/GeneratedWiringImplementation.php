@@ -18,6 +18,7 @@ final class GeneratedWiringImplementation
         'src/Exception/CompositionLifecycleException.php',
         'src/Exception/ExceptionInterface.php',
         'src/Exception/GeneratedWiringPublicationException.php',
+        'src/Exception/InvalidGeneratedOperationInputsException.php',
         'src/Exception/InvalidGeneratedWiringException.php',
         'src/Exception/RetiredCompositionBoundaryException.php',
         'src/Generated/GeneratedWiringArtifact.php',
@@ -29,6 +30,8 @@ final class GeneratedWiringImplementation
         'src/Internal/PathGuard.php',
         'src/Runtime/GeneratedApplicationBoundary.php',
         'src/Runtime/GeneratedApplicationState.php',
+        'src/Runtime/GeneratedOperationInputApplicationBoundary.php',
+        'src/Runtime/GeneratedOperationInputs.php',
         'src/Runtime/GeneratedOperationBoundary.php',
         'src/Runtime/LifecycleFailureComposer.php',
     ];

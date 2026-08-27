@@ -777,3 +777,186 @@ command, daemon, watcher, installer, deployment manager, or shell is added.
 Phase 8H adds only four root test PHP files and two documentation authorities;
 it adds no package or production dependency. Its real-process contract is
 documented in the [Phase 8 external acceptance guide](../architecture/phase-8-external-acceptance.md).
+
+## Phase 9B Identity Access package boundary
+
+Phase 9B adds `packages/identity-access` as production package
+`kongono/identity-access` under `Kongono\IdentityAccess\`. Its description is
+`Neutral identity and access contracts for Kongono Framework.` Its exact
+production dependencies are `kongono/api-metadata: *`,
+`kongono/diagnostics: *`, and PHP `>=8.5.0 <8.6.0`. The graph now has exactly
+thirty-seven acyclic production packages and manifests at Phase 9B. No existing production
+package depends on Identity Access.
+
+The root source directory owns the neutral principal, authentication outcome,
+authorization decision, action/resource, and Security Context values.
+`src/Diagnostic` owns only the Internal five-case diagnostic catalog;
+`src/Exception` owns the Public package marker, Internal abstract base, and
+Experimental invalid-value exception. Every other production declaration is
+Experimental. The package test namespace is
+`Kongono\IdentityAccess\Tests\`.
+
+Identity Access remains below credential/session transports, provider adapters,
+HTTP integration, policy/application workflows, and executable edges. It does
+not depend on Kernel, Dependency Injection, Composition, Application Graph,
+HTTP, Routing, Web Runtime, PHP CGI, database, persistence, Console,
+developer-intelligence, telemetry, extensions, applications, Symfony, PSR
+security packages, or third-party runtime packages. It owns no schema,
+generated output, command, executable, skeleton, or runtime integration.
+Composition remains the owner of later explicit construction and generated
+typed wiring.
+
+See [ADR 0105](../adr/0105-explicit-identity-authentication-and-authorization-boundary.md),
+[ADR 0106](../adr/0106-fail-closed-security-context-and-policy-separation.md),
+[ADR 0107](../adr/0107-neutral-identity-and-access-contracts-and-package-boundary.md),
+the [Identity and Access Security guide](../architecture/identity-and-access-security.md),
+and the fixed [Phase 9 roadmap](../architecture/phase-9-roadmap.md).
+
+## Phase 9C Authentication package boundary
+
+Phase 9C adds `packages/authentication` as production package
+`kongono/authentication` under `Kongono\Authentication\`. Its description is
+`Deterministic explicit authentication orchestration for Kongono Framework.`
+Its exact production dependencies are `kongono/api-metadata: *`,
+`kongono/diagnostics: *`, `kongono/identity-access: *`, and PHP
+`>=8.5.0 <8.6.0`. The graph now has exactly thirty-eight acyclic production
+packages and manifests. No existing production package depends on
+Authentication.
+
+The root source directory owns canonical mechanisms, explicit instants,
+strength and requirement values, caller-owned evidence and verifier SPIs,
+validated facts, verification outcomes, and the stateless orchestrator.
+`src/Diagnostic` owns the Internal eight-case diagnostic catalog.
+`src/Exception` owns the Public package marker, Internal abstract base, and
+Experimental validation, cleanup, and combined-failure exceptions. Every other
+production declaration is Experimental. The package test namespace is
+`Kongono\Authentication\Tests\`.
+
+Authentication is an upper consumer of neutral Identity Access vocabulary. It
+does not depend on Kernel, Dependency Injection, Composition, Application
+Graph, HTTP, Routing, Web Runtime, PHP CGI, database, persistence, Console,
+Chie, Hantei, Oshie, telemetry, application code, Symfony, PSR security
+packages, or provider SDKs. It defines no credential/provider, session/cookie
+transport, authorization evaluator, policy, Security Context construction,
+Composition integration, audit, telemetry, command, or application workflow.
+
+See [ADR 0108](../adr/0108-deterministic-explicit-authentication-orchestration.md),
+the [Identity and Access Security guide](../architecture/identity-and-access-security.md),
+and the fixed [Phase 9 roadmap](../architecture/phase-9-roadmap.md).
+
+## Phase 9D Authorization package boundary
+
+Phase 9D adds `packages/authorization` as production package
+`kongono/authorization` under `Kongono\Authorization\`. Its description is
+`Deterministic deny-by-default authorization evaluation for Kongono Framework.`
+Its exact production dependencies are `kongono/api-metadata: *`,
+`kongono/diagnostics: *`, `kongono/identity-access: *`, and PHP
+`>=8.5.0 <8.6.0`. The graph now has exactly thirty-nine acyclic production
+packages and manifests. No existing production package depends on
+Authorization.
+
+The root source directory owns exact policy identity values, opaque evidence
+SPIs, the explicit request, evaluator SPI, deny-by-default engine, receipt
+reason, bounded receipt, and inseparable evaluation. `src/Diagnostic` owns the
+Internal six-case catalog; `src/Exception` owns the Public empty marker,
+Internal abstract base, and Experimental validation and evaluation exceptions.
+Every other production declaration is Experimental. The package test namespace
+is `Kongono\Authorization\Tests\`.
+
+Authorization is an upper consumer of neutral Identity Access vocabulary. It
+does not depend on Authentication, Kernel, Dependency Injection, Composition,
+Application Graph, HTTP, Routing, Web Runtime, PHP CGI, database, persistence,
+Console, Chie, Hantei, Oshie, telemetry, application code, Symfony, PSR security
+packages, or provider SDKs. It defines no policy language/build/loader,
+roles/permissions, ambient guard, Security Context construction,
+protected-capability enforcement, HTTP/session transport, database enforcement,
+audit, telemetry, command, workflow, or Phase 9E behavior.
+
+See [ADR 0109](../adr/0109-deterministic-deny-by-default-authorization-evaluation.md),
+the [Identity and Access Security guide](../architecture/identity-and-access-security.md),
+and the fixed [Phase 9 roadmap](../architecture/phase-9-roadmap.md).
+
+## Phase 9E Security Runtime package boundary
+
+Phase 9E adds `packages/security-runtime` as production package
+`kongono/security-runtime` under `Kongono\SecurityRuntime\`. Its exact
+production dependencies are PHP `>=8.5.0 <8.6.0`, `kongono/api-metadata: *`,
+`kongono/authentication: *`, `kongono/composition: *`,
+`kongono/diagnostics: *`, and `kongono/identity-access: *`. The graph now has
+exactly forty acyclic production packages and manifests. No existing inward
+production package depends on Security Runtime.
+
+The package owns stateless context construction, exact generated
+security-profile startup, one marker-only operation root, and one operation
+owner. `src/Diagnostic` owns the Internal three-case catalog;
+`src/Exception` owns the Public package marker, Internal abstract base, and
+Experimental validation, profile, and lifecycle exceptions. Every other
+production declaration is Experimental.
+
+Security Runtime is an outer consumer of Authentication, Composition, and
+neutral Identity Access. It has no Authorization, HTTP, Web Runtime, Kernel,
+Database, Persistence, Dependency Injection, Application Graph, Console,
+developer-intelligence, provider SDK, or third-party dependency. It implements
+no policy evaluation/enforcement, credential/session transport, login, cookie
+profile, policy build/currentness, workflow, skeleton, or Phase 9F behavior.
+
+See [ADR 0110](../adr/0110-operation-scoped-security-context-and-generated-composition-inputs.md),
+the [operation-scoped Security Context guide](../architecture/operation-scoped-security-context.md),
+and the fixed [Phase 9 roadmap](../architecture/phase-9-roadmap.md).
+
+## Phase 9F Security HTTP and Enforcement package boundaries
+
+Phase 9F adds `packages/security-http` as `kongono/security-http` under
+`Kongono\SecurityHttp\`. Its exact production dependencies are PHP
+`>=8.5.0 <8.6.0`, API Metadata, Authentication, Diagnostics, Security Runtime,
+and `psr/http-message:^2.0`. It owns only the selected same-origin HTTPS
+`browser.session.v1` adapter, bounded cookie/CSRF transport values, deterministic
+cookie header values, and operation-entry owner. It has no Authorization,
+Security Enforcement, HTTP Server, Routing, Web Runtime, Kernel, storage,
+provider SDK, or new third-party dependency.
+
+Phase 9F also adds `packages/security-enforcement` as
+`kongono/security-enforcement` under `Kongono\SecurityEnforcement\`. Its exact
+production dependencies are PHP `>=8.5.0 <8.6.0`, API Metadata, Authorization,
+Diagnostics, and Identity Access. It owns the generic protected-capability
+contract and one stateless exact-Permit enforcer. It has no Authentication,
+Security Runtime, HTTP, Routing, Web Runtime, Composition, Kernel, database,
+persistence, Console, developer-intelligence, provider SDK, or new third-party
+dependency.
+
+Each package owns one Internal contiguous diagnostic catalog, one Public
+exception marker, one Internal abstract nondisclosing base, and only its minimum
+Experimental concrete exceptions. Other public surfaces are Experimental. The
+graph contained exactly forty-two acyclic production packages at Phase 9F. Session syntax/
+emission is not session truth, cryptography, storage, login, or authorization;
+only exact Permit at the capability boundary proceeds. No ambient current-user,
+session, context, or decision state exists. See [ADR 0111](../adr/0111-secure-browser-session-transport-and-capability-enforcement.md)
+and the [browser-session security and capability enforcement guide](../architecture/browser-session-security-and-capability-enforcement.md).
+
+## Phase 9G Security Policy Build and Security Application boundaries
+
+Phase 9G adds `kongono/security-policy-build` under
+`Kongono\SecurityPolicyBuild\` as the forty-third package. It depends only on
+PHP, ext-hash, ext-json, API Metadata, Authorization, and Diagnostics. It owns
+the closed rule-free source reader, canonical artifact, structural/current
+validators, no-clobber publisher, current evidence, workflow, and bounded
+diagnostics. It has no evaluator semantics, provider, HTTP, runtime,
+Composition, Console, database, developer-intelligence, or third-party package.
+
+`kongono/security-application` under `Kongono\SecurityApplication\` is the
+forty-fourth package. It depends only on PHP, API Metadata, Authorization,
+Diagnostics, Security Enforcement, Security HTTP, Security Policy Build, and
+PSR HTTP Message interfaces. It owns one supported browser-session protected-
+capability lifecycle and no policy, provider, session store, route, middleware,
+audit, telemetry, or deployment behavior. No lower package depends on either
+new upper package. The exact forty-four-package graph remains acyclic. See
+[ADR 0112](../adr/0112-deterministic-security-policy-evidence-and-supported-application-workflow.md)
+and the [security application workflow](../architecture/security-application-workflow.md).
+
+## Phase 9H external acceptance layout
+
+Phase 9H adds four root test PHP files under `tests/External/Security` and two
+documentation authorities. Root test PHP inventory therefore changes from 56
+to 60. Production packages remain 44, production PHP remains 732, package-test
+PHP remains 379, and skeleton manifests remain four. The external harness is
+test-owned and adds no production package or dependency edge.

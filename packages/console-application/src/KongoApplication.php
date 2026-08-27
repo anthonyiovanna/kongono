@@ -72,7 +72,10 @@ final readonly class KongoApplication
                 : $this->humanPresenter->presentHelp($this->specifications);
         }
         if ($request->requestsCommandHelp()) {
-            $specification = $this->specifications->command(new CommandIdentifier(KongoCommand::ApplicationBuild->value));
+            $identifier = $request->helpCommandIdentifier();
+            $specification = null === $identifier
+                ? null
+                : $this->specifications->command(new CommandIdentifier($identifier));
             if (null === $specification) {
                 return $this->presentResult($request->isMachine(), $this->infrastructureFailure());
             }

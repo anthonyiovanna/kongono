@@ -1,0 +1,23 @@
+{
+  "name": "kongono/security-runtime",
+  "description": "Operation-scoped Security Context construction and generated Composition integration for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/authentication": "*",
+    "kongono/composition": "*",
+    "kongono/diagnostics": "*",
+    "kongono/identity-access": "*",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\SecurityRuntime\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\SecurityRuntime\\Tests\\": "tests/"
+    }
+  }
+}

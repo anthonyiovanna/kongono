@@ -13,6 +13,41 @@ use Kongono\ApplicationGraph\Diagnostic\GraphDiagnostic;
 use Kongono\ApplicationGraph\Exception\ExceptionInterface as GraphExceptionInterface;
 use Kongono\ApplicationGraph\Exception\GraphException;
 use Kongono\ApplicationGraph\Exception\InvalidGraphException;
+use Kongono\Authentication\AuthenticationEvidence;
+use Kongono\Authentication\AuthenticationFacts;
+use Kongono\Authentication\AuthenticationInstant;
+use Kongono\Authentication\AuthenticationMechanism;
+use Kongono\Authentication\AuthenticationOrchestrator;
+use Kongono\Authentication\AuthenticationRequest;
+use Kongono\Authentication\AuthenticationRequirement;
+use Kongono\Authentication\AuthenticationStrength;
+use Kongono\Authentication\AuthenticationVerification;
+use Kongono\Authentication\AuthenticationVerificationOperation;
+use Kongono\Authentication\AuthenticationVerifier;
+use Kongono\Authentication\Diagnostic\AuthenticationDiagnostic;
+use Kongono\Authentication\Exception\AuthenticationCleanupException;
+use Kongono\Authentication\Exception\AuthenticationException;
+use Kongono\Authentication\Exception\AuthenticationOperationAndCleanupException;
+use Kongono\Authentication\Exception\ExceptionInterface as AuthenticationExceptionInterface;
+use Kongono\Authentication\Exception\InvalidAuthenticationValueException;
+use Kongono\Authorization\AuthorizationDecisionReceipt;
+use Kongono\Authorization\AuthorizationEngine;
+use Kongono\Authorization\AuthorizationEnvironmentEvidence;
+use Kongono\Authorization\AuthorizationEnvironmentProfile;
+use Kongono\Authorization\AuthorizationEvaluation;
+use Kongono\Authorization\AuthorizationEvaluator;
+use Kongono\Authorization\AuthorizationPolicyEvidence;
+use Kongono\Authorization\AuthorizationPolicyName;
+use Kongono\Authorization\AuthorizationPolicyProvenance;
+use Kongono\Authorization\AuthorizationPolicyReference;
+use Kongono\Authorization\AuthorizationPolicyVersion;
+use Kongono\Authorization\AuthorizationReceiptReason;
+use Kongono\Authorization\AuthorizationRequest;
+use Kongono\Authorization\Diagnostic\AuthorizationDiagnostic;
+use Kongono\Authorization\Exception\AuthorizationEvaluationException;
+use Kongono\Authorization\Exception\AuthorizationException;
+use Kongono\Authorization\Exception\ExceptionInterface as AuthorizationExceptionInterface;
+use Kongono\Authorization\Exception\InvalidAuthorizationValueException;
 use Kongono\Chie\Chie;
 use Kongono\Chie\ChieCitation;
 use Kongono\Chie\ChieClaim;
@@ -150,6 +185,22 @@ use Kongono\Http\Server\Exception\InvalidHttpServerDefinitionException;
 use Kongono\Http\Server\Internal\MiddlewareLayer;
 use Kongono\Http\Server\MiddlewarePipeline;
 use Kongono\Http\Server\RoutingRequestHandler;
+use Kongono\IdentityAccess\Action;
+use Kongono\IdentityAccess\AuthenticationOutcome;
+use Kongono\IdentityAccess\AuthenticationOutcomeKind;
+use Kongono\IdentityAccess\AuthorizationDecision;
+use Kongono\IdentityAccess\Diagnostic\IdentityAccessDiagnostic;
+use Kongono\IdentityAccess\Exception\ExceptionInterface as IdentityAccessExceptionInterface;
+use Kongono\IdentityAccess\Exception\IdentityAccessException;
+use Kongono\IdentityAccess\Exception\InvalidIdentityAccessValueException;
+use Kongono\IdentityAccess\PrincipalId;
+use Kongono\IdentityAccess\PrincipalKind;
+use Kongono\IdentityAccess\PrincipalReference;
+use Kongono\IdentityAccess\ResourceId;
+use Kongono\IdentityAccess\ResourceReference;
+use Kongono\IdentityAccess\ResourceType;
+use Kongono\IdentityAccess\SecurityContext;
+use Kongono\IdentityAccess\SecurityContextState;
 use Kongono\Kernel\Contract\KernelInterface;
 use Kongono\Kernel\Diagnostic\LifecycleDiagnostic;
 use Kongono\Kernel\Exception\ExceptionInterface as KernelExceptionInterface;
@@ -337,6 +388,7 @@ final class ApiStatusConventionTest extends TestCase
         StaleCompositionArtifactException::class => ApiStatus::Public,
         CompositionPublicationException::class => ApiStatus::Public,
         InvalidGeneratedWiringException::class => ApiStatus::Public,
+        'Kongono\\Composition\\Exception\\InvalidGeneratedOperationInputsException' => ApiStatus::Experimental,
         GeneratedWiringPublicationException::class => ApiStatus::Public,
         GeneratedWiringLoadException::class => ApiStatus::Experimental,
         RetiredCompositionBoundaryException::class => ApiStatus::Public,
@@ -351,6 +403,8 @@ final class ApiStatusConventionTest extends TestCase
         CompositionPathGuard::class => ApiStatus::Internal,
         StrictJsonDecoder::class => ApiStatus::Internal,
         GeneratedApplicationBoundary::class => ApiStatus::Experimental,
+        'Kongono\\Composition\\Runtime\\GeneratedOperationInputApplicationBoundary' => ApiStatus::Experimental,
+        'Kongono\\Composition\\Runtime\\GeneratedOperationInputs' => ApiStatus::Experimental,
         GeneratedWiringLoader::class => ApiStatus::Experimental,
         LoadedGeneratedWiring::class => ApiStatus::Experimental,
         'Kongono\\Console\\CommandCancellation' => ApiStatus::Experimental,
@@ -397,6 +451,8 @@ final class ApiStatusConventionTest extends TestCase
         'Kongono\\ConsoleApplication\\Exception\\ExceptionInterface' => ApiStatus::Public,
         'Kongono\\ConsoleApplication\\Exception\\InvalidConsoleApplicationValueException' => ApiStatus::Experimental,
         'Kongono\\ConsoleApplication\\Handler\\ApplicationBuildCommandHandler' => ApiStatus::Experimental,
+        'Kongono\\ConsoleApplication\\Handler\\SecurityCheckCommandHandler' => ApiStatus::Experimental,
+        'Kongono\\ConsoleApplication\\Handler\\SecurityInspectCommandHandler' => ApiStatus::Experimental,
         'Kongono\\ConsoleApplication\\Internal\\KongoCommandValidator' => ApiStatus::Internal,
         'Kongono\\ConsoleApplication\\KongoApplication' => ApiStatus::Experimental,
         'Kongono\\ConsoleApplication\\KongoApplicationFactory' => ApiStatus::Experimental,
@@ -724,6 +780,94 @@ final class ApiStatusConventionTest extends TestCase
         DependencyInjectionException::class => ApiStatus::Internal,
         InvalidDefinitionException::class => ApiStatus::Experimental,
         UnknownServiceException::class => ApiStatus::Experimental,
+        AuthenticationEvidence::class => ApiStatus::Experimental,
+        AuthenticationFacts::class => ApiStatus::Experimental,
+        AuthenticationInstant::class => ApiStatus::Experimental,
+        AuthenticationMechanism::class => ApiStatus::Experimental,
+        AuthenticationOrchestrator::class => ApiStatus::Experimental,
+        AuthenticationRequest::class => ApiStatus::Experimental,
+        AuthenticationRequirement::class => ApiStatus::Experimental,
+        AuthenticationStrength::class => ApiStatus::Experimental,
+        AuthenticationVerification::class => ApiStatus::Experimental,
+        AuthenticationVerificationOperation::class => ApiStatus::Experimental,
+        AuthenticationVerifier::class => ApiStatus::Experimental,
+        AuthenticationDiagnostic::class => ApiStatus::Internal,
+        AuthenticationCleanupException::class => ApiStatus::Experimental,
+        AuthenticationException::class => ApiStatus::Internal,
+        AuthenticationOperationAndCleanupException::class => ApiStatus::Experimental,
+        AuthenticationExceptionInterface::class => ApiStatus::Public,
+        InvalidAuthenticationValueException::class => ApiStatus::Experimental,
+        AuthorizationDecisionReceipt::class => ApiStatus::Experimental,
+        AuthorizationEngine::class => ApiStatus::Experimental,
+        AuthorizationEnvironmentEvidence::class => ApiStatus::Experimental,
+        AuthorizationEnvironmentProfile::class => ApiStatus::Experimental,
+        AuthorizationEvaluation::class => ApiStatus::Experimental,
+        AuthorizationEvaluator::class => ApiStatus::Experimental,
+        AuthorizationPolicyEvidence::class => ApiStatus::Experimental,
+        AuthorizationPolicyName::class => ApiStatus::Experimental,
+        AuthorizationPolicyProvenance::class => ApiStatus::Experimental,
+        AuthorizationPolicyReference::class => ApiStatus::Experimental,
+        AuthorizationPolicyVersion::class => ApiStatus::Experimental,
+        AuthorizationReceiptReason::class => ApiStatus::Experimental,
+        AuthorizationRequest::class => ApiStatus::Experimental,
+        AuthorizationDiagnostic::class => ApiStatus::Internal,
+        AuthorizationEvaluationException::class => ApiStatus::Experimental,
+        AuthorizationException::class => ApiStatus::Internal,
+        AuthorizationExceptionInterface::class => ApiStatus::Public,
+        InvalidAuthorizationValueException::class => ApiStatus::Experimental,
+        'Kongono\\SecurityEnforcement\\Diagnostic\\SecurityEnforcementDiagnostic' => ApiStatus::Internal,
+        'Kongono\\SecurityEnforcement\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\SecurityEnforcement\\Exception\\ProtectedCapabilityEnforcementException' => ApiStatus::Experimental,
+        'Kongono\\SecurityEnforcement\\Exception\\SecurityEnforcementException' => ApiStatus::Internal,
+        'Kongono\\SecurityEnforcement\\ProtectedCapability' => ApiStatus::Experimental,
+        'Kongono\\SecurityEnforcement\\ProtectedCapabilityEnforcer' => ApiStatus::Experimental,
+        'Kongono\\SecurityApplication\\BrowserSessionProtectedApplication' => ApiStatus::Experimental,
+        'Kongono\\SecurityHttp\\BrowserSessionCookieEmitter' => ApiStatus::Experimental,
+        'Kongono\\SecurityHttp\\BrowserSessionCsrfProof' => ApiStatus::Experimental,
+        'Kongono\\SecurityHttp\\BrowserSessionEvidence' => ApiStatus::Experimental,
+        'Kongono\\SecurityHttp\\BrowserSessionIdentifier' => ApiStatus::Experimental,
+        'Kongono\\SecurityHttp\\BrowserSessionProfile' => ApiStatus::Experimental,
+        'Kongono\\SecurityHttp\\BrowserSessionSecurityGateway' => ApiStatus::Experimental,
+        'Kongono\\SecurityHttp\\BrowserSessionSecurityOperation' => ApiStatus::Experimental,
+        'Kongono\\SecurityHttp\\Diagnostic\\SecurityHttpDiagnostic' => ApiStatus::Internal,
+        'Kongono\\SecurityHttp\\Exception\\BrowserSessionAuthenticationException' => ApiStatus::Experimental,
+        'Kongono\\SecurityHttp\\Exception\\BrowserSessionRequestException' => ApiStatus::Experimental,
+        'Kongono\\SecurityHttp\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\SecurityHttp\\Exception\\InvalidBrowserSessionValueException' => ApiStatus::Experimental,
+        'Kongono\\SecurityHttp\\Exception\\SecurityHttpException' => ApiStatus::Internal,
+        'Kongono\\SecurityHttp\\Internal\\BrowserSessionRequestExtractor' => ApiStatus::Internal,
+        'Kongono\\SecurityHttp\\Internal\\BrowserSessionRequestProfile' => ApiStatus::Internal,
+        'Kongono\\SecurityHttp\\TrustedOrigin' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Build\\SecurityPolicyArtifact' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Build\\SecurityPolicyArtifactBuilder' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Build\\SecurityPolicyArtifactPublisher' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Build\\SecurityPolicyArtifactValidator' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Build\\SecurityPolicySourceReader' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Diagnostic\\SecurityPolicyBuildDiagnostic' => ApiStatus::Internal,
+        'Kongono\\SecurityPolicyBuild\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\SecurityPolicyBuild\\Exception\\InvalidSecurityPolicyArtifactException' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Exception\\InvalidSecurityPolicySourceException' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Exception\\SecurityPolicyBuildException' => ApiStatus::Internal,
+        'Kongono\\SecurityPolicyBuild\\Exception\\SecurityPolicyPublicationException' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Exception\\SecurityPolicyWorkflowException' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Exception\\StaleSecurityPolicyArtifactException' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Internal\\CanonicalJson' => ApiStatus::Internal,
+        'Kongono\\SecurityPolicyBuild\\Internal\\PathGuard' => ApiStatus::Internal,
+        'Kongono\\SecurityPolicyBuild\\Internal\\StrictJsonDecoder' => ApiStatus::Internal,
+        'Kongono\\SecurityPolicyBuild\\Model\\SecurityPolicyModel' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Workflow\\CurrentSecurityPolicy' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Workflow\\PlannedSecurityPolicy' => ApiStatus::Experimental,
+        'Kongono\\SecurityPolicyBuild\\Workflow\\SecurityPolicyBuildWorkflow' => ApiStatus::Experimental,
+        'Kongono\\SecurityRuntime\\Diagnostic\\SecurityRuntimeDiagnostic' => ApiStatus::Internal,
+        'Kongono\\SecurityRuntime\\Exception\\ExceptionInterface' => ApiStatus::Public,
+        'Kongono\\SecurityRuntime\\Exception\\InvalidGeneratedSecurityProfileException' => ApiStatus::Experimental,
+        'Kongono\\SecurityRuntime\\Exception\\InvalidSecurityContextVerificationException' => ApiStatus::Experimental,
+        'Kongono\\SecurityRuntime\\Exception\\SecurityRuntimeException' => ApiStatus::Internal,
+        'Kongono\\SecurityRuntime\\Exception\\SecurityRuntimeLifecycleException' => ApiStatus::Experimental,
+        'Kongono\\SecurityRuntime\\GeneratedSecurityApplication' => ApiStatus::Experimental,
+        'Kongono\\SecurityRuntime\\GeneratedSecurityOperation' => ApiStatus::Experimental,
+        'Kongono\\SecurityRuntime\\SecurityContextFactory' => ApiStatus::Experimental,
+        'Kongono\\SecurityRuntime\\SecurityOperationRoot' => ApiStatus::Experimental,
         AdapterControlledDeliveryPermission::class => ApiStatus::Experimental,
         TrustedDeveloperBootstrapPermission::class => ApiStatus::Experimental,
         TrustedDeveloperPresentationEligibility::class => ApiStatus::Experimental,
@@ -747,6 +891,22 @@ final class ApiStatusConventionTest extends TestCase
         DiagnosticsException::class => ApiStatus::Internal,
         DiagnosticsExceptionInterface::class => ApiStatus::Public,
         InvalidDiagnosticValueException::class => ApiStatus::Experimental,
+        Action::class => ApiStatus::Experimental,
+        AuthenticationOutcome::class => ApiStatus::Experimental,
+        AuthenticationOutcomeKind::class => ApiStatus::Experimental,
+        AuthorizationDecision::class => ApiStatus::Experimental,
+        IdentityAccessDiagnostic::class => ApiStatus::Internal,
+        IdentityAccessExceptionInterface::class => ApiStatus::Public,
+        IdentityAccessException::class => ApiStatus::Internal,
+        InvalidIdentityAccessValueException::class => ApiStatus::Experimental,
+        PrincipalId::class => ApiStatus::Experimental,
+        PrincipalKind::class => ApiStatus::Experimental,
+        PrincipalReference::class => ApiStatus::Experimental,
+        ResourceId::class => ApiStatus::Experimental,
+        ResourceReference::class => ApiStatus::Experimental,
+        ResourceType::class => ApiStatus::Experimental,
+        SecurityContext::class => ApiStatus::Experimental,
+        SecurityContextState::class => ApiStatus::Experimental,
         Hantei::class => ApiStatus::Experimental,
         HanteiCheckEvidence::class => ApiStatus::Experimental,
         HanteiCheckOutcome::class => ApiStatus::Experimental,
@@ -907,7 +1067,7 @@ final class ApiStatusConventionTest extends TestCase
     public function testProductionDeclarationsExactlyMatchAuthorizedInventoryAndAreAutoloadable(): void
     {
         $types = $this->discoverProductionTypes();
-        self::assertCount(623, $types);
+        self::assertCount(732, $types);
 
         self::assertFalse(class_exists('Kongono\\Kernel\\Api\\Api'));
         self::assertFalse(enum_exists('Kongono\\Kernel\\Api\\ApiStatus'));
@@ -990,13 +1150,15 @@ final class ApiStatusConventionTest extends TestCase
                 ],
                 'Kongono\\Console\\CommandHandler' => [
                     'Kongono\\ConsoleApplication\\Handler\\ApplicationBuildCommandHandler',
+                    'Kongono\\ConsoleApplication\\Handler\\SecurityCheckCommandHandler',
+                    'Kongono\\ConsoleApplication\\Handler\\SecurityInspectCommandHandler',
                     'Kongono\\ConsoleCommands\\Handler\\CompositionInspectCommandHandler',
                     'Kongono\\ConsoleCommands\\Handler\\GraphInspectCommandHandler',
                     'Kongono\\ConsoleCommands\\Handler\\QualityInspectCommandHandler',
                 ],
                 default => [],
             };
-            self::assertSame($expectedImplementations, $implementations, sprintf('%s must match the exact Phase 8G production inventory.', $interface));
+            self::assertSame($expectedImplementations, $implementations, sprintf('%s must match the exact Phase 9G production inventory.', $interface));
         }
         self::assertTrue((new ReflectionClass('Kongono\\Console\\CommandResultRecord'))->implementsInterface('Kongono\\Console\\CommandResultData'));
 
@@ -1011,11 +1173,11 @@ final class ApiStatusConventionTest extends TestCase
                 }
             }
         }
-        self::assertCount(293, $identifiers);
-        self::assertCount(293, array_unique($identifiers));
+        self::assertCount(333, $identifiers);
+        self::assertCount(333, array_unique($identifiers));
         $productionDiagnosticIdentifiers = [...$identifiers, ...array_keys(HanteiCheckEvidence::CHECKS)];
-        self::assertCount(301, $productionDiagnosticIdentifiers);
-        self::assertCount(301, array_unique($productionDiagnosticIdentifiers));
+        self::assertCount(341, $productionDiagnosticIdentifiers);
+        self::assertCount(341, array_unique($productionDiagnosticIdentifiers));
         self::assertSame([
             'KGN-CONSOLE-1001',
             'KGN-CONSOLE-1002',
@@ -1295,12 +1457,14 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['build'], $this->declaredPublicMethodNames(new ReflectionClass(CompositionArtifactBuilder::class)));
         self::assertSame(['publish'], $this->declaredPublicMethodNames(new ReflectionClass(CompositionArtifactPublisher::class)));
         self::assertSame(['validateCurrent', 'validateStructure'], $this->declaredPublicMethodNames(new ReflectionClass(CompositionArtifactValidator::class)));
-        self::assertSame(['__construct', 'applicationClass', 'canonicalBytes', 'compositionArtifactSha256', 'generatedNamespace', 'generatorImplementationSha256', 'modelSha256', 'operationClass', 'wiringSha256'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringArtifact::class)));
+        self::assertSame(['__construct', 'applicationClass', 'canonicalBytes', 'compositionArtifactSha256', 'compositionSourceVersion', 'generatedNamespace', 'generatorImplementationSha256', 'modelSha256', 'operationClass', 'wiringSha256'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringArtifact::class)));
         self::assertSame(['generate'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringGenerator::class)));
         self::assertSame(['publish'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringPublisher::class)));
         self::assertSame(['validateCurrent', 'validateStructure'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringValidator::class)));
         self::assertSame(['beginOperation', 'isRetired', 'shutdown'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedApplicationBoundary::class)));
+        self::assertSame(['beginOperationWithInputs', 'expectedOperationInputContracts'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\Composition\\Runtime\\GeneratedOperationInputApplicationBoundary')));
         self::assertSame(['close', 'isClosed'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedOperationBoundary::class)));
+        self::assertSame(['count', 'none', 'of', 'validateCount', 'validatedAt'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\Composition\\Runtime\\GeneratedOperationInputs')));
         self::assertSame(['loadCurrent'], $this->declaredPublicMethodNames(new ReflectionClass(GeneratedWiringLoader::class)));
         self::assertSame(['__construct', 'applicationClass', 'isStarted', 'operationClass', 'start', 'wiringSha256'], $this->declaredPublicMethodNames(new ReflectionClass(LoadedGeneratedWiring::class)));
         self::assertSame(['build', 'check', 'plan'], $this->declaredPublicMethodNames(new ReflectionClass(ApplicationBuildWorkflow::class)));
@@ -1310,10 +1474,10 @@ final class ApiStatusConventionTest extends TestCase
         $generatedArtifact = new ReflectionClass(GeneratedWiringArtifact::class);
         self::assertTrue($generatedArtifact->isFinal());
         self::assertTrue($generatedArtifact->isReadOnly());
-        self::assertSame(['applicationClass', 'canonicalBytes', 'compositionArtifactSha256', 'generatedNamespace', 'generatorImplementationSha256', 'modelSha256', 'operationClass', 'wiringSha256'], $this->declaredPropertyNames($generatedArtifact));
+        self::assertSame(['applicationClass', 'canonicalBytes', 'compositionArtifactSha256', 'compositionSourceVersion', 'generatedNamespace', 'generatorImplementationSha256', 'modelSha256', 'operationClass', 'wiringSha256'], $this->declaredPropertyNames($generatedArtifact));
         $artifactConstructor = $generatedArtifact->getConstructor();
         self::assertNotNull($artifactConstructor);
-        self::assertSame(['string', 'string', 'string', 'string', 'string', 'string', 'string', 'string'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $artifactConstructor->getParameters()));
+        self::assertSame(['string', 'string', 'string', 'string', 'string', 'int', 'string', 'string', 'string'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $artifactConstructor->getParameters()));
 
         $generatorMethod = (new ReflectionClass(GeneratedWiringGenerator::class))->getMethod('generate');
         self::assertSame(['string', 'string'], array_map(static fn(\ReflectionParameter $parameter): string => (string) $parameter->getType(), $generatorMethod->getParameters()));
@@ -1351,6 +1515,7 @@ final class ApiStatusConventionTest extends TestCase
             'KGN-COMPOSITION-1016',
             'KGN-COMPOSITION-1017',
             'KGN-COMPOSITION-1018',
+            'KGN-COMPOSITION-1019',
         ], array_map(static fn(CompositionDiagnostic $diagnostic): string => $diagnostic->value, CompositionDiagnostic::cases()));
 
         foreach ([
@@ -1362,6 +1527,7 @@ final class ApiStatusConventionTest extends TestCase
             GeneratedWiringPublicationException::class,
             RetiredCompositionBoundaryException::class,
             GeneratedWiringLoadException::class,
+            'Kongono\\Composition\\Exception\\InvalidGeneratedOperationInputsException',
         ] as $exception) {
             $reflection = new ReflectionClass($exception);
             self::assertTrue($reflection->isFinal());
@@ -1496,6 +1662,578 @@ final class ApiStatusConventionTest extends TestCase
         }
     }
 
+    public function testAuthenticationPackageContractsDependenciesShapesAndIsolationAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/authentication/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/authentication', $manifest['name']);
+        self::assertSame('Deterministic explicit authentication orchestration for Kongono Framework.', $manifest['description']);
+        self::assertSame('library', $manifest['type']);
+        self::assertSame([
+            'php' => '>=8.5.0 <8.6.0',
+            'kongono/api-metadata' => '*',
+            'kongono/diagnostics' => '*',
+            'kongono/identity-access' => '*',
+        ], $manifest['require']);
+        self::assertIsArray($manifest['autoload']);
+        self::assertIsArray($manifest['autoload-dev']);
+        self::assertSame(['Kongono\\Authentication\\' => 'src/'], $manifest['autoload']['psr-4']);
+        self::assertSame(['Kongono\\Authentication\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        self::assertIsArray($rootManifest['require']);
+        self::assertIsArray($rootManifest['autoload-dev']);
+        self::assertIsArray($rootManifest['autoload-dev']['psr-4']);
+        self::assertIsArray($rootManifest['scripts']);
+        self::assertIsArray($rootManifest['scripts']['validate:packages']);
+        self::assertSame('@dev', $rootManifest['require']['kongono/authentication']);
+        self::assertSame('packages/authentication/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Authentication\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/authentication validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+
+        $packageManifests = glob($root . '/packages/*/composer.json');
+        self::assertIsArray($packageManifests);
+        self::assertCount(44, $packageManifests);
+        foreach ($packageManifests as $packageManifestPath) {
+            $packageManifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($packageManifest);
+            self::assertIsArray($packageManifest['require']);
+            if (in_array($packageManifest['name'], ['kongono/authentication', 'kongono/security-http', 'kongono/security-runtime'], true)) {
+                continue;
+            }
+            self::assertArrayNotHasKey('kongono/authentication', $packageManifest['require']);
+        }
+
+        $sourceFiles = $this->recursivePhpFiles($root . '/packages/authentication/src');
+        self::assertCount(17, $sourceFiles);
+        foreach ($sourceFiles as $sourceFile) {
+            $source = file_get_contents($sourceFile);
+            self::assertIsString($source);
+            self::assertSame(1, substr_count($source, 'declare(strict_types=1);'));
+            self::assertSame(1, substr_count($source, '#[Api('));
+            self::assertSame(0, preg_match('/\$_(?:SERVER|ENV|COOKIE|SESSION)|\$GLOBALS|\b(?:getenv|putenv|time|microtime|date|class_exists|interface_exists|trait_exists|enum_exists|spl_autoload_register|file_get_contents|fopen|curl_exec|stream_socket_client|serialize|unserialize|json_encode)\s*\(/', $source));
+            self::assertSame(0, preg_match('/use Kongono\\\\(?:ApplicationGraph|Chie|Composition|Console|Database|DependencyInjection|Hantei|Http|Kernel|Knowledge|Oshie|Persistence|PhpCgi|Routing|Web)\\\\/', $source));
+            self::assertSame(0, preg_match('/use Kongono\\\\IdentityAccess\\\\(?:Action|AuthorizationDecision|Resource|SecurityContext)/', $source));
+            self::assertSame(0, preg_match('/\b(?:JsonSerializable|ArrayAccess|Iterator|__destruct|__serialize|__unserialize|supports|priority|fallback|retry)\b/', $source));
+        }
+
+        $types = [
+            AuthenticationEvidence::class => ['AuthenticationEvidence.php', ApiStatus::Experimental],
+            AuthenticationFacts::class => ['AuthenticationFacts.php', ApiStatus::Experimental],
+            AuthenticationInstant::class => ['AuthenticationInstant.php', ApiStatus::Experimental],
+            AuthenticationMechanism::class => ['AuthenticationMechanism.php', ApiStatus::Experimental],
+            AuthenticationOrchestrator::class => ['AuthenticationOrchestrator.php', ApiStatus::Experimental],
+            AuthenticationRequest::class => ['AuthenticationRequest.php', ApiStatus::Experimental],
+            AuthenticationRequirement::class => ['AuthenticationRequirement.php', ApiStatus::Experimental],
+            AuthenticationStrength::class => ['AuthenticationStrength.php', ApiStatus::Experimental],
+            AuthenticationVerification::class => ['AuthenticationVerification.php', ApiStatus::Experimental],
+            AuthenticationVerificationOperation::class => ['AuthenticationVerificationOperation.php', ApiStatus::Experimental],
+            AuthenticationVerifier::class => ['AuthenticationVerifier.php', ApiStatus::Experimental],
+            AuthenticationDiagnostic::class => ['Diagnostic/AuthenticationDiagnostic.php', ApiStatus::Internal],
+            AuthenticationCleanupException::class => ['Exception/AuthenticationCleanupException.php', ApiStatus::Experimental],
+            AuthenticationException::class => ['Exception/AuthenticationException.php', ApiStatus::Internal],
+            AuthenticationOperationAndCleanupException::class => ['Exception/AuthenticationOperationAndCleanupException.php', ApiStatus::Experimental],
+            AuthenticationExceptionInterface::class => ['Exception/ExceptionInterface.php', ApiStatus::Public],
+            InvalidAuthenticationValueException::class => ['Exception/InvalidAuthenticationValueException.php', ApiStatus::Experimental],
+        ];
+        foreach ($types as $type => [$relativePath, $status]) {
+            $reflection = new ReflectionClass($type);
+            $fileName = $reflection->getFileName();
+            self::assertIsString($fileName);
+            self::assertSame(
+                str_replace('\\', '/', $root . '/packages/authentication/src/' . $relativePath),
+                str_replace('\\', '/', $fileName),
+            );
+            $attributes = $reflection->getAttributes(Api::class);
+            self::assertCount(1, $attributes);
+            self::assertSame($status, $attributes[0]->newInstance()->status);
+        }
+
+        self::assertSame(['mechanism'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationEvidence::class)));
+        self::assertSame(['__construct', 'authenticatedAt', 'mechanism', 'principal', 'strength', 'validUntil'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationFacts::class)));
+        self::assertSame(['__construct', 'elapsedSince', 'isAfter', 'seconds'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationInstant::class)));
+        self::assertSame(['__construct', 'equals', 'value'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationMechanism::class)));
+        self::assertSame(['__construct', 'authenticate'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationOrchestrator::class)));
+        self::assertSame(['__construct', 'evidence', 'now', 'requirement'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationRequest::class)));
+        self::assertSame(['__construct', 'maximumAgeSeconds', 'minimumStrength'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationRequirement::class)));
+        self::assertSame(['__construct', 'level', 'satisfies'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationStrength::class)));
+        self::assertSame(['absent', 'ambiguous', 'authenticated', 'expired', 'facts', 'invalid', 'outcome', 'replayed', 'unavailable', 'unsupported'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationVerification::class)));
+        self::assertSame(['retire', 'verify'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationVerificationOperation::class)));
+        self::assertSame(['begin', 'mechanism'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationVerifier::class)));
+        self::assertSame(['cases', 'category', 'context', 'from', 'remediation', 'title', 'tryFrom'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationDiagnostic::class)));
+        self::assertSame(['diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationExceptionInterface::class)));
+        self::assertSame(['__toString', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationException::class)));
+        self::assertSame(['cleanupFailure', 'from'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationCleanupException::class)));
+        self::assertSame(['cleanupFailure', 'from', 'operationFailure'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationOperationAndCleanupException::class)));
+        self::assertSame(['evidence', 'freshness', 'registration', 'strength', 'validation', 'verification'], $this->declaredPublicMethodNames(new ReflectionClass(InvalidAuthenticationValueException::class)));
+
+        self::assertSame(['authenticatedAt', 'mechanism', 'principal', 'strength', 'validUntil'], $this->declaredPropertyNames(new ReflectionClass(AuthenticationFacts::class)));
+        self::assertSame(['seconds'], $this->declaredPropertyNames(new ReflectionClass(AuthenticationInstant::class)));
+        self::assertSame(['value'], $this->declaredPropertyNames(new ReflectionClass(AuthenticationMechanism::class)));
+        self::assertSame(['verifiers'], $this->declaredPropertyNames(new ReflectionClass(AuthenticationOrchestrator::class)));
+        self::assertSame(['evidence', 'now', 'requirement'], $this->declaredPropertyNames(new ReflectionClass(AuthenticationRequest::class)));
+        self::assertSame(['maximumAgeSeconds', 'minimumStrength'], $this->declaredPropertyNames(new ReflectionClass(AuthenticationRequirement::class)));
+        self::assertSame(['level'], $this->declaredPropertyNames(new ReflectionClass(AuthenticationStrength::class)));
+        self::assertSame(['facts', 'outcome'], $this->declaredPropertyNames(new ReflectionClass(AuthenticationVerification::class)));
+
+        self::assertSame([
+            'KGN-AUTHENTICATION-1001',
+            'KGN-AUTHENTICATION-1002',
+            'KGN-AUTHENTICATION-1003',
+            'KGN-AUTHENTICATION-1004',
+            'KGN-AUTHENTICATION-1005',
+            'KGN-AUTHENTICATION-1006',
+            'KGN-AUTHENTICATION-1007',
+            'KGN-AUTHENTICATION-1008',
+        ], array_column(AuthenticationDiagnostic::cases(), 'value'));
+        self::assertContains(AuthenticationExceptionInterface::class, (new ReflectionClass(AuthenticationException::class))->getInterfaceNames());
+        foreach ([AuthenticationCleanupException::class, AuthenticationOperationAndCleanupException::class, InvalidAuthenticationValueException::class] as $failure) {
+            self::assertContains(AuthenticationExceptionInterface::class, (new ReflectionClass($failure))->getInterfaceNames());
+        }
+
+        $productionCount = 0;
+        $packageTestCount = 0;
+        $packageDirectories = glob($root . '/packages/*', GLOB_ONLYDIR);
+        self::assertIsArray($packageDirectories);
+        foreach ($packageDirectories as $packageDirectory) {
+            if (is_dir($packageDirectory . '/src')) {
+                $productionCount += count($this->recursivePhpFiles($packageDirectory . '/src'));
+            }
+            if (is_dir($packageDirectory . '/tests')) {
+                $packageTestCount += count($this->recursivePhpFiles($packageDirectory . '/tests'));
+            }
+        }
+        self::assertSame(732, $productionCount);
+        self::assertSame(379, $packageTestCount);
+        self::assertCount(60, $this->recursivePhpFiles($root . '/tests'));
+    }
+
+    public function testIdentityAccessPackageContractsDependenciesShapesAndIsolationAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/identity-access/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/identity-access', $manifest['name']);
+        self::assertSame('Neutral identity and access contracts for Kongono Framework.', $manifest['description']);
+        self::assertSame(
+            ['kongono/api-metadata' => '*', 'kongono/diagnostics' => '*', 'php' => '>=8.5.0 <8.6.0'],
+            $manifest['require'],
+        );
+        self::assertIsArray($manifest['autoload']);
+        self::assertIsArray($manifest['autoload-dev']);
+        self::assertSame(['Kongono\\IdentityAccess\\' => 'src/'], $manifest['autoload']['psr-4']);
+        self::assertSame(['Kongono\\IdentityAccess\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        self::assertIsArray($rootManifest['require']);
+        self::assertIsArray($rootManifest['autoload-dev']);
+        self::assertIsArray($rootManifest['autoload-dev']['psr-4']);
+        self::assertIsArray($rootManifest['scripts']);
+        self::assertIsArray($rootManifest['scripts']['validate:packages']);
+        self::assertSame('@dev', $rootManifest['require']['kongono/identity-access']);
+        self::assertSame('packages/identity-access/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\IdentityAccess\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/identity-access validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+
+        $packageManifests = glob($root . '/packages/*/composer.json');
+        self::assertIsArray($packageManifests);
+        self::assertCount(44, $packageManifests);
+        foreach ($packageManifests as $packageManifestPath) {
+            $packageManifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($packageManifest);
+            self::assertIsArray($packageManifest['require']);
+            if (in_array($packageManifest['name'], ['kongono/authentication', 'kongono/authorization', 'kongono/identity-access', 'kongono/security-enforcement', 'kongono/security-runtime'], true)) {
+                continue;
+            }
+            self::assertArrayNotHasKey('kongono/identity-access', $packageManifest['require']);
+        }
+
+        $sourceFiles = $this->recursivePhpFiles($root . '/packages/identity-access/src');
+        self::assertCount(16, $sourceFiles);
+        foreach ($sourceFiles as $sourceFile) {
+            $source = file_get_contents($sourceFile);
+            self::assertIsString($source);
+            self::assertSame(1, substr_count($source, 'declare(strict_types=1);'));
+            self::assertSame(1, substr_count($source, '#[Api('));
+            self::assertSame(0, preg_match('/\$_(?:SERVER|ENV|COOKIE|SESSION)|\$GLOBALS|\b(?:getenv|putenv|class_exists|interface_exists|trait_exists|enum_exists|spl_autoload_register|file_get_contents|fopen|curl_exec|stream_socket_client|serialize|unserialize|json_encode)\s*\(/', $source));
+            self::assertSame(0, preg_match('/\b(?:JsonSerializable|ArrayAccess|Iterator)\b/', $source));
+        }
+
+        $types = [
+            Action::class,
+            AuthenticationOutcome::class,
+            AuthenticationOutcomeKind::class,
+            AuthorizationDecision::class,
+            IdentityAccessDiagnostic::class,
+            IdentityAccessExceptionInterface::class,
+            IdentityAccessException::class,
+            InvalidIdentityAccessValueException::class,
+            PrincipalId::class,
+            PrincipalKind::class,
+            PrincipalReference::class,
+            ResourceId::class,
+            ResourceReference::class,
+            ResourceType::class,
+            SecurityContext::class,
+            SecurityContextState::class,
+        ];
+        foreach ($types as $type) {
+            $fileName = (new ReflectionClass($type))->getFileName();
+            self::assertIsString($fileName);
+            self::assertStringStartsWith(str_replace('\\', '/', $root . '/packages/identity-access/src/'), str_replace('\\', '/', $fileName));
+        }
+
+        self::assertSame(['__construct', 'equals', 'value'], $this->declaredPublicMethodNames(new ReflectionClass(PrincipalId::class)));
+        self::assertSame(['__construct', 'equals', 'id', 'kind'], $this->declaredPublicMethodNames(new ReflectionClass(PrincipalReference::class)));
+        self::assertSame(['absent', 'ambiguous', 'authenticated', 'expired', 'invalid', 'kind', 'principal', 'replayed', 'unavailable', 'unsupported'], $this->declaredPublicMethodNames(new ReflectionClass(AuthenticationOutcome::class)));
+        self::assertSame(['__construct', 'equals', 'value'], $this->declaredPublicMethodNames(new ReflectionClass(Action::class)));
+        self::assertSame(['__construct', 'equals', 'value'], $this->declaredPublicMethodNames(new ReflectionClass(ResourceType::class)));
+        self::assertSame(['__construct', 'equals', 'value'], $this->declaredPublicMethodNames(new ReflectionClass(ResourceId::class)));
+        self::assertSame(['__construct', 'equals', 'id', 'type'], $this->declaredPublicMethodNames(new ReflectionClass(ResourceReference::class)));
+        self::assertSame(['anonymous', 'authenticated', 'principal', 'state'], $this->declaredPublicMethodNames(new ReflectionClass(SecurityContext::class)));
+        self::assertSame(['cases', 'category', 'context', 'from', 'remediation', 'title', 'tryFrom'], $this->declaredPublicMethodNames(new ReflectionClass(IdentityAccessDiagnostic::class)));
+        self::assertSame(['diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames(new ReflectionClass(IdentityAccessExceptionInterface::class)));
+        self::assertSame(['__toString', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames(new ReflectionClass(IdentityAccessException::class)));
+        self::assertSame(['authentication', 'authorization', 'principal', 'resource', 'securityContext'], $this->declaredPublicMethodNames(new ReflectionClass(InvalidIdentityAccessValueException::class)));
+
+        self::assertSame(['value'], $this->declaredPropertyNames(new ReflectionClass(PrincipalId::class)));
+        self::assertSame(['id', 'kind'], $this->declaredPropertyNames(new ReflectionClass(PrincipalReference::class)));
+        self::assertSame(['kind', 'principal'], $this->declaredPropertyNames(new ReflectionClass(AuthenticationOutcome::class)));
+        self::assertSame(['value'], $this->declaredPropertyNames(new ReflectionClass(Action::class)));
+        self::assertSame(['value'], $this->declaredPropertyNames(new ReflectionClass(ResourceType::class)));
+        self::assertSame(['value'], $this->declaredPropertyNames(new ReflectionClass(ResourceId::class)));
+        self::assertSame(['id', 'type'], $this->declaredPropertyNames(new ReflectionClass(ResourceReference::class)));
+        self::assertSame(['principal', 'state'], $this->declaredPropertyNames(new ReflectionClass(SecurityContext::class)));
+
+        self::assertSame(['human', 'service', 'organization', 'system', 'agent'], array_column(PrincipalKind::cases(), 'value'));
+        self::assertSame(['authenticated', 'absent', 'invalid', 'expired', 'replayed', 'unsupported', 'ambiguous', 'unavailable'], array_column(AuthenticationOutcomeKind::cases(), 'value'));
+        self::assertSame(['permit', 'deny', 'indeterminate'], array_column(AuthorizationDecision::cases(), 'value'));
+        self::assertSame(['anonymous', 'authenticated'], array_column(SecurityContextState::cases(), 'value'));
+        self::assertContains(IdentityAccessExceptionInterface::class, (new ReflectionClass(IdentityAccessException::class))->getInterfaceNames());
+        self::assertContains(IdentityAccessExceptionInterface::class, (new ReflectionClass(InvalidIdentityAccessValueException::class))->getInterfaceNames());
+    }
+
+    public function testAuthorizationPackageContractsDependenciesShapesAndIsolationAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/authorization/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/authorization', $manifest['name']);
+        self::assertSame('Deterministic deny-by-default authorization evaluation for Kongono Framework.', $manifest['description']);
+        self::assertSame('library', $manifest['type']);
+        self::assertSame([
+            'php' => '>=8.5.0 <8.6.0',
+            'kongono/api-metadata' => '*',
+            'kongono/diagnostics' => '*',
+            'kongono/identity-access' => '*',
+        ], $manifest['require']);
+        $autoload = $manifest['autoload'];
+        $autoloadDev = $manifest['autoload-dev'];
+        self::assertIsArray($autoload);
+        self::assertIsArray($autoloadDev);
+        self::assertIsArray($autoload['psr-4']);
+        self::assertIsArray($autoloadDev['psr-4']);
+        self::assertSame(['Kongono\\Authorization\\' => 'src/'], $autoload['psr-4']);
+        self::assertSame(['Kongono\\Authorization\\Tests\\' => 'tests/'], $autoloadDev['psr-4']);
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        $rootRequire = $rootManifest['require'];
+        $rootAutoloadDev = $rootManifest['autoload-dev'];
+        $rootScripts = $rootManifest['scripts'];
+        $rootRepositories = $rootManifest['repositories'];
+        self::assertIsArray($rootRequire);
+        self::assertIsArray($rootAutoloadDev);
+        self::assertIsArray($rootScripts);
+        self::assertIsArray($rootRepositories);
+        $rootAutoloadDevPsr4 = $rootAutoloadDev['psr-4'];
+        $validatePackages = $rootScripts['validate:packages'];
+        self::assertIsArray($rootAutoloadDevPsr4);
+        self::assertIsArray($validatePackages);
+        self::assertSame('@dev', $rootRequire['kongono/authorization']);
+        self::assertSame('packages/authorization/tests/', $rootAutoloadDevPsr4['Kongono\\Authorization\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/authorization validate --no-check-publish', $validatePackages);
+        self::assertContains(['type' => 'path', 'url' => 'packages/authorization'], $rootRepositories);
+
+        $packageManifests = glob($root . '/packages/*/composer.json');
+        self::assertIsArray($packageManifests);
+        self::assertCount(44, $packageManifests);
+        foreach ($packageManifests as $packageManifestPath) {
+            $packageManifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($packageManifest);
+            self::assertIsArray($packageManifest['require']);
+            if (in_array($packageManifest['name'], ['kongono/authorization', 'kongono/security-application', 'kongono/security-enforcement', 'kongono/security-policy-build'], true)) {
+                continue;
+            }
+            self::assertArrayNotHasKey('kongono/authorization', $packageManifest['require']);
+        }
+
+        $sourceFiles = $this->recursivePhpFiles($root . '/packages/authorization/src');
+        $testFiles = $this->recursivePhpFiles($root . '/packages/authorization/tests');
+        self::assertCount(18, $sourceFiles);
+        self::assertCount(8, $testFiles);
+        foreach ($sourceFiles as $sourceFile) {
+            $source = file_get_contents($sourceFile);
+            self::assertIsString($source);
+            self::assertSame(1, substr_count($source, 'declare(strict_types=1);'));
+            self::assertSame(1, substr_count($source, '#[Api('));
+            self::assertSame(0, preg_match('/\$_(?:SERVER|ENV|COOKIE|SESSION)|\$GLOBALS|\b(?:getenv|putenv|time|microtime|date|class_exists|interface_exists|trait_exists|enum_exists|spl_autoload_register|file_get_contents|fopen|curl_exec|stream_socket_client|serialize|unserialize|json_encode)\s*\(/', $source));
+            self::assertSame(0, preg_match('/use Kongono\\\\(?:ApplicationGraph|Authentication|Chie|Composition|Console|Database|DependencyInjection|Hantei|Http|Kernel|Knowledge|Oshie|Persistence|PhpCgi|Routing|Web)\\\\/', $source));
+            self::assertSame(0, preg_match('/\b(?:JsonSerializable|ArrayAccess|Iterator|__destruct|__serialize|__unserialize|supports|priority|fallback|retry|allowed|guard|enforce|replay)\b/', $source));
+        }
+
+        $types = [
+            AuthorizationDecisionReceipt::class => ['AuthorizationDecisionReceipt.php', ApiStatus::Experimental],
+            AuthorizationEngine::class => ['AuthorizationEngine.php', ApiStatus::Experimental],
+            AuthorizationEnvironmentEvidence::class => ['AuthorizationEnvironmentEvidence.php', ApiStatus::Experimental],
+            AuthorizationEnvironmentProfile::class => ['AuthorizationEnvironmentProfile.php', ApiStatus::Experimental],
+            AuthorizationEvaluation::class => ['AuthorizationEvaluation.php', ApiStatus::Experimental],
+            AuthorizationEvaluator::class => ['AuthorizationEvaluator.php', ApiStatus::Experimental],
+            AuthorizationPolicyEvidence::class => ['AuthorizationPolicyEvidence.php', ApiStatus::Experimental],
+            AuthorizationPolicyName::class => ['AuthorizationPolicyName.php', ApiStatus::Experimental],
+            AuthorizationPolicyProvenance::class => ['AuthorizationPolicyProvenance.php', ApiStatus::Experimental],
+            AuthorizationPolicyReference::class => ['AuthorizationPolicyReference.php', ApiStatus::Experimental],
+            AuthorizationPolicyVersion::class => ['AuthorizationPolicyVersion.php', ApiStatus::Experimental],
+            AuthorizationReceiptReason::class => ['AuthorizationReceiptReason.php', ApiStatus::Experimental],
+            AuthorizationRequest::class => ['AuthorizationRequest.php', ApiStatus::Experimental],
+            AuthorizationDiagnostic::class => ['Diagnostic/AuthorizationDiagnostic.php', ApiStatus::Internal],
+            AuthorizationEvaluationException::class => ['Exception/AuthorizationEvaluationException.php', ApiStatus::Experimental],
+            AuthorizationException::class => ['Exception/AuthorizationException.php', ApiStatus::Internal],
+            AuthorizationExceptionInterface::class => ['Exception/ExceptionInterface.php', ApiStatus::Public],
+            InvalidAuthorizationValueException::class => ['Exception/InvalidAuthorizationValueException.php', ApiStatus::Experimental],
+        ];
+        foreach ($types as $type => [$relativePath, $status]) {
+            $reflection = new ReflectionClass($type);
+            $fileName = $reflection->getFileName();
+            self::assertIsString($fileName);
+            self::assertSame(
+                str_replace('\\', '/', $root . '/packages/authorization/src/' . $relativePath),
+                str_replace('\\', '/', $fileName),
+            );
+            $attributes = $reflection->getAttributes(Api::class);
+            self::assertCount(1, $attributes);
+            self::assertSame($status, $attributes[0]->newInstance()->status);
+        }
+
+        self::assertSame(['__construct', 'equals', 'value'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationPolicyName::class)));
+        self::assertSame(['__construct', 'equals', 'value'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationPolicyVersion::class)));
+        self::assertSame(['__construct', 'equals', 'value'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationPolicyProvenance::class)));
+        self::assertSame(['__construct', 'equals', 'name', 'provenance', 'version'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationPolicyReference::class)));
+        self::assertSame(['reference'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationPolicyEvidence::class)));
+        self::assertSame(['__construct', 'equals', 'value'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationEnvironmentProfile::class)));
+        self::assertSame(['profile'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationEnvironmentEvidence::class)));
+        self::assertSame(['__construct', 'action', 'environment', 'expectedPolicy', 'policyEvidence', 'resource', 'securityContext'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationRequest::class)));
+        self::assertSame(['evaluate', 'policy'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationEvaluator::class)));
+        self::assertSame(['cases', 'from', 'tryFrom'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationReceiptReason::class)));
+        self::assertSame(['action', 'decision', 'environmentProfile', 'evaluated', 'policy', 'policyMismatch', 'reason', 'resourceType', 'securityContextState', 'unsupportedPolicy'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationDecisionReceipt::class)));
+        self::assertSame(['__construct', 'decision', 'receipt'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationEvaluation::class)));
+        self::assertSame(['__construct', 'authorize'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationEngine::class)));
+        self::assertSame(['cases', 'category', 'context', 'from', 'remediation', 'title', 'tryFrom'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationDiagnostic::class)));
+        self::assertSame([], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationExceptionInterface::class)));
+        self::assertSame(['__toString', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationException::class)));
+        self::assertSame(['from'], $this->declaredPublicMethodNames(new ReflectionClass(AuthorizationEvaluationException::class)));
+        self::assertSame(['receipt', 'registration', 'validation'], $this->declaredPublicMethodNames(new ReflectionClass(InvalidAuthorizationValueException::class)));
+
+        self::assertSame(['action', 'decision', 'environmentProfile', 'policy', 'reason', 'resourceType', 'securityContextState'], $this->declaredPropertyNames(new ReflectionClass(AuthorizationDecisionReceipt::class)));
+        self::assertSame(['registrations'], $this->declaredPropertyNames(new ReflectionClass(AuthorizationEngine::class)));
+        self::assertSame(['receipt'], $this->declaredPropertyNames(new ReflectionClass(AuthorizationEvaluation::class)));
+        self::assertSame(['action', 'environment', 'expectedPolicy', 'policyEvidence', 'resource', 'securityContext'], $this->declaredPropertyNames(new ReflectionClass(AuthorizationRequest::class)));
+
+        self::assertSame(['evaluated', 'policy_mismatch', 'unsupported_policy'], array_column(AuthorizationReceiptReason::cases(), 'value'));
+        self::assertSame([
+            'KGN-AUTHORIZATION-1001',
+            'KGN-AUTHORIZATION-1002',
+            'KGN-AUTHORIZATION-1003',
+            'KGN-AUTHORIZATION-1004',
+            'KGN-AUTHORIZATION-1005',
+            'KGN-AUTHORIZATION-1006',
+        ], array_column(AuthorizationDiagnostic::cases(), 'value'));
+        self::assertContains(AuthorizationExceptionInterface::class, (new ReflectionClass(AuthorizationException::class))->getInterfaceNames());
+        foreach ([AuthorizationEvaluationException::class, InvalidAuthorizationValueException::class] as $failure) {
+            self::assertContains(AuthorizationExceptionInterface::class, (new ReflectionClass($failure))->getInterfaceNames());
+        }
+
+        $productionCount = 0;
+        $packageTestCount = 0;
+        $packageDirectories = glob($root . '/packages/*', GLOB_ONLYDIR);
+        self::assertIsArray($packageDirectories);
+        foreach ($packageDirectories as $packageDirectory) {
+            if (is_dir($packageDirectory . '/src')) {
+                $productionCount += count($this->recursivePhpFiles($packageDirectory . '/src'));
+            }
+            if (is_dir($packageDirectory . '/tests')) {
+                $packageTestCount += count($this->recursivePhpFiles($packageDirectory . '/tests'));
+            }
+        }
+        self::assertSame(732, $productionCount);
+        self::assertSame(379, $packageTestCount);
+        self::assertCount(60, $this->recursivePhpFiles($root . '/tests'));
+    }
+
+    public function testSecurityRuntimePackageContractsDependenciesShapesAndIsolationAreExact(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/packages/security-runtime/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($manifest);
+        self::assertSame('kongono/security-runtime', $manifest['name']);
+        self::assertSame('Operation-scoped Security Context construction and generated Composition integration for Kongono Framework.', $manifest['description']);
+        self::assertSame('library', $manifest['type']);
+        self::assertSame([
+            'kongono/api-metadata' => '*',
+            'kongono/authentication' => '*',
+            'kongono/composition' => '*',
+            'kongono/diagnostics' => '*',
+            'kongono/identity-access' => '*',
+            'php' => '>=8.5.0 <8.6.0',
+        ], $manifest['require']);
+        $autoload = $manifest['autoload'];
+        $autoloadDev = $manifest['autoload-dev'];
+        self::assertIsArray($autoload);
+        self::assertIsArray($autoloadDev);
+        self::assertIsArray($autoload['psr-4']);
+        self::assertIsArray($autoloadDev['psr-4']);
+        self::assertSame(['Kongono\\SecurityRuntime\\' => 'src/'], $autoload['psr-4']);
+        self::assertSame(['Kongono\\SecurityRuntime\\Tests\\' => 'tests/'], $autoloadDev['psr-4']);
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        $rootRequire = $rootManifest['require'];
+        $rootAutoloadDev = $rootManifest['autoload-dev'];
+        $rootScripts = $rootManifest['scripts'];
+        $rootRepositories = $rootManifest['repositories'];
+        self::assertIsArray($rootRequire);
+        self::assertIsArray($rootAutoloadDev);
+        self::assertIsArray($rootScripts);
+        self::assertIsArray($rootRepositories);
+        $rootAutoloadDevPsr4 = $rootAutoloadDev['psr-4'];
+        $validatePackages = $rootScripts['validate:packages'];
+        self::assertIsArray($rootAutoloadDevPsr4);
+        self::assertIsArray($validatePackages);
+        self::assertSame('@dev', $rootRequire['kongono/security-runtime']);
+        self::assertSame('packages/security-runtime/tests/', $rootAutoloadDevPsr4['Kongono\\SecurityRuntime\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/security-runtime validate --no-check-publish', $validatePackages);
+        self::assertContains(['type' => 'path', 'url' => 'packages/security-runtime'], $rootRepositories);
+
+        $packageManifests = glob($root . '/packages/*/composer.json');
+        self::assertIsArray($packageManifests);
+        self::assertCount(44, $packageManifests);
+        foreach ($packageManifests as $packageManifestPath) {
+            $packageManifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($packageManifest);
+            self::assertIsArray($packageManifest['require']);
+            if (in_array($packageManifest['name'], ['kongono/security-http', 'kongono/security-runtime'], true)) {
+                continue;
+            }
+            self::assertArrayNotHasKey('kongono/security-runtime', $packageManifest['require']);
+        }
+
+        $sourceFiles = $this->recursivePhpFiles($root . '/packages/security-runtime/src');
+        $testFiles = $this->recursivePhpFiles($root . '/packages/security-runtime/tests');
+        self::assertCount(10, $sourceFiles);
+        self::assertCount(6, $testFiles);
+        foreach ($sourceFiles as $sourceFile) {
+            $source = file_get_contents($sourceFile);
+            self::assertIsString($source);
+            self::assertSame(1, substr_count($source, 'declare(strict_types=1);'));
+            self::assertSame(1, substr_count($source, '#[Api('));
+            self::assertSame(0, preg_match('/\$_(?:SERVER|ENV|COOKIE|SESSION)|\$GLOBALS|\b(?:getenv|putenv|time|microtime|date|class_exists|interface_exists|trait_exists|enum_exists|spl_autoload_register|file_get_contents|fopen|curl_exec|stream_socket_client|serialize|unserialize|json_encode)\s*\(/', $source));
+            self::assertSame(0, preg_match('/use Kongono\\\\(?:ApplicationGraph|Authorization|Chie|Console|Database|DependencyInjection|Hantei|Http|Kernel|Knowledge|Oshie|Persistence|PhpCgi|Routing|Web)\\\\/', $source));
+            self::assertSame(0, preg_match('/\b(?:ServiceLocator|Container|Registry|Middleware|guard|enforce|authorize|permit|deny|retry|fallback)\b/i', $source));
+            if (!str_ends_with(str_replace('\\', '/', $sourceFile), '/GeneratedSecurityApplication.php')) {
+                self::assertStringNotContainsString('Reflection', $source);
+            }
+        }
+
+        self::assertSame(['anonymous', 'authenticated'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityRuntime\\SecurityContextFactory')));
+        self::assertSame(['beginAnonymousOperation', 'beginAuthenticatedOperation', 'isRetired', 'shutdown', 'start'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityRuntime\\GeneratedSecurityApplication')));
+        self::assertSame(['__construct', 'close', 'isClosed', 'root', 'securityContext'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityRuntime\\GeneratedSecurityOperation')));
+        self::assertSame([], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityRuntime\\SecurityOperationRoot')));
+        self::assertSame(['cases', 'context', 'from', 'operation', 'remediation', 'title', 'tryFrom', 'violatedInvariant'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityRuntime\\Diagnostic\\SecurityRuntimeDiagnostic')));
+        self::assertSame(['diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityRuntime\\Exception\\ExceptionInterface')));
+        self::assertSame(['__toString', 'diagnosticContext', 'diagnosticId', 'diagnosticRemediation', 'diagnosticTitle'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityRuntime\\Exception\\SecurityRuntimeException')));
+        self::assertSame(['applicationBoundary', 'applicationRoot', 'operationInputs', 'operationRootCount', 'operationRootShape', 'rootAccess'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityRuntime\\Exception\\InvalidGeneratedSecurityProfileException')));
+        self::assertSame(['facts', 'outcome', 'principalIdentity'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityRuntime\\Exception\\InvalidSecurityContextVerificationException')));
+        self::assertSame(['applicationRetired', 'operationClosed'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityRuntime\\Exception\\SecurityRuntimeLifecycleException')));
+        self::assertSame([
+            'KGN-SECURITY-RUNTIME-1001',
+            'KGN-SECURITY-RUNTIME-1002',
+            'KGN-SECURITY-RUNTIME-1003',
+        ], array_column(('Kongono\\SecurityRuntime\\Diagnostic\\SecurityRuntimeDiagnostic')::cases(), 'value'));
+
+        $applicationSource = file_get_contents($root . '/packages/security-runtime/src/GeneratedSecurityApplication.php');
+        self::assertIsString($applicationSource);
+        self::assertSame(2, substr_count($applicationSource, 'new ReflectionClass'));
+        $profileValidation = strpos($applicationSource, '$rootMethod = self::validateProfile($wiring);');
+        $generatedStart = strpos($applicationSource, '$boundary = $wiring->start(...$applicationInputs);');
+        self::assertIsInt($profileValidation);
+        self::assertIsInt($generatedStart);
+        self::assertLessThan($generatedStart, $profileValidation);
+    }
+
+    public function testPhase9fSecurityPackagesHaveExactDependenciesSurfacesAndIsolation(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $enforcement = json_decode((string) file_get_contents($root . '/packages/security-enforcement/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        $http = json_decode((string) file_get_contents($root . '/packages/security-http/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($enforcement);
+        self::assertIsArray($http);
+        self::assertSame('kongono/security-enforcement', $enforcement['name']);
+        self::assertSame([
+            'php' => '>=8.5.0 <8.6.0',
+            'kongono/api-metadata' => '*',
+            'kongono/authorization' => '*',
+            'kongono/diagnostics' => '*',
+            'kongono/identity-access' => '*',
+        ], $enforcement['require']);
+        self::assertSame('kongono/security-http', $http['name']);
+        self::assertSame([
+            'php' => '>=8.5.0 <8.6.0',
+            'kongono/api-metadata' => '*',
+            'kongono/authentication' => '*',
+            'kongono/diagnostics' => '*',
+            'kongono/security-runtime' => '*',
+            'psr/http-message' => '^2.0',
+        ], $http['require']);
+
+        $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($rootManifest);
+        $rootRequire = $rootManifest['require'];
+        $rootAutoloadDev = $rootManifest['autoload-dev'];
+        $rootScripts = $rootManifest['scripts'];
+        self::assertIsArray($rootRequire);
+        self::assertIsArray($rootAutoloadDev);
+        self::assertIsArray($rootScripts);
+        $rootAutoloadDevPsr4 = $rootAutoloadDev['psr-4'];
+        $validatePackages = $rootScripts['validate:packages'];
+        self::assertIsArray($rootAutoloadDevPsr4);
+        self::assertIsArray($validatePackages);
+        self::assertSame('@dev', $rootRequire['kongono/security-enforcement']);
+        self::assertSame('@dev', $rootRequire['kongono/security-http']);
+        self::assertSame('packages/security-enforcement/tests/', $rootAutoloadDevPsr4['Kongono\\SecurityEnforcement\\Tests\\']);
+        self::assertSame('packages/security-http/tests/', $rootAutoloadDevPsr4['Kongono\\SecurityHttp\\Tests\\']);
+        self::assertContains('composer --working-dir=packages/security-enforcement validate --no-check-publish', $validatePackages);
+        self::assertContains('composer --working-dir=packages/security-http validate --no-check-publish', $validatePackages);
+
+        self::assertSame(['action', 'execute', 'resource'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityEnforcement\\ProtectedCapability')));
+        self::assertSame(['enforce'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityEnforcement\\ProtectedCapabilityEnforcer')));
+        self::assertSame(['expire', 'issue'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityHttp\\BrowserSessionCookieEmitter')));
+        self::assertSame(['__construct', 'begin'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityHttp\\BrowserSessionSecurityGateway')));
+        self::assertSame(['__construct', 'close', 'isClosed', 'root', 'securityContext'], $this->declaredPublicMethodNames(new ReflectionClass('Kongono\\SecurityHttp\\BrowserSessionSecurityOperation')));
+        self::assertSame(['NAME', 'COOKIE_NAME', 'CSRF_HEADER_NAME'], array_keys((new ReflectionClass('Kongono\\SecurityHttp\\BrowserSessionProfile'))->getConstants()));
+
+        foreach ([
+            ...$this->recursivePhpFiles($root . '/packages/security-enforcement/src'),
+            ...$this->recursivePhpFiles($root . '/packages/security-http/src'),
+        ] as $sourceFile) {
+            $source = file_get_contents($sourceFile);
+            self::assertIsString($source);
+            self::assertSame(0, preg_match('/\$_(?:SERVER|ENV|COOKIE|SESSION)|\$GLOBALS|\b(?:getenv|putenv|time|microtime|date|random_bytes|hash|password_hash|setcookie|serialize|unserialize|eval)\s*\(/', $source));
+            self::assertStringNotContainsString('RequestAttribute', $source);
+            self::assertStringNotContainsString('ServiceLocator', $source);
+        }
+    }
+
     public function testPersistencePackageContractsDependenciesDiagnosticsAndIsolationAreExact(): void
     {
         $root = dirname(__DIR__, 2);
@@ -1620,7 +2358,7 @@ final class ApiStatusConventionTest extends TestCase
 
         $packageManifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(36, $packageManifests);
+        self::assertCount(44, $packageManifests);
         foreach ($packageManifests as $packageManifest) {
             if (
                 str_ends_with(str_replace('\\', '/', $packageManifest), '/persistence/composer.json')
@@ -1654,9 +2392,9 @@ final class ApiStatusConventionTest extends TestCase
                 $packageTestCount += count($this->recursivePhpFiles($packageDirectory . '/tests'));
             }
         }
-        self::assertSame(623, $productionCount);
-        self::assertSame(329, $packageTestCount);
-        self::assertCount(56, $this->recursivePhpFiles($root . '/tests'));
+        self::assertSame(732, $productionCount);
+        self::assertSame(379, $packageTestCount);
+        self::assertCount(60, $this->recursivePhpFiles($root . '/tests'));
 
         foreach ([
             'Kongono\\Persistence\\Exception\\InvalidPersistenceValueException',
@@ -1752,7 +2490,7 @@ final class ApiStatusConventionTest extends TestCase
 
         $packageManifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(36, $packageManifests);
+        self::assertCount(44, $packageManifests);
         foreach ($packageManifests as $packageManifest) {
             if (str_ends_with(str_replace('\\', '/', $packageManifest), '/persistence-build/composer.json')
                 || str_ends_with(str_replace('\\', '/', $packageManifest), '/persistence-application/composer.json')) {
@@ -1832,7 +2570,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('@dev', $rootRequire['kongono/database-sql-pgsql']);
         self::assertSame('packages/database-sql/tests/', $rootAutoloadDevPsr4['Kongono\\DatabaseSql\\Tests\\']);
         self::assertSame('packages/database-sql-pgsql/tests/', $rootAutoloadDevPsr4['Kongono\\DatabaseSqlPgsql\\Tests\\']);
-        self::assertCount(36, $validatePackages);
+        self::assertCount(44, $validatePackages);
 
         self::assertSame(
             ['KGN-SQL-1001', 'KGN-SQL-1002', 'KGN-SQL-1003'],
@@ -2158,6 +2896,8 @@ final class ApiStatusConventionTest extends TestCase
             SqlExceptionInterface::class,
             PersistenceExceptionInterface::class,
             PersistenceBuildExceptionInterface::class,
+            AuthenticationExceptionInterface::class,
+            IdentityAccessExceptionInterface::class,
             'Kongono\\Console\\Exception\\ExceptionInterface',
             'Kongono\\ConsoleApplication\\Exception\\ExceptionInterface',
             'Kongono\\ConsoleBuild\\Exception\\ExceptionInterface',
@@ -2179,6 +2919,10 @@ final class ApiStatusConventionTest extends TestCase
             [UnknownServiceException::class, DependencyInjectionExceptionInterface::class],
             [InvalidDiagnosticProjectionException::class, DiagnosticPresentationExceptionInterface::class],
             [InvalidDiagnosticValueException::class, DiagnosticsExceptionInterface::class],
+            [AuthenticationCleanupException::class, AuthenticationExceptionInterface::class],
+            [AuthenticationOperationAndCleanupException::class, AuthenticationExceptionInterface::class],
+            [InvalidAuthenticationValueException::class, AuthenticationExceptionInterface::class],
+            [InvalidIdentityAccessValueException::class, IdentityAccessExceptionInterface::class],
             [InvalidMessageArgumentException::class, HttpMessageExceptionInterface::class],
             [HttpMessageRuntimeException::class, HttpMessageExceptionInterface::class],
             [InvalidRouteDefinitionException::class, RoutingExceptionInterface::class],
@@ -2296,11 +3040,12 @@ final class ApiStatusConventionTest extends TestCase
                 ...PersistenceDiagnostic::cases(),
                 ...PersistenceBuildDiagnostic::cases(),
                 ...PersistenceApplicationDiagnostic::cases(),
+                ...('Kongono\\SecurityRuntime\\Diagnostic\\SecurityRuntimeDiagnostic')::cases(),
             ],
         );
 
-        self::assertCount(277, $identifiers);
-        self::assertCount(277, array_unique($identifiers));
+        self::assertCount(281, $identifiers);
+        self::assertCount(281, array_unique($identifiers));
         self::assertCount(6, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-KERNEL-1\\d{3}$/D', $identifier)));
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-GRAPH-1\\d{3}$/D', $identifier)));
         self::assertCount(25, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-DI-1\\d{3}$/D', $identifier)));
@@ -2315,7 +3060,8 @@ final class ApiStatusConventionTest extends TestCase
         self::assertCount(11, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-KNOWLEDGE-1\\d{3}$/D', $identifier)));
         self::assertCount(18, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CHIE-1\\d{3}$/D', $identifier)));
         self::assertCount(3, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-SQL-1\\d{3}$/D', $identifier)));
-        self::assertCount(18, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-COMPOSITION-1\\d{3}$/D', $identifier)));
+        self::assertCount(19, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-COMPOSITION-1\\d{3}$/D', $identifier)));
+        self::assertCount(3, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-SECURITY-RUNTIME-1\\d{3}$/D', $identifier)));
         self::assertCount(10, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CONSOLE-1\\d{3}$/D', $identifier)));
         self::assertCount(3, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CONSOLE-APPLICATION-1\\d{3}$/D', $identifier)));
         self::assertCount(5, array_filter($identifiers, static fn(string $identifier): bool => 1 === preg_match('/^KGN-CONSOLE-BUILD-1\\d{3}$/D', $identifier)));
@@ -2832,7 +3578,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertDirectoryDoesNotExist($compositionRoot . '/bin');
         self::assertDirectoryDoesNotExist($compositionRoot . '/resources');
         $compositionCounts = [];
-        foreach (['src' => 36, 'tests' => 32] as $directory => $expectedCount) {
+        foreach (['src' => 39, 'tests' => 35] as $directory => $expectedCount) {
             $count = 0;
             foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($compositionRoot . '/' . $directory, FilesystemIterator::SKIP_DOTS)) as $compositionFile) {
                 if (!$compositionFile instanceof SplFileInfo) {
@@ -2846,7 +3592,7 @@ final class ApiStatusConventionTest extends TestCase
             self::assertSame($expectedCount, $count);
             $compositionCounts[$directory] = $count;
         }
-        self::assertSame(['src' => 36, 'tests' => 32], $compositionCounts);
+        self::assertSame(['src' => 39, 'tests' => 35], $compositionCounts);
 
         $webApplicationManifest = json_decode(
             (string) file_get_contents(dirname(__DIR__, 2) . '/packages/web-application/composer.json'),
@@ -2900,6 +3646,8 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame([
             'kongono/api-metadata' => '@dev',
             'kongono/application-graph' => '@dev',
+            'kongono/authentication' => '@dev',
+            'kongono/authorization' => '@dev',
             'kongono/chie' => '@dev',
             'kongono/composition' => '@dev',
             'kongono/console' => '@dev',
@@ -2924,6 +3672,7 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/hantei' => '@dev',
             'kongono/http-message' => '@dev',
             'kongono/http-server' => '@dev',
+            'kongono/identity-access' => '@dev',
             'kongono/kernel' => '@dev',
             'kongono/knowledge' => '@dev',
             'kongono/oshie' => '@dev',
@@ -2932,6 +3681,11 @@ final class ApiStatusConventionTest extends TestCase
             'kongono/persistence-build' => '@dev',
             'kongono/php-cgi' => '@dev',
             'kongono/routing' => '@dev',
+            'kongono/security-application' => '@dev',
+            'kongono/security-enforcement' => '@dev',
+            'kongono/security-http' => '@dev',
+            'kongono/security-policy-build' => '@dev',
+            'kongono/security-runtime' => '@dev',
             'kongono/web-application' => '@dev',
             'kongono/web-runtime' => '@dev',
             'php' => '>=8.5.0 <8.6.0',
@@ -2970,6 +3724,9 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame('packages/persistence-application/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\PersistenceApplication\\Tests\\']);
         self::assertSame('packages/hantei/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Hantei\\Tests\\']);
         self::assertSame('packages/routing/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Routing\\Tests\\']);
+        self::assertSame('packages/security-enforcement/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\SecurityEnforcement\\Tests\\']);
+        self::assertSame('packages/security-http/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\SecurityHttp\\Tests\\']);
+        self::assertSame('packages/security-runtime/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\SecurityRuntime\\Tests\\']);
         self::assertSame('packages/web-application/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Web\\Application\\Tests\\']);
         self::assertSame('packages/web-runtime/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\Web\\Runtime\\Tests\\']);
         self::assertSame('packages/php-cgi/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\PhpCgi\\Tests\\']);
@@ -2996,6 +3753,9 @@ final class ApiStatusConventionTest extends TestCase
         self::assertContains('composer --working-dir=packages/persistence-application validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/hantei validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/routing validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/security-enforcement validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/security-http validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/security-runtime validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/php-cgi validate --no-check-publish', $rootManifest['scripts']['validate:packages']);
         $validatePackages = array_values($rootManifest['scripts']['validate:packages']);
         self::assertNotSame([], $validatePackages);
@@ -3004,13 +3764,14 @@ final class ApiStatusConventionTest extends TestCase
             'composer --working-dir=skeletons/data-minimal validate --no-check-publish',
             'composer --working-dir=skeletons/minimal validate --no-check-publish',
             'composer --working-dir=skeletons/persistence-minimal validate --no-check-publish',
+            'composer --working-dir=skeletons/security-minimal validate --no-check-publish',
         ], $rootManifest['scripts']['validate:skeleton']);
         self::assertIsArray($rootManifest['scripts']['quality']);
         self::assertSame('@validate:skeleton', $rootManifest['scripts']['quality'][2]);
 
         $allPackageManifests = glob(dirname(__DIR__, 2) . '/packages/*/composer.json');
         self::assertIsArray($allPackageManifests);
-        self::assertCount(36, $allPackageManifests);
+        self::assertCount(44, $allPackageManifests);
         self::assertSame('>=8.5.0 <8.6.0', $rootManifest['require']['php']);
         foreach ($allPackageManifests as $packageManifestPath) {
             $manifest = json_decode((string) file_get_contents($packageManifestPath), true, flags: JSON_THROW_ON_ERROR);
@@ -3376,7 +4137,7 @@ final class ApiStatusConventionTest extends TestCase
         self::assertSame(['Kongono\\PhpCgi\\Tests\\' => 'tests/'], $manifest['autoload-dev']['psr-4']);
         $packageManifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(36, $packageManifests);
+        self::assertCount(44, $packageManifests);
         foreach ($packageManifests as $packageManifestPath) {
             if (str_ends_with(str_replace('\\', '/', $packageManifestPath), '/php-cgi/composer.json')) {
                 continue;
@@ -3498,7 +4259,7 @@ final class ApiStatusConventionTest extends TestCase
         $productionFiles = [];
         $sourceDirectories = glob($root . '/packages/*/src', GLOB_ONLYDIR);
         self::assertIsArray($sourceDirectories);
-        self::assertCount(36, $sourceDirectories);
+        self::assertCount(44, $sourceDirectories);
         foreach ($sourceDirectories as $sourceDirectory) {
             $sourceIterator = new RecursiveIteratorIterator(
                 new RecursiveDirectoryIterator($sourceDirectory, FilesystemIterator::SKIP_DOTS),
@@ -3510,7 +4271,7 @@ final class ApiStatusConventionTest extends TestCase
                 }
             }
         }
-        self::assertCount(623, $productionFiles);
+        self::assertCount(732, $productionFiles);
         foreach ($productionFiles as $productionFile) {
             $source = file_get_contents($productionFile);
             self::assertIsString($source);
@@ -3521,7 +4282,7 @@ final class ApiStatusConventionTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(36, $manifests);
+        self::assertCount(44, $manifests);
         foreach ($manifests as $manifest) {
             $contents = file_get_contents($manifest);
             self::assertIsString($contents);
@@ -3604,10 +4365,10 @@ final class ApiStatusConventionTest extends TestCase
         }
 
         sort($packageSourceDirectories);
-        self::assertCount(36, $packageSourceDirectories);
+        self::assertCount(44, $packageSourceDirectories);
         $packageManifests = glob(dirname(__DIR__, 2) . '/packages/*/composer.json');
         self::assertIsArray($packageManifests);
-        self::assertCount(36, $packageManifests);
+        self::assertCount(44, $packageManifests);
         $types = [];
 
         foreach ($packageSourceDirectories as $sourceDirectory) {

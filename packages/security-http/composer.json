@@ -1,0 +1,23 @@
+{
+  "name": "kongono/security-http",
+  "description": "Secure same-origin browser-session transport for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/api-metadata": "*",
+    "kongono/authentication": "*",
+    "kongono/diagnostics": "*",
+    "kongono/security-runtime": "*",
+    "psr/http-message": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\SecurityHttp\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\SecurityHttp\\Tests\\": "tests/"
+    }
+  }
+}

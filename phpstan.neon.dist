@@ -12,6 +12,10 @@ parameters:
         - packages/api-metadata/tests
         - packages/application-graph/src
         - packages/application-graph/tests
+        - packages/authentication/src
+        - packages/authentication/tests
+        - packages/authorization/src
+        - packages/authorization/tests
         - packages/chie/src
         - packages/chie/tests
         - packages/chie/bin/kongono-chie
@@ -63,6 +67,8 @@ parameters:
         - packages/http-message/tests
         - packages/http-server/src
         - packages/http-server/tests
+        - packages/identity-access/src
+        - packages/identity-access/tests
         - packages/kernel/src
         - packages/kernel/tests
         - packages/knowledge/src
@@ -81,6 +87,16 @@ parameters:
         - packages/php-cgi/tests
         - packages/routing/src
         - packages/routing/tests
+        - packages/security-application/src
+        - packages/security-application/tests
+        - packages/security-enforcement/src
+        - packages/security-enforcement/tests
+        - packages/security-http/src
+        - packages/security-http/tests
+        - packages/security-policy-build/src
+        - packages/security-policy-build/tests
+        - packages/security-runtime/src
+        - packages/security-runtime/tests
         - packages/web-application/src
         - packages/web-application/tests
         - packages/web-runtime/src
@@ -88,6 +104,8 @@ parameters:
         - skeletons/data-minimal/bin
         - skeletons/data-minimal/src
         - skeletons/persistence-minimal/src
+        - skeletons/security-minimal/bin
+        - skeletons/security-minimal/src
         - skeletons/minimal/bin
         - skeletons/minimal/public
         - skeletons/minimal/src

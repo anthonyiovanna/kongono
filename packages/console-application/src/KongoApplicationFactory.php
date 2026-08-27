@@ -20,6 +20,8 @@ use Kongono\Console\CommandSpecificationSet;
 use Kongono\Console\CommandSummary;
 use Kongono\Console\CommandTokenParser;
 use Kongono\ConsoleApplication\Handler\ApplicationBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
+use Kongono\ConsoleApplication\Handler\SecurityInspectCommandHandler;
 use Kongono\ConsoleApplication\Internal\KongoCommandValidator;
 use Kongono\ConsolePresentation\CommandPresentationAdapter;
 use Kongono\ConsolePresentation\HumanCommandPresenter;
@@ -27,6 +29,7 @@ use Kongono\ConsolePresentation\MachineCommandPresenter;
 use Kongono\ConsoleRuntime\CommandDispatcher;
 use Kongono\ConsoleRuntime\CommandHandlerBinding;
 use Kongono\ConsoleRuntime\CommandHandlerSet;
+use Kongono\SecurityPolicyBuild\Workflow\SecurityPolicyBuildWorkflow;
 
 /** Constructs the closed supported application without discovery or service location. */
 #[Api(ApiStatus::Experimental)]
@@ -34,11 +37,13 @@ final class KongoApplicationFactory
 {
     public function create(): KongoApplication
     {
-        $identifier = new CommandIdentifier(KongoCommand::ApplicationBuild->value);
+        $applicationBuild = new CommandIdentifier(KongoCommand::ApplicationBuild->value);
+        $securityCheck = new CommandIdentifier(KongoCommand::SecurityCheck->value);
+        $securityInspect = new CommandIdentifier(KongoCommand::SecurityInspect->value);
         $specifications = new CommandSpecificationSet([
             new CommandSpecification(
                 new CommandDefinition(
-                    $identifier,
+                    $applicationBuild,
                     new CommandSummary('Build exact current application composition outputs'),
                     CommandInteractionPolicy::None,
                     CommandMutationPolicy::MutationCapable,
@@ -48,9 +53,14 @@ final class KongoApplicationFactory
                     new CommandInputDefinition(new CommandInputName('output-directory'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
                 ],
             ),
+            $this->readOnlySecuritySpecification($securityCheck, 'Check exact current security policy evidence'),
+            $this->readOnlySecuritySpecification($securityInspect, 'Inspect planned security policy evidence'),
         ]);
+        $policyWorkflow = new SecurityPolicyBuildWorkflow();
         $handlers = new CommandHandlerSet([
-            new CommandHandlerBinding($identifier, new ApplicationBuildCommandHandler(new ApplicationBuildWorkflow())),
+            new CommandHandlerBinding($applicationBuild, new ApplicationBuildCommandHandler(new ApplicationBuildWorkflow())),
+            new CommandHandlerBinding($securityCheck, new SecurityCheckCommandHandler($policyWorkflow)),
+            new CommandHandlerBinding($securityInspect, new SecurityInspectCommandHandler($policyWorkflow)),
         ]);
         (new KongoCommandValidator())->validate($specifications, $handlers);
 
@@ -61,6 +71,22 @@ final class KongoApplicationFactory
             new HumanCommandPresenter(),
             new MachineCommandPresenter(),
             new CommandPresentationAdapter(),
+        );
+    }
+
+    private function readOnlySecuritySpecification(CommandIdentifier $identifier, string $summary): CommandSpecification
+    {
+        return new CommandSpecification(
+            new CommandDefinition(
+                $identifier,
+                new CommandSummary($summary),
+                CommandInteractionPolicy::None,
+                CommandMutationPolicy::ReadOnly,
+            ),
+            [
+                new CommandInputDefinition(new CommandInputName('application-root'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                new CommandInputDefinition(new CommandInputName('output-directory'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+            ],
         );
     }
 }

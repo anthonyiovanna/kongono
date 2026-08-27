@@ -270,6 +270,15 @@ documentation, cleanup/nondisclosure, and the exact checkpoint.
 - [ADR 0102: First Read-Only Framework Capability Commands](0102-first-read-only-framework-capability-commands.md)
 - [ADR 0103: Supported `kongo` Edge and Honest Application Build](0103-supported-kongo-edge-and-honest-application-build.md)
 - [ADR 0104: Phase 8 External CLI Acceptance and Checkpoint](0104-phase-8-external-cli-acceptance-and-checkpoint.md)
+- [ADR 0105: Explicit Identity, Authentication, and Authorization Boundary](0105-explicit-identity-authentication-and-authorization-boundary.md)
+- [ADR 0106: Fail-Closed Security Context and Policy Separation](0106-fail-closed-security-context-and-policy-separation.md)
+- [ADR 0107: Neutral Identity and Access Contracts and Package Boundary](0107-neutral-identity-and-access-contracts-and-package-boundary.md)
+- [ADR 0108: Deterministic Explicit Authentication Orchestration](0108-deterministic-explicit-authentication-orchestration.md)
+- [ADR 0109: Deterministic Deny-by-Default Authorization Evaluation](0109-deterministic-deny-by-default-authorization-evaluation.md)
+- [ADR 0110: Operation-Scoped Security Context and Generated Composition Inputs](0110-operation-scoped-security-context-and-generated-composition-inputs.md)
+- [ADR 0111: Secure Browser-Session Transport and Capability Enforcement](0111-secure-browser-session-transport-and-capability-enforcement.md)
+- [ADR 0112: Deterministic Security Policy Evidence and Supported Application Workflow](0112-deterministic-security-policy-evidence-and-supported-application-workflow.md)
+- [ADR 0113: Phase 9 External Security Acceptance and Checkpoint](0113-phase-9-external-security-acceptance-and-checkpoint.md)
 
 Phase 7 is complete at checkpoint
 `b09b0c654f8b67f7cac3807f839f665e8c5b5469` with thirty acyclic production
@@ -295,4 +304,80 @@ programmatic rather than fabricated. Phase 8H accepts ADR 0104 and adds only
 root-owned real-process acceptance plus the exact local Phase 8 checkpoint.
 Conflicting output remains a no-clobber Precondition at exit 3; exit 6 remains
 Infrastructure. Command meaning, explicit invocation, and presentation remain
-separate. Phase 8A through Phase 8H are implemented; Phase 9 has not begun.
+separate. Phase 8A through Phase 8H are implemented.
+
+Phase 9A accepts ADRs 0105 and 0106, the
+[Identity and Access Security guide](../architecture/identity-and-access-security.md),
+and the fixed [Phase 9 roadmap](../architecture/phase-9-roadmap.md) as
+documentation architecture only. It separates identity, authentication,
+authorization, transport, enforcement, disclosure, audit, and telemetry;
+requires deny-by-default exact authorization, protected-capability enforcement,
+immutable operation-scoped security state, deterministic policy evidence, and
+nondisclosure; and adds no package, code, API, provider, session, policy engine,
+schema, command, or runtime.
+
+Phase 9B accepts ADR 0107 and adds Experimental `kongono/identity-access` as the
+thirty-seventh acyclic production package. Its immutable neutral values express
+principal kinds/references, typed authentication outcomes, inert authorization
+decisions, canonical application actions and resource types, opaque resource
+references, and explicit anonymous/authenticated Security Context. The package
+owns bounded non-disclosing diagnostics and exceptions but no authenticator,
+verifier, credential, cryptography, policy evaluator, session, HTTP or
+Composition integration, enforcement, provider, command, audit, telemetry, or
+workflow.
+
+Phase 9C accepts ADR 0108 and adds Experimental `kongono/authentication` as the
+thirty-eighth acyclic production package. It selects one explicitly registered
+verifier by exact mechanism from zero or one caller-owned evidence object,
+owns one verify/retire attempt lifecycle, preserves primary and cleanup
+failures, and validates explicit facts against caller-supplied strength,
+freshness, validity, and current-instant requirements. Authenticated facts grant
+no permission. No credential, concrete provider, session/cookie transport, HTTP
+adapter, authorization/policy evaluation, Security Context construction,
+Composition wiring, audit, telemetry, command, application workflow, or Phase
+9D behavior is added.
+
+Phase 9D accepts ADR 0109 and adds Experimental `kongono/authorization` as the
+thirty-ninth acyclic production package. It compares independently expected
+policy identity with opaque policy evidence, selects only one exact evaluator,
+preserves Permit/Deny/Indeterminate, fails closed on mismatch, unsupported
+policy, or evaluator failure, and returns only a bounded non-authoritative
+receipt. It adds no policy language/build/loader, role or permission semantics,
+ambient guard, protected-capability enforcement, Security Context construction,
+HTTP/session transport, Composition wiring, database enforcement, audit,
+telemetry, AI authority, or workflow.
+
+Phase 9E accepts ADR 0110, evolves Composition with explicit version-2
+application/operation input lifetimes while preserving version-1 inputs as
+application-lifetime, and adds Experimental `kongono/security-runtime` as the
+fortieth acyclic production package. Fresh anonymous or exactly verified
+authenticated contexts flow into one generated operation and are never retained
+by generated application state. Authentication success grants no authorization.
+That Phase 9E boundary itself implemented no enforcement, HTTP credential/
+session transport, login, cookie profile, policy build/currentness, workflow,
+or skeleton. See
+[ADR 0109](0109-deterministic-deny-by-default-authorization-evaluation.md).
+[ADR 0110](0110-operation-scoped-security-context-and-generated-composition-inputs.md)
+records the implemented Phase 9E boundary.
+
+Phase 9F accepts ADR 0111 and adds Experimental `kongono/security-http` and
+`kongono/security-enforcement` as the forty-first and forty-second acyclic
+production packages. Security HTTP implements exactly the same-origin HTTPS
+`browser.session.v1` profile with `__Host-kongono_session` and session-bound
+`X-Kongono-CSRF` evidence; syntax and emission provide no session truth,
+cryptography, storage, login, or authorization. Security Enforcement evaluates
+one exact request and invokes the protected capability only for exact Permit.
+Authentication success, routing, middleware, and receipts grant no authority,
+and no ambient current-user/session/decision state exists. No second profile/
+provider or account product. Phase 9G accepts ADR 0112 and adds Experimental
+`kongono/security-policy-build` and `kongono/security-application` as the
+forty-third and forty-fourth acyclic production packages. Their rule-free
+artifact identifies exact current policy/build bytes, while the supported
+workflow preserves application-owned decisions and exact-Permit enforcement.
+The copy-once skeleton and read-only inspect/check commands add no provider or
+framework policy authority. Phase 9H accepts ADR 0113 and adds only root-owned
+external acceptance plus the exact local checkpoint. Phase 9A through 9H are
+implemented; Kongono remains pre-1.0 and Phase 10 is unimplemented.
+See [ADR 0111](0111-secure-browser-session-transport-and-capability-enforcement.md)
+and [ADR 0112](0112-deterministic-security-policy-evidence-and-supported-application-workflow.md),
+plus the [external acceptance guide](../architecture/phase-9-external-acceptance.md).

@@ -106,6 +106,27 @@ policy, or Stable API status. Phase 8H supplies root-owned external acceptance
 and the exact Phase 8 checkpoint without changing that topology or production
 authority. See the [Phase 8 external acceptance guide](phase-8-external-acceptance.md).
 
+## Identity and access progression
+
+Phase 9 follows the completed Phase 8 checkpoint as a separate optional
+security progression. Phase 9A accepts doctrine and the fixed staged sequence
+only. It adds no runtime or package. The ordered path is: neutral principal and
+security-result contracts; explicit authentication orchestration; deterministic
+deny-by-default authorization evaluation; operation-scoped Security Context and
+Composition integration; one selected HTTP authentication/session and
+protected-capability enforcement profile; one supported application workflow
+with exact-current policy evidence; and external acceptance at the exact
+checkpoint.
+
+Each letter requires a separate architect directive. Applications cannot skip
+the separation by treating a user record, principal kind, role, session, route,
+middleware, binding, or command as permission. Authentication success is not
+authorization, only exact `Permit` proceeds, enforcement belongs at the
+protected capability, and immutable security state ends with one operation.
+Future outer adapters may depend inward on neutral contracts; lower packages do
+not depend upward. See the [Identity and Access Security guide](identity-and-access-security.md)
+and fixed [Phase 9 roadmap](phase-9-roadmap.md).
+
 ## Do not use this doctrine to
 
 - Put all business behavior in controllers because MVC is supported.
@@ -134,3 +155,7 @@ The progressive-architecture direction is **LOCKED**. Specific scaffolds, module
 - [Phase 8 external acceptance](phase-8-external-acceptance.md)
 - [ADR 0096](../adr/0096-explicit-structured-cli-and-automation-boundary.md)
 - [ADR 0097](../adr/0097-deterministic-command-lifecycle-and-presentation-separation.md)
+- [Identity and Access Security](identity-and-access-security.md)
+- [Phase 9 roadmap](phase-9-roadmap.md)
+- [ADR 0105](../adr/0105-explicit-identity-authentication-and-authorization-boundary.md)
+- [ADR 0106](../adr/0106-fail-closed-security-context-and-policy-separation.md)

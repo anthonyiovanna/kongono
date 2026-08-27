@@ -15,6 +15,14 @@ Chie. Its APIs are Experimental.
 profile also records the exact required root script definitions. Callers cannot
 supply a profile file, check subset, script, argument, exclusion, or command.
 
+The current Phase 9H profile mirrors all forty-four production package
+validations and all four copy-once skeleton validations, including Security
+Policy Build, Security Application, and security-minimal. This inventory change
+does not add a Hantei check or grant Hantei policy, repair, or acceptance
+authority. It also records the exact root `acceptance:phase9` definition as
+repository-quality evidence; the external profile remains test-owned and is not
+an additional Hantei check.
+
 ## Subject and provenance
 
 Hantei identifies every Git-visible tracked or unignored file except the

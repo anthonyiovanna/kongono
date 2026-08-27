@@ -35,8 +35,12 @@ final class KongoProcessRequestTest extends TestCase
         yield 'machine explicit help' => [['--json', '--help'], true, true, false, []];
         yield 'command help' => [['application:build', '--help'], false, false, true, []];
         yield 'machine command help' => [['--json', 'application:build', '--help'], true, false, true, []];
+        yield 'security check help' => [['security:check', '--help'], false, false, true, []];
+        yield 'security inspect help' => [['--json', 'security:inspect', '--help'], true, false, true, []];
         yield 'plan' => [['application:build', '--plan', '--application-root=A', '--output-directory=B'], false, false, false, ['application:build', '--plan', '--application-root=A', '--output-directory=B']];
         yield 'machine apply' => [['--json', 'application:build', '--apply', '--application-root=A', '--output-directory=B', '--no-interaction'], true, false, false, ['application:build', '--apply', '--application-root=A', '--output-directory=B', '--no-interaction']];
+        yield 'security check' => [['security:check', '--application-root=A', '--output-directory=B'], false, false, false, ['security:check', '--application-root=A', '--output-directory=B']];
+        yield 'machine security inspect' => [['--json', 'security:inspect', '--application-root=A', '--output-directory=B', '--no-interaction'], true, false, false, ['security:inspect', '--application-root=A', '--output-directory=B', '--no-interaction']];
     }
 
     /** @param array<array-key, mixed> $arguments */

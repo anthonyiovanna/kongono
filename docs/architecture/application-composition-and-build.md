@@ -273,6 +273,21 @@ adds no schema change, runtime loader, service locator, daemon, watcher,
 installer, deployment manager, or second command. See
 [ADR 0103](../adr/0103-supported-kongo-edge-and-honest-application-build.md).
 
+## Phase 9E operation-input evolution
+
+Composition version 2 requires every input to declare `application` or
+`operation` lifetime. Version-1 inputs remain application-lifetime compatible.
+Generated startup retains only application inputs; bounded positional operation
+inputs are validated before lease or construction and pass directly through
+ordinary constructor calls. Application services and roots cannot reach an
+operation input.
+
+The outer `kongono/security-runtime` profile uses this boundary for one exact
+operation-scoped `SecurityContext`. Generated application state never retains
+that context, and authentication success grants no authorization. See
+[ADR 0110](../adr/0110-operation-scoped-security-context-and-generated-composition-inputs.md)
+and the [operation-scoped Security Context guide](operation-scoped-security-context.md).
+
 Phase 8H externally verifies the same boundary through the direct source and
 Composer proxy. Plan writes nothing; apply publishes exactly the predicted
 pair; repeated apply is idempotent; and a conflicting target exits 3 while

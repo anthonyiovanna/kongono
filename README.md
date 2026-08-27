@@ -14,9 +14,13 @@ Kongono is a planned modern application framework for applications that must be 
 
 Phase 7 is complete at checkpoint
 `b09b0c654f8b67f7cac3807f839f665e8c5b5469`. Phase 8G adds the upper
-`kongono/console-application` boundary, bringing the current topology to exactly
-thirty-six acyclic first-party production packages. The official one-shot
-`kongo` executable implements exactly `application:build`.
+`kongono/console-application` boundary at the Phase 8 checkpoint. Phase 9G now
+adds deterministic rule-free policy identity evidence and the supported
+protected application workflow through `kongono/security-policy-build` and
+`kongono/security-application`, bringing the current topology to exactly
+forty-four acyclic first-party production packages. The official one-shot
+`kongo` executable implements exactly `application:build`, `security:check`,
+and `security:inspect`; the two security commands are read-only.
 
 The earlier Phase 2 fixture remains runnable through root-owned black-box test
 infrastructure. Run
@@ -635,4 +639,106 @@ proves both executable edges, human/machine parity, non-mutating plan, explicit
 apply, exit-3 no-clobber conflicts, recovery, nondisclosure, and cleanup through
 `composer acceptance:phase8`. See [ADR 0104](docs/adr/0104-phase-8-external-cli-acceptance-and-checkpoint.md)
 and the [external acceptance guide](docs/architecture/phase-8-external-acceptance.md).
-Phase 9 remains unimplemented.
+## Implemented Phase 9A through Phase 9H Identity and Access Security boundary
+
+Phase 9A defines how Kongono may later establish identity facts and enforce
+application-owned access policy without hiding authority in middleware,
+sessions, roles, globals, containers, or provider objects. Authentication and
+authorization are separate: authentication success is evidence, not
+permission. Authorization is deny by default and only an exact `Permit` for an
+exact operation context, action, resource, current policy evidence, and explicit
+environmental facts may reach a protected capability.
+
+The accepted direction keeps security state immutable, explicit, and
+operation-scoped for persistent-runtime safety. Enforcement occurs before the
+protected read or side effect. Credentials remain opaque and nondisclosing;
+policy evidence is deterministic, versioned, provenance-bound, and fail closed.
+Transport, disclosure, audit, and telemetry remain separate from decision
+authority.
+
+Phase 9B implements the Experimental `kongono/identity-access` package. Its
+immutable provider-neutral vocabulary includes exact principal kinds and
+references, typed authentication outcomes, inert authorization decisions,
+canonical application-owned actions/resource types, opaque resource
+references, explicit anonymous/authenticated Security Context, and bounded
+non-disclosing diagnostics. Authentication success grants no permission, and
+`Permit` evaluates or enforces nothing by itself.
+
+The package depends only on API Metadata, Diagnostics, and PHP. It adds no
+authenticator, verifier, credential, cryptography, policy evaluator, decision
+receipt, session, HTTP or Composition integration, provider, enforcement,
+command, audit, telemetry, or application workflow.
+
+Phase 9C implements the separate Experimental `kongono/authentication` package.
+It consumes ordered caller-owned evidence, selects one explicitly registered
+verifier by exact mechanism, owns one verify/retire attempt, preserves primary
+and cleanup failures, and validates explicit authentication facts against
+caller-supplied current time, minimum strength, maximum age, and validity.
+Authenticated facts remain evidence rather than permission, equality at
+validity/age/strength bounds remains valid, and the orchestrator retains no
+per-call state across sequential or reentrant calls.
+
+Authentication depends only on API Metadata, Diagnostics, Identity Access, and
+PHP. It adds no concrete verifier/provider, credential, password, token, key,
+cryptography, session/cookie transport, HTTP adapter, authorization evaluator,
+policy, Security Context construction, Composition wiring, command, audit,
+telemetry, application workflow, or Phase 9D behavior.
+
+Phase 9D implements the separate Experimental `kongono/authorization` package.
+Callers independently supply expected name/version/provenance identity and
+opaque policy evidence plus explicit environmental evidence. Mismatch or
+unsupported policy returns Indeterminate without evaluator execution. The sole
+exact evaluator's Permit, Deny, or Indeterminate result is preserved; failure
+never permits. Bounded receipts omit principal/resource IDs and evidence
+payloads and grant no authority.
+
+Authorization depends only on API Metadata, Diagnostics, Identity Access, and
+PHP. Phase 9D itself adds no policy language/build/loader, role or permission
+semantics, ambient guard, protected-capability enforcement, Security Context
+construction, HTTP/session transport, Composition wiring, database enforcement,
+audit, telemetry, AI authority, or workflow.
+
+Phase 9E implements Composition source version 2 with explicit
+application/operation input lifetimes while preserving version-1 inputs as
+application-lifetime. Generated applications retain only application inputs;
+operation inputs are validated before lease or construction and flow directly
+through ordinary constructor calls. The new Experimental
+`kongono/security-runtime` package constructs fresh anonymous or exactly
+verified authenticated contexts and owns their generated-operation lifecycle.
+Authentication success still grants no authorization.
+
+Phase 9F adds the Experimental `kongono/security-http` and
+`kongono/security-enforcement` packages. Security HTTP implements exactly the
+same-origin HTTPS `browser.session.v1` profile with the host-only
+`__Host-kongono_session` cookie and session-bound `X-Kongono-CSRF` evidence.
+The transport syntax and deterministic cookie emitter provide no session truth,
+cryptography, storage, login, or authorization. Security Enforcement evaluates
+one exact request and invokes one bound protected capability only for exact
+`Permit`; authentication success, routing, middleware, and receipts grant no
+authority. Both packages retain no ambient current-user, session, context, or
+decision state.
+
+Phase 9G adds rule-free exact-current policy identity evidence, one supported
+request-to-operation-to-enforcement workflow, a copy-once security skeleton,
+and the read-only `security:inspect` and `security:check` commands. Kongono
+remains pre-1.0 with exactly forty-four acyclic production packages. No second
+HTTP/provider profile, broad identity product, autonomous policy, deployment
+manager, or broad identity product exists. Phase 9H adds only root-owned
+external proof through `composer acceptance:phase9` and the exact local Phase 9
+checkpoint. Kongono remains pre-1.0; this is not certified security,
+production readiness, universal portability, or Phase 10 behavior. See
+[ADR 0105](docs/adr/0105-explicit-identity-authentication-and-authorization-boundary.md),
+[ADR 0106](docs/adr/0106-fail-closed-security-context-and-policy-separation.md),
+[ADR 0107](docs/adr/0107-neutral-identity-and-access-contracts-and-package-boundary.md),
+[ADR 0108](docs/adr/0108-deterministic-explicit-authentication-orchestration.md),
+[ADR 0109](docs/adr/0109-deterministic-deny-by-default-authorization-evaluation.md),
+[ADR 0110](docs/adr/0110-operation-scoped-security-context-and-generated-composition-inputs.md),
+[ADR 0111](docs/adr/0111-secure-browser-session-transport-and-capability-enforcement.md),
+[ADR 0112](docs/adr/0112-deterministic-security-policy-evidence-and-supported-application-workflow.md),
+[ADR 0113](docs/adr/0113-phase-9-external-security-acceptance-and-checkpoint.md),
+the [Identity and Access Security guide](docs/architecture/identity-and-access-security.md),
+the [operation-scoped Security Context guide](docs/architecture/operation-scoped-security-context.md),
+the [browser-session security and capability enforcement guide](docs/architecture/browser-session-security-and-capability-enforcement.md),
+the [security application workflow](docs/architecture/security-application-workflow.md),
+the [Phase 9 external acceptance guide](docs/architecture/phase-9-external-acceptance.md),
+and the [Phase 9 roadmap](docs/architecture/phase-9-roadmap.md).

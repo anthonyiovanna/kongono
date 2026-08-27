@@ -17,6 +17,7 @@ final readonly class GeneratedWiringArtifact
         private string $compositionArtifactSha256,
         private string $modelSha256,
         private string $generatorImplementationSha256,
+        private int $compositionSourceVersion,
         private string $generatedNamespace,
         private string $applicationClass,
         private string $operationClass,
@@ -41,6 +42,10 @@ final readonly class GeneratedWiringArtifact
     public function generatorImplementationSha256(): string
     {
         return $this->generatorImplementationSha256;
+    }
+    public function compositionSourceVersion(): int
+    {
+        return $this->compositionSourceVersion;
     }
     public function generatedNamespace(): string
     {

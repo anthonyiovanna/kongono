@@ -652,3 +652,117 @@ those lower contracts; provider and transaction authority remain caller-owned. S
 [ADR 0094](adr/0094-exact-current-generated-persistence-application-integration.md),
 the [Deterministic Persistence guide](architecture/deterministic-persistence.md),
 and the [Phase 7 roadmap](architecture/phase-7-roadmap.md).
+
+## Identity and Access Security doctrine
+
+Identity, authentication, authorization, credential/session transport,
+protected-capability enforcement, disclosure, audit, and telemetry are separate
+concerns. A Principal is an immutable reference, not an application user record,
+provider object, credential, tenant, actor, subject, role, or permission.
+Human, Service, Organization, System, and Agent principal kinds grant nothing
+by themselves. Application domain identity and policy meaning remain
+application-owned; Phase 9A creates no delegation runtime.
+
+Authentication evaluates explicit detached evidence through one selected typed
+verifier and returns bounded facts or a distinct non-success outcome. It does
+not read ambient state or silently fall back to weaker evidence. Authentication
+success grants no authorization. Credentials and cryptographic material remain
+opaque, bounded to an explicit lifecycle, and absent from diagnostics, logs,
+human/machine output, and ordinary retained state. Kongono invents no
+cryptographic primitive.
+
+Authorization is deny by default and fail closed. It evaluates one immutable
+operation Security Context, exact application-owned Action and Resource, exact
+current Policy Evidence, and explicit environmental facts. Only exact `Permit`
+may proceed; `Deny`, `Indeterminate`, missing, stale, partial, mixed, ambiguous,
+unsupported, conflicting, unverifiable, or failed evidence cannot become
+permission. Object access and field disclosure remain separate.
+
+Enforcement belongs at the typed protected capability before protected reads,
+database or external effects, secret disclosure, filesystem publication, or
+mutation apply. Routing, middleware, sessions, roles, DI bindings, Graph nodes,
+repository or CLI discovery, and diagnostic modes are not authorization.
+Middleware may adapt evidence but is never the sole boundary.
+
+Security Context is immutable, explicit, constructed at an outer boundary from
+validated evidence, passed through generated typed Composition or operation
+collaborators, and fully released at cleanup. Static current-user state,
+ambient `Auth`, thread locals, request-singleton authority, service location,
+and Kernel-owned security lifecycle are rejected. Anonymous is explicit rather
+than `null`, and sequential or overlapping persistent-runtime operations must
+not share security state.
+
+Policy truth must be deterministic, versioned, bounded, provenance-bound, and
+validated before runtime. Runtime scanning, Reflection policy discovery,
+mutable registries, proxying, `eval`, newest-file selection, remote policy
+loading, network compilation, AI authority, and silent mutation are rejected.
+Diagnostics preserve existing nondisclosure rules. Decision receipts, audit,
+and telemetry may later provide bounded non-secret evidence but cannot replay a
+grant or become policy authority.
+
+Phase 9A accepts this doctrine through [ADR 0105](adr/0105-explicit-identity-authentication-and-authorization-boundary.md),
+[ADR 0106](adr/0106-fail-closed-security-context-and-policy-separation.md),
+the [Identity and Access Security guide](architecture/identity-and-access-security.md),
+and the fixed [Phase 9 roadmap](architecture/phase-9-roadmap.md). Phase 9B
+accepts [ADR 0107](adr/0107-neutral-identity-and-access-contracts-and-package-boundary.md)
+and implements only immutable neutral vocabulary in
+`kongono/identity-access`: exact principal/resource references, typed
+authentication outcomes, inert authorization decisions, canonical
+action/resource names, explicit anonymous/authenticated Security Context, and
+non-disclosing diagnostics. These values validate shape and grant no authority.
+
+Phase 9B implements no authenticator, verifier, credential, cryptography,
+policy evaluator, receipt, session, HTTP or Composition integration,
+enforcement, provider, command, audit, telemetry, application workflow,
+compliance, performance, or production-readiness claim.
+
+Phase 9C accepts
+[ADR 0108](adr/0108-deterministic-explicit-authentication-orchestration.md)
+and implements the separate Experimental `kongono/authentication` package.
+Authentication evidence remains caller/adapter-owned and exposes only an exact
+canonical mechanism to the neutral contract. One sole evidence object selects
+one explicitly registered verifier without discovery, priority, or fallback.
+Each begun attempt verifies once and retires once; cleanup never depends on a
+destructor or process termination, and primary plus cleanup failures remain
+visible without entering Safe diagnostic presentation.
+
+Authentication facts are explicit evidence, not permission. Mechanism,
+strength, authentication instant, validity, explicit current instant, and
+maximum age are evaluated deterministically with inclusive equality bounds.
+The orchestrator retains only immutable verifier registration and no request,
+evidence, operation, result, principal, or failure state across sequential or
+reentrant calls. Phase 9C adds no credential/provider, session or HTTP
+transport, authorization/policy evaluation, Security Context construction,
+Composition wiring, protected-capability enforcement, audit, telemetry,
+application workflow, compliance claim, or Phase 9D behavior.
+
+Phase 9D accepts
+[ADR 0109](adr/0109-deterministic-deny-by-default-authorization-evaluation.md)
+and implements the separate Experimental `kongono/authorization` package.
+Callers independently supply the exact expected name/version/provenance identity
+and opaque evidence identity. Mismatch and unsupported policy return
+Indeterminate without evaluation; the sole exact evaluator's Permit, Deny, or
+Indeterminate is preserved, and failure never permits. Bounded receipts contain
+only decision, reason, expected policy, Action, Resource Type, Security Context
+state, and environment profile and never become transferable authority.
+
+Authorization retains only immutable evaluator registration and no call state.
+Phase 9D adds no policy language/build/loader, roles/permissions, ambient guard,
+protected-capability enforcement, Security Context construction/lifecycle,
+Composition wiring, HTTP/session transport, database enforcement, audit,
+telemetry, AI authority, workflow, compliance or production-readiness claim, or
+Phase 9E behavior.
+
+Phase 9E carries one immutable Security Context through explicit generated
+operation inputs and releases it completely at cleanup. Phase 9F selects one
+same-origin HTTPS browser-session evidence profile and exact protected-
+capability enforcement. Phase 9G adds rule-free exact-current policy identity
+evidence and one supported request-to-operation-to-enforcement workflow.
+
+Phase 9H adds root-owned external proof only. Synthetic credentials, session,
+CSRF, principal, policy, and failure values grant nothing and are never
+emitted. The harness proves that authentication success alone remains
+insufficient and only exact Permit for exact inputs can execute once. This
+checkpoint creates no provider, policy semantics, cryptography, security
+certification, production readiness, autonomous remediation, deployment, or
+Phase 10 behavior. Kongono remains pre-1.0.
