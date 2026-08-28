@@ -293,3 +293,12 @@ Composer proxy. Plan writes nothing; apply publishes exactly the predicted
 pair; repeated apply is idempotent; and a conflicting target exits 3 while
 preserving no-clobber behavior. See [ADR 0104](../adr/0104-phase-8-external-cli-acceptance-and-checkpoint.md)
 and the [Phase 8 external acceptance guide](phase-8-external-acceptance.md).
+
+## Observability workflow relationship
+
+Phase 10G observability build evidence is separate from Composition evidence.
+The application host may construct the explicit observability factory from one
+exact `CurrentObservabilityConfiguration` and caller-owned runtime
+collaborators, but Composition does not discover, infer, or globally register
+them. See the [observability application workflow](observability-application-workflow.md)
+and [ADR 0121](../adr/0121-deterministic-observability-configuration-and-supported-application-workflow.md).

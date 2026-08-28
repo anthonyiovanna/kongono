@@ -636,3 +636,20 @@ an owned temporary application root. A conflicting target is a nondisclosing
 Precondition at exit 3 and remains byte-for-byte unchanged; exit 6 remains the
 Infrastructure category. The harness removes all owned paths before success and
 requires byte-identical repository status. See [ADR 0104](docs/adr/0104-phase-8-external-cli-acceptance-and-checkpoint.md).
+
+## Observability configuration and disclosure
+
+Phase 10G admits only the closed application-owned
+`kongono.observability.json` source. It contains bounded resource and batch
+values but no endpoint, URL, header, credential, token, provider, transport,
+sampler, or environment lookup. Source and artifact admission reject escapes,
+links, junctions, reparse points, alternate streams, case aliases, and
+non-ordinary substitution. Inspect/check output is limited to canonical hashes,
+the artifact basename, fixed profile, and currentness/publication booleans.
+
+Observability does not declassify values or grant authority. Signal data,
+resource/configuration values, paths, payloads, trace/correlation identifiers,
+exception text, endpoints, credentials, and provider details remain absent from
+diagnostics and command output. Transport is an explicit caller-owned
+capability; the repository skeleton's capturing transport performs no network
+access and is not a production exporter.

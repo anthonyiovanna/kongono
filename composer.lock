@@ -4,8 +4,52 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7e7adf701f275315af0fbe647f6f3544",
+    "content-hash": "b8014fa47e3d40b56c84cbd7649c1922",
     "packages": [
+        {
+            "name": "google/protobuf",
+            "version": "v5.36.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/protocolbuffers/protobuf-php.git",
+                "reference": "9c105104b54709ecd902494ab340ed2122789b2d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/protocolbuffers/protobuf-php/zipball/9c105104b54709ecd902494ab340ed2122789b2d",
+                "reference": "9c105104b54709ecd902494ab340ed2122789b2d",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": ">=11.5.50 <12.0.0"
+            },
+            "suggest": {
+                "ext-bcmath": "Need to support JSON deserialization"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Google\\Protobuf\\": "src/Google/Protobuf",
+                    "GPBMetadata\\Google\\Protobuf\\": "src/GPBMetadata/Google/Protobuf"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "description": "proto library for PHP",
+            "homepage": "https://developers.google.com/protocol-buffers/",
+            "keywords": [
+                "proto"
+            ],
+            "support": {
+                "source": "https://github.com/protocolbuffers/protobuf-php/tree/v5.36.0"
+            },
+            "time": "2026-08-20T13:06:50+00:00"
+        },
         {
             "name": "kongono/api-metadata",
             "version": "dev-main",
@@ -223,7 +267,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/console-application",
-                "reference": "b57b0c22f253484c265687808e40c89639fcccd5"
+                "reference": "e86058aee10a8d832082ca4973847657a942747f"
             },
             "require": {
                 "kongono/api-metadata": "*",
@@ -232,6 +276,7 @@
                 "kongono/console-presentation": "*",
                 "kongono/console-runtime": "*",
                 "kongono/diagnostics": "*",
+                "kongono/observability-build": "*",
                 "kongono/security-policy-build": "*",
                 "php": ">=8.5.0 <8.6.0"
             },
@@ -975,6 +1020,180 @@
             }
         },
         {
+            "name": "kongono/metrics",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/metrics",
+                "reference": "a6b1fce9a59355901cbe925ec3a3303c05341699"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/observability": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Metrics\\": "src/"
+                }
+            },
+            "description": "Bounded provider-neutral metric aggregation contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/observability",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/observability",
+                "reference": "c09474143e730a6d351d326e9bdc7495a96b9350"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Observability\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Observability\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral immutable observability contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/observability-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/observability-application",
+                "reference": "3d607317f6f5ad999886dc8a3333a87e07e7f34a"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/metrics": "*",
+                "kongono/observability": "*",
+                "kongono/observability-build": "*",
+                "kongono/opentelemetry": "*",
+                "kongono/operational-events": "*",
+                "kongono/security-audit": "*",
+                "kongono/tracing": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ObservabilityApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ObservabilityApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit application observability lifecycle over Kongono signal runtimes.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/observability-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/observability-build",
+                "reference": "eaac6085f7bbc74e0accd865670c07d7c30e0b41"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/opentelemetry": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ObservabilityBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ObservabilityBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic observability configuration evidence for Kongono applications.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/opentelemetry",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/opentelemetry",
+                "reference": "93bf0c9ec67e607a3fd206cc433fe889e2c7904d"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/observability": "*",
+                "open-telemetry/gen-otlp-protobuf": "1.10.0",
+                "open-telemetry/sem-conv": "1.38.0",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\OpenTelemetry\\": "src/"
+                }
+            },
+            "description": "Explicit bounded OTLP/HTTP Protobuf interoperability for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/operational-events",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/operational-events",
+                "reference": "5446f3ec0d8837b9de3537499c5b4732b2b988d5"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/observability": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\OperationalEvents\\": "src/"
+                }
+            },
+            "description": "Structured bounded operational-event evidence for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "kongono/oshie",
             "version": "dev-main",
             "dist": {
@@ -1203,6 +1422,31 @@
             }
         },
         {
+            "name": "kongono/security-audit",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/security-audit",
+                "reference": "440c14b4d8857ae0c605121d198758027702dd7f"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/observability": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\SecurityAudit\\": "src/"
+                }
+            },
+            "description": "Bounded provider-neutral security-audit evidence for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "kongono/security-enforcement",
             "version": "dev-main",
             "dist": {
@@ -1330,6 +1574,36 @@
             }
         },
         {
+            "name": "kongono/tracing",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/tracing",
+                "reference": "a4606a28c7dbf74d3e0abb27e2d48fae7e0ce76e"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/observability": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\Tracing\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\Tracing\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit operation-scoped tracing lifecycle for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "kongono/web-application",
             "version": "dev-main",
             "dist": {
@@ -1401,6 +1675,126 @@
             "transport-options": {
                 "relative": true
             }
+        },
+        {
+            "name": "open-telemetry/gen-otlp-protobuf",
+            "version": "1.10.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/opentelemetry-php/gen-otlp-protobuf.git",
+                "reference": "66f04d0e448ad333033bfc7baae1aa56330be088"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/opentelemetry-php/gen-otlp-protobuf/zipball/66f04d0e448ad333033bfc7baae1aa56330be088",
+                "reference": "66f04d0e448ad333033bfc7baae1aa56330be088",
+                "shasum": ""
+            },
+            "require": {
+                "google/protobuf": "^3.22 || ^4.0 || ^5.0",
+                "php": "^8.0"
+            },
+            "suggest": {
+                "ext-protobuf": "For better performance, when dealing with the protobuf format"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Opentelemetry\\Proto\\": "Opentelemetry/Proto/",
+                    "GPBMetadata\\Opentelemetry\\": "GPBMetadata/Opentelemetry/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "opentelemetry-php contributors",
+                    "homepage": "https://github.com/open-telemetry/opentelemetry-php/graphs/contributors"
+                }
+            ],
+            "description": "PHP protobuf files for communication with OpenTelemetry OTLP collectors/servers.",
+            "keywords": [
+                "Metrics",
+                "apm",
+                "gRPC",
+                "logging",
+                "opentelemetry",
+                "otel",
+                "otlp",
+                "protobuf",
+                "tracing"
+            ],
+            "support": {
+                "chat": "https://app.slack.com/client/T08PSQ7BQ/C01NFPCV44V",
+                "docs": "https://opentelemetry.io/docs/languages/php",
+                "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
+                "source": "https://github.com/open-telemetry/opentelemetry-php"
+            },
+            "time": "2026-06-17T12:06:32+00:00"
+        },
+        {
+            "name": "open-telemetry/sem-conv",
+            "version": "1.38.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/opentelemetry-php/sem-conv.git",
+                "reference": "e613bc640a407def4991b8a936a9b27edd9a3240"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/opentelemetry-php/sem-conv/zipball/e613bc640a407def4991b8a936a9b27edd9a3240",
+                "reference": "e613bc640a407def4991b8a936a9b27edd9a3240",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "OpenTelemetry\\SemConv\\": "."
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "opentelemetry-php contributors",
+                    "homepage": "https://github.com/open-telemetry/opentelemetry-php/graphs/contributors"
+                }
+            ],
+            "description": "Semantic conventions for OpenTelemetry PHP.",
+            "keywords": [
+                "Metrics",
+                "apm",
+                "logging",
+                "opentelemetry",
+                "otel",
+                "semantic conventions",
+                "semconv",
+                "tracing"
+            ],
+            "support": {
+                "chat": "https://app.slack.com/client/T08PSQ7BQ/C01NFPCV44V",
+                "docs": "https://opentelemetry.io/docs/languages/php",
+                "issues": "https://github.com/open-telemetry/opentelemetry-php/issues",
+                "source": "https://github.com/open-telemetry/opentelemetry-php"
+            },
+            "time": "2026-01-21T04:14:03+00:00"
         },
         {
             "name": "psr/http-factory",
@@ -6453,6 +6847,12 @@
         "kongono/identity-access": 20,
         "kongono/kernel": 20,
         "kongono/knowledge": 20,
+        "kongono/metrics": 20,
+        "kongono/observability": 20,
+        "kongono/observability-application": 20,
+        "kongono/observability-build": 20,
+        "kongono/opentelemetry": 20,
+        "kongono/operational-events": 20,
         "kongono/oshie": 20,
         "kongono/persistence": 20,
         "kongono/persistence-application": 20,
@@ -6460,10 +6860,12 @@
         "kongono/php-cgi": 20,
         "kongono/routing": 20,
         "kongono/security-application": 20,
+        "kongono/security-audit": 20,
         "kongono/security-enforcement": 20,
         "kongono/security-http": 20,
         "kongono/security-policy-build": 20,
         "kongono/security-runtime": 20,
+        "kongono/tracing": 20,
         "kongono/web-application": 20,
         "kongono/web-runtime": 20
     },

@@ -89,3 +89,15 @@ tool to prove deterministic `FAIL` and advisory-unavailable `BLOCKED` behavior;
 that evidence is not real framework quality. Subject bytes remain unchanged,
 and Hantei still cannot repair or certify unapplied candidate bytes. Phase 4 is
 closed; Phase 5 was not begun.
+
+The current framework-quality profile mirrors 52 package validation commands
+and five copy-once skeleton validation commands, including both Phase 10G
+packages and `observability-minimal`. This updates deterministic verification
+inventory only; Hantei still cannot build, repair, publish, execute
+observability operations, or certify its own output.
+
+Phase 10H adds `acceptance:phase10` to that same fixed profile. Hantei records
+the exact root-owned external command as deterministic quality evidence; it
+does not gain the ability to create temporary applications, export signals,
+repair failures, stage or commit content, or certify its own report. The Phase
+10 acceptance harness remains separately owned by root tests.

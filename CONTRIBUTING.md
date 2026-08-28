@@ -189,3 +189,14 @@ quality. Phase 5F has not begun. See
 [generated-wiring decision](docs/adr/0073-generated-typed-wiring-and-lifecycle-boundary.md), the
 [source guide](docs/architecture/composition-source.md), and the
 [declaration guide](docs/engineering/composition-declarations.md).
+
+## Phase 10G observability changes
+
+Changes to the observability workflow must preserve the closed configuration
+shape, exact-current/no-clobber publication, explicit typed collaborators,
+distinct trace/metric/event/audit semantics, and bounded operation cleanup.
+Run validation for both observability packages, Console Application, Hantei,
+and `skeletons/observability-minimal`, plus focused PHPStan, cache-disabled
+PHP CS Fixer, package/CLI/skeleton behavior tests, canonical quality, and Phase
+8-9 compatibility acceptance. Do not add endpoint discovery, credentials,
+providers, ambient state, retry, background work, or a second profile.

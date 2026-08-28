@@ -74,6 +74,14 @@ parameters:
         - packages/knowledge/src
         - packages/knowledge/tests
         - packages/knowledge/bin/kongono-knowledge
+        - packages/metrics/src
+        - packages/metrics/tests
+        - packages/observability/src
+        - packages/observability/tests
+        - packages/opentelemetry/src
+        - packages/opentelemetry/tests
+        - packages/operational-events/src
+        - packages/operational-events/tests
         - packages/oshie/src
         - packages/oshie/tests
         - packages/oshie/bin/kongono-oshie
@@ -89,6 +97,8 @@ parameters:
         - packages/routing/tests
         - packages/security-application/src
         - packages/security-application/tests
+        - packages/security-audit/src
+        - packages/security-audit/tests
         - packages/security-enforcement/src
         - packages/security-enforcement/tests
         - packages/security-http/src
@@ -97,6 +107,8 @@ parameters:
         - packages/security-policy-build/tests
         - packages/security-runtime/src
         - packages/security-runtime/tests
+        - packages/tracing/src
+        - packages/tracing/tests
         - packages/web-application/src
         - packages/web-application/tests
         - packages/web-runtime/src

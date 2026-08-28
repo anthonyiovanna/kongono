@@ -12,6 +12,8 @@ use Kongono\ApiMetadata\ApiStatus;
 enum KongoCommand: string
 {
     case ApplicationBuild = 'application:build';
+    case ObservabilityCheck = 'observability:check';
+    case ObservabilityInspect = 'observability:inspect';
     case SecurityCheck = 'security:check';
     case SecurityInspect = 'security:inspect';
 }

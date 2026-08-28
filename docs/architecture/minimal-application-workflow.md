@@ -64,3 +64,12 @@ non-disclosing; every owned temporary root is removed. See the
 ## Not implemented
 
 There is no container, service locator, mutable current/latest pointer, route schema, request-time reflection, application installer, automatic skeleton upgrade, listener, development server, deployment automation, production-readiness certification, or Phase 6 work.
+
+## Observability copy-once workflow
+
+Phase 10G adds the separate `skeletons/observability-minimal` copy-once example.
+It demonstrates explicit configuration build/check, one operation across the
+four signal domains, bridge flush, and terminal close with a bounded
+zero-network capturing transport. It does not change the minimal skeleton,
+install or upgrade copied applications, or provide a backend, collector,
+provider, dashboard, or deployment configuration.

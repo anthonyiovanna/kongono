@@ -765,4 +765,137 @@ emitted. The harness proves that authentication success alone remains
 insufficient and only exact Permit for exact inputs can execute once. This
 checkpoint creates no provider, policy semantics, cryptography, security
 certification, production readiness, autonomous remediation, deployment, or
-Phase 10 behavior. Kongono remains pre-1.0.
+Phase 10 runtime behavior. Kongono remains pre-1.0.
+
+## Observability and Operational Evidence doctrine
+
+Phase 10A accepts Observability and Operational Evidence architecture through
+[ADR 0114](adr/0114-explicit-observability-and-operational-evidence-boundary.md),
+[ADR 0115](adr/0115-structured-signals-context-and-exporter-neutrality.md),
+the [architecture guide](architecture/observability-and-operational-evidence.md),
+and the fixed [Phase 10 roadmap](architecture/phase-10-roadmap.md). ADR 0011
+remains byte-identical Accepted strategic direction and is refined, not
+superseded or downgraded. Phase 10B accepts
+[ADR 0116](adr/0116-neutral-observability-contracts-and-package-boundary.md)
+and implements the Experimental `kongono/observability` neutral vocabulary.
+Phase 10C accepts
+[ADR 0117](adr/0117-operation-scoped-tracing-lifecycle-and-typed-propagation.md)
+and implements the Experimental `kongono/tracing` operation runtime. Phase 10D
+accepts [ADR 0118](adr/0118-bounded-cardinality-metric-aggregation-and-explicit-collection-lifecycle.md)
+and implements the Experimental `kongono/metrics` aggregation runtime. Phase
+10E accepts [ADR 0119](adr/0119-structured-operational-events-and-bounded-security-audit-evidence.md)
+and implements the separate Operational Events and Security Audit siblings. The
+graph is forty-nine acyclic production packages and 166 local edges.
+
+Observability is bounded evidence about what an operation or component did.
+Diagnostics explain actionable failure; traces describe causal structure and
+timing; metrics describe bounded numeric measurements; operational events
+describe structured operator occurrences; security audit evidence records
+bounded security facts under stricter policy; authorization receipts remain
+non-authoritative evidence; and product analytics remain application-owned.
+None establishes identity, permission, policy truth, business state, repair
+authority, or permission to hide a primary failure.
+
+Framework-owned signals are typed structured versioned records with explicit
+names, kinds, status, severity, schemas, domains, and size/cardinality bounds.
+Free-form text is bounded presentation, not sole semantics. Unknown, malformed,
+oversized, unsupported, stale, mixed, or unverifiable evidence fails visibly.
+Attributes are schema-allowlisted. Existing Safe/Protected/Internal disclosure
+rules apply, and credentials, raw session/CSRF values, policy bodies, database
+and request values, private paths, stack arguments, personal data, provider
+payloads, and unbounded metric labels are denied by default. Redaction is not
+permission to collect.
+
+Correlation and trace state is immutable, explicit, operation-scoped, and
+fully retired on success, failure, denial, cancellation, and cleanup. There is
+no global logger, tracer, meter/provider, ambient current span, thread/fiber
+local, request singleton, service location, hidden container lookup, or
+automatic environment-driven behavior. Outer adapters validate propagation;
+clocks, identifiers, randomness, and sampling enter through explicit typed
+collaborators. Sampling grants no authority or disclosure. Runtime values do
+not contaminate deterministic build evidence. Kernel remains neutral and
+Composition remains lifecycle owner.
+
+Exporters are bounded outer adapters with explicit memory, batching,
+concurrency, backpressure, timeout, partial-failure, flush, and close behavior.
+Their failure remains visible without indefinite blocking, memory growth,
+primary-result corruption, or success conversion. Diagnostics explain
+telemetry failure; telemetry does not replace diagnostics. Security audit
+evidence remains distinct, nondisclosing, non-replayable, and without a Phase
+10A storage, durability, retention, tamper-evidence, compliance, or fail-open/
+fail-closed promise.
+
+OpenTelemetry is the selected future outer interoperability direction, not a
+current SDK, dependency, global provider, exporter, transport, collector,
+backend, detector, propagator, sampler, retry policy, or deployment selection.
+Neutral contracts remain independent and lower packages never depend on an
+exporter. New runtime work begins Experimental; host adapters and mappings stay
+Internal unless explicitly promoted. Public schemas carry compatibility and
+privacy obligations.
+
+Chie may explain accepted doctrine, Hantei may verify deterministic evidence,
+and Oshie may teach it; none emits production signals, changes sampling,
+repairs exporters, or certifies itself. Agent Principals gain no visibility by
+kind. Kongono remains usable without AI, backend, account, collector, or
+network. No performance, losslessness, compliance, Stable/1.0, production-
+readiness, PHP 8.6, or PHP 9 claim is made. The neutral package contains only
+explicit optional correlation, bounded scalar attributes, versioned signal
+identity, closed kind/status, one immutable envelope, and an unimplemented
+recorder capability. Tracing and Metrics each depend inward only on
+Observability, API Metadata, Diagnostics, and PHP; neither has a production
+reverse dependency. Tracing's typed IDs
+and propagation, explicit caller-owned collaborators, bounded root/child
+lifecycle and attributes, deterministic Record/Drop mapping, idempotent cleanup,
+ownership validation, isolation, and visible nondisclosing failures grant no
+authority. Metrics owns finite typed numbers, canonical bounded schemas and
+plans, four exact instrument kinds, immediate aggregate-only state,
+deterministic observations, overflow-before-mutation, exact ownership, and an
+explicit Active/Collected/Retired lifecycle that releases state before
+recording. It adds no dynamic labels, raw measurement log, registry, provider,
+event/audit pipeline inside Metrics, exporter, backend, or application wiring.
+
+Phase 10E accepts [ADR 0119](adr/0119-structured-operational-events-and-bounded-security-audit-evidence.md)
+and implements separate Experimental Operational Events and Security Audit
+sibling packages over only Observability, API Metadata, Diagnostics, and PHP.
+Finite typed schemas, canonical attributes, supplied-field disclosure, explicit
+severity/status or outcome/retention semantics, `not_guaranteed` audit
+durability, and exactly one recorder invocation per valid call are implemented.
+The packages do not depend on or convert to one another. Recorder failure is
+visible, nondisclosing, final, preserves the exact previous throwable, and is
+never retried. No logger facade, buffer, exporter, store, retention enforcement,
+tamper evidence, compliance claim, authorization behavior, product analytics,
+application integration, or Stable API exists. Phase 10F requires separately
+authenticated architect authority.
+
+Phase 10F accepts [ADR 0120](adr/0120-explicit-opentelemetry-otlp-http-protobuf-bridge.md)
+and implements one explicit outer OTLP HTTP/protobuf profile without changing
+neutral evidence authority. The bounded bridge has caller-owned transport and
+time/resource configuration, visible no-drop backpressure, synchronous
+partial-progress flush, deterministic cleanup, and nondisclosing failure.
+Events and audits remain distinct, correlation grants nothing, and exported
+audit durability remains `not_guaranteed`. No SDK/provider/global state,
+auto-configuration, environment discovery, HTTP client, retry, backend,
+application integration, compliance, or durability promise exists. Phase 10G
+requires separately authenticated architect authority.
+
+Phase 10G accepts [ADR 0121](adr/0121-deterministic-observability-configuration-and-supported-application-workflow.md)
+and implements closed deterministic configuration evidence, one explicit
+application observability workflow, a zero-network copy-once skeleton, and two
+read-only observability commands. Configuration selects only bounded resource
+and batch values for the fixed Phase 10F profile; all live collaborators remain
+caller-owned. Exact-current artifacts grant no authority and do not hot-reload.
+Operations keep signal domains distinct, preserve failure identity, and release
+state through explicit bounded cleanup. The graph is 52 acyclic packages and
+182 local edges. No dashboard, alerting, collector deployment, profiler,
+or autonomous behavior is added.
+
+Phase 10H accepts
+[ADR 0122](adr/0122-phase-10-external-observability-acceptance-and-checkpoint.md)
+and adds only root-owned external acceptance and the exact Phase 10 local
+checkpoint. Fresh child processes and a uniquely owned temporary application
+prove the accepted configuration, application, signal, OTLP mapping,
+backpressure, lifecycle, disclosure, compatibility, and cleanup boundaries.
+The capture transport is test-owned and performs no network export. This proof
+adds no production package, runtime API, provider, backend, collector,
+deployment, durable audit, autonomous-operation, or Phase 11 authority.
+Kongono remains pre-1.0.

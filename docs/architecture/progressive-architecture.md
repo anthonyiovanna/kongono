@@ -127,12 +127,75 @@ Future outer adapters may depend inward on neutral contracts; lower packages do
 not depend upward. See the [Identity and Access Security guide](identity-and-access-security.md)
 and fixed [Phase 9 roadmap](phase-9-roadmap.md).
 
+## Observability and operational-evidence progression
+
+Phase 10 follows the completed Phase 9 checkpoint as a separate optional
+operational-evidence progression. Phase 10A accepts doctrine and fixes the
+staged sequence without adding a package or runtime. It first separates
+diagnostics, traces, metrics, operational events, security audit evidence,
+authorization receipts, and product analytics; requires structured bounded
+signals plus immutable operation-scoped context; and selects OpenTelemetry only
+as an outer interoperability direction.
+
+The fixed progression then permits only separately authenticated increments:
+neutral contracts, tracing and validated propagation, bounded metric
+aggregation, events and distinct audit evidence, one selected outer
+OpenTelemetry bridge, one supported application workflow, and external
+checkpoint proof. Dependency direction remains inward, Composition owns
+lifecycle, and lower packages never depend on exporters. Context cleanup,
+nondisclosure, cardinality budgets, explicit clocks/identifiers/sampling, and
+bounded backpressure/failure semantics remain invariants throughout.
+
+Phase 10B adds the Experimental `kongono/observability` neutral contract
+package as the forty-fifth acyclic production package. Phase 10C adds the
+Experimental `kongono/tracing` package as the forty-sixth. Phase 10D adds the
+independent Experimental `kongono/metrics` package as the forty-seventh. Phase
+10E adds separate Experimental `kongono/operational-events` and
+`kongono/security-audit` siblings as the forty-eighth and forty-ninth packages.
+All four signal packages depend only on Observability, API Metadata,
+Diagnostics, and PHP; none has a production reverse dependency.
+The package owns explicit optional correlation, bounded scalar attributes,
+versioned signal identity, closed kind/status, one immutable envelope, and one
+recorder interface without an implementation. Phase 10C adds exact typed IDs,
+trusted typed propagation without a carrier parser, caller-owned
+clock/identifier/sampling/recording, bounded root/child lifecycle and
+attributes, deterministic Record/Drop observations, idempotent cleanup, and
+overlap/reentrancy isolation. Phase 10D adds finite typed metric values,
+schema-owned dimensions, 64-series instrument and 256-series plan bounds, four
+exact instrument kinds, immediate aggregate-only state, deterministic metric
+observations, and explicit Active/Collected/Retired cleanup. Dynamic labels,
+raw measurement logs, generic log pipelines, exporters, backends, and
+application integration remain unimplemented. Phase 10E adds finite event/audit
+schemas, explicit distinct semantics, supplied-field disclosure, and visible
+unretried recorder failure. Phase 10F requires separate authenticated authority.
+See
+[ADR 0114](../adr/0114-explicit-observability-and-operational-evidence-boundary.md),
+[ADR 0115](../adr/0115-structured-signals-context-and-exporter-neutrality.md),
+[ADR 0116](../adr/0116-neutral-observability-contracts-and-package-boundary.md),
+[ADR 0117](../adr/0117-operation-scoped-tracing-lifecycle-and-typed-propagation.md),
+[ADR 0118](../adr/0118-bounded-cardinality-metric-aggregation-and-explicit-collection-lifecycle.md),
+[ADR 0119](../adr/0119-structured-operational-events-and-bounded-security-audit-evidence.md),
+the [Observability and Operational Evidence guide](observability-and-operational-evidence.md),
+and fixed [Phase 10 roadmap](phase-10-roadmap.md).
+
 ## Do not use this doctrine to
 
 - Put all business behavior in controllers because MVC is supported.
 - Introduce CQRS, events, or workflows without a justified application need.
 - Create speculative abstraction layers for future scale.
 - Bypass framework security, lifecycle, or metadata invariants.
+
+## Phase 10E operational-evidence boundary
+
+Phase 10E adds only separate Experimental Operational Events and Security Audit
+sibling packages over the neutral Observability recorder. Finite schemas,
+canonical typed values, supplied-field disclosure, explicit event severity and
+status, audit outcome and retention intent, and `not_guaranteed` durability are
+implemented without changing application architecture. The packages expose no
+conversion API and grant no identity, authorization, policy, business, repair,
+storage, retention, compliance, or application authority. The graph is exactly
+forty-nine acyclic packages and 166 local edges. Phase 10F remains separately
+authorized future work. See [ADR 0119](../adr/0119-structured-operational-events-and-bounded-security-audit-evidence.md).
 
 ## Stability
 
@@ -159,3 +222,25 @@ The progressive-architecture direction is **LOCKED**. Specific scaffolds, module
 - [Phase 9 roadmap](phase-9-roadmap.md)
 - [ADR 0105](../adr/0105-explicit-identity-authentication-and-authorization-boundary.md)
 - [ADR 0106](../adr/0106-fail-closed-security-context-and-policy-separation.md)
+- [Observability and Operational Evidence](observability-and-operational-evidence.md)
+- [Phase 10 roadmap](phase-10-roadmap.md)
+- [ADR 0114](../adr/0114-explicit-observability-and-operational-evidence-boundary.md)
+- [ADR 0115](../adr/0115-structured-signals-context-and-exporter-neutrality.md)
+
+## Phase 10F outer adapter boundary
+
+Phase 10F adds only the fiftieth outer Experimental package,
+`kongono/opentelemetry`. Earlier application architecture and lower signal
+packages remain unchanged and do not depend on the adapter. One explicit upper
+owner may construct the bridge with bounded resource, batching, time, clock,
+and transport capabilities; there is no service location, global provider,
+environment discovery, automatic wiring, or Kernel state. At the Phase 10F
+checkpoint the graph had 169 local production edges.
+See [ADR 0120](../adr/0120-explicit-opentelemetry-otlp-http-protobuf-bridge.md).
+
+Phase 10G supplies the supported upper application boundary without changing
+lower signal packages. Closed configuration becomes deterministic exact-current
+evidence, then explicit construction supplies live collaborators. One bounded
+application operation owns cleanup and signal routing; no container, global
+provider, environment discovery, or hot reload is introduced. The graph has
+182 local edges across 52 acyclic packages. Phase 10H remains future work.

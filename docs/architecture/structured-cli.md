@@ -243,3 +243,14 @@ and the exact checkpoint without adding production behavior.
 - [Runtime model](runtime-model.md)
 - [Application Composition and Build](application-composition-and-build.md)
 - [Error handling and actionable diagnostics](../engineering/error-handling.md)
+
+## Phase 10G observability commands
+
+The official supported family is exactly five commands: `application:build`,
+`observability:check`, `observability:inspect`, `security:check`, and
+`security:inspect`. The two observability commands require exactly
+`application-root` and `output-directory`, disable interaction, declare
+`ReadOnly`, and call only the corresponding build workflow method. Their human
+and machine forms derive from one bounded neutral result and disclose no raw or
+absolute path, resource/batch value, source byte, payload, endpoint,
+credential, provider, or exception message.

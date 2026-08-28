@@ -105,6 +105,26 @@ final class ConsoleAcceptance
         $expectedGlobalHelp = [
             $expectedHelp,
             [
+                'identifier' => 'observability:check',
+                'summary' => 'Check exact current observability configuration evidence',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'observability:inspect',
+                'summary' => 'Inspect planned observability configuration evidence',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
                 'identifier' => 'security:check',
                 'summary' => 'Check exact current security policy evidence',
                 'interaction' => 'none',
@@ -132,6 +152,18 @@ final class ConsoleAcceptance
             . "  --application-root=<value> (required, ordinary)\n"
             . "  --output-directory=<value> (required, ordinary)\n";
         $expectedGlobalHumanHelp = $expectedHumanHelp
+            . "\nCommand: observability:check\n"
+            . "Summary: Check exact current observability configuration evidence\n"
+            . "Usage: kongo observability:check --application-root=<value> --output-directory=<value>\n"
+            . "Interaction: none\nMutation: read_only\nInputs:\n"
+            . "  --application-root=<value> (required, ordinary)\n"
+            . "  --output-directory=<value> (required, ordinary)\n"
+            . "\nCommand: observability:inspect\n"
+            . "Summary: Inspect planned observability configuration evidence\n"
+            . "Usage: kongo observability:inspect --application-root=<value> --output-directory=<value>\n"
+            . "Interaction: none\nMutation: read_only\nInputs:\n"
+            . "  --application-root=<value> (required, ordinary)\n"
+            . "  --output-directory=<value> (required, ordinary)\n"
             . "\nCommand: security:check\n"
             . "Summary: Check exact current security policy evidence\n"
             . "Usage: kongo security:check --application-root=<value> --output-directory=<value>\n"
@@ -149,6 +181,8 @@ final class ConsoleAcceptance
         $this->expect($directHumanHelp, 0, $expectedGlobalHumanHelp, '');
         $this->human($directHumanHelp->stdout());
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: application:build'), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: observability:check'), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: observability:inspect'), 'human_help_command_count');
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: security:check'), 'human_help_command_count');
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: security:inspect'), 'human_help_command_count');
         $this->caseCompleted();

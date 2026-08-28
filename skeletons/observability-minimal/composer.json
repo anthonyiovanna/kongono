@@ -1,0 +1,46 @@
+{
+  "name": "kongono/minimal-observability-application",
+  "description": "Minimal copy-once Kongono observability application skeleton.",
+  "type": "project",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../../packages/*",
+      "options": {
+        "symlink": false
+      }
+    }
+  ],
+  "require": {
+    "kongono/metrics": "@dev",
+    "kongono/observability": "@dev",
+    "kongono/observability-application": "@dev",
+    "kongono/observability-build": "@dev",
+    "kongono/opentelemetry": "@dev",
+    "kongono/operational-events": "@dev",
+    "kongono/security-audit": "@dev",
+    "kongono/tracing": "@dev",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "KongonoObservabilityMinimal\\": "src/"
+    }
+  },
+  "config": {
+    "allow-plugins": {},
+    "platform": {
+      "php": "8.5.0"
+    },
+    "preferred-install": "dist",
+    "secure-http": true,
+    "sort-packages": true
+  },
+  "scripts": {
+    "app:build": "@php bin/build.php",
+    "app:check": "@php bin/check.php",
+    "app:run": "@php bin/run.php"
+  }
+}

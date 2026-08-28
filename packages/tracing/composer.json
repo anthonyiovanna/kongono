@@ -1,0 +1,21 @@
+{
+  "name": "kongono/tracing",
+  "description": "Explicit operation-scoped tracing lifecycle for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "kongono/observability": "*",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Tracing\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\Tracing\\Tests\\": "tests/"
+    }
+  }
+}

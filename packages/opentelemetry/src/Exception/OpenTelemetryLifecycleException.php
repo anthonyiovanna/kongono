@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kongono\OpenTelemetry\Exception;
+
+use Kongono\ApiMetadata\Api;
+use Kongono\ApiMetadata\ApiStatus;
+use Kongono\OpenTelemetry\Diagnostic\OpenTelemetryDiagnostic;
+use Kongono\OpenTelemetry\OpenTelemetryBridgeState;
+
+/** Reports overlap, reentry, and post-close use without stateful detail. */
+#[Api(ApiStatus::Internal)]
+final class OpenTelemetryLifecycleException extends OpenTelemetryException
+{
+    public static function transition(OpenTelemetryBridgeState $state): self
+    {
+        return new self(OpenTelemetryDiagnostic::Lifecycle, stage: $state->value);
+    }
+}

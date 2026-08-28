@@ -278,3 +278,27 @@ but the command is not an additional quality check. It performs a local/offline
 temporary skeleton install and external security matrix with bounded output and
 complete cleanup. No dependency, lockfile, plugin authorization, baseline,
 suppression, or advisory-policy exception is added.
+
+Phase 10G adds both observability packages to `validate:packages` and
+`skeletons/observability-minimal` to `validate:skeleton`; Hantei mirrors both
+arrays exactly. Root development autoloading covers both package test
+namespaces and the skeleton namespace. The root lock is updated narrowly for
+the two local packages with dependencies and may not change third-party
+versions. Knowledge evidence is regenerated and validated only through the
+supported knowledge command workflow.
+
+## Phase 10H external acceptance command
+
+`composer acceptance:phase10` invokes exactly
+`@php tests/External/Observability/run.php`. It accepts no arguments and owns
+one finite fresh-process proof over a unique temporary copy of the supported
+observability application. Local package installation is offline and uses
+`symlink: false`; the test transport captures protobuf bytes locally and never
+performs network export. The command requires exact-current evidence,
+nondisclosing bounded failure, repository-status preservation, and complete
+owned cleanup before emitting its canonical success document.
+
+Hantei mirrors this exact script in `framework-quality-v1`. The command adds no
+dependency, package, baseline, suppression, audit-policy exception, production
+exporter/provider/backend, or environment discovery. Phase 10A-H is complete
+only at the exact local checkpoint, and Kongono remains pre-1.0.

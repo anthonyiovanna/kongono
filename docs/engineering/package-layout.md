@@ -960,3 +960,138 @@ documentation authorities. Root test PHP inventory therefore changes from 56
 to 60. Production packages remain 44, production PHP remains 732, package-test
 PHP remains 379, and skeleton manifests remain four. The external harness is
 test-owned and adds no production package or dependency edge.
+
+## Phase 10B neutral observability package boundary
+
+Phase 10B creates exactly `kongono/observability` under
+`Kongono\Observability\` as the forty-fifth acyclic production package. It
+depends only on PHP, API Metadata, and Diagnostics. The implemented topology is
+45 production package manifests, 749 production PHP files, 388 package-test PHP
+files, 60 root-test PHP files, and four skeleton manifests at the Phase 10B
+boundary.
+
+Dependency direction is inward: the neutral observability contracts depend
+only on accepted foundation packages and PHP; signal runtimes may
+depend inward on those contracts; outer HTTP, CGI, Console, database,
+persistence, security, application, and export adapters may depend inward.
+Lower packages never depend outward on exporters, OpenTelemetry SDKs, global
+providers, proprietary backends, or application adapters. Composition remains
+construction/lifecycle owner and Kernel stays observability-neutral.
+
+The package supplies 17 production declarations and nine focused test files.
+All contracts are Experimental except the Public package catch interface and
+Internal diagnostic, exception-base, and validation details. Export adapters, codecs,
+propagation parsers, batching, semantic mappings, and host details remain
+Internal unless separately promoted. See
+[ADR 0114](../adr/0114-explicit-observability-and-operational-evidence-boundary.md),
+[ADR 0115](../adr/0115-structured-signals-context-and-exporter-neutrality.md),
+[ADR 0116](../adr/0116-neutral-observability-contracts-and-package-boundary.md),
+the [Observability and Operational Evidence guide](../architecture/observability-and-operational-evidence.md),
+and fixed [Phase 10 roadmap](../architecture/phase-10-roadmap.md).
+
+## Phase 10C tracing package boundary
+
+Phase 10C creates exactly `kongono/tracing` under `Kongono\Tracing\` as the
+forty-sixth acyclic production package. It depends only on PHP, API Metadata,
+Diagnostics, and Observability; no other production package depends on it. The
+implemented topology is 46 package manifests, 772 production PHP files, 401
+package-test PHP files, 60 root-test PHP files, and four skeleton manifests.
+
+The package supplies exactly 23 production PHP files and 13 test PHP files.
+All declarations are Experimental except the Public package exception marker
+and Internal diagnostic, exception base, and `Internal` implementations. It
+owns typed IDs/propagation, explicit collaborator interfaces, bounded
+root/child lifecycle, reserved trace-observation construction, cleanup,
+ownership/isolation, and nondisclosing failure only. It owns no collaborator
+implementation, ambient current span, carrier parser, exporter, provider,
+backend, metric/event/audit runtime within Tracing, or application integration.
+See [ADR 0117](../adr/0117-operation-scoped-tracing-lifecycle-and-typed-propagation.md).
+
+## Phase 10D metrics package boundary
+
+Phase 10D creates exactly `kongono/metrics` under `Kongono\Metrics\` as the
+forty-seventh acyclic production package. It depends only on PHP, API Metadata,
+Diagnostics, and Observability, independently of Tracing; no production package
+depends on Metrics. The implemented topology is 47 package manifests, 160 local
+edges, 802 production PHP files, 416 package-test PHP files, 60 root-test PHP
+files, and four skeleton manifests.
+
+The package supplies exactly 30 production PHP files and 15 test PHP files.
+The exception marker is Public; diagnostic, exception-base, and `Internal`
+details are Internal; every other declaration is Experimental. It owns finite
+typed metric values, bounded canonical schema dimensions and plans, four exact
+instrument kinds, deterministic immediate aggregation, canonical observations,
+and one explicit Active/Collected/Retired collection lifecycle. It owns no
+dynamic labels, raw measurement log, clock, identifier source, registry,
+provider, exporter, backend, OpenTelemetry or PSR logging dependency,
+event/audit pipeline inside Metrics or application integration. See
+[ADR 0118](../adr/0118-bounded-cardinality-metric-aggregation-and-explicit-collection-lifecycle.md).
+
+## Phase 10E operational-events and security-audit package boundaries
+
+Phase 10E creates exactly `kongono/operational-events` under
+`Kongono\OperationalEvents\` and `kongono/security-audit` under
+`Kongono\SecurityAudit\` as separate forty-eighth and forty-ninth acyclic
+production packages. Each depends only on PHP, API Metadata, Diagnostics, and
+Observability. Neither depends on or converts to the other, and no existing
+production package depends on either. The topology is 49 package manifests,
+166 local edges, 831 production PHP files, 432 package-test PHP files, 60
+root-test PHP files, and four skeleton manifests.
+
+Operational Events supplies exactly 14 production and eight test PHP files;
+Security Audit supplies exactly 15 production and eight test PHP files. Package
+diagnostics, exception bases, and `Internal` mapping/validation details are
+Internal; every other declaration, including each separate catch marker, is
+Experimental. The packages own finite typed schemas, bounded canonical
+observation mapping, explicit domain semantics, and stateless recorder calls
+only. They own no logger facade, conversion API, buffer, retry, exporter, store,
+retention enforcement, tamper evidence, compliance, authorization behavior,
+product analytics, or application integration. See
+[ADR 0119](../adr/0119-structured-operational-events-and-bounded-security-audit-evidence.md).
+
+## Phase 10F OpenTelemetry package boundary
+
+Phase 10F creates exactly `kongono/opentelemetry` under
+`Kongono\OpenTelemetry\` as the fiftieth acyclic production package. It depends
+only on PHP, API Metadata, Diagnostics, Observability, generated OTLP protobuf
+1.10.0, and stable semantic conventions 1.38.0. No existing production package
+depends on it. At the Phase 10F checkpoint, the topology was 50 package
+manifests, 169 local edges, 855 production PHP files, 445 package-test PHP
+files, 60 root-test PHP files, and four skeleton manifests.
+
+The package supplies exactly 24 production and 13 test PHP files. Publicly
+constructible values, the bridge, capability interfaces, signal/state enums,
+and catch marker are Experimental; diagnostics, concrete exceptions, queue
+records, validators, mappers, and request factory are Internal. It owns one
+locked direct-protobuf profile and explicit bounded queue/flush/close behavior.
+It owns no SDK/provider/global state, discovery, HTTP client, retry, backend,
+application integration, or lower-package behavior. See
+[ADR 0120](../adr/0120-explicit-opentelemetry-otlp-http-protobuf-bridge.md).
+
+## Phase 10G observability build and application boundaries
+
+`kongono/observability-build` depends inward only on API Metadata,
+Diagnostics, OpenTelemetry, Hash, JSON, and PHP. The separate
+`kongono/observability-application` depends inward only on API Metadata,
+Diagnostics, Metrics, Observability, Observability Build, OpenTelemetry,
+Operational Events, Security Audit, Tracing, and PHP. Console Application gains
+one outward dependency on Observability Build. The resulting graph contains 52
+acyclic packages and 182 local production edges.
+
+Package exception markers are Public, operational contracts are Experimental,
+and validators/codecs/path/publication/diagnostic helpers are Internal. No lower
+Phase 10 package depends outward on either new package.
+
+## Phase 10H root-owned acceptance boundary
+
+Phase 10H creates no package and changes no production dependency edge. The
+topology remains exactly 52 acyclic production packages and 182 local edges,
+with five skeleton manifests. Its six new paths live only under root-owned
+external tests and documentation; the harness is not package autoload or
+runtime behavior. The exact Phase 10 checkpoint contains 889 production PHP
+files, 461 package-test PHP files, and 64 root-test PHP files.
+
+The root acceptance boundary may compose public package/application APIs with
+test-owned clocks, identifiers, sampler, work, and capture transport. Those
+fixtures are proof collaborators only and cannot become production defaults,
+providers, exporters, discovery, deployment, or durable storage.

@@ -511,3 +511,138 @@ read-only tooling, Phase 8 compatibility, nondisclosure, and complete cleanup.
 Success is one canonical `kongono-phase9-security` JSON line; failure is only
 the fixed `phase9_acceptance_failed` stderr token. This profile is milestone
 evidence, not a production provider or security certification.
+
+## Phase 10B neutral observability proof
+
+Phase 10B adds nine focused package test files plus architecture coverage. The
+suite proves exact enum order; key, text, float, correlation, count, and schema-
+version bounds; canonical ordinal attribute ordering and object identity;
+explicit fresh uncorrelated/correlated contexts; the inert immutable
+observation envelope; the one-method recorder interface with no framework
+implementation; and eager bounded non-disclosing diagnostics.
+
+Architecture proof covers the exact 17-declaration API surface and status map,
+root tooling integration, package dependency direction, absence of ambient
+state and future runtime/provider behavior, and the historical Phase 10B
+45-package/749-production/388-package-test inventory.
+
+## Phase 10C tracing proof
+
+Phase 10C adds 13 focused package test files plus architecture coverage. Tests
+prove exact ID grammars and nondisclosure, enum/API surfaces, typed propagation,
+root-only sampling and collaborator order/counts, new/inbound root behavior,
+root/child propagation and parenting, exact ownership and duplicate rejection,
+64/65 child capacity, 25/26 attributes and seven reserved collisions,
+deterministic observation mapping and exact caller-object retention, Drop,
+final recorder failure, idempotent retirement, retained-reference release, and
+sequential/overlapping/reentrant isolation.
+
+Architecture and Hantei proofs enforce exact 23-production/13-test Tracing
+inventory, statuses and public surfaces, three inward package dependencies,
+zero reverse dependency, no production collaborator implementation or ambient
+current span, exact root tooling/profile equality, an acyclic 46-package graph,
+772 production PHP files, and 401 package-test PHP files. Tests use only local
+doubles and implement no carrier parser, exporter, backend, metric/event/audit
+runtime within Tracing, OpenTelemetry, or application behavior.
+
+## Phase 10D metrics proof
+
+Phase 10D adds exactly 15 focused Metrics test files plus architecture coverage.
+They prove finite int/float identity, unit grammar, four instrument kinds,
+three lifecycle states, sensitive/unbounded dimension denial, canonical schema
+ordering, exact object ownership and dimension matching, 64-series instrument
+and 256-series plan limits, histogram boundary and inclusive-bucket semantics,
+Counter/UpDownCounter/Gauge/Histogram aggregation, overflow-before-mutation,
+no raw sample retention, canonical observations, recorder failure finality,
+reference release, idempotent retirement, nondisclosure, and fresh sequential,
+overlapping, and recorder-reentrant isolation.
+
+Architecture and Hantei proofs enforce the exact 30-production/15-test Metrics
+inventory, statuses and public surfaces, three inward package dependencies,
+zero reverse dependency, five diagnostic identifiers and repository totals of
+345 enum and 353 production identifiers, exact root tooling/profile equality,
+an acyclic 47-package/160-edge graph, 802 production PHP files, and 416 package-
+test PHP files. Forbidden-scope checks exclude global registries/providers,
+dynamic labels, exporters/backends, ambient state, application integration,
+OpenTelemetry, PSR logging, and event/audit constructs inside Metrics.
+
+## Phase 10E structured evidence proof
+
+Phase 10E adds exactly eight focused Operational Events and eight focused
+Security Audit test files plus architecture coverage. Tests prove exact enums
+and API surfaces; finite field/schema bounds and canonical order; duplicate,
+reserved, sensitive, unknown, missing, wrong-kind, and out-of-domain rejection;
+supplied-field disclosure; exact event and audit observation mapping; 32-
+attribute ceilings; zero recorder calls on validation failure and exactly one on
+success; previous-cause retention without disclosure or retry; and fresh
+sequential, overlapping, and recorder-reentrant isolation.
+
+Architecture and Hantei proofs enforce exact 14-production/8-test Operational
+Events and 15-production/8-test Security Audit inventories, separate catch and
+dependency boundaries, six new diagnostics, exact root tooling/profile
+equality, an acyclic 49-package/166-edge graph, 831 production PHP files, and
+432 package-test PHP files. Forbidden-scope checks exclude conversion APIs,
+generic logging, arbitrary context, ambient providers, buffers, retries,
+exporters, stores, retention enforcement, tamper evidence, compliance claims,
+authorization behavior, product analytics, and application integration. Prior
+Observability, Tracing, and Metrics suites remain regression gates.
+
+## Phase 10F OpenTelemetry bridge proof
+
+Phase 10F adds exactly 13 focused package test files plus Hantei and API
+architecture coverage. Tests parse each emitted request with generated protobuf
+classes and prove the exact resource, schema, scope, trace IDs/timestamps/status,
+Counter/UpDownCounter/Gauge mappings, lossless histogram aggregate gauge family,
+and separate operational-event/security-audit log semantics. They also prove
+correlation remains an attribute, audit durability remains `not_guaranteed`,
+and no body, event, link, boundary, quantile, parent, identity, or authority is
+invented.
+
+Boundary tests cover queue capacities 1 and 1024, batch sizes 1 and 256,
+contiguous FIFO batching, fixed endpoint/content-type arguments, no record-time
+I/O, visible no-drop backpressure, mapping-before-I/O, partial progress, no
+retry, send/flush/close and combined failures, exact previous throwable,
+nondisclosure, reentry rejection, idempotent close, post-close rejection,
+reference release, and separate-instance isolation.
+
+Phase 10F architecture and Hantei proofs enforce the exact 24-production/13-test package
+inventory, API statuses, three inward local edges, zero reverse edge, direct
+dependency/lock shape, and the then-current fifty acyclic packages, 169 local
+production edges, 855 production PHP files, and 445 package-test PHP files. Forbidden-scope scans
+exclude SDK/provider/global state, auto-configuration, discovery, HTTP/client,
+retry, background cleanup, application integration, and backend mechanisms.
+
+## Phase 10G observability workflow proof
+
+Phase 10G tests cover strict closed configuration parsing, separate source/model/
+implementation/artifact identities, canonical exact-current validation,
+write-free inspection/checking, atomic no-clobber publication, Windows path
+adversaries, immutable loaded configuration, direct factory construction, exact
+trace/metric begin and cleanup order, work/result/failure identity, event/audit
+separation, 64-operation/reentrant isolation, explicit flush/terminal close,
+and nondisclosure.
+
+Console tests prove two read-only commands with exact input and human/machine
+parity. Fresh-copy skeleton tests prove offline local installation, build,
+check, run, idempotence, tamper/stale rejection, zero-network transport, and
+cleanup. Architecture and Hantei proofs enforce 52 packages, 182 local edges,
+the final production/test inventories, statuses, dependency directions, and
+absence of ambient/provider/backend/Phase 10H mechanisms.
+
+## Phase 10H external observability proof
+
+`composer acceptance:phase10` runs the root-owned fresh-process harness with no
+arguments. It creates one unique system-temporary application root containing
+a space, copies the observability skeleton without links, installs exact local
+packages offline with `symlink: false`, and proves build/check/run/idempotence,
+tamper and stale rejection, read-only Console parity, mutation-intent refusal,
+typed signal separation, OTLP protobuf parsing, cardinality, backpressure,
+failure ordering, explicit flush/close, isolation, nondisclosure, and cleanup.
+
+The harness also reruns every Phase 10 package suite and the Phase 8 and Phase
+9 external acceptance commands in fresh children. Success is one canonical
+LF-terminated JSON document emitted only after cleanup; failure emits only the
+fixed `phase10_acceptance_failed` token. No case count is predeclared: the
+passing run records the observed count. This proof is test evidence and makes
+no production-readiness, security-certification, portability, performance, or
+Phase 11 claim.

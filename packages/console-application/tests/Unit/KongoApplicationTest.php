@@ -18,6 +18,8 @@ final class KongoApplicationTest extends TestCase
 
         self::assertSame(0, $humanStatus);
         self::assertStringContainsString('Command: application:build', $humanOut);
+        self::assertStringContainsString('Command: observability:check', $humanOut);
+        self::assertStringContainsString('Command: observability:inspect', $humanOut);
         self::assertStringContainsString('Command: security:check', $humanOut);
         self::assertStringContainsString('Command: security:inspect', $humanOut);
         self::assertStringContainsString('Mutation: mutation_capable', $humanOut);
@@ -37,7 +39,14 @@ final class KongoApplicationTest extends TestCase
         self::assertSame('kongono.command-help', $decoded['schema']);
         self::assertSame('application:build', $command['identifier']);
         self::assertSame(['application-root', 'output-directory'], array_column($inputs, 'name'));
-        self::assertCount(3, $commands);
+        self::assertSame([
+            'application:build',
+            'observability:check',
+            'observability:inspect',
+            'security:check',
+            'security:inspect',
+        ], array_column($commands, 'identifier'));
+        self::assertCount(5, $commands);
     }
 
     public function testInvalidRequestsHaveStableExitAndNoRawDisclosure(): void

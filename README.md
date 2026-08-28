@@ -17,8 +17,12 @@ Phase 7 is complete at checkpoint
 `kongono/console-application` boundary at the Phase 8 checkpoint. Phase 9G now
 adds deterministic rule-free policy identity evidence and the supported
 protected application workflow through `kongono/security-policy-build` and
-`kongono/security-application`, bringing the current topology to exactly
-forty-four acyclic first-party production packages. The official one-shot
+`kongono/security-application`; Phase 10B adds the neutral
+`kongono/observability` package, Phase 10C adds the operation-scoped
+`kongono/tracing` package, Phase 10D adds bounded `kongono/metrics`, and Phase
+10E adds separate `kongono/operational-events` and `kongono/security-audit`,
+bringing the current topology to exactly forty-nine acyclic first-party
+production packages. The official one-shot
 `kongo` executable implements exactly `application:build`, `security:check`,
 and `security:inspect`; the two security commands are read-only.
 
@@ -726,7 +730,7 @@ HTTP/provider profile, broad identity product, autonomous policy, deployment
 manager, or broad identity product exists. Phase 9H adds only root-owned
 external proof through `composer acceptance:phase9` and the exact local Phase 9
 checkpoint. Kongono remains pre-1.0; this is not certified security,
-production readiness, universal portability, or Phase 10 behavior. See
+production readiness, universal portability, or Phase 10 runtime behavior. See
 [ADR 0105](docs/adr/0105-explicit-identity-authentication-and-authorization-boundary.md),
 [ADR 0106](docs/adr/0106-fail-closed-security-context-and-policy-separation.md),
 [ADR 0107](docs/adr/0107-neutral-identity-and-access-contracts-and-package-boundary.md),
@@ -742,3 +746,114 @@ the [browser-session security and capability enforcement guide](docs/architectur
 the [security application workflow](docs/architecture/security-application-workflow.md),
 the [Phase 9 external acceptance guide](docs/architecture/phase-9-external-acceptance.md),
 and the [Phase 9 roadmap](docs/architecture/phase-9-roadmap.md).
+
+## Phase 10 Observability architecture and neutral contracts
+
+Phase 10A defines bounded operational-evidence architecture, Phase 10B adds the
+Experimental `kongono/observability` neutral vocabulary, Phase 10C adds the
+Experimental `kongono/tracing` operation runtime, and Phase 10D adds the
+Experimental `kongono/metrics` aggregation runtime. Diagnostics, traces, metrics, operational
+events, security audit evidence, authorization receipts, and product analytics
+remain different domains. Signals explain or correlate behavior but cannot
+identify a principal, grant permission, change policy, repair application
+state, hide a primary failure, or become business truth.
+
+Future framework signals are structured, typed, versioned, bounded, and
+schema-allowlisted. Context is immutable, explicit, operation-scoped, and
+released during cleanup. There is no global logger, static tracer, current span,
+global meter/provider, thread or fiber local, service locator, or automatic
+environment configuration. Clocks, identifiers, propagation, randomness, and
+sampling remain explicit collaborators. Disclosure rules continue to deny
+credentials, session/CSRF evidence, policy bodies, request/database values,
+personal data, provider payloads, and unbounded metric labels by default.
+
+OpenTelemetry is the selected future interoperability direction at an outer
+adapter boundary. No OpenTelemetry SDK, Composer dependency, exporter, OTLP
+transport, collector, backend, global provider, or lower-package coupling exists
+because of Phase 10B. Exporter backpressure and failure must eventually be
+bounded and visible without corrupting primary outcomes; security audit evidence
+remains separate and carries no current durability promise.
+
+The package supplies explicit uncorrelated/correlated context, bounded scalar
+attributes, versioned signal identity, closed kind/status values, one immutable
+observation envelope, and one recorder interface with no implementation. It
+depends only on API Metadata, Diagnostics, and PHP, and no existing production
+packages other than Tracing and Metrics depend on it. Tracing depends only on Observability,
+API Metadata, Diagnostics, and PHP; no other production package depends on
+Tracing. Metrics independently depends on the same four foundations; no
+production package depends on Metrics. The production graph is exactly
+forty-nine acyclic packages, the active
+PHP window remains `>=8.5.0 <8.6.0`, and Kongono remains pre-1.0. See
+[ADR 0114](docs/adr/0114-explicit-observability-and-operational-evidence-boundary.md),
+[ADR 0115](docs/adr/0115-structured-signals-context-and-exporter-neutrality.md),
+[ADR 0116](docs/adr/0116-neutral-observability-contracts-and-package-boundary.md),
+[ADR 0117](docs/adr/0117-operation-scoped-tracing-lifecycle-and-typed-propagation.md),
+[ADR 0118](docs/adr/0118-bounded-cardinality-metric-aggregation-and-explicit-collection-lifecycle.md),
+the [Observability and Operational Evidence guide](docs/architecture/observability-and-operational-evidence.md),
+and the fixed [Phase 10 roadmap](docs/architecture/phase-10-roadmap.md). Tracing
+has explicit typed propagation, caller-owned clock/IDs/sampling/recording,
+bounded root/child lifecycle and attributes, deterministic Record/Drop mapping,
+idempotent cleanup, isolation, and visible nondisclosing failures. Metrics owns
+finite numbers, units, canonical schema dimensions, four instrument kinds,
+histogram boundaries, bounded plans, immediate aggregation, and an explicit
+Active/Collected/Retired lifecycle. It limits instruments to 64 schema series
+and plans to 256, emits deterministic observations only after releasing
+retained collection state, and fails visibly on ownership, schema, overflow,
+lifecycle, or recorder errors. No dynamic labels, raw measurement log,
+event/audit pipeline, exporter, backend, OpenTelemetry dependency, or
+application integration exists inside Metrics.
+
+Phase 10E adds separate Experimental `kongono/operational-events` and
+`kongono/security-audit` sibling packages, bringing the graph to exactly
+forty-nine acyclic packages and 166 local edges. Both depend only on
+Observability, API Metadata, Diagnostics, and PHP and expose no conversion API.
+Finite schemas admit declared typed scalar values, canonicalize attributes, and
+derive Safe or Protected disclosure from fields actually supplied. Operational
+events retain six explicit severities and caller-supplied neutral status;
+security audit evidence retains explicit outcome, retention intent, and the
+exact `not_guaranteed` durability truth. A valid call records exactly one
+bounded observation; invalid data records none, and recorder failure is visible,
+nondisclosing, final, and unretried. See
+[ADR 0119](docs/adr/0119-structured-operational-events-and-bounded-security-audit-evidence.md).
+No logger facade, exporter, buffer, store, retention enforcement, compliance
+claim, application integration, or Stable API is added. Phase 10F is the sole
+possible next handoff and requires separate authenticated authority.
+
+Phase 10F implements the Experimental `kongono/opentelemetry` outer adapter and
+accepts [ADR 0120](docs/adr/0120-explicit-opentelemetry-otlp-http-protobuf-bridge.md).
+The sole version-1 OTLP HTTP/protobuf profile uses direct generated request
+classes, stable 1.38.0 semantic conventions, fixed trace/metric/log suffixes,
+and one caller-supplied transport. Recording is bounded and non-I/O; flush and
+close are explicit, synchronous, no-drop, partial-progress aware, and
+nondisclosing. Operational events and audit evidence retain separate log
+scopes, and audit durability remains `not_guaranteed`. Histogram evidence is
+losslessly emitted as a named gauge family because no numeric bucket boundaries
+exist to support a native OTLP Histogram.
+
+At the Phase 10F checkpoint, the production graph was exactly fifty acyclic
+packages and 169 local edges. No SDK, provider, globals, auto-configuration, environment discovery,
+HTTP client, retry, backend, application workflow, or Stable API is added.
+Phase 10G adds the explicit upper workflow below without widening that adapter.
+
+Phase 10G now provides deterministic observability configuration and one
+explicit application workflow. `kongono/observability-build` produces and
+checks content-addressed exact-current evidence, while
+`kongono/observability-application` coordinates tracing, metrics, operational
+events, security audit, and the selected OpenTelemetry bridge without globals,
+environment discovery, or hidden defaults. The copy-once
+`observability-minimal` skeleton uses a zero-network example transport.
+
+The official `kongo` family contains exactly five commands:
+`application:build`, `observability:check`, `observability:inspect`,
+`security:check`, and `security:inspect`. The graph contains 52 acyclic
+production packages and 182 local edges.
+
+Phase 10H closes the milestone with root-owned external proof through
+`composer acceptance:phase10` and one exact local checkpoint. The profile
+copies and installs the observability skeleton offline, parses selected-profile
+payloads with pinned protobuf classes, proves signal/lifecycle/failure and
+read-only workflow boundaries, reruns Phase 8 and Phase 9 compatibility, and
+removes all owned temporary state. It adds no production package, dependency,
+exporter, provider, backend, collector, durable audit store, deployment, or
+Phase 11 behavior. Kongono remains pre-1.0. See the
+[Phase 10 external acceptance guide](docs/architecture/phase-10-external-acceptance.md).

@@ -13,12 +13,14 @@ use Kongono\Console\CommandMutationPolicy;
 use Kongono\Console\CommandSpecificationSet;
 use Kongono\ConsoleApplication\Exception\InvalidConsoleApplicationValueException;
 use Kongono\ConsoleApplication\Handler\ApplicationBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
+use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityInspectCommandHandler;
 use Kongono\ConsoleApplication\KongoCommand;
 use Kongono\ConsoleRuntime\CommandHandlerSet;
 
-/** Fails closed unless definitions and handlers match the exact Phase 9G family. */
+/** Fails closed unless definitions and handlers match the exact Phase 10G family. */
 #[Api(ApiStatus::Internal)]
 final class KongoCommandValidator
 {
@@ -26,7 +28,7 @@ final class KongoCommandValidator
     {
         $commands = $specifications->commands();
         $bindings = $handlers->bindings();
-        if (3 !== count($commands) || 3 !== count($bindings)) {
+        if (5 !== count($commands) || 5 !== count($bindings)) {
             throw InvalidConsoleApplicationValueException::invalidCommandFamily();
         }
 
@@ -38,12 +40,24 @@ final class KongoCommandValidator
         );
         $this->validateSpecification(
             $commands[1],
+            KongoCommand::ObservabilityCheck,
+            'Check exact current observability configuration evidence',
+            CommandMutationPolicy::ReadOnly,
+        );
+        $this->validateSpecification(
+            $commands[2],
+            KongoCommand::ObservabilityInspect,
+            'Inspect planned observability configuration evidence',
+            CommandMutationPolicy::ReadOnly,
+        );
+        $this->validateSpecification(
+            $commands[3],
             KongoCommand::SecurityCheck,
             'Check exact current security policy evidence',
             CommandMutationPolicy::ReadOnly,
         );
         $this->validateSpecification(
-            $commands[2],
+            $commands[4],
             KongoCommand::SecurityInspect,
             'Inspect planned security policy evidence',
             CommandMutationPolicy::ReadOnly,
@@ -51,10 +65,14 @@ final class KongoCommandValidator
         if (
             KongoCommand::ApplicationBuild->value !== $bindings[0]->identifier()->value()
             || !$bindings[0]->handler() instanceof ApplicationBuildCommandHandler
-            || KongoCommand::SecurityCheck->value !== $bindings[1]->identifier()->value()
-            || !$bindings[1]->handler() instanceof SecurityCheckCommandHandler
-            || KongoCommand::SecurityInspect->value !== $bindings[2]->identifier()->value()
-            || !$bindings[2]->handler() instanceof SecurityInspectCommandHandler
+            || KongoCommand::ObservabilityCheck->value !== $bindings[1]->identifier()->value()
+            || !$bindings[1]->handler() instanceof ObservabilityCheckCommandHandler
+            || KongoCommand::ObservabilityInspect->value !== $bindings[2]->identifier()->value()
+            || !$bindings[2]->handler() instanceof ObservabilityInspectCommandHandler
+            || KongoCommand::SecurityCheck->value !== $bindings[3]->identifier()->value()
+            || !$bindings[3]->handler() instanceof SecurityCheckCommandHandler
+            || KongoCommand::SecurityInspect->value !== $bindings[4]->identifier()->value()
+            || !$bindings[4]->handler() instanceof SecurityInspectCommandHandler
         ) {
             throw InvalidConsoleApplicationValueException::invalidCommandFamily();
         }

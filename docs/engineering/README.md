@@ -43,6 +43,8 @@ It validates the root and all thirty-six package manifests in lexicographic orde
 - [Phase 8 roadmap](../architecture/phase-8-roadmap.md)
 - [Identity and Access Security](../architecture/identity-and-access-security.md)
 - [Phase 9 roadmap](../architecture/phase-9-roadmap.md)
+- [Observability and Operational Evidence](../architecture/observability-and-operational-evidence.md)
+- [Phase 10 roadmap](../architecture/phase-10-roadmap.md)
 
 ## Authority and exceptions
 
@@ -307,3 +309,131 @@ application. It adds no production PHP, package, dependency, skeleton source,
 provider, policy semantics, or runtime authority. See
 [ADR 0113](../adr/0113-phase-9-external-security-acceptance-and-checkpoint.md)
 and the [external acceptance guide](../architecture/phase-9-external-acceptance.md).
+
+## Phase 10B Observability engineering boundary
+
+Phase 10B adds the Experimental `kongono/observability` neutral contract
+package over only API Metadata, Diagnostics, and PHP. No existing production
+package depends on it at that boundary. Phase 10B's topology was exactly
+forty-five acyclic production packages, 749 production PHP files, and 388
+package-test PHP files. Engineering
+must keep diagnostics, traces, metrics, operational
+events, security audit evidence, authorization receipts, and product analytics
+separate and non-authoritative.
+
+Later implementation must use typed structured versioned evidence, immutable
+operation-scoped context, explicit clocks/identifiers/randomness/sampling,
+schema-allowlisted nondisclosing attributes, cardinality budgets, deterministic
+build evidence, cleanup isolation, and bounded concurrency/backpressure/failure
+behavior. No ambient/global provider, current span, service lookup, runtime
+scanning, hidden environment configuration, or lower-package exporter coupling
+is accepted. OpenTelemetry is only the selected future outer interoperability
+direction; no SDK, dependency, protocol, collector, or backend is selected.
+
+The package supplies bounded scalar attributes, explicit optional correlation,
+versioned signal identity, closed kind/status, an immutable envelope, and a
+one-method recorder interface with no implementation. See [ADR 0114](../adr/0114-explicit-observability-and-operational-evidence-boundary.md),
+[ADR 0115](../adr/0115-structured-signals-context-and-exporter-neutrality.md),
+[ADR 0116](../adr/0116-neutral-observability-contracts-and-package-boundary.md),
+the [Observability and Operational Evidence guide](../architecture/observability-and-operational-evidence.md),
+and fixed [Phase 10 roadmap](../architecture/phase-10-roadmap.md).
+
+## Phase 10C tracing engineering boundary
+
+Phase 10C adds the Experimental `kongono/tracing` package over only
+Observability, API Metadata, Diagnostics, and PHP. No other production package
+depends on it. The topology is exactly forty-six acyclic production packages,
+772 production PHP files, and 401 package-test PHP files.
+
+Engineering uses exact typed nonzero hexadecimal IDs and trusted typed
+propagation without carrier parsing; caller-owned monotonic clock, identifier
+source, sampler, and recorder; one root plus at most 64 active children; at most
+25 caller attributes; fixed reserved trace mapping; Record/Drop behavior;
+idempotent cleanup; exact parent ownership; overlap/reentrancy isolation; and
+visible nondisclosing collaborator/recording failures. No default collaborator,
+ambient current span, OpenTelemetry dependency, exporter, backend,
+metric/event/audit runtime within Tracing, or Composition/application
+integration exists. See [ADR 0117](../adr/0117-operation-scoped-tracing-lifecycle-and-typed-propagation.md).
+
+## Phase 10D metrics engineering boundary
+
+Phase 10D adds the Experimental `kongono/metrics` package over only
+Observability, API Metadata, Diagnostics, and PHP, independently of Tracing.
+No production package depends on Metrics. The topology is exactly forty-seven
+acyclic production packages and 160 local edges, with 802 production PHP files
+and 416 package-test PHP files.
+
+Engineering permits only immutable finite numbers and units, schema-owned
+canonical dimensions, 64-series instrument and 256-series plan bounds, four
+exact instrument kinds, immediate aggregate-only state, canonical observations,
+and one explicit Active/Collected/Retired lifecycle. Collection must release
+all retained runtime state before external recording; failure remains final,
+visible, nondisclosing, retains exact previous identity, and is never retried.
+Exact ownership, overflow-before-mutation, idempotent retirement, and fresh
+sequential/overlapping/reentrant isolation are mandatory.
+
+No dynamic labels, raw sample logs, eviction, sampling, clocks, IDs, ambient
+meter state, registry/provider, exporter/backend, OpenTelemetry or PSR logging,
+event/audit pipeline inside Metrics, or application integration is included.
+See [ADR 0118](../adr/0118-bounded-cardinality-metric-aggregation-and-explicit-collection-lifecycle.md).
+
+## Phase 10E structured evidence engineering boundary
+
+Phase 10E adds separate sibling Experimental `kongono/operational-events` and
+`kongono/security-audit` packages. Each depends only on Observability, API
+Metadata, Diagnostics, and PHP; neither depends on or converts to the other.
+The current topology is exactly forty-nine acyclic packages and 166 local
+edges, with 831 production PHP files and 432 package-test PHP files.
+
+Engineering admits only finite schema-declared scalar domains, canonical
+attributes, disclosure derived from fields actually supplied, explicit event
+severity/status or audit outcome/retention intent, and one bounded observation
+per valid recorder call. Audit durability is always the exact
+`not_guaranteed` value. Validation records nothing. Recorder failure is visible,
+nondisclosing, final, preserves the exact previous throwable, and is never
+retried; sequential, overlapping, and recorder-reentrant calls remain isolated.
+
+No logger facade, free-form message pipeline, arbitrary context, conversion
+API, hidden buffer, retry, exporter, store, retention enforcement, tamper
+evidence, compliance claim, product analytics, authorization behavior,
+application integration, or Stable API is included. See
+[ADR 0119](../adr/0119-structured-operational-events-and-bounded-security-audit-evidence.md).
+Phase 10F is the sole possible next handoff.
+
+## Phase 10F OpenTelemetry bridge engineering boundary
+
+Phase 10F adds exactly `kongono/opentelemetry` over PHP, API Metadata,
+Diagnostics, Observability, generated OTLP protobuf 1.10.0, and stable semantic
+conventions 1.38.0. The topology is exactly fifty acyclic packages and 169
+local edges, with 855 production PHP files and 445 package-test PHP files.
+
+Engineering requires one direct generated-protobuf profile, explicit resource,
+batch, time-anchor, clock, and transport capabilities, bounded FIFO storage,
+no-drop backpressure, validation-before-retention, no record-time I/O,
+synchronous contiguous batching, partial-progress retention, explicit flush,
+idempotent close, continued cleanup, nondisclosure, reentry rejection, and
+instance isolation. Histogram aggregate evidence uses the documented lossless
+gauge family and never fabricates OTLP histogram boundaries.
+
+No SDK, API/context/provider package, global registry, auto-configuration,
+environment discovery, HTTP client, endpoint/header/TLS/credential policy,
+retry, collector/backend, application workflow, durable audit claim, or Stable
+API is included. See
+[ADR 0120](../adr/0120-explicit-opentelemetry-otlp-http-protobuf-bridge.md).
+Phase 10G is the sole possible next handoff.
+
+## Phase 10H external closure boundary
+
+Phase 10H adds only the root-owned `composer acceptance:phase10` harness,
+supporting test classes, ADR 0122, external acceptance documentation, fixed
+Hantei inventory, and checkpoint documentation. The harness copies the
+supported skeleton into a unique temporary root, installs from exact local
+packages, exercises public build/application/Console boundaries in fresh
+processes, parses emitted payloads with pinned protobuf classes, and requires
+complete cleanup plus byte-identical repository status.
+
+This is external evidence, not production behavior. It adds no package,
+dependency, runtime API, exporter, provider, backend, network transport,
+collector, deployment, durable audit mechanism, performance promise, or
+Phase 11 work. Phase 10A-H is complete only at the exact local checkpoint;
+Kongono remains pre-1.0.

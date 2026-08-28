@@ -279,6 +279,13 @@ documentation, cleanup/nondisclosure, and the exact checkpoint.
 - [ADR 0111: Secure Browser-Session Transport and Capability Enforcement](0111-secure-browser-session-transport-and-capability-enforcement.md)
 - [ADR 0112: Deterministic Security Policy Evidence and Supported Application Workflow](0112-deterministic-security-policy-evidence-and-supported-application-workflow.md)
 - [ADR 0113: Phase 9 External Security Acceptance and Checkpoint](0113-phase-9-external-security-acceptance-and-checkpoint.md)
+- [ADR 0114: Explicit Observability and Operational Evidence Boundary](0114-explicit-observability-and-operational-evidence-boundary.md)
+- [ADR 0115: Structured Signals, Explicit Context, and Exporter Neutrality](0115-structured-signals-context-and-exporter-neutrality.md)
+- [ADR 0116: Neutral Observability Contracts and Package Boundary](0116-neutral-observability-contracts-and-package-boundary.md)
+- [ADR 0117: Operation-Scoped Tracing Lifecycle and Typed Propagation](0117-operation-scoped-tracing-lifecycle-and-typed-propagation.md)
+- [ADR 0118: Bounded-Cardinality Metric Aggregation and Explicit Collection Lifecycle](0118-bounded-cardinality-metric-aggregation-and-explicit-collection-lifecycle.md)
+- [ADR 0119: Structured Operational Events and Bounded Security Audit Evidence](0119-structured-operational-events-and-bounded-security-audit-evidence.md)
+- [ADR 0120: Explicit OpenTelemetry OTLP HTTP Protobuf Bridge](0120-explicit-opentelemetry-otlp-http-protobuf-bridge.md)
 
 Phase 7 is complete at checkpoint
 `b09b0c654f8b67f7cac3807f839f665e8c5b5469` with thirty acyclic production
@@ -377,7 +384,67 @@ workflow preserves application-owned decisions and exact-Permit enforcement.
 The copy-once skeleton and read-only inspect/check commands add no provider or
 framework policy authority. Phase 9H accepts ADR 0113 and adds only root-owned
 external acceptance plus the exact local checkpoint. Phase 9A through 9H are
-implemented; Kongono remains pre-1.0 and Phase 10 is unimplemented.
+implemented; Kongono remains pre-1.0 and Phase 10 runtime behavior is
+unimplemented.
 See [ADR 0111](0111-secure-browser-session-transport-and-capability-enforcement.md)
 and [ADR 0112](0112-deterministic-security-policy-evidence-and-supported-application-workflow.md),
 plus the [external acceptance guide](../architecture/phase-9-external-acceptance.md).
+
+ADR 0011 remains a byte-identical earlier Accepted strategic direction for
+OpenTelemetry-oriented observability. Phase 10A does not supersede, downgrade,
+or edit it. ADRs 0114 and 0115 refine that direction into the Accepted modern
+Observability and Operational Evidence boundary: separated signal domains,
+typed structured evidence, explicit operation context, nondisclosure and
+cardinality budgets, bounded lifecycle/backpressure, exporter neutrality, and
+outer OpenTelemetry interoperability.
+
+Phase 10B accepts ADR 0116 and adds the Experimental `kongono/observability`
+neutral contract package over only API Metadata, Diagnostics, and PHP. The
+Phase 10B graph was exactly forty-five acyclic production packages. Phase 10C
+accepts ADR 0117 and adds the Experimental `kongono/tracing` package over only
+Observability, API Metadata, Diagnostics, and PHP. Phase 10D accepts ADR 0118
+and adds the independent Experimental `kongono/metrics` package over the same
+foundations. Phase 10E adds the separate Experimental Operational Events and
+Security Audit siblings over the same foundations, bringing the current graph
+to exactly forty-nine acyclic packages and 166 local edges. No other production
+package depends on Tracing, Metrics, Operational Events, or Security Audit. See the
+[Observability and Operational Evidence guide](../architecture/observability-and-operational-evidence.md)
+and fixed [Phase 10 roadmap](../architecture/phase-10-roadmap.md). Phase 10C
+implements bounded operation/span lifecycle, typed propagation without carrier
+parsing, deterministic Record/Drop mapping, idempotent cleanup, isolation, and
+nondisclosing collaborator/recording failures. Phase 10D implements bounded
+metric schemas and plans, immediate Counter/UpDownCounter/Gauge/Histogram
+aggregation, deterministic observations, and explicit Active/Collected/Retired
+collection cleanup. Phase 10E accepts ADR 0119 and adds the separate sibling
+Experimental `kongono/operational-events` and `kongono/security-audit` packages
+over only Observability, API Metadata, Diagnostics, and PHP. Finite schemas,
+canonical typed values, supplied-field disclosure, explicit event severity and
+status, explicit audit outcome and retention intent, and `not_guaranteed`
+durability produce bounded observations through one explicit recorder. The
+packages do not depend on or convert to one another. The current graph is
+exactly forty-nine acyclic packages and 166 local edges. No logger facade,
+buffer, retry, exporter, store, retention enforcement, tamper evidence,
+compliance claim, application integration, or Stable API is implemented. Phase
+10F is the sole possible next handoff and requires separately authenticated
+architect authority.
+
+Phase 10F accepts ADR 0120 and implements the outer Experimental
+`kongono/opentelemetry` package. The locked `kongono-otlp-http-protobuf`
+profile version 1 directly builds generated protobuf requests and hands bytes
+to one explicit transport with bounded queue, backpressure, partial progress,
+flush, close, cleanup, disclosure, and isolation semantics. The package depends
+only on PHP, API Metadata, Diagnostics, Observability, generated OTLP protobuf
+1.10.0, and stable semantic conventions 1.38.0. The graph is exactly fifty
+acyclic packages and 169 local edges. No SDK/provider/global state, HTTP client,
+retry, backend, application workflow, or durable audit claim is added.
+
+Phase 10G accepts ADR 0121 and adds deterministic observability configuration,
+the supported application workflow, the copy-once observability skeleton, and
+the two read-only Console commands. Phase 10H accepts
+[ADR 0122](0122-phase-10-external-observability-acceptance-and-checkpoint.md)
+and closes the Phase 10 milestone with root-owned external acceptance plus one
+exact local checkpoint. The harness is test evidence only: it adds no production
+exporter, provider, backend, collector, durable audit store, deployment behavior,
+or Stable API. See the
+[Phase 10 external acceptance guide](../architecture/phase-10-external-acceptance.md).
+Kongono remains pre-1.0.

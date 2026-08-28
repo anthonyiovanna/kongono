@@ -1438,3 +1438,175 @@ state to prove the selected authentication, authorization, transport,
 enforcement, lifecycle, policy-currentness, disclosure, and cleanup boundaries.
 It is derived test evidence, not a provider, policy engine, security
 certification, production API, or authority grant.
+
+## Observability Context
+
+The implemented Phase 10B immutable explicit neutral context. It is either
+fresh uncorrelated state or carries one exact opaque `CorrelationId`. It has no
+trace/span state, attributes, sampling, propagation, global provider,
+current-span lookup, identity, credential, authorization grant, or policy
+meaning. Phase 10C Tracing and Phase 10D Metrics receive the exact context
+explicitly; neither mutates or adds runtime state to this value.
+
+## Signal Attribute
+
+An implemented Phase 10B exact key and tagged scalar value. Keys use a bounded
+lowercase ASCII grammar; values are boolean, integer, finite floating point, or
+bounded valid control-free UTF-8 text. An `AttributeSet` contains at most 32
+unique keys in canonical ordinal order. Access does not classify caller values
+as Safe for disclosure.
+
+## Observation
+
+An implemented Phase 10B immutable envelope containing explicit context,
+versioned signal identity, one closed kind, one closed status, and bounded
+attributes. It has no timestamp, duration, parent, sample, measurement,
+severity, durability, exporter, or pipeline behavior. `ObservationRecorder` is
+only an externally implemented one-method capability.
+
+## Trace
+
+Implemented Phase 10C structured evidence describing one explicit operation's
+causal span structure and monotonic timing. A trace is not a diagnostic, metric,
+operational event, audit record, identity, or authority grant. It has no global
+provider, exporter, backend, ambient current span, or OpenTelemetry mapping.
+
+## Trace Identifier
+
+An implemented opaque nonzero lowercase ASCII hexadecimal value. `TraceId` is
+exactly 32 characters and `SpanId` exactly 16. Neither claims randomness,
+uniqueness, secrecy, timing resistance, W3C conformance, or authority.
+
+## Trace Propagation
+
+The implemented immutable `TracePropagation` value retaining exact typed trace
+and span IDs plus Record/Drop after caller-owned outer validation. It is not a
+header, carrier, parser, formatter, `traceparent`, baggage, credential, or trust
+grant. Active operations/spans create fresh propagation; stale handles cannot.
+
+## Span
+
+An implemented Phase 10C bounded child unit within one explicit trace
+operation. It has exact operation ownership, parent ID, inherited trace ID and
+sampling decision, monotonic start/end timing, completion or idempotent
+retirement, and no ambient lookup. One operation permits at most 64 active
+children and rejects duplicate IDs and foreign/stale parent objects.
+
+## Metric
+
+Implemented Phase 10D bounded numeric aggregate evidence. Exact instruments are
+Counter, UpDownCounter, Gauge, and Histogram. Dimensions are immutable,
+schema-owned, canonical, and cardinality-budgeted; tenant, principal, resource,
+route parameters, exception text, URL queries, and other unbounded families
+cannot become labels. Metrics has no exporter, backend, provider, clock,
+registry, dynamic label, raw measurement log, or authority meaning.
+
+## Metric Collection
+
+An implemented explicit operation object with Active, Collected, and Retired
+states. It immediately aggregates measurements for exact plan-owned instrument
+objects, emits canonical observations only once, releases retained state before
+recording, and retires idempotently. Recorder failure is final and visible;
+collections share no ambient or runtime-global mutable state.
+
+## Operational Event
+
+Implemented Phase 10E typed structured evidence of one operator-relevant
+occurrence. A definition owns one versioned signal identity, one of six exact
+severities, and a finite schema. A record retains explicit context, caller-
+supplied neutral status, canonical schema-valid attributes, and disclosure
+derived from fields actually supplied, then maps once to a bounded Event
+observation. It is not a preformatted log string and remains distinct from
+diagnostics, security audit evidence, authorization receipts, and application
+product analytics.
+
+## Security Audit Evidence
+
+Implemented Phase 10E bounded, structured, nondisclosing evidence of a
+security-relevant fact, distinct from ordinary operational events and
+authorization receipts. It retains an explicit Succeeded, Denied, or Failed
+outcome; Short, Standard, or Extended retention intent; and the exact
+`not_guaranteed` durability truth, then maps once to a bounded Audit observation.
+It is never a credential, replayable Permit, policy authority, storage proof, or
+durability claim. Storage, retention enforcement, tamper evidence, privacy,
+compliance, and fail-open/fail-closed policy remain future decisions.
+
+## Exporter
+
+A planned outer adapter that may translate and deliver bounded signal evidence
+under explicit concurrency, batching, backpressure, failure, flush, and close
+contracts. Lower packages do not depend on exporters. Phase 10D selects no SDK,
+protocol, backend, endpoint, retry policy, or implementation.
+
+## Cardinality Budget
+
+An implemented explicit bound over metric dimension key/value space. A
+dimension has one through eight allowed values, a schema has zero through eight
+dimensions and no more than 64 Cartesian series, and a plan has no more than
+256 potential series. These bounds prevent unbounded application data from
+becoming labels or retained signal state; no eviction, hashing, truncation,
+sampling, or probabilistic admission widens them.
+
+## Kongono OTLP HTTP Protobuf Profile
+
+The implemented Phase 10F version-1 interoperability profile. It directly
+builds generated protobuf requests with `application/x-protobuf`, fixed
+`/v1/traces`, `/v1/metrics`, and `/v1/logs` suffixes, scope version
+`10F-profile-1`, and stable OpenTelemetry 1.38.0 schema evidence. It is not an
+SDK, provider, global registry, HTTP client, endpoint configuration, collector,
+backend, retry policy, or delivery guarantee.
+
+## OpenTelemetry Bridge
+
+An implemented explicit outer adapter that validates and queues neutral
+observations without I/O, then synchronously sends bounded contiguous
+same-signal OTLP protobuf batches through one caller-supplied transport. It
+provides visible no-drop backpressure, partial-progress retention, explicit
+flush, idempotent close, combined cleanup failure, nondisclosure, reentry
+rejection, and instance isolation. Its successful return proves only transport
+return, not collector receipt or persistence.
+
+## Histogram Aggregate Gauge Family
+
+The Phase 10F lossless profile mapping for neutral Histogram evidence whose
+numeric bucket boundaries are unavailable. Count, sum, min, max, and ordinal
+bucket counts become deterministic gauge metrics carrying
+`kongono.metric.mapping=histogram_aggregate_v1`. This is not a native OTLP
+Histogram and fabricates no boundary, quantile, temporality, or raw sample.
+
+## Observability Configuration Evidence
+
+The Phase 10G deterministic artifact compiled from one closed
+`kongono.observability.json` source. It binds exact source, detached semantic
+model, builder implementation, fixed profile, resource, and batch identities.
+It is inert evidence rather than a provider and performs no I/O or reload.
+
+## Current Observability Configuration
+
+An immutable Phase 10G value admitted by structural and exact-current
+validation for one explicit application root and artifact. It exposes typed
+OpenTelemetry resource and batch policy values plus bounded identities; it
+contains no endpoint, credential, transport, sampler, clock, or authority.
+
+## Application Observability Operation
+
+One explicit Phase 10G operation owning an exact trace and metric collection
+and distinct event/audit recording edges. It becomes final during completion,
+retains no operation-layer evidence afterward, and is never ambient or global.
+
+## Observability Minimal Skeleton
+
+A repository-owned copy-once example of configuration build/check, explicit
+signal execution, flush, and close. After copy its non-generated files are
+application-owned. Its deterministic collaborators and capturing zero-network
+transport are examples, not production implementations.
+
+## Phase 10 External Acceptance
+
+The root-test-owned Phase 10H proof invoked by `composer acceptance:phase10`.
+It uses fresh child processes and one uniquely owned temporary copy of the
+supported observability application to exercise exact-current configuration,
+typed signal separation, OTLP protobuf mapping, lifecycle, backpressure,
+nondisclosure, compatibility, and cleanup. Its local capturing transport and
+fixtures are test evidence only; they are not production exporters, providers,
+backends, credentials, collectors, deployment, audit durability, or authority.

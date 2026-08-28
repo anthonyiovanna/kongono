@@ -237,6 +237,49 @@ within one process and prove that no request, response, permission, route match,
 middleware, exception, or application state leaks between them. Canonical
 tests must remain deterministic and require no external network listener.
 
+## Phase 10C tracing operation lifecycle
+
+`TraceRuntime` is a stateless factory over exact caller-owned clock, identifier,
+sampler, and recorder references. Each `begin()` returns one fresh isolated
+operation root with no registry, ambient current span, thread/fiber local,
+request singleton, service lookup, or Kernel state. Sequential, overlapping,
+and recorder-reentrant operations therefore share no runtime-owned mutable
+state.
+
+One operation owns its root and at most 64 simultaneously Active children.
+Explicit child parents must be exact active Internal span objects registered to
+that operation; ID equality alone never transfers ownership. Root completion
+requires zero active children. Completion reads one monotonic end tick, becomes
+final, releases retained context/identity/attributes and collaborators before
+an external recorder call, and stays final when recording fails.
+
+Retirement is idempotent. Active operation retirement retires every active
+child, releases operation-local evidence, records nothing, calls no clock,
+identifier source, sampler, or recorder, and cannot fail. Completed or retired
+handles cannot propagate. This lifecycle adds no Composition wiring,
+application integration, shutdown action, retry, buffer, exporter, or Phase
+10D metric behavior within Tracing. See [ADR 0117](../adr/0117-operation-scoped-tracing-lifecycle-and-typed-propagation.md).
+
+## Phase 10D metric collection lifecycle
+
+`MetricRuntime` is a stateless factory over one exact caller-owned recorder.
+Each `begin()` returns one fresh isolated Active collection retaining the exact
+caller context and immutable plan. Record accepts only exact instrument objects
+owned by that plan, validates an exact schema dimension set, and immediately
+updates bounded aggregate state. No raw measurement log, global meter,
+registry, ambient current collection, clock, identifier source, thread/fiber
+local, request singleton, service lookup, or Kernel state exists.
+
+Collect transitions Active to Collected once, constructs deterministic metric
+observations in canonical plan/series order, then releases all collection
+references before the first external recorder call. A recorder failure remains
+visible with exact previous identity, is never retried, and leaves the
+collection final and empty. Successful collect also remains final. Retirement
+is idempotent; Active retirement releases state and records nothing, while
+Collected retirement changes only the lifecycle state to Retired. Sequential,
+overlapping, and recorder-reentrant collections share no runtime-owned mutable
+state. See [ADR 0118](../adr/0118-bounded-cardinality-metric-aggregation-and-explicit-collection-lifecycle.md).
+
 ## Stability
 
 Persistent-runtime-first design, runtime-independent Kernel boundaries, and the
@@ -263,6 +306,19 @@ runtime adapters remain open.
 
 ## Phase 2 runnable delivery proof
 
+## Phase 10E recorder runtime boundary
+
+Operational Events and Security Audit each expose a stateless runtime retaining
+only one explicit neutral `ObservationRecorder`. Validation is complete before
+any collaborator call; an invalid input records nothing and a valid input calls
+the recorder exactly once. Recorder failure stops immediately, preserves the
+exact previous throwable for trusted inspection, discloses no previous message,
+and is never retried. Sequential, overlapping, and recorder-reentrant calls
+share no per-call mutable state. No global provider, registry, buffer, shutdown
+hook, destructor, thread/fiber local, store, exporter, application wiring, or
+Kernel state is introduced. Phase 10F is the sole possible next handoff. See
+[ADR 0119](../adr/0119-structured-operational-events-and-bounded-security-audit-evidence.md).
+
 ADR 0049 implements Web Runtime as an Experimental top-level leaf. Phase 2H's
 test-owned delivery now proves its complete path: server-owned permission before
 request access, one Web Application call, fixed generic or eligible trusted
@@ -287,3 +343,16 @@ no production listener, server configuration, process manager, or deployment
 artifact is added. Production trusted diagnostics remain denied, Phase 3 is
 closed, and no later runtime work starts automatically. See the [fixture
 model](phase-2-runnable-fixture.md).
+
+## Phase 10F bridge runtime boundary
+
+One `OpenTelemetryBridge` instance owns one bounded queue and explicit
+Open/Flushing/Closing/Closed lifecycle. Record validates before retaining and
+does no transport I/O. Flush and close are caller-invoked synchronous edges;
+partial progress removes only successful batches, close continues cleanup after
+failure, and all queued references are released before a combined failure is
+reported. Reentry fails before mutation and separate instances share no
+mutable runtime state. There is no destructor, shutdown hook, registry,
+provider, timer, signal, background worker, thread/fiber local, retry, or
+application lifetime owner. See
+[ADR 0120](../adr/0120-explicit-opentelemetry-otlp-http-protobuf-bridge.md).
