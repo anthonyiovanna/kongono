@@ -1,5 +1,63 @@
 # Kongono Glossary
 
+> **Phase 11 complete boundary:** Phase 11H adds root-owned external proof and
+> the exact local checkpoint without changing production Graph behavior. Raw
+> Graph facts, role execution, runtime integration, authorization, Phase 12,
+> and production-readiness remain outside the accepted boundary.
+
+
+## Authoritative Application Graph
+
+The complete canonical immutable structural result returned by the Phase 11C
+`ApplicationGraphBuilder` after all supplied version-1 IR records pass schema,
+uniqueness, endpoint, tuple, and bound validation. Its authority is descriptive
+only, does not prove provenance currentness, and grants no security or
+operational permission. Standalone records and facts are not authoritative
+Graphs.
+
+## Application Graph Artifact
+
+The strict canonical Phase 11E JSON evidence derived from one freshly
+re-admitted authoritative Graph. Its Graph identity covers the canonical Graph
+payload and its artifact identity covers the whole artifact. Stable builder
+package/contract metadata is not source-code-byte attestation. Currentness is
+relative only to the exact Graph supplied by the caller.
+
+## Application Graph Artifact Inspection
+
+The immutable Phase 11F aggregate structural evidence derived from a freshly
+re-admitted canonical Graph. It contains only artifact and Graph identities,
+contract version, totals, and exact closed-vocabulary counts. It exposes no
+individual fact or field value, proves no external currentness, and grants no
+authorization.
+
+## Application Graph Intelligence View
+
+The immutable Phase 11G role-addressed Safe aggregate derived only from one
+validated Phase 11F inspection. It preserves exact identities, totals, and
+closed-vocabulary counts while exposing no individual Graph fact. Its role
+label does not execute Chie, Hantei, or Oshie and grants no authority.
+
+## Application Graph Intelligence Verification
+
+The bounded Phase 11G result of independently checking a supplied intelligence
+view against one explicit validated inspection. Its `PASS` or `FAIL` verdict
+and ordered failed-check tokens are derived evidence, not Graph authority,
+authorization, certification, or a role decision.
+
+## Graph Fact
+
+A fresh immutable field, node, or relation value derived from an admitted IR
+claim and the exact version-1 schema catalog. A fact preserves bounded
+provenance and schema metadata but grants no authority beyond structural
+description.
+
+## Graph IR Record
+
+An explicit versioned field, node, or relation claim supplied to the Phase 11C
+construction boundary. Local record validation does not establish a Graph fact,
+endpoint validity, schema admission, provenance currentness, or permission.
+
 ## Hantei
 
 The optional independent Kongono verifier implemented in Phase 4E. Hantei runs
@@ -42,7 +100,13 @@ A Principal representing an AI agent that may act only within its identity, perm
 
 ## Application Graph
 
-Kongono's planned authoritative, machine-readable representation of an application, derived from a language-neutral IR. Phase 0D implements only its generic structural prerequisite; domain schemas, stable identities, serialization, storage, compilation, security metadata, and the complete authoritative representation remain experimental or open.
+Kongono's accepted future authoritative, machine-readable representation of one
+exact application state, deterministically derived from admitted
+language-neutral IR records and explicit accepted artifacts. Phase 11A accepted
+the architecture; Phase 11B implements only its versioned contract foundation.
+The implemented Phase 0J structural snapshot remains an
+unchanged Experimental prerequisite; its graph-local keys and open kinds are
+not stable identities or framework vocabularies.
 
 ## Application Graph Structural Snapshot
 
@@ -1610,3 +1674,54 @@ typed signal separation, OTLP protobuf mapping, lifecycle, backpressure,
 nondisclosure, compatibility, and cleanup. Its local capturing transport and
 fixtures are test evidence only; they are not production exporters, providers,
 backends, credentials, collectors, deployment, audit durability, or authority.
+
+## Authoritative Graph Fact
+
+A structurally descriptive fact produced by the future accepted deterministic
+Graph build and validation pipeline for one exact source and configuration
+state. Inputs, partial records, caches, extension claims, model output, and
+stale or mixed-version artifacts are not authoritative facts. A Graph fact
+grants no identity, authorization, capability, secret, filesystem, process,
+network, database, deployment, or production authority.
+
+## Language-Neutral Intermediate Representation
+
+The accepted future versioned producer-facing input boundary from which the
+authoritative Application Graph will be derived. It is not PHP reflection
+output, a service container, runtime registry, metadata bag, database model,
+documentation index, or AI-generated guess. Phase 11B implements schema and
+identity contracts but no IR records, construction, or wire format.
+
+## Graph Provenance
+
+Bounded non-secret evidence identifying a future admitted record or derived
+fact's producer identity, source identity, producer contract, derivation
+version, and exact source digest. Phase 11B performs no currentness check.
+Provenance is evidence rather than permission and does not copy secrets,
+Protected values, raw rejected input, arbitrary source bodies, or unrelated
+workspace data into the Graph.
+
+## Graph Visibility
+
+The explicit typed eligibility boundary controlling which admitted Graph facts
+a future consumer view may receive. Phase 11B defines Public, Application, and
+Framework Internal values. Omission means only that a fact is absent from that
+view; it must not be interpreted as authoritative false. No filter, consumer
+API, or access grant is implemented.
+
+## Application Graph Contract
+
+The separate Experimental `kongono/application-graph-contract` package added
+by Phase 11B. It owns contract version 1, distinct stable node/relation/
+producer/source identities, the closed first Composition vocabularies, typed
+schema descriptors and catalog, bounded provenance, fact visibility, field
+disclosure, and non-disclosing diagnostics. It constructs no Graph or IR and
+grants no security or operational authority.
+
+## Phase 11 Roadmap
+
+The fixed dependency order from architecture through identity/schema,
+language-neutral IR construction, Composition projection, canonical artifact,
+bounded inspection, developer-intelligence derivation, and root-owned external
+acceptance. Each row requires separate independently authenticated authority;
+the roadmap does not authorize a later row or Phase 12.

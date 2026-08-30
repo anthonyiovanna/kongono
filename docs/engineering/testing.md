@@ -1,5 +1,11 @@
 # Testing
 
+> **Phase 11 complete boundary:** `composer acceptance:phase11` adds root-owned
+> external proof and the exact local checkpoint without changing production
+> Graph behavior. Phase 12 and production-readiness remain outside the accepted
+> boundary.
+
+
 ## Purpose and runner
 
 PHPUnit 13 is the official runner for Kongono's own framework repository. This decision gives core development one test lifecycle and assertion model; it does not constrain applications built with Kongono or create a framework testing API.
@@ -646,3 +652,95 @@ fixed `phase10_acceptance_failed` token. No case count is predeclared: the
 passing run records the observed count. This proof is test evidence and makes
 no production-readiness, security-certification, portability, performance, or
 Phase 11 claim.
+
+## Phase 11A and 11B Graph contract proof
+
+Phase 11A added no production or test PHP and preserved the Phase 10
+inventories while proving the exact documentation boundary. Phase 11B adds 23
+production declarations, six package-test files, and bounded root architecture
+coverage. Tests prove the exact four identity categories and prefixes, malformed
+digest non-disclosure, closed enums, field-name boundary, readonly detachment,
+canonical schema rejection, the exact version-1 catalog and endpoints, bounded
+provenance, diagnostic metadata, package direction, tooling integration, and
+the frozen Phase 0J identity. Architecture checks enforce 53 packages, 184
+local edges, 912 production PHP files, 467 package-test PHP files, and 64 root-
+test PHP files, plus local Markdown links, encoding and ordinary-file safety,
+ADR ordering, the eight-row Phase 11
+roadmap, and absence of implementation or production-readiness claims.
+
+Canonical `composer quality` remains required before and after the bounded
+implementation. Its result proves only the exact source state and configured PHP 8.5
+environment. It does not implement the IR, Graph construction, artifact,
+consumer, extension, or developer-intelligence boundaries described by the
+roadmap. Each later Phase 11 row requires its own focused tests, external proof
+where applicable, independently authenticated authority, and fresh canonical
+validation.
+
+## Phase 11C Graph construction proof
+
+Phase 11C adds 13 production PHP files and seven package-test PHP files. Focused
+tests prove exact text grammar and bounds, canonical record lists, complete
+four-node/four-relation schema admission, optional fields, duplicates,
+endpoints, permitted self-dependency and cycles, fixed construction bounds,
+order independence, fresh fact objects, detached immutable lists, state
+isolation, and bounded non-disclosing failures. Root architecture coverage
+enforces exact API status and surfaces, 54 package manifests, 187 local edges,
+925 production PHP files, 474 package-test PHP files, 64 root-test PHP files,
+and the unchanged Phase 0J package.
+
+These tests do not prove Composition projection, serialization, artifact
+currentness, publication, inspection consumers, AI integration, production
+readiness, or Phase 11D behavior.
+
+## Phase 11E Graph artifact proof
+
+Phase 11E adds 17 production and eight package-test PHP files. Focused tests
+prove fresh Graph re-admission, canonical JSON and identities, strict duplicate
+and shape rejection, caller-relative currentness, guarded explicit loading,
+atomic idempotent no-clobber publication, nondisclosure, isolation, and cleanup.
+Root architecture evidence enforces 56 manifests, 196 local edges, 953
+production PHP files, 489 package-test PHP files, and 64 root-test PHP files.
+These tests do not prove source-code-byte identity, signing, source/workspace
+currentness, inspection, CLI/application consumption, AI access, deployment, or
+production readiness; those are exclusions of the Phase 11E proof itself.
+
+## Phase 11F Graph inspection proof
+
+Phase 11F adds two production and two package-test PHP files. Focused tests
+prove zero and mixed vocabulary counts, builder/validator equivalence,
+permutation and repeated-call determinism, separate-process isolation, invalid
+count rejection, no field-value access, exact fifteen-field Safe projection,
+ordinal Console ordering, fixed failure mapping, read-only behavior,
+non-disclosure, help, and source/Composer-proxy parity. Root architecture
+evidence enforces 56 manifests, 197 local edges, 955 production PHP files, 491
+package-test PHP files, 64 root-test PHP files, and unchanged Console core and
+Phase 0J `framework:graph` bytes.
+
+These tests do not prove source, Composition, generated-wiring, workspace,
+deployment, or runtime currentness, authorization, individual-fact access,
+developer-intelligence integration, production readiness, or Phase 11G behavior.
+
+## Phase 11G Application Graph developer-intelligence proof
+
+Phase 11G adds ten production PHP files and six package-test PHP files. Focused
+tests prove exact role vocabulary, deterministic aggregate derivation, zero and
+mixed counts, detached serialization, constructor invariants, Safe diagnostic
+context, non-disclosure, and independent six-check PASS/FAIL verification.
+Root architecture evidence enforces 57 manifests, 201 local edges, 965
+production PHP files, 497 package-test PHP files, 68 root-test PHP files, exact
+API status, tooling registration, and the corrected four-edge dependency
+boundary.
+
+These tests do not prove raw or individual-fact access, Graph/workspace/runtime
+currentness, role execution, authorization, mutation, AI/model/provider/network
+integration, or production readiness.
+
+## Phase 11H external Application Graph proof
+
+Phase 11H adds four root-test PHP files and `composer acceptance:phase11`.
+The external 40-case profile proves real Composition-to-Graph construction,
+canonical artifacts, explicit guarded loading, bounded inspection, the
+supported `kongo` path, visibility-safe role projections, unchanged Chie and
+Hantei boundaries, hostile failure behavior, non-disclosure, forced cleanup,
+repeatability, concurrency, repository preservation, and zero child/lifecycle
+residue. It adds no production PHP or dependency edge.

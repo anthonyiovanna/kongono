@@ -1,19 +1,27 @@
 # Architecture Overview
 
+> **Phase 11 complete boundary:** Phase 11H adds root-owned external proof and
+> the exact local checkpoint without changing production Graph behavior. Raw
+> Graph facts, role execution, runtime integration, authorization, Phase 12,
+> and production-readiness remain outside the accepted boundary.
+
+
 ## Current reality
 
-Phase 7 is complete at checkpoint
-`b09b0c654f8b67f7cac3807f839f665e8c5b5469`, tree
-`c0b6fed92dbb43d0bb91891b4e4496e84c0c85e4`. Phase 8G adds the upper
-`kongono/console-application` boundary at the Phase 8 checkpoint. Phase 9G now
-adds deterministic rule-free policy identity evidence and the supported
-protected application workflow through `kongono/security-policy-build` and
-`kongono/security-application`; Phase 10B adds the neutral
-`kongono/observability` package, Phase 10C adds `kongono/tracing`, Phase 10D
-adds `kongono/metrics`, and Phase 10E adds separate
-`kongono/operational-events` and `kongono/security-audit`, bringing the topology
-to exactly forty-nine acyclic production packages. The official one-shot `kongo` executable implements
-exactly `application:build`, `security:check`, and `security:inspect`. The earlier Phase 2 checkpoint
+Phase 10 is complete at checkpoint
+`6f7865dbacc7dd9c4b90d2b60bd229b89efbd535`; Phase 11G brings the graph to exactly 57
+acyclic production packages and 201 local production
+edges. The official one-shot
+`kongo` executable implements exactly `application-graph:inspect`,
+`application:build`,
+`observability:check`, `observability:inspect`, `security:check`, and
+`security:inspect`. Phase 11A is historical and complete; Phase 11B implements
+the neutral contract foundation, Phase 11C implements explicit IR admission,
+Phase 11D implements Composition projection, Phase 11E implements canonical
+Graph artifacts and guarded publication, and Phase 11F implements bounded
+artifact inspection and its explicit read-only command. Phase 11G remains
+unstarted.
+The earlier Phase 2 checkpoint
 `647053d4bddc4c76090bca9bf3d693faa5880c52` retains its root-owned, test-owned
 runnable fixture. The
 fixture externally proves bounded first-party HTTP messages, deterministic
@@ -815,3 +823,33 @@ signal boundaries without adding production packages, APIs, dependencies,
 exporters, providers, backends, collectors, deployment behavior, or Phase 11
 work. See the [external acceptance guide](phase-10-external-acceptance.md).
 Kongono remains pre-1.0.
+
+## Phase 11A and 11B authoritative Graph foundation
+
+Phase 11A accepted [ADR 0123](../adr/0123-authoritative-application-graph-and-language-neutral-ir-boundary.md),
+the [Authoritative Application Graph guide](authoritative-application-graph.md),
+and the fixed [Phase 11 roadmap](phase-11-roadmap.md). Producer IR records are
+explicit versioned inputs; authoritative Graph facts are the validated
+canonical immutable derivation for one exact state. Only the accepted
+deterministic pipeline may confer that status.
+
+The required future foundation includes stable identities, typed node/relation
+vocabularies and schemas, provenance, visibility, currentness, deterministic
+construction, canonical artifact handling, bounded consumer views, and
+fail-without-publication behavior. Graph facts remain descriptive and never
+grant security or operational authority. Consumers must not treat omitted facts
+as false, and AI output cannot establish Graph facts.
+
+Phase 11B accepts [ADR 0124](../adr/0124-versioned-application-graph-contract-foundation.md)
+and implements the separate `kongono/application-graph-contract` package. The
+Phase 0J structural snapshot remains Experimental and unchanged; its local keys
+and open kinds are not retroactively stable Phase 11 contracts. No IR record,
+Graph construction, projection, serialization, artifact, Chie/Hantei/Oshie
+access, extension behavior, Agent Principal behavior, frontend contract,
+command, consumer, or later Phase 11 capability was implemented by Phase 11B.
+Phase 11F now provides only the bounded inspection described in
+[ADR 0128](../adr/0128-bounded-application-graph-inspection-and-supported-cli-consumption.md).
+Phase 11G adds only the visibility-safe aggregate derivation and independent
+verification described in
+[ADR 0129](../adr/0129-visibility-safe-application-graph-developer-intelligence.md)
+and the [Application Graph developer-intelligence guide](application-graph-developer-intelligence.md).

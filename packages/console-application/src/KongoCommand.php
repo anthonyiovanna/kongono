@@ -11,6 +11,7 @@ use Kongono\ApiMetadata\ApiStatus;
 #[Api(ApiStatus::Experimental)]
 enum KongoCommand: string
 {
+    case ApplicationGraphInspect = 'application-graph:inspect';
     case ApplicationBuild = 'application:build';
     case ObservabilityCheck = 'observability:check';
     case ObservabilityInspect = 'observability:inspect';

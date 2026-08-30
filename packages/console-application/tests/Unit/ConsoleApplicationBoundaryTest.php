@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kongono\ConsoleApplication\Tests\Unit;
 
+use Kongono\ApplicationGraphArtifact\Artifact\ApplicationGraphArtifactLoader;
 use Kongono\Composition\Workflow\ApplicationBuildWorkflow;
 use Kongono\ConsoleApplication\Handler\ApplicationBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\ApplicationGraphInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
@@ -34,6 +36,7 @@ final class ConsoleApplicationBoundaryTest extends TestCase
         self::assertSame('kongono/console-application', $manifest['name']);
         self::assertSame([
             'kongono/api-metadata' => '*',
+            'kongono/application-graph-artifact' => '*',
             'kongono/composition' => '*',
             'kongono/console' => '*',
             'kongono/console-presentation' => '*',
@@ -45,8 +48,8 @@ final class ConsoleApplicationBoundaryTest extends TestCase
         ], $manifest['require']);
         self::assertSame(['kongono/console-build' => '*'], $manifest['require-dev']);
         self::assertSame(['bin/kongo'], $manifest['bin']);
-        self::assertCount(17, self::phpFiles($root . '/src'));
-        self::assertCount(12, self::phpFiles($root . '/tests'));
+        self::assertCount(18, self::phpFiles($root . '/src'));
+        self::assertCount(13, self::phpFiles($root . '/tests'));
         self::assertSame(['kongo'], array_map('basename', self::ordinaryFiles($root . '/bin')));
     }
 
@@ -65,6 +68,10 @@ final class ConsoleApplicationBoundaryTest extends TestCase
         }
         $specifications = $artifact->model()->specifications();
         $handlers = new CommandHandlerSet([
+            new CommandHandlerBinding(
+                new \Kongono\Console\CommandIdentifier(KongoCommand::ApplicationGraphInspect->value),
+                new ApplicationGraphInspectCommandHandler(new ApplicationGraphArtifactLoader()),
+            ),
             new CommandHandlerBinding(
                 new \Kongono\Console\CommandIdentifier(KongoCommand::ApplicationBuild->value),
                 new ApplicationBuildCommandHandler(new ApplicationBuildWorkflow()),
@@ -89,13 +96,14 @@ final class ConsoleApplicationBoundaryTest extends TestCase
         (new KongoCommandValidator())->validate($specifications, $handlers);
 
         $commands = $specifications->commands();
-        self::assertCount(5, $commands);
+        self::assertCount(6, $commands);
         self::assertSame(
-            ['application:build', 'observability:check', 'observability:inspect', 'security:check', 'security:inspect'],
+            ['application-graph:inspect', 'application:build', 'observability:check', 'observability:inspect', 'security:check', 'security:inspect'],
             array_map(static fn($command): string => $command->definition()->identifier()->value(), $commands),
         );
         self::assertSame(
             [
+                'Inspect one authoritative application graph artifact',
                 'Build exact current application composition outputs',
                 'Check exact current observability configuration evidence',
                 'Inspect planned observability configuration evidence',
@@ -104,8 +112,8 @@ final class ConsoleApplicationBoundaryTest extends TestCase
             ],
             array_map(static fn($command): string => $command->definition()->summary()->value(), $commands),
         );
-        foreach ($commands as $command) {
-            self::assertSame(['application-root', 'output-directory'], array_map(
+        foreach ($commands as $position => $command) {
+            self::assertSame(0 === $position ? ['artifact-path'] : ['application-root', 'output-directory'], array_map(
                 static fn($input): string => $input->name()->value(),
                 $command->inputs(),
             ));

@@ -243,4 +243,26 @@ lower signal packages. Closed configuration becomes deterministic exact-current
 evidence, then explicit construction supplies live collaborators. One bounded
 application operation owns cleanup and signal routing; no container, global
 provider, environment discovery, or hot reload is introduced. The graph has
-182 local edges across 52 acyclic packages. Phase 10H remains future work.
+182 local edges across 52 acyclic packages. Phase 10H closes the milestone at
+checkpoint `6f7865dbacc7dd9c4b90d2b60bd229b89efbd535` with root-owned external
+acceptance and no new production behavior.
+
+## Phase 11A progressive Graph boundary
+
+Phase 11A accepts the future authoritative Application Graph as an optional
+machine-readable substrate without making it a prerequisite for direct use of
+Kernel, Composition, HTTP, database, persistence, security, observability, or
+the existing structural Graph. Small applications may keep using those lower
+accepted boundaries while later separately authorized phases add Graph
+production and consumption.
+
+The future IR admits explicit producer records; the future Graph derives
+validated canonical immutable facts for one exact application state. Stable
+identity, typed vocabulary/schema, provenance, visibility, construction,
+artifact currentness, inspection, and developer-intelligence derivation follow
+the fixed [Phase 11 roadmap](phase-11-roadmap.md). No row starts automatically.
+
+Phase 11A implements none of those mechanisms and does not change the Phase 0J
+snapshot, introduce a package or command, or grant AI, extensions, or agents
+authority. See the [Authoritative Application Graph guide](authoritative-application-graph.md)
+and [ADR 0123](../adr/0123-authoritative-application-graph-and-language-neutral-ir-boundary.md).

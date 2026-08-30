@@ -4,6 +4,7 @@
     "type": "library",
     "require": {
         "kongono/api-metadata": "*",
+        "kongono/application-graph-artifact": "*",
         "kongono/composition": "*",
         "kongono/console": "*",
         "kongono/console-presentation": "*",

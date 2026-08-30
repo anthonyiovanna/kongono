@@ -155,3 +155,30 @@ generic queries, multiple-kind selection, predicates, traversal, neighbor
 selection, mutation, framework integration, query planning, and performance
 budgets remain unresolved. The model is Experimental and is not yet the full
 authoritative application representation.
+
+## Phase 11A and 11B relationship
+
+Phase 11A accepted the architecture for a separate future authoritative Graph
+derived from versioned language-neutral IR records. Phase 11B implements the
+separate `kongono/application-graph-contract` foundation without promoting or
+changing this structural package. `NodeKey` remains opaque and graph-local;
+`NodeKind` and `RelationKind` remain open producer labels. None is a stable
+Phase 11 identity, vocabulary member, schema discriminator, or serialization
+contract.
+
+Future authoritative facts require separately accepted typed identities,
+vocabularies, schemas, provenance, visibility, deterministic construction,
+exact currentness, and canonical artifact handling. Inputs and producer claims
+remain non-authoritative until admitted. Consumer views cannot grant security
+or operational authority and must not treat omission as false.
+
+No current constructor, accessor, selector, diagnostic, dependency, ordering,
+complexity, lifecycle, or test expectation changes in Phase 11B or 11C. The
+separate Phase 11C builder creates fresh facts and does not consume this package.
+See
+[ADR 0123](../adr/0123-authoritative-application-graph-and-language-neutral-ir-boundary.md),
+[ADR 0124](../adr/0124-versioned-application-graph-contract-foundation.md),
+[ADR 0125](../adr/0125-language-neutral-application-graph-ir-and-deterministic-construction.md),
+the [Authoritative Application Graph guide](../architecture/authoritative-application-graph.md),
+the [IR and construction guide](../architecture/application-graph-ir-and-construction.md),
+and the [Phase 11 roadmap](../architecture/phase-11-roadmap.md).

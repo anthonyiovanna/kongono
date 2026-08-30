@@ -19,7 +19,9 @@ command handlers. Phase 8G adds the Experimental
 bringing the production topology to thirty-six acyclic packages. The supported
 application exposed exactly `application:build` at the Phase 8 checkpoint. Phase
 9G adds exactly `security:check` and `security:inspect`; no mutable registry or
-runtime discovery exists.
+runtime discovery exists. Phase 10G adds exactly `observability:check` and
+`observability:inspect`. Phase 11F adds exactly the one-input read-only
+`application-graph:inspect` consumer.
 
 ## Current truth and planned truth
 
@@ -36,14 +38,19 @@ the [`kongono/console` guide](../../packages/console/README.md), and the
 [Phase 8 roadmap](phase-8-roadmap.md). They accept doctrine, lifecycle,
 security, automation, dependency direction, and the exact neutral values.
 
-The current application implements only the closed three-command `kongo` help
-and grammar. `application:build` retains `--plan` as its honest non-mutating dry
+The current application implements the closed six-command `kongo` help and
+grammar. `application:build` retains `--plan` as its honest non-mutating dry
 run and `--apply` as explicit
 mutation authority, and `--no-interaction` is automation-safe because no prompt
 exists. `security:check` and `security:inspect` require only ordinary
 application-root/output-directory inputs, are read-only, accept no plan/apply,
 and disclose only bounded artifact/source identities and currentness facts.
-Other commands and option surfaces remain unimplemented.
+The observability pair remains separately read-only. `application-graph:inspect`
+accepts one required ordinary `artifact-path`, structurally validates that one
+explicit artifact, and returns only bounded identities and vocabulary counts.
+It makes no source, Composition, generated-wiring, workspace, deployment, or
+runtime currentness claim. Other commands and option surfaces remain
+unimplemented.
 
 ## Three-way separation
 
@@ -246,7 +253,7 @@ and the exact checkpoint without adding production behavior.
 
 ## Phase 10G observability commands
 
-The official supported family is exactly five commands: `application:build`,
+At Phase 10G, the official supported family was exactly five commands: `application:build`,
 `observability:check`, `observability:inspect`, `security:check`, and
 `security:inspect`. The two observability commands require exactly
 `application-root` and `output-directory`, disable interaction, declare
@@ -254,3 +261,13 @@ The official supported family is exactly five commands: `application:build`,
 and machine forms derive from one bounded neutral result and disclose no raw or
 absolute path, resource/batch value, source byte, payload, endpoint,
 credential, provider, or exception message.
+
+## Phase 11F Application Graph inspection command
+
+The current official supported family is exactly six commands in Console's
+accepted ordinal case-sensitive identifier order: `application-graph:inspect`,
+`application:build`, `observability:check`, `observability:inspect`,
+`security:check`, and `security:inspect`. The Graph command requires exactly
+one ordinary `artifact-path`, disables interaction, declares `ReadOnly`, and
+returns only the bounded structural evidence described by ADR 0128. It does
+not expose individual Graph facts or make an external-currentness claim.

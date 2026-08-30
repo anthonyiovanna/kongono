@@ -18,6 +18,7 @@ final class KongoApplicationTest extends TestCase
 
         self::assertSame(0, $humanStatus);
         self::assertStringContainsString('Command: application:build', $humanOut);
+        self::assertStringContainsString('Command: application-graph:inspect', $humanOut);
         self::assertStringContainsString('Command: observability:check', $humanOut);
         self::assertStringContainsString('Command: observability:inspect', $humanOut);
         self::assertStringContainsString('Command: security:check', $humanOut);
@@ -37,16 +38,17 @@ final class KongoApplicationTest extends TestCase
             self::fail('Machine help must contain one command and its inputs.');
         }
         self::assertSame('kongono.command-help', $decoded['schema']);
-        self::assertSame('application:build', $command['identifier']);
-        self::assertSame(['application-root', 'output-directory'], array_column($inputs, 'name'));
+        self::assertSame('application-graph:inspect', $command['identifier']);
+        self::assertSame(['artifact-path'], array_column($inputs, 'name'));
         self::assertSame([
+            'application-graph:inspect',
             'application:build',
             'observability:check',
             'observability:inspect',
             'security:check',
             'security:inspect',
         ], array_column($commands, 'identifier'));
-        self::assertCount(5, $commands);
+        self::assertCount(6, $commands);
     }
 
     public function testInvalidRequestsHaveStableExitAndNoRawDisclosure(): void

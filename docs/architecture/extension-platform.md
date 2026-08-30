@@ -50,3 +50,19 @@ The secure, governed Extension Platform direction is **LOCKED**. Host APIs, mani
 - [Application Graph](application-graph.md)
 - [Agent model](agent-model.md)
 - [ADR 0009](../adr/0009-secure-extension-platform.md)
+
+## Phase 11A contribution boundary
+
+Phase 11A accepts only the architecture for future attributable extension
+contributions to the authoritative Application Graph. An extension claim is an
+input, not a Graph fact. It must eventually identify its producer and exact
+source state and pass separately accepted schema, provenance, visibility,
+conflict, and governance checks before admission.
+
+The Graph cannot grant an extension filesystem, process, network, database,
+secret, deployment, or production authority. The future Extension Host remains
+the separate owner of those permissions and is not implemented by Phase 11.
+No manifest, contribution schema, merge API, host, sandbox, loader, agent
+capability, or extension runtime is added. See
+[ADR 0123](../adr/0123-authoritative-application-graph-and-language-neutral-ir-boundary.md)
+and the [Phase 11 roadmap](phase-11-roadmap.md).

@@ -1,5 +1,11 @@
 # Package Layout
 
+> **Phase 11 complete boundary:** Phase 11H adds four root-test PHP files and no
+> production package or edge. The topology remains 57 packages and 201 acyclic
+> local production edges; Phase 12 and production-readiness remain outside the
+> accepted boundary.
+
+
 ## Purpose and convention
 
 Kongono's initial monorepo gives each authorized framework package explicit
@@ -612,6 +618,15 @@ See the
 application-owned Composer scripts in the copy-once skeleton; it adds no
 package `bin`, framework CLI, listener, or deployment behavior.
 
+Phase 11E adds the separate leaf `packages/application-graph-artifact` /
+`kongono/application-graph-artifact`. Phase 11F brings it to 18 production PHP
+files and nine package-test PHP files. It owns canonical
+serialization, structural and caller-relative current validation, guarded
+explicit loading, atomic no-clobber publication, and bounded aggregate
+inspection. Only its loader and publisher perform filesystem I/O. The existing
+upper `kongono/console-application` package is its sole production consumer,
+creating exactly one new local edge and no reverse lower-layer dependency.
+
 ## Phase 6E database package boundary
 
 Phase 5 is complete at checkpoint
@@ -1095,3 +1110,50 @@ The root acceptance boundary may compose public package/application APIs with
 test-owned clocks, identifiers, sampler, work, and capture transport. Those
 fixtures are proof collaborators only and cannot become production defaults,
 providers, exporters, discovery, deployment, or durable storage.
+## Phase 11B Application Graph contract package boundary
+
+Phase 11B adds the separate Experimental
+`packages/application-graph-contract` package under
+`Kongono\ApplicationGraphContract\`. It requires only API Metadata,
+Diagnostics, and PHP. No other production package depends on it in this phase;
+the root adds the only development integration. The current graph therefore
+contains exactly 53 acyclic production packages and 184 local production edges.
+
+The package contains 23 production PHP files and six package-test PHP files,
+bringing the repository inventories to 912 production PHP files, 467 package-
+test PHP files, and 64 root-test PHP files. It owns contract values only: no IR,
+Graph implementation, Composition projection, serializer, artifact, command,
+consumer, I/O, or runtime authority. The Phase 0J
+`kongono/application-graph` package remains byte-identical and distinct.
+
+## Phase 11C Application Graph build package boundary
+
+Phase 11C adds `packages/application-graph-build` under
+`Kongono\ApplicationGraphBuild\`. It depends only on API Metadata, Application
+Graph Contract, Diagnostics, and PHP; no production package depends on it. The
+repository therefore contains exactly 54 acyclic production packages and 187
+local production edges.
+
+The package contains 13 production PHP files and seven package-test PHP files,
+bringing the repository inventories to 925 production PHP files, 474 package-
+test PHP files, and 64 root-test PHP files. It owns explicit IR admission and
+canonical immutable fact construction only. It owns no discovery, Composition
+projection, I/O, serializer, artifact, currentness, publication, inspection,
+consumer, or runtime authority.
+
+## Phase 11G Application Graph intelligence package boundary
+
+Phase 11G adds `packages/application-graph-intelligence` under
+`Kongono\ApplicationGraphIntelligence\`. It depends only on PHP, API Metadata,
+Application Graph Artifact, Application Graph Contract, and Diagnostics. No
+existing production package depends on it. The corrected topology contains
+exactly 57 acyclic production packages and 201 local production edges.
+
+The package contains ten production PHP files and six package-test PHP files,
+bringing the repository inventories to 965 production PHP files, 497 package-
+test PHP files, and 64 root-test PHP files. It owns one closed three-role label,
+one Safe aggregate view and deterministic deriver, one bounded independent
+verification result and verifier, and non-disclosing diagnostics/exceptions.
+It owns no raw Graph or individual-fact access, role execution, model, provider,
+network, registry, authorization, mutation, runtime integration, or Phase 11H
+behavior.

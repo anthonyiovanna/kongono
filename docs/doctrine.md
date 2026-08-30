@@ -1,5 +1,11 @@
 # Kongono Architectural Doctrine
 
+> **Phase 11 complete boundary:** Phase 11H adds root-owned external proof and
+> the exact local checkpoint without changing production Graph behavior. Raw
+> Graph facts, role execution, runtime integration, authorization, Phase 12,
+> and production-readiness remain outside the accepted boundary.
+
+
 ## Status
 
 The principles in this document are locked architectural direction. Phase 2A
@@ -899,3 +905,47 @@ The capture transport is test-owned and performs no network export. This proof
 adds no production package, runtime API, provider, backend, collector,
 deployment, durable audit, autonomous-operation, or Phase 11 authority.
 Kongono remains pre-1.0.
+
+## Authoritative Application Graph doctrine
+
+Phase 10 is complete at checkpoint
+`6f7865dbacc7dd9c4b90d2b60bd229b89efbd535`. Phase 11A accepted
+[ADR 0123](adr/0123-authoritative-application-graph-and-language-neutral-ir-boundary.md)
+and the fixed [Phase 11 roadmap](architecture/phase-11-roadmap.md) as
+documentation architecture only. Phase 11B accepts
+[ADR 0124](adr/0124-versioned-application-graph-contract-foundation.md) and
+implements the separate versioned contract package.
+
+The language-neutral IR is a versioned producer-facing input boundary. The
+authoritative Graph is a deterministic, canonical, immutable derivation from
+admitted records and explicit accepted artifacts for one exact application
+state. Only a separately accepted build/validation pipeline may establish
+Graph facts. Source access, producer claims, cache presence, model confidence,
+recency, repetition, and consumer inference grant no authority.
+
+Graph authority is descriptive, not operational. It cannot authenticate,
+authorize, grant a capability, disclose a secret, access the filesystem,
+process, network, or database, deploy, or mutate production. Provenance is
+evidence, not permission. Visibility and disclosure apply before consumption,
+and omitted facts are not false.
+
+The future boundary requires stable versioned identities, separate typed node
+and relation vocabularies, typed schemas, bounded provenance, exact currentness,
+deterministic collision-free validation, canonical results, and visible
+fail-without-publication behavior. Phase 11B implements the exact first
+identity, Composition vocabulary, schema catalog, provenance, visibility,
+disclosure, and diagnostic values. Phase 11C implements explicit IR claim
+records and complete deterministic all-or-nothing construction of canonical
+immutable Graph facts. Phase 11D implements the separate Composition projection.
+Phase 11E implements canonical content-derived artifacts, caller-relative
+currentness, guarded loading, and no-clobber publication without source-code-
+byte attestation, command, frontend, extension mechanism, or runtime integration.
+
+The Experimental Phase 0J structural snapshot remains unchanged. Its opaque
+local keys and open kinds are not retroactively Phase 11 identities or
+vocabularies. Phase 11F adds bounded aggregate inspection, and Phase 11G adds
+only a role-addressed Safe aggregate derivation plus independent verification.
+Chie, Hantei, Oshie, Agent Principals, extensions, and other consumers gain no
+raw or individual-fact access and no Graph authority by implication. Phase 11H,
+Phase 12, Stable API, 1.0, and production-readiness claims require separate
+independently authenticated authority and do not begin automatically.

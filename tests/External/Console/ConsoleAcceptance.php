@@ -103,6 +103,15 @@ final class ConsoleAcceptance
             ],
         ];
         $expectedGlobalHelp = [
+            [
+                'identifier' => 'application-graph:inspect',
+                'summary' => 'Inspect one authoritative application graph artifact',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'artifact-path', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
             $expectedHelp,
             [
                 'identifier' => 'observability:check',
@@ -151,7 +160,12 @@ final class ConsoleAcceptance
             . "Interaction: none\nMutation: mutation_capable\nInputs:\n"
             . "  --application-root=<value> (required, ordinary)\n"
             . "  --output-directory=<value> (required, ordinary)\n";
-        $expectedGlobalHumanHelp = $expectedHumanHelp
+        $expectedGlobalHumanHelp = "Command: application-graph:inspect\n"
+            . "Summary: Inspect one authoritative application graph artifact\n"
+            . "Usage: kongo application-graph:inspect --artifact-path=<value>\n"
+            . "Interaction: none\nMutation: read_only\nInputs:\n"
+            . "  --artifact-path=<value> (required, ordinary)\n\n"
+            . $expectedHumanHelp
             . "\nCommand: observability:check\n"
             . "Summary: Check exact current observability configuration evidence\n"
             . "Usage: kongo observability:check --application-root=<value> --output-directory=<value>\n"
@@ -180,6 +194,7 @@ final class ConsoleAcceptance
         $directHumanHelp = $this->execute($application, $this->source, []);
         $this->expect($directHumanHelp, 0, $expectedGlobalHumanHelp, '');
         $this->human($directHumanHelp->stdout());
+        $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: application-graph:inspect'), 'human_help_command_count');
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: application:build'), 'human_help_command_count');
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: observability:check'), 'human_help_command_count');
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: observability:inspect'), 'human_help_command_count');

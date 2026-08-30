@@ -1,5 +1,13 @@
 # Application Composition and Build
 
+> **Phase 11F current boundary:** Experimental `kongono/application-graph-artifact`
+> now provides a bounded neutral structural inspection, and the supported
+> `kongo application-graph:inspect` command consumes one explicit validated
+> artifact without disclosing individual facts. Phase 11G remains unstarted;
+> no registry, AI access, runtime integration, authorization, or production-
+> readiness claim exists.
+
+
 ## Purpose and status
 
 This guide explains the Accepted Phase 5 architecture for a supported
@@ -20,6 +28,11 @@ Chie, Hantei, and Oshie are optional Experimental developer tools.
 
 The existing resolver consumes explicit runtime values, validates their
 complete dependency graph, and constructs transient instances on every edge.
+
+Phase 11E does not change this workflow. Its separate Graph artifact package
+accepts only an already-built authoritative Graph and neither reads Composition
+source nor attests to source-code bytes. Exact currentness remains relative to
+the Graph explicitly supplied by the caller.
 The Application Graph remains unchanged and unintegrated as its current
 structural snapshot. Neither is integrated with a build artifact or generated
 wiring.

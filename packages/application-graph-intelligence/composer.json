@@ -1,0 +1,22 @@
+{
+  "name": "kongono/application-graph-intelligence",
+  "description": "Visibility-safe Application Graph evidence for Kongono developer-intelligence roles.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/application-graph-artifact": "*",
+    "kongono/application-graph-contract": "*",
+    "kongono/diagnostics": "*",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\ApplicationGraphIntelligence\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\ApplicationGraphIntelligence\\Tests\\": "tests/"
+    }
+  }
+}

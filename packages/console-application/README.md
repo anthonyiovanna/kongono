@@ -2,8 +2,9 @@
 
 `kongono/console-application` is the Experimental upper application
 and native-process boundary for the official `kongo` executable. It exposes
-exactly five supported commands: `application:build`, `observability:check`,
-`observability:inspect`, `security:check`, and `security:inspect`.
+exactly six supported commands: `application-graph:inspect`,
+`application:build`, `observability:check`, `observability:inspect`,
+`security:check`, and `security:inspect`.
 
 Use it for a one-shot Composition build when the caller supplies an explicit
 application root and output directory. `--plan` is a non-mutating dry run: it
@@ -25,6 +26,15 @@ profile identifier, and a publication/currentness fact. They do not build,
 publish, repair, scan, access a network, or disclose configuration/resource
 values, batch values, payloads, providers, endpoints, credentials, or paths.
 
+`application-graph:inspect` accepts exactly one required ordinary
+`artifact-path`. It loads that explicit canonical artifact once and returns
+only artifact/Graph identities, version, totals, and exact closed-vocabulary
+counts. The fifteen Safe fields retain Console's ordinal field-name order. The
+command discloses no path, bytes, individual fact, field, provenance, class,
+service, contract, root, exception detail, or trace. Success proves structure,
+not source, Composition, generated-wiring, workspace, deployment, or runtime
+currentness; identities and counts never grant authorization.
+
 The commands have no prompt. `--no-interaction` is safe for automation and does
 not change command semantics. Human and canonical machine output share one
 neutral result and exit map, and the selected output stream receives one
@@ -43,8 +53,9 @@ no truthful snapshots to supply; it does not expose fabricated defaults. Phase
 zero-write planning, explicit/idempotent apply, exit-3 conflict no-clobber,
 recovery, nondisclosure, and cleanup. The proof is root-owned and adds no
 package runtime authority. Phase 10G adds the observability inspect/check edge
-without adding external acceptance. Phase 10H remains the only next architect-
-review handoff.
+without adding external acceptance. Phase 11F adds only bounded Graph-artifact
+inspection and the one local dependency on the artifact leaf. Phase 11G is
+unstarted.
 
 Related decisions:
 
@@ -56,6 +67,8 @@ Related decisions:
 - [ADR 0104](../../docs/adr/0104-phase-8-external-cli-acceptance-and-checkpoint.md)
 - [ADR 0112](../../docs/adr/0112-deterministic-security-policy-evidence-and-supported-application-workflow.md)
 - [ADR 0121](../../docs/adr/0121-deterministic-observability-configuration-and-supported-application-workflow.md)
+- [ADR 0128](../../docs/adr/0128-bounded-application-graph-inspection-and-supported-cli-consumption.md)
+- [Application Graph inspection](../../docs/architecture/application-graph-inspection-and-consumption.md)
 - [Observability application workflow](../../docs/architecture/observability-application-workflow.md)
 - [Security application workflow](../../docs/architecture/security-application-workflow.md)
 - [Phase 8 external acceptance](../../docs/architecture/phase-8-external-acceptance.md)

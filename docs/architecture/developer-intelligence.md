@@ -5,9 +5,12 @@
 This document is the current architecture entrypoint for Kongono's
 developer-intelligence family. [ADR 0060](../adr/0060-human-centered-developer-intelligence-family.md)
 accepts the family, its separation of duties, and its security and provenance
-boundaries. Phase 4C implements the deterministic knowledge artifact and Phase
-4D implements one intentionally narrow read-only Chie consumer. Hantei, Oshie,
-candidate proposals, models, and mutation behavior remain unimplemented.
+boundaries. Phase 4C implements the deterministic knowledge artifact; Phase 4D
+implements the narrow read-only Chie consumer; Phase 4E implements independent
+read-only Hantei; Phase 4F implements bounded Oshie teaching; and Phase 4G adds
+one reviewable, unapplied Chie documentation candidate. Models, provider
+integration, automatic application, and production authority remain
+unimplemented.
 
 ## Roles and promises
 
@@ -272,3 +275,21 @@ Hantei passes the unchanged repository, synthetic Hantei evidence remains
 explicitly synthetic, and no role mutates or elevates authority. Chie's
 candidate remains unapplied and unverified. Oshie's accepted curriculum has no
 executable example. Phase 4 is closed; Phase 5 was not begun.
+
+## Phase 11A Graph boundary
+
+Phase 11A accepts a future authoritative Graph and language-neutral IR but gives
+Kongono Chie, Kongono Hantei, and Kongono Oshie no new Graph access. Any future
+developer-intelligence derivation is ordered after identities, schemas,
+provenance, visibility, construction, artifact currentness, and bounded
+inspection in the fixed [Phase 11 roadmap](phase-11-roadmap.md).
+
+A role may consume only a separately accepted visibility-filtered view bound to
+one exact Graph state. It cannot reclassify Protected facts, treat omission as
+false, merge stale versions, or promote explanation, inference, teaching, or a
+candidate into authoritative Graph truth. Retrieved instructions remain inert
+and cannot enlarge role or tool authority. Phase 11G now implements only the
+separate Safe aggregate derivation and independent verification boundary; it
+does not execute a role or grant raw or individual-fact Graph access. See
+[ADR 0129](../adr/0129-visibility-safe-application-graph-developer-intelligence.md)
+and the [Application Graph developer-intelligence guide](application-graph-developer-intelligence.md).

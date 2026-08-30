@@ -732,3 +732,70 @@ nondisclosure, regressions, and cleanup. It adds no production PHP, package,
 dependency, exporter, provider, backend, collector, durable audit store,
 deployment, autonomous authority, or Phase 11 behavior. Kongono remains
 pre-1.0.
+
+## Authoritative Application Graph and language-neutral IR policy
+
+Phase 10 is complete at checkpoint
+`6f7865dbacc7dd9c4b90d2b60bd229b89efbd535`. Phase 11A accepted
+[ADR 0123](docs/adr/0123-authoritative-application-graph-and-language-neutral-ir-boundary.md),
+the [Authoritative Application Graph guide](docs/architecture/authoritative-application-graph.md),
+and the fixed [Phase 11 roadmap](docs/architecture/phase-11-roadmap.md) as
+documentation architecture only. Phase 11B accepts
+[ADR 0124](docs/adr/0124-versioned-application-graph-contract-foundation.md)
+and implements the separate Experimental `kongono/application-graph-contract`
+package.
+
+The future language-neutral IR is a versioned producer-facing input boundary;
+the future authoritative Graph is the validated canonical immutable derivation
+from admitted records and explicit accepted artifacts for one exact application
+state. Only the accepted deterministic build/validation pipeline may confer
+authoritative Graph status. Inputs, partial records, caches, extension claims,
+model output, and stale or mixed-version artifacts remain non-authoritative.
+
+Graph authority is structural and descriptive. It grants no identity,
+authentication, authorization, capability, secret, filesystem, process,
+network, database, deployment, or production authority. Phase 11B owns four
+distinct digest-backed identities, contract version 1, the exact closed
+Composition node/relation vocabularies, typed schema descriptors and catalog,
+bounded producer/source provenance, explicit visibility and disclosure, and
+non-disclosing diagnostics. It adds no IR records, Graph construction,
+Composition projection, serialization, artifact, command, or consumer.
+
+The current Experimental Phase 0J `kongono/application-graph` snapshot remains
+unchanged. Its opaque `NodeKey` values are graph-local rather than stable
+identities, and its open kind labels are not a framework vocabulary. Chie,
+Hantei, Oshie, extensions, Agent Principals, applications, and other consumers
+gain no Graph access or authority in Phase 11B. A future consumer may use only
+a separately accepted visibility-filtered view and must not treat omitted facts
+as false.
+
+The fixed order is 11A architecture; 11B identity/schema/provenance/visibility;
+11C IR and construction; 11D Composition projection/build; 11E artifact and
+publication; 11F bounded inspection; 11G developer-intelligence derivation;
+and 11H external acceptance/checkpoint. Phase 11C implements the separate
+Experimental `kongono/application-graph-build` package for explicit IR claims,
+complete version-1 schema admission, and canonical immutable Graph facts. It
+performs no discovery, Composition projection, serialization, currentness,
+publication, inspection, or AI integration. Phase 11D adds the separate pure
+Composition projection; Phase 11E adds canonical artifact/currentness/loading/
+publication; and Phase 11F adds bounded aggregate inspection plus its explicit
+read-only supported command.
+
+Phase 11G accepts ADR 0129 and implements the separate Experimental
+`kongono/application-graph-intelligence` package. It derives one immutable
+role-addressed Safe aggregate view only from an explicit validated Phase 11F
+inspection and independently verifies six bounded identity, contract, total,
+vocabulary, and semantic checks. The role label does not run Chie, Hantei, or
+Oshie. No raw Graph, individual fact, field value, provenance, source location,
+path, role execution, AI/model/provider/network access, registry, authorization,
+mutation, runtime integration, extension behavior, or production authority is
+added. The production graph is exactly 57 acyclic packages and 201 local edges.
+
+Phase 11H accepts ADR 0130 and adds only the root-owned four-file
+`composer acceptance:phase11` harness, authorized documentation reconciliation,
+one matching Hantei profile script record, and the exact local Phase 11
+checkpoint. It externally proves the accepted Composition-to-Graph, artifact,
+inspection, Console, role-projection, Chie, and Hantei boundaries without
+adding production PHP, a package, dependency, raw-fact access, role execution,
+runtime integration, network authority, or Phase 12 behavior. Directives and
+task reports remain outside the checkpoint.

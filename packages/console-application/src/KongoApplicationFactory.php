@@ -6,6 +6,7 @@ namespace Kongono\ConsoleApplication;
 
 use Kongono\ApiMetadata\Api;
 use Kongono\ApiMetadata\ApiStatus;
+use Kongono\ApplicationGraphArtifact\Artifact\ApplicationGraphArtifactLoader;
 use Kongono\Composition\Workflow\ApplicationBuildWorkflow;
 use Kongono\Console\CommandDefinition;
 use Kongono\Console\CommandIdentifier;
@@ -20,6 +21,7 @@ use Kongono\Console\CommandSpecificationSet;
 use Kongono\Console\CommandSummary;
 use Kongono\Console\CommandTokenParser;
 use Kongono\ConsoleApplication\Handler\ApplicationBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\ApplicationGraphInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
@@ -40,12 +42,24 @@ final class KongoApplicationFactory
 {
     public function create(): KongoApplication
     {
+        $applicationGraphInspect = new CommandIdentifier(KongoCommand::ApplicationGraphInspect->value);
         $applicationBuild = new CommandIdentifier(KongoCommand::ApplicationBuild->value);
         $observabilityCheck = new CommandIdentifier(KongoCommand::ObservabilityCheck->value);
         $observabilityInspect = new CommandIdentifier(KongoCommand::ObservabilityInspect->value);
         $securityCheck = new CommandIdentifier(KongoCommand::SecurityCheck->value);
         $securityInspect = new CommandIdentifier(KongoCommand::SecurityInspect->value);
         $specifications = new CommandSpecificationSet([
+            new CommandSpecification(
+                new CommandDefinition(
+                    $applicationGraphInspect,
+                    new CommandSummary('Inspect one authoritative application graph artifact'),
+                    CommandInteractionPolicy::None,
+                    CommandMutationPolicy::ReadOnly,
+                ),
+                [
+                    new CommandInputDefinition(new CommandInputName('artifact-path'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                ],
+            ),
             new CommandSpecification(
                 new CommandDefinition(
                     $applicationBuild,
@@ -66,6 +80,7 @@ final class KongoApplicationFactory
         $observabilityWorkflow = new ObservabilityBuildWorkflow();
         $policyWorkflow = new SecurityPolicyBuildWorkflow();
         $handlers = new CommandHandlerSet([
+            new CommandHandlerBinding($applicationGraphInspect, new ApplicationGraphInspectCommandHandler(new ApplicationGraphArtifactLoader())),
             new CommandHandlerBinding($applicationBuild, new ApplicationBuildCommandHandler(new ApplicationBuildWorkflow())),
             new CommandHandlerBinding($observabilityCheck, new ObservabilityCheckCommandHandler($observabilityWorkflow)),
             new CommandHandlerBinding($observabilityInspect, new ObservabilityInspectCommandHandler($observabilityWorkflow)),

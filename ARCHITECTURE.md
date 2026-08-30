@@ -1,22 +1,28 @@
 # Kongono Architecture
 
+> **Phase 11 complete boundary:** Phase 11H adds root-owned external proof and
+> the exact local checkpoint without changing production Graph behavior. Raw
+> Graph facts, role execution, runtime integration, authorization, Phase 12,
+> and production-readiness remain outside the accepted boundary.
+
+
 ## Status and scope
 
 This document is an index of Kongono's authorized architectural direction.
-Kongono is pre-alpha. Phase 7 is complete at checkpoint
-`b09b0c654f8b67f7cac3807f839f665e8c5b5469`, tree
-`c0b6fed92dbb43d0bb91891b4e4496e84c0c85e4`. Phase 8G adds the upper
-`kongono/console-application` boundary at the Phase 8 checkpoint. Phase 9G now
-adds deterministic rule-free policy identity evidence and the supported
-protected application workflow through `kongono/security-policy-build` and
-`kongono/security-application`; Phase 10B adds the neutral
-`kongono/observability` package, Phase 10C adds the operation-scoped
-`kongono/tracing` package, Phase 10D adds bounded `kongono/metrics`, and Phase
-10E adds separate `kongono/operational-events` and `kongono/security-audit`,
-bringing the current topology to exactly forty-nine acyclic production
-packages. The official one-shot `kongo`
-executable implements exactly `application:build`, `security:check`, and
-`security:inspect`; the two security commands are read-only.
+Kongono is pre-alpha. Phase 10 is complete at checkpoint
+`6f7865dbacc7dd9c4b90d2b60bd229b89efbd535`; Phase 11G brings the current
+topology to exactly 57 acyclic production packages and 201 local production
+edges. The official one-shot
+`kongo` executable implements exactly `application-graph:inspect`, `application:build`,
+`observability:check`, `observability:inspect`, `security:check`, and
+`security:inspect`; the five inspect/check commands are read-only. Phase 11A is
+historical and complete. Phase 11B implements the versioned Application Graph
+contract foundation, and Phase 11C implements explicit IR admission and
+deterministic immutable Graph construction without changing runtime behavior.
+Phase 11D adds Composition projection, Phase 11E adds canonical artifact
+handling, Phase 11F adds bounded aggregate inspection plus its explicit
+read-only supported consumer, and Phase 11G adds visibility-safe role-addressed
+derivation with independent verification. Phase 11H remains unstarted.
 
 The earlier Phase 2 checkpoint remains
 `647053d4bddc4c76090bca9bf3d693faa5880c52`. Its root-owned, test-owned runnable
@@ -67,7 +73,8 @@ repository behavior.
 
 ## Package dependency topology
 
-The current graph has forty-four production packages. `kongono/api-metadata` requires
+At the Phase 9 checkpoint the graph had forty-four production packages.
+`kongono/api-metadata` requires
 PHP only and owns `Kongono\ApiMetadata\Api` and `ApiStatus`. Kernel,
 Diagnostics, and Dependency Injection each require API Metadata; Kernel,
 Application Graph, Dependency Injection, HTTP Message, Routing, and HTTP Server
@@ -1025,3 +1032,38 @@ and complete cleanup. It changes no production package or dependency and adds
 no network exporter, backend, global provider, durable audit claim, deployment,
 or Phase 11 behavior. See [ADR 0122](docs/adr/0122-phase-10-external-observability-acceptance-and-checkpoint.md)
 and the [external acceptance guide](docs/architecture/phase-10-external-acceptance.md).
+
+## Phase 11A and 11B authoritative Graph foundation
+
+Phase 11A accepted
+[ADR 0123](docs/adr/0123-authoritative-application-graph-and-language-neutral-ir-boundary.md),
+the [Authoritative Application Graph guide](docs/architecture/authoritative-application-graph.md),
+and the fixed [Phase 11 roadmap](docs/architecture/phase-11-roadmap.md). The
+language-neutral IR is the future producer-facing record boundary; the
+authoritative Graph is the deterministic validated canonical immutable
+derivation for one exact application state.
+
+Only a separately accepted build/validation pipeline may make Graph facts
+authoritative. Authority is structural and descriptive and grants no security
+or operational permission. Stable identities, typed vocabularies, schemas,
+provenance, visibility, construction, Composition projection, canonical
+artifacts, caller-relative currentness, guarded loading, no-clobber publication,
+and bounded read-only inspection are implemented through Phase 11F. Developer-
+intelligence consumption remains later ordered work.
+
+The current Phase 0J structural snapshot remains implemented and unchanged.
+Its graph-local keys and open kinds are not retroactively stable identities or
+framework vocabularies. Phase 11B accepts
+[ADR 0124](docs/adr/0124-versioned-application-graph-contract-foundation.md)
+and adds the separate `kongono/application-graph-contract` package for exact
+version-1 identities, Composition vocabularies, schemas, provenance,
+visibility, disclosure, and non-disclosing failures. Phase 11C adds
+`kongono/application-graph-build` for explicit claim records, complete schema
+admission, and fresh canonical immutable Graph facts. Phase 11D adds the
+separate Composition projection, Phase 11E adds the separate canonical
+artifact/currentness/loading/publication leaf, and Phase 11F adds its bounded
+neutral inspection plus the explicit `application-graph:inspect` upper
+consumer. Phase 11G adds the separate visibility-safe aggregate derivation and
+independent verification boundary. Individual facts, role execution, and
+operational authority remain absent. Phase 11H and Phase 12 remain unstarted.
+Kongono remains pre-1.0 and not production-ready.

@@ -19,6 +19,7 @@ enum ConsoleApplicationDiagnostic: string
     case InvalidProcessRequest = 'KGN-CONSOLE-APPLICATION-1001';
     case BuildPrecondition = 'KGN-CONSOLE-APPLICATION-1002';
     case ApplicationFailure = 'KGN-CONSOLE-APPLICATION-1003';
+    case GraphInspectionPrecondition = 'KGN-CONSOLE-APPLICATION-1004';
 
     public function context(): DiagnosticContext
     {
@@ -48,6 +49,7 @@ enum ConsoleApplicationDiagnostic: string
             self::InvalidProcessRequest => 'Invalid kongo process request',
             self::BuildPrecondition => 'Application build precondition failed',
             self::ApplicationFailure => 'Kongo application infrastructure failed',
+            self::GraphInspectionPrecondition => 'Application Graph inspection precondition failed',
         };
     }
 
@@ -57,6 +59,7 @@ enum ConsoleApplicationDiagnostic: string
             self::InvalidProcessRequest => 'Use the documented bounded kongo grammar.',
             self::BuildPrecondition => 'Correct the application build precondition and retry explicitly.',
             self::ApplicationFailure => 'Inspect the retained failure only through an authorized boundary.',
+            self::GraphInspectionPrecondition => 'Correct the explicit Application Graph artifact precondition and retry.',
         };
     }
 
@@ -66,6 +69,7 @@ enum ConsoleApplicationDiagnostic: string
             self::InvalidProcessRequest => 'process_validation',
             self::BuildPrecondition => 'application_build',
             self::ApplicationFailure => 'application_infrastructure',
+            self::GraphInspectionPrecondition => 'application_graph_inspection',
         };
     }
 
@@ -75,6 +79,7 @@ enum ConsoleApplicationDiagnostic: string
             self::InvalidProcessRequest => 'exact_process_grammar',
             self::BuildPrecondition => 'exact_current_build_state',
             self::ApplicationFailure => 'bounded_application_boundary',
+            self::GraphInspectionPrecondition => 'explicit_valid_graph_artifact',
         };
     }
 
@@ -84,6 +89,7 @@ enum ConsoleApplicationDiagnostic: string
             self::InvalidProcessRequest => 'correct_process_request',
             self::BuildPrecondition => 'correct_build_precondition',
             self::ApplicationFailure => 'inspect_authorized_failure',
+            self::GraphInspectionPrecondition => 'correct_graph_artifact_precondition',
         };
     }
 }

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b8014fa47e3d40b56c84cbd7649c1922",
+    "content-hash": "c8f431813b1a45f95f4b562af1f9a7cf",
     "packages": [
         {
             "name": "google/protobuf",
@@ -102,6 +102,169 @@
                 }
             },
             "description": "The immutable structural core for Kongono's future Application Graph.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/application-graph-artifact",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/application-graph-artifact",
+                "reference": "c64ab117c4efab0f38e3dde353383d767530a3aa"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-build": "*",
+                "kongono/application-graph-contract": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraphArtifact\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraphArtifact\\Tests\\": "tests/"
+                }
+            },
+            "description": "Canonical content-addressed Application Graph artifacts",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/application-graph-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/application-graph-build",
+                "reference": "c5497eb66543c8bfa29cf724b059f1b15971d5fe"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-contract": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraphBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraphBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Language-neutral IR admission and deterministic authoritative Graph construction for Kongono.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/application-graph-composition",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/application-graph-composition",
+                "reference": "9b0c0adbfd3adca0a95ef5037bd2639718010d61"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-build": "*",
+                "kongono/application-graph-contract": "*",
+                "kongono/composition": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraphComposition\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraphComposition\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic Composition-to-IR projection and authoritative Application Graph construction for Kongono.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/application-graph-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/application-graph-contract",
+                "reference": "6ef44769c8b1c9de55d427187aecd01a8c9e2dd9"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraphContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraphContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Versioned language-neutral contracts for Kongono's authoritative Application Graph.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/application-graph-intelligence",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/application-graph-intelligence",
+                "reference": "468bff3ba95957d05462d51039c27d766a95a7c2"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-artifact": "*",
+                "kongono/application-graph-contract": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraphIntelligence\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ApplicationGraphIntelligence\\Tests\\": "tests/"
+                }
+            },
+            "description": "Visibility-safe Application Graph evidence for Kongono developer-intelligence roles.",
             "transport-options": {
                 "relative": true
             }
@@ -267,10 +430,11 @@
             "dist": {
                 "type": "path",
                 "url": "packages/console-application",
-                "reference": "e86058aee10a8d832082ca4973847657a942747f"
+                "reference": "0c6fe2be56c07111875336faa498f748ceb337c7"
             },
             "require": {
                 "kongono/api-metadata": "*",
+                "kongono/application-graph-artifact": "*",
                 "kongono/composition": "*",
                 "kongono/console": "*",
                 "kongono/console-presentation": "*",
@@ -6818,6 +6982,11 @@
     "stability-flags": {
         "kongono/api-metadata": 20,
         "kongono/application-graph": 20,
+        "kongono/application-graph-artifact": 20,
+        "kongono/application-graph-build": 20,
+        "kongono/application-graph-composition": 20,
+        "kongono/application-graph-contract": 20,
+        "kongono/application-graph-intelligence": 20,
         "kongono/authentication": 20,
         "kongono/authorization": 20,
         "kongono/chie": 20,

@@ -1,8 +1,19 @@
 # Application Graph
 
+> Phase 11C adds a separate authoritative-Graph construction boundary; this
+> document's Phase 0J structural snapshot remains unchanged. See
+> [Application Graph IR and deterministic construction](application-graph-ir-and-construction.md)
+> and [ADR 0125](../adr/0125-language-neutral-application-graph-ir-and-deterministic-construction.md).
+
 ## Purpose
 
-The Application Graph is intended to become Kongono's authoritative, machine-readable representation of an application. It gives developers, infrastructure, tooling, AI agents, and other applications a deterministic source of architectural knowledge rather than requiring them to infer structure by crawling arbitrary source files.
+The Application Graph is accepted as Kongono's future authoritative,
+machine-readable representation of one exact application state. Phase 11A
+settled that architecture, and Phase 11B implements its neutral versioned
+contract foundation without constructing a Graph. The future Graph will give
+developers, infrastructure, bounded tooling, AI agents, and other applications
+a deterministic source of validated architectural facts rather than requiring
+them to infer structure by crawling arbitrary source files.
 
 ## Context
 
@@ -170,3 +181,39 @@ artifact a Graph, make generated wiring authoritative, or authorize discovery
 from this snapshot. Current Graph construction, selectors, diagnostics,
 dependencies, and performance remain unchanged. See [ADR 0068](../adr/0068-supported-application-composition-and-build-boundary.md)
 and the [composition guide](application-composition-and-build.md).
+
+## Accepted Phase 11A and 11B boundaries
+
+[ADR 0123](../adr/0123-authoritative-application-graph-and-language-neutral-ir-boundary.md)
+now distinguishes the future versioned producer-facing IR from the validated,
+canonical, immutable Graph derived from admitted records and explicit accepted
+artifacts. Only the accepted deterministic build/validation pipeline for one
+exact state may claim authoritative Graph status. Inputs, partial records,
+caches, extension claims, model output, and stale or mixed-version artifacts
+remain non-authoritative.
+
+The architecture requires stable versioned identities, separate typed node and
+relation vocabularies, typed schemas, bounded non-secret provenance, explicit
+visibility/disclosure, deterministic collision-free validation, exact
+currentness, canonical results, and fail-without-publication behavior. Phase
+11B implements the exact first contract grammar, members, types, and APIs.
+IR records, wire forms, construction, artifacts, and currentness remain future
+work in the fixed [Phase 11 roadmap](phase-11-roadmap.md).
+
+Graph authority is descriptive and grants no security or operational
+permission. Consumers may receive only separately accepted visibility-filtered
+views and must not treat omission as false. AI may explain, infer, or propose
+with labeled uncertainty but cannot establish Graph facts. Extension
+contributions require future governance and admission.
+
+Phase 11A changed no Phase 0J package byte or behavior and did not retrofit
+`NodeKey` or open kinds into stable identities or vocabularies. Phase 11B
+accepts [ADR 0124](../adr/0124-versioned-application-graph-contract-foundation.md)
+and implements the separate `kongono/application-graph-contract` package. It
+owns exact digest identities, the closed first Composition vocabulary, typed
+schema values and catalog, bounded provenance, visibility, disclosure, and
+non-disclosing failures. It adds no IR record, Graph construction, projection,
+serializer, artifact, builder, frontend, query, command, runtime integration,
+developer-intelligence access, extension behavior, Stable API, or production-
+readiness claim. See the
+[Authoritative Application Graph guide](authoritative-application-graph.md).

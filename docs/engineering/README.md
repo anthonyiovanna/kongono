@@ -1,10 +1,16 @@
 # Kongono Engineering Foundation
 
+> **Phase 11 complete boundary:** Phase 11H adds root-owned external proof and
+> the exact local checkpoint without changing production Graph behavior. The
+> topology remains 57 packages and 201 acyclic local production edges; Phase 12
+> and production-readiness remain outside the accepted boundary.
+
+
 - [Read-only Hantei](../architecture/read-only-hantei.md) documents the fixed
   Phase 4E verifier, subject identity, evidence, process, and mutation boundary.
 ## Purpose and current scope
 
-Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all thirty-six production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
+Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all 52 production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
 
 Phase 0X expands the automatically discovered inventory with eight Diagnostic
 Presentation declarations and six focused package tests. Existing quality rules
@@ -16,7 +22,7 @@ The root command is:
 composer quality
 ```
 
-It validates the root and all thirty-six package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
+It validates the root and all 52 package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
 
 ## Guides
 
@@ -45,6 +51,8 @@ It validates the root and all thirty-six package manifests in lexicographic orde
 - [Phase 9 roadmap](../architecture/phase-9-roadmap.md)
 - [Observability and Operational Evidence](../architecture/observability-and-operational-evidence.md)
 - [Phase 10 roadmap](../architecture/phase-10-roadmap.md)
+- [Authoritative Application Graph](../architecture/authoritative-application-graph.md)
+- [Phase 11 roadmap](../architecture/phase-11-roadmap.md)
 
 ## Authority and exceptions
 
@@ -437,3 +445,28 @@ dependency, runtime API, exporter, provider, backend, network transport,
 collector, deployment, durable audit mechanism, performance promise, or
 Phase 11 work. Phase 10A-H is complete only at the exact local checkpoint;
 Kongono remains pre-1.0.
+
+## Phase 11A and 11B Graph contract engineering boundary
+
+Phase 11A added exactly ADR 0123, the authoritative Graph architecture guide,
+the fixed Phase 11 roadmap, and reconciled documentation. Phase 11B adds ADR
+0124 and the separate Experimental `kongono/application-graph-contract`
+package. Its 23 production declarations and six package tests cover exact
+identities, vocabulary, schemas, provenance, visibility, disclosure,
+diagnostics, immutability, ordering, and non-disclosure.
+
+Engineering must preserve the current Experimental Phase 0J structural
+snapshot and distinguish its opaque graph-local keys and open kinds from future
+stable identity, vocabulary, schema, provenance, and visibility contracts.
+Future producer records remain non-authoritative until deterministic admission;
+future consumers receive only bounded visibility-filtered views and cannot
+treat omission as false or convert Graph facts into operational permission.
+
+The fixed order places identity/schema foundations before IR construction,
+Composition projection, artifact publication, inspection, developer-
+intelligence derivation, and external acceptance. Each row requires separate
+authenticated authority. Phase 11C provides explicit IR records and complete
+deterministic Graph construction; Phase 11D provides Composition projection;
+Phase 11E provides canonical artifacts, caller-relative currentness, explicit
+loading, and no-clobber publication. Inspection, commands, consumers,
+extensions, and runtime integration remain absent; Phase 11F is unstarted.

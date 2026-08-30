@@ -12,6 +12,16 @@ parameters:
         - packages/api-metadata/tests
         - packages/application-graph/src
         - packages/application-graph/tests
+        - packages/application-graph-artifact/src
+        - packages/application-graph-artifact/tests
+        - packages/application-graph-build/src
+        - packages/application-graph-build/tests
+        - packages/application-graph-composition/src
+        - packages/application-graph-composition/tests
+        - packages/application-graph-contract/src
+        - packages/application-graph-contract/tests
+        - packages/application-graph-intelligence/src
+        - packages/application-graph-intelligence/tests
         - packages/authentication/src
         - packages/authentication/tests
         - packages/authorization/src

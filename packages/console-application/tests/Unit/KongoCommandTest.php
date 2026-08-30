@@ -12,6 +12,7 @@ final class KongoCommandTest extends TestCase
     public function testCommandVocabularyIsExact(): void
     {
         self::assertSame([
+            'application-graph:inspect',
             'application:build',
             'observability:check',
             'observability:inspect',
@@ -19,6 +20,7 @@ final class KongoCommandTest extends TestCase
             'security:inspect',
         ], array_column(KongoCommand::cases(), 'value'));
         self::assertSame(KongoCommand::ApplicationBuild, KongoCommand::from('application:build'));
+        self::assertSame(KongoCommand::ApplicationGraphInspect, KongoCommand::from('application-graph:inspect'));
         self::assertSame(KongoCommand::ObservabilityCheck, KongoCommand::from('observability:check'));
         self::assertSame(KongoCommand::ObservabilityInspect, KongoCommand::from('observability:inspect'));
         self::assertSame(KongoCommand::SecurityCheck, KongoCommand::from('security:check'));

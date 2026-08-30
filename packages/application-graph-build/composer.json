@@ -1,0 +1,21 @@
+{
+  "name": "kongono/application-graph-build",
+  "description": "Language-neutral IR admission and deterministic authoritative Graph construction for Kongono.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/application-graph-contract": "*",
+    "kongono/diagnostics": "*",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\ApplicationGraphBuild\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\ApplicationGraphBuild\\Tests\\": "tests/"
+    }
+  }
+}

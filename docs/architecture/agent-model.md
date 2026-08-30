@@ -66,3 +66,19 @@ Agents-as-Principals and the three consumption surfaces are **LOCKED** direction
 - [ADR 0008](../adr/0008-agents-as-principals.md)
 - [ADR 0060](../adr/0060-human-centered-developer-intelligence-family.md)
 - [Developer intelligence](developer-intelligence.md)
+
+## Phase 11A Graph relationship
+
+Phase 11A accepts the future authoritative Application Graph and
+language-neutral IR architecture without implementing Agent Principal behavior.
+An agent may eventually consume a separately accepted visibility-filtered Graph
+view, but identity as an Agent Principal does not grant that access and Graph
+facts do not grant identity, delegation, capability, consent, trust, or
+authorization.
+
+AI output cannot establish Graph facts. Inferred or proposed content remains
+labeled and non-authoritative until deterministic validation admits it for one
+exact application state. Omitted facts are not false. Phase 11A adds no agent
+schema, protocol, execution API, Graph consumer, MCP/A2A behavior, or production
+authority. See [ADR 0123](../adr/0123-authoritative-application-graph-and-language-neutral-ir-boundary.md)
+and the [Phase 11 roadmap](phase-11-roadmap.md).

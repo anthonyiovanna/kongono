@@ -16,6 +16,11 @@
         <testsuite name="Kongono">
             <directory>packages/api-metadata/tests</directory>
             <directory>packages/application-graph/tests</directory>
+            <directory>packages/application-graph-artifact/tests</directory>
+            <directory>packages/application-graph-build/tests</directory>
+            <directory>packages/application-graph-composition/tests</directory>
+            <directory>packages/application-graph-contract/tests</directory>
+            <directory>packages/application-graph-intelligence/tests</directory>
             <directory>packages/authentication/tests</directory>
             <directory>packages/authorization/tests</directory>
             <directory>packages/chie/tests</directory>
@@ -71,6 +76,11 @@
         <include>
             <directory>packages/api-metadata/src</directory>
             <directory>packages/application-graph/src</directory>
+            <directory>packages/application-graph-artifact/src</directory>
+            <directory>packages/application-graph-build/src</directory>
+            <directory>packages/application-graph-composition/src</directory>
+            <directory>packages/application-graph-contract/src</directory>
+            <directory>packages/application-graph-intelligence/src</directory>
             <directory>packages/authentication/src</directory>
             <directory>packages/authorization/src</directory>
             <directory>packages/chie/src</directory>
