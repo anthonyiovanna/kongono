@@ -1,10 +1,13 @@
 # Package Layout
 
-> **Phase 11 complete boundary:** Phase 11H adds four root-test PHP files and no
-> production package or edge. The topology remains 57 packages and 201 acyclic
-> local production edges; Phase 12 and production-readiness remain outside the
-> accepted boundary.
+Phase 12H adds no production package and no local production edge. The topology
+remains exactly 63 packages / 226 acyclic edges; the new root-owned harness is
+test evidence outside every package. See
+[Phase 12 external acceptance](../architecture/phase-12-external-acceptance.md).
 
+> **Phase 12 current boundary:** Phases 12A-12H are implemented to their
+> accepted boundaries. Phase 12H adds no package or production edge; the
+> topology remains 63 packages / 226 acyclic local production edges.
 
 ## Purpose and convention
 
@@ -1157,3 +1160,34 @@ verification result and verifier, and non-disclosing diagnostics/exceptions.
 It owns no raw Graph or individual-fact access, role execution, model, provider,
 network, registry, authorization, mutation, runtime integration, or Phase 11H
 behavior.
+
+## Phase 12A package boundary
+
+Phase 12A is historical documentation-only architecture. Phase 12B creates
+exactly `packages/extension-contract`, depending only on API Metadata,
+Diagnostics, and PHP. It owns neutral declaration values and no manifest
+artifact, host, loader, registry, grant, generated output, command, Composition
+wiring, or Application Graph integration. Phase 12B brought the production
+topology to 58 acyclic packages and 203 local production edges. Construction is not
+admission/currentness/trust; requests are not grants, contributions are not
+Graph facts, visibility is not authorization, lifecycle is not hosting, and
+category is not a security decision. Phase 12C brings the current topology to
+59 packages and 206 local production edges and creates exactly
+`packages/extension-build`, depending only on API Metadata, Diagnostics,
+Extension Contract, and PHP. It owns canonical declaration artifact build,
+strict reconstruction, caller-relative currentness, and atomic no-clobber
+publication. No existing production package depends on it, and it owns no
+public loader, discovery, admission, grant, Graph, Composition, host, or
+execution surface. Phase 12D adds `packages/extension-admission`, depending only
+on API Metadata, Diagnostics, Extension Contract, Extension Build, Application
+Graph Contract, Application Graph Build, and PHP. That topology was 60 packages
+/ 212 acyclic local edges. Phase 12E adds `packages/extension-composition`,
+depending on API Metadata, Diagnostics, Extension Contract, Extension Build,
+Extension Admission, and PHP. Phase 12F adds `packages/extension-host`, depending
+only on API Metadata, Diagnostics, Extension Composition, and PHP. It owns exact
+one-file loading and bounded application/operation lifecycle; no existing lower
+production package depends on it. The current topology is 62 packages / 220
+acyclic local edges. Phase 12G adds `packages/extension-inspection`, depending
+only on API Metadata, Diagnostics, Extension Build, Extension Composition, and
+Extension Contract. Console Application adds the only upper command dependency.
+The current topology is 63 packages / 226 edges; Phase 12H closes the milestone with root-owned external evidence only.

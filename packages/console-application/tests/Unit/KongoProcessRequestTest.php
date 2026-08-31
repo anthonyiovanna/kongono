@@ -36,6 +36,7 @@ final class KongoProcessRequestTest extends TestCase
         yield 'command help' => [['application:build', '--help'], false, false, true, []];
         yield 'machine command help' => [['--json', 'application:build', '--help'], true, false, true, []];
         yield 'application graph inspect help' => [['application-graph:inspect', '--help'], false, false, true, []];
+        yield 'extension inspect help' => [['extension:inspect', '--help'], false, false, true, []];
         yield 'observability check help' => [['observability:check', '--help'], false, false, true, []];
         yield 'observability inspect help' => [['--json', 'observability:inspect', '--help'], true, false, true, []];
         yield 'security check help' => [['security:check', '--help'], false, false, true, []];
@@ -43,6 +44,7 @@ final class KongoProcessRequestTest extends TestCase
         yield 'plan' => [['application:build', '--plan', '--application-root=A', '--output-directory=B'], false, false, false, ['application:build', '--plan', '--application-root=A', '--output-directory=B']];
         yield 'machine apply' => [['--json', 'application:build', '--apply', '--application-root=A', '--output-directory=B', '--no-interaction'], true, false, false, ['application:build', '--apply', '--application-root=A', '--output-directory=B', '--no-interaction']];
         yield 'application graph inspect' => [['--json', 'application-graph:inspect', '--artifact-path=C:/artifact.json', '--no-interaction'], true, false, false, ['application-graph:inspect', '--artifact-path=C:/artifact.json', '--no-interaction']];
+        yield 'extension inspect' => [['--json', 'extension:inspect', '--declaration-artifact-path=C:/declarations.json', '--generated-wiring-path=C:/wiring.php', '--no-interaction'], true, false, false, ['extension:inspect', '--declaration-artifact-path=C:/declarations.json', '--generated-wiring-path=C:/wiring.php', '--no-interaction']];
         yield 'observability check' => [['observability:check', '--application-root=A', '--output-directory=B'], false, false, false, ['observability:check', '--application-root=A', '--output-directory=B']];
         yield 'machine observability inspect' => [['--json', 'observability:inspect', '--application-root=A', '--output-directory=B', '--no-interaction'], true, false, false, ['observability:inspect', '--application-root=A', '--output-directory=B', '--no-interaction']];
         yield 'security check' => [['security:check', '--application-root=A', '--output-directory=B'], false, false, false, ['security:check', '--application-root=A', '--output-directory=B']];

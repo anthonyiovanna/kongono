@@ -1,0 +1,24 @@
+{
+  "name": "kongono/extension-build",
+  "description": "Deterministic declaration artifact build and publication for Kongono extensions.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "kongono/extension-contract": "*",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\ExtensionBuild\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\ExtensionBuild\\Tests\\": "tests/"
+    }
+  }
+}

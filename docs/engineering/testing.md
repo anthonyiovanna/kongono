@@ -1,10 +1,14 @@
 # Testing
 
-> **Phase 11 complete boundary:** `composer acceptance:phase11` adds root-owned
-> external proof and the exact local checkpoint without changing production
-> Graph behavior. Phase 12 and production-readiness remain outside the accepted
-> boundary.
+`composer acceptance:phase12` is the root-owned 50-case process proof for the
+accepted Extension Platform. It uses isolated temporary state, real package APIs
+and `vendor/bin/kongo`, canonical bounded output, child-process repeatability
+and concurrency, repository fingerprinting, nondisclosure, and complete cleanup.
+See [Phase 12 external acceptance](../architecture/phase-12-external-acceptance.md).
 
+> **Phase 12 current boundary:** Phases 12A-12H are implemented to their
+> accepted boundaries. Phase 12H adds root-owned external evidence only; the
+> topology remains 63 packages / 226 acyclic local edges.
 
 ## Purpose and runner
 
@@ -744,3 +748,45 @@ supported `kongo` path, visibility-safe role projections, unchanged Chie and
 Hantei boundaries, hostile failure behavior, non-disclosure, forced cleanup,
 repeatability, concurrency, repository preservation, and zero child/lifecycle
 residue. It adds no production PHP or dependency edge.
+
+## Phase 12A architecture and documentation proof
+
+Phase 12A adds no production or test PHP. Validation therefore proves the exact
+two-created/twelve-modified Markdown boundary, local links, ADR indexing, API
+status, 57-package/201-edge acyclic topology, UTF-8/LF safety, and preservation
+of Composer, production/test inventories, scripts, configuration, generated
+artifacts, and historical caller records.
+
+Phase 12B adds exact unit and architecture proof for all contract enum cases,
+identifier/version/digest bounds, malformed grammar, canonical zero/max/over
+limits, list/type/order/uniqueness rejection, detachment and object identity,
+diagnostic metadata, previous throwable identity, and nondisclosure. The root
+historical architecture proof enforces 58 manifests, 203 acyclic local edges, the exact
+21-source/12-test inventory, tool integration, API status, marker independence,
+and prohibited behavior. Phase 12C updates current topology proof to 59
+manifests and 206 acyclic local edges.
+
+The proof does not establish admission, currentness, trust, capability grant,
+Graph truth, authorization, hosting, execution, sandboxing, external protocol,
+distribution, or production readiness. Requests are not grants, contributions
+are not Graph facts, visibility is not authorization, lifecycle is not hosting,
+and category is not a security decision. No Application Graph integration
+exists. Phase 12C adds exact empty/one/max/over-limit build proof, type/list/
+order/uniqueness rejection, canonical key and digest checks, malformed and
+noncanonical artifact rejection, strict contract reconstruction,
+caller-relative stale detection, nondisclosing diagnostics, and path-safe
+atomic idempotent no-clobber publication including symlink and Windows junction
+boundaries. No public loader or prohibited extension authority exists. Phase
+12D now proves exact selection/currentness, bundle ordering and bounds,
+attributable provenance, explicit two/three-claimant winners, losing-bundle
+validation, Graph conflicts, nondisclosure, deterministic identity, and the
+historical 60-package / 212-edge boundary. Phase 12E adds grant-plan,
+Reflection, generated-byte, no-execution, publication-safety, nondisclosure,
+and 61-package / 217-edge coverage. Phase 12F adds exact loading-shape,
+irreversible-load, no-constructor-execution, lifecycle order, reverse cleanup,
+operation isolation/lease, retirement, failure-identity, nondisclosure, and
+fresh-process proof. Current architecture coverage is 62 packages / 220 edges;
+Phase 12G adds structural two-file, identity-binding, aggregate-total,
+role-derivation, independent-verification, no-load, nondisclosure, supported
+CLI, and topology coverage. Current architecture coverage is 63 packages / 226
+edges; Phase 12H closes the milestone with root-owned external evidence only.

@@ -72,3 +72,8 @@ Related decisions:
 - [Observability application workflow](../../docs/architecture/observability-application-workflow.md)
 - [Security application workflow](../../docs/architecture/security-application-workflow.md)
 - [Phase 8 external acceptance](../../docs/architecture/phase-8-external-acceptance.md)
+- [Extension inspection](../../docs/architecture/extension-inspection-and-developer-intelligence.md)
+
+The supported command family now includes `extension:inspect`, which is
+read-only, noninteractive, observe-only, and requires exactly the declaration
+artifact and generated-wiring paths. Output is Safe aggregate evidence only.

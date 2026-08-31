@@ -70,6 +70,18 @@ parameters:
         - packages/diagnostic-presentation/tests
         - packages/diagnostics/src
         - packages/diagnostics/tests
+        - packages/extension-admission/src
+        - packages/extension-admission/tests
+        - packages/extension-build/src
+        - packages/extension-build/tests
+        - packages/extension-composition/src
+        - packages/extension-composition/tests
+        - packages/extension-contract/src
+        - packages/extension-contract/tests
+        - packages/extension-host/src
+        - packages/extension-host/tests
+        - packages/extension-inspection/src
+        - packages/extension-inspection/tests
         - packages/hantei/src
         - packages/hantei/tests
         - packages/hantei/bin/kongono-hantei

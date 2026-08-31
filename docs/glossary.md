@@ -1,10 +1,13 @@
 # Kongono Glossary
 
-> **Phase 11 complete boundary:** Phase 11H adds root-owned external proof and
-> the exact local checkpoint without changing production Graph behavior. Raw
-> Graph facts, role execution, runtime integration, authorization, Phase 12,
-> and production-readiness remain outside the accepted boundary.
+**Phase 12 external acceptance** is the root-owned process evidence that closes
+the accepted Extension Platform milestone. It is not a production API, runtime,
+installer, trust decision, sandbox, or authority source. See
+[Phase 12 external acceptance](architecture/phase-12-external-acceptance.md).
 
+> **Phase 12 current boundary:** Phases 12A-12H are implemented to their
+> accepted boundaries. Phase 12H adds external acceptance evidence only; the
+> graph remains 63 packages / 226 acyclic local edges.
 
 ## Authoritative Application Graph
 
@@ -412,11 +415,48 @@ and unselected.
 
 ## Extension
 
-An independently supplied contribution that adds behavior or other capabilities through the governed Extension Platform without unnecessary source-level coupling. Extensions may eventually be core, trusted/in-process, sandboxed, or external; trust and packaging contracts remain open.
+An explicitly identified, versioned, attributable contribution unit selected
+by an application. Installation, declaration, signature, artifact, Graph
+presence, or category does not admit, authorize, grant, or execute it. The four
+architectural categories are Core, Trusted/in-process, Sandboxed, and External.
+
+## Extension Declaration
+
+Inert extension-owned claims about identity, requirements, requested
+capabilities, lifecycle, and contributions. A declaration grants no authority.
+
+## Extension Admission
+
+Deterministic framework/application validation of one exact declaration and
+its claims. Admission is distinct from selection, grant, and execution.
+
+## Extension Capability Request
+
+An attributable request for one typed, versioned, purpose-bounded capability.
+It is not a grant and implies no ambient authority.
+
+## Extension Capability Grant
+
+Explicit application-owned approval of one exact bounded capability. Grants
+are denied by default and imply no filesystem, database, secret, shell,
+process, network, deployment, identity, authorization, telemetry, or agent
+authority beyond the exact approved capability.
+
+## Extension Contribution
+
+A future versioned language-neutral IR claim carrying extension identity,
+exact source state, provenance, visibility, and schema. It is an input rather
+than an automatic authoritative Application Graph fact.
 
 ## Extension Host
 
-The planned governance boundary for extension permissions, capabilities, lifecycle, storage, network access, secrets, events, UI contributions, agent capabilities, updates, removal, and health. It is not implemented, and its sandboxing or process model is not selected.
+The implemented Phase 12F Experimental boundary for one exact generated
+trusted/in-process wiring file. It binds the file to exact artifact and grant
+evidence, performs one-time loading validation, and owns ordered application and
+operation lifecycle, reverse cleanup, leases, retirement, detachment, and
+failure preservation. It is not a sandbox, registry, arbitrary dispatcher,
+external protocol, marketplace, Security authority, or production-readiness
+claim.
 
 ## Graph Exception Boundary
 
@@ -1725,3 +1765,74 @@ language-neutral IR construction, Composition projection, canonical artifact,
 bounded inspection, developer-intelligence derivation, and root-owned external
 acceptance. Each row requires separate independently authenticated authority;
 the roadmap does not authorize a later row or Phase 12.
+
+## Phase 12 Roadmap
+
+The fixed dependency order from architecture through neutral contracts,
+deterministic artifact build, application-owned admission and Graph projection,
+capability planning and generated wiring, trusted/in-process hosting, bounded
+inspection, and root-owned external acceptance. Phase 12B neutral contracts are
+the historical foundation and Phase 12C declaration artifacts are current.
+Phases 12D-12H are implemented to their separately authenticated boundaries; no later phase begins automatically.
+
+## Extension Contract Declaration
+
+The immutable Phase 12B aggregate of exact contract version, extension
+identity/version, architectural category, source provenance, lifecycle intent,
+capability requests, and contribution declarations. It proves only local
+grammar, bounds, types, uniqueness, and canonical order. It is not admission,
+currentness, trust, selection, loading, or execution evidence.
+
+## Extension Capability Request
+
+An inert versioned capability identity, bounded purpose, and required/optional
+intent. A request is not a grant, authorization result, capability port,
+provider, resolver, or executable action.
+
+## Extension Contribution Declaration
+
+Bounded identity, versioned schema, visibility, and exact source digest without
+a payload or PHP symbol. It is not an authoritative Application Graph fact, and
+visibility is not authorization or declassification.
+
+## Extension Lifecycle Intent
+
+Application- or operation-scoped ownership metadata. It defines no callback,
+host, cleanup implementation, concurrency behavior, process lifetime, or
+execution authority. Phase 12C serializes this intent only as declaration
+evidence; it still defines no host or execution authority.
+
+## Extension Declaration Artifact
+
+The Phase 12C canonical version-1 JSON evidence for one explicit caller-supplied
+list of Phase 12B declarations. It preserves exact neutral fields, includes the
+declaration-set identity and digest, records its fixed builder contract and
+exact count, and has a separate complete-artifact SHA-256. Strict validation
+reconstructs every neutral value and rebuilds exact bytes. The artifact is not
+selection, admission, trust, a capability grant, an Application Graph fact,
+loaded code, hosting, or execution authority, and no public loader exists.
+
+## Declaration Set Identity
+
+The exact 64-byte lowercase SHA-256 of the canonical object whose only key is
+the ordered declarations list. It identifies declaration evidence; it does not
+prove currentness, admission, trust, authorization, package integrity, or
+publisher identity. Phase 12C currentness is established only relative to an
+exact declaration list supplied by the caller.
+
+## Extension Artifact Publication
+
+Phase 12C's explicit path-safe publication of one structurally revalidated,
+content-addressed artifact into an existing canonical ordinary directory. It
+uses a same-directory temporary file and atomic no-overwrite hard link,
+accepts only identical safe existing content, and never repairs or replaces a
+conflict. Publication is not loading or execution. Phase 12D adds an **Extension
+Admission Plan**, **Extension Graph Contribution**, **Admitted Extension Graph
+Input**, and **Admission Identity**. These bind exact application selection and
+explicit winners to attributable structurally valid IR; they are not a grant,
+authoritative Graph, Composition binding, loaded extension, or execution.
+
+An **Extension Platform Inspection** is detached Safe aggregate evidence from
+one structurally valid declaration artifact and one structurally valid generated
+wiring file with the same declaration-set identity. It establishes neither
+currentness nor authority and never loads the generated PHP or observes a host.

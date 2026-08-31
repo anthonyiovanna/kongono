@@ -1,10 +1,14 @@
 # Kongono Architectural Doctrine
 
-> **Phase 11 complete boundary:** Phase 11H adds root-owned external proof and
-> the exact local checkpoint without changing production Graph behavior. Raw
-> Graph facts, role execution, runtime integration, authorization, Phase 12,
-> and production-readiness remain outside the accepted boundary.
+Phase 12H closes Phase 12 with root-owned external evidence only. Declaration
+evidence is not admission, requests are not grants, neutral Graph IR is not
+execution authority, visibility is not authorization, and inspection grants no
+currentness, trust, host-state, or authority claim. Trusted in-process PHP is
+not sandboxed. See [ADR 0138](adr/0138-phase-12-external-extension-platform-acceptance-and-checkpoint.md).
 
+> **Phase 12 current boundary:** Phases 12A-12H are implemented to their
+> accepted boundaries. Phase 12H adds external acceptance evidence only; the
+> graph remains 63 packages / 226 acyclic local edges.
 
 ## Status
 
@@ -946,6 +950,50 @@ local keys and open kinds are not retroactively Phase 11 identities or
 vocabularies. Phase 11F adds bounded aggregate inspection, and Phase 11G adds
 only a role-addressed Safe aggregate derivation plus independent verification.
 Chie, Hantei, Oshie, Agent Principals, extensions, and other consumers gain no
-raw or individual-fact access and no Graph authority by implication. Phase 11H,
-Phase 12, Stable API, 1.0, and production-readiness claims require separate
-independently authenticated authority and do not begin automatically.
+raw or individual-fact access and no Graph authority by implication. Phase 11H
+closes the exact checkpoint. Phase 12A accepts the governed Extension Platform
+architecture only; Stable API, 1.0, and production-readiness claims remain
+outside its authority.
+
+## Governed Extension Platform doctrine
+
+Phase 12A accepts [ADR 0131](adr/0131-governed-extension-platform-and-attributable-contribution-boundary.md)
+and the fixed [Phase 12 roadmap](architecture/phase-12-roadmap.md). An extension
+is an explicitly selected, versioned, attributable contribution unit. Installed
+packages, manifests, signatures, artifacts, Graph facts, and self-claims grant
+no authority.
+
+Declaration, deterministic admission, explicit application-owned capability
+grant, and separately governed execution are distinct. Capabilities are typed,
+bounded, attributable, and denied by default. Trusted/in-process PHP retains
+the technical power of its process; capability ports are not a sandbox.
+
+Future contributions are versioned language-neutral IR inputs carrying exact
+source state, provenance, visibility, and schema. They become Graph facts only
+through the accepted admission pipeline. The Graph neither loads nor executes
+extensions, grants capabilities, authorizes Principals, approves publishers,
+or monitors health. Principal, Security, Observability, Graph, Chie, Hantei,
+and Oshie authority remains independent.
+
+The production graph is 59 packages and 206 acyclic local edges. Phase 12B's
+neutral package depends only on API Metadata and Diagnostics. Phase 12C's build
+package additionally depends on Extension Contract and preserves exact neutral
+fields as deterministic evidence with caller-relative currentness and atomic
+no-clobber publication. Local construction and artifact validation are not
+admission or trust; requests are not grants; contributions are not Graph facts;
+visibility is not authorization; lifecycle is not hosting; and category is not
+a security decision. No public loader or Application Graph integration exists.
+Phase 12D implements exact application-owned selection and attributable Graph
+IR admission while preserving declaration, admission, grant, and execution as
+separate facts. Admission grants nothing and returns no authoritative Graph.
+That checkpoint topology was 60 packages / 212 local edges. Phase 12E adds
+explicit capability grants and inert generated extension wiring without
+loading or execution. Phase 12F adds one exact-file trusted/in-process host
+lifecycle with ordered activation, reverse cleanup, operation leases,
+retirement, and deterministic failure preservation. It neither turns capability
+ports into a sandbox nor grants Security, Graph, CLI, external-execution, or
+developer-intelligence authority. The current topology is 62 packages / 220
+local edges. Phase 12G adds detached structural inspection and Safe aggregate
+evidence only. It never loads generated PHP and does not establish currentness,
+host state, execution, trust, authorization, or production readiness. The
+current topology is 63 packages / 226 local edges; Phase 12H closes the milestone with root-owned external evidence only.

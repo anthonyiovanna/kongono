@@ -214,3 +214,12 @@ and [ADR 0125](../adr/0125-language-neutral-application-graph-ir-and-determinist
 - [Developer intelligence](developer-intelligence.md)
 - [Extension platform](extension-platform.md)
 - [Agent model](agent-model.md)
+
+## Phase 12D extension IR admission
+
+Phase 12D accepts attributable `kongono.extension/1` producer evidence and
+passes the complete winning extension record set once through the existing
+Application Graph builder. The temporary Graph is discarded; returned records
+remain IR awaiting a separately owned application build. Extension admission
+does not publish Graph truth or grant capability, authorization, loading,
+Composition, hosting, or execution authority.

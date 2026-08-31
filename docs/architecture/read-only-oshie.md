@@ -1,5 +1,10 @@
 # Read-only Oshie
 
+Phase 12H externally proves Oshie's Phase 12G extension view as deterministic
+Safe aggregate evidence. It does not let Oshie load, execute, teach from raw
+private contribution material, or grant extension authority. See
+[Phase 12 external acceptance](phase-12-external-acceptance.md).
+
 ## Purpose and status
 
 Phase 4F implements Experimental `kongono/oshie` as a deterministic teaching companion. It uses one explicit current Phase 4C framework-knowledge artifact and one package-owned six-record curriculum to return cited lessons and exact-answer exercises.
@@ -33,3 +38,7 @@ no executable example, and the harness does not invent one. Teaching remains
 derived and cannot establish doctrine, proposal, write, Git, verification,
 network, deployment, or production authority. Phase 4 is closed but is not
 Stable, 1.0, or production-ready. Phase 5 was not begun.
+
+Phase 12G may address a Safe aggregate extension view to Oshie. It contains no
+raw declarations, capability purposes, contribution details, paths, classes,
+generated PHP, host state, execution evidence, or teaching authority.

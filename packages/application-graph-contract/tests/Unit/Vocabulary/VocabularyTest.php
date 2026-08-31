@@ -41,7 +41,10 @@ final class VocabularyTest extends TestCase
             ['Application', 'application'],
             ['FrameworkInternal', 'framework_internal'],
         ], self::cases(FactVisibility::cases()));
-        self::assertSame([['CompositionV2', 'kongono.composition/2']], self::cases(ProducerContract::cases()));
+        self::assertSame([
+            ['CompositionV2', 'kongono.composition/2'],
+            ['ExtensionV1', 'kongono.extension/1'],
+        ], self::cases(ProducerContract::cases()));
         self::assertSame([['Version1', 1]], self::cases(DerivationVersion::cases()));
     }
 

@@ -1,5 +1,11 @@
 # Read-Only Kongono Hantei
 
+Phase 12H externally proves Hantei's independent extension-view verification
+and registers `acceptance:phase12` in the fixed root-script inventory. The
+profile remains exactly eight checks; the script is not a ninth check and
+Hantei gains no repair or extension authority. See
+[Phase 12 external acceptance](phase-12-external-acceptance.md).
+
 ## Purpose and current status
 
 Phase 4E implements the first read-only Hantei verifier. Hantei independently
@@ -101,3 +107,7 @@ the exact root-owned external command as deterministic quality evidence; it
 does not gain the ability to create temporary applications, export signals,
 repair failures, stage or commit content, or certify its own report. The Phase
 10 acceptance harness remains separately owned by root tests.
+
+Phase 12G may address independently verifiable Safe extension aggregate
+evidence to Hantei. The role token is not verification authority, and the
+extension-inspection package does not depend on or invoke Hantei.

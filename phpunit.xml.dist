@@ -44,6 +44,12 @@
             <directory>packages/diagnostic-handler/tests</directory>
             <directory>packages/diagnostic-presentation/tests</directory>
             <directory>packages/diagnostics/tests</directory>
+            <directory>packages/extension-admission/tests</directory>
+            <directory>packages/extension-build/tests</directory>
+            <directory>packages/extension-composition/tests</directory>
+            <directory>packages/extension-contract/tests</directory>
+            <directory>packages/extension-host/tests</directory>
+            <directory>packages/extension-inspection/tests</directory>
             <directory>packages/hantei/tests</directory>
             <directory>packages/http-message/tests</directory>
             <directory>packages/http-server/tests</directory>
@@ -104,6 +110,12 @@
             <directory>packages/diagnostic-handler/src</directory>
             <directory>packages/diagnostic-presentation/src</directory>
             <directory>packages/diagnostics/src</directory>
+            <directory>packages/extension-admission/src</directory>
+            <directory>packages/extension-build/src</directory>
+            <directory>packages/extension-composition/src</directory>
+            <directory>packages/extension-contract/src</directory>
+            <directory>packages/extension-host/src</directory>
+            <directory>packages/extension-inspection/src</directory>
             <directory>packages/hantei/src</directory>
             <directory>packages/http-message/src</directory>
             <directory>packages/http-server/src</directory>

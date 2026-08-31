@@ -7,6 +7,12 @@ that turns one exact current Composition artifact into one canonical typed PHP
 file. Phase 9E adds version-2 operation inputs while preserving version-1
 generated semantics. The generated file remains derived build evidence.
 
+Phase 12E adds a separate extension-specific build pipeline in
+`kongono/extension-composition`. It does not modify or reuse the Phase 5/9
+Composition schema, assemblies, loader, lifecycle, or application workflow.
+Its output contains only trusted/in-process extension construction and explicit
+capability-provider parameters bound to exact admission and grant-plan evidence.
+
 The public build types are `GeneratedWiringArtifact`,
 `GeneratedWiringGenerator`, `GeneratedWiringValidator`, and
 `GeneratedWiringPublisher`. `GeneratedApplicationBoundary` and
@@ -94,6 +100,24 @@ The Phase 9E Security Runtime profile uses one exact version-2
 `SecurityContext` operation input. This wiring creates no authorization decision
 and performs no protected-capability enforcement.
 
+## Separate Phase 12E extension wiring
+
+Extension wiring generation accepts exact declarations, exact Phase 12D
+admission, and one canonical application-owned grant plan. Build-time
+Reflection proves exact userland implementation classes, constructor shapes,
+and provider contracts. The deterministic output has one content-addressed
+namespace and exactly two final assembly classes. Application providers and
+extensions remain application-owned; operation providers and extensions are
+fresh for each operation. Application extensions cannot reach operation
+providers. Optional denied arguments are omitted, and required denial fails.
+
+Validation tokenizes and reconstructs metadata without including, requiring,
+evaluating, or autoloading the generated file. Optional publication creates one
+contained `<wiring-sha256>.php` target atomically and never overwrites a
+conflict. Phase 12E adds no runtime loader, host, container, resolver, registry,
+discovery, generated autoloading, authorization meaning, or security isolation.
+Trusted/in-process code still possesses the technical power of its PHP process.
+
 ## Phase 5F loading boundary
 
 Phase 5F adds the explicit `GeneratedWiringLoader` and one-use
@@ -122,3 +146,5 @@ policy.
 - [Minimal application workflow](minimal-application-workflow.md)
 - [ADR 0110](../adr/0110-operation-scoped-security-context-and-generated-composition-inputs.md)
 - [Operation-scoped Security Context](operation-scoped-security-context.md)
+- [ADR 0135](../adr/0135-explicit-extension-capability-grants-and-generated-wiring.md)
+- [Extension Capability Grants and Generated Wiring](extension-capability-grants-and-generated-wiring.md)

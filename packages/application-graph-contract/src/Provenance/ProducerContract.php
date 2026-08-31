@@ -12,4 +12,5 @@ use Kongono\ApiMetadata\ApiStatus;
 enum ProducerContract: string
 {
     case CompositionV2 = 'kongono.composition/2';
+    case ExtensionV1 = 'kongono.extension/1';
 }

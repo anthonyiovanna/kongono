@@ -1,5 +1,10 @@
 # Read-Only Kongono Chie
 
+Phase 12H externally proves Chie's Phase 12G extension view as deterministic
+Safe aggregate evidence. It does not let Chie load, execute, grant, authorize,
+repair, or certify an extension. See
+[Phase 12 external acceptance](phase-12-external-acceptance.md).
+
 ## Purpose and current status
 
 Phase 4D implements the first Experimental Chie runtime in `kongono/chie`;
@@ -168,3 +173,7 @@ byte-identical; stale, invalid, missing, and malicious inputs remain visible or
 inert without disclosure. The candidate remains unapplied and unverified, and
 Chie gains no Hantei, write, Git, network, deployment, or production authority.
 Phase 5 was not begun.
+
+Phase 12G may address a detached Safe extension aggregate view to Chie. This
+does not enlarge Chie's tools or authority and provides no currentness, raw
+declaration, generated code, host state, execution, trust, or mutation access.

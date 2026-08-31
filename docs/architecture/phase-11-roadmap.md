@@ -1,14 +1,14 @@
 # Phase 11 Roadmap
 
-> **Phase 11 complete boundary:** Phase 11H adds root-owned external acceptance
-> and the exact local checkpoint. It adds no production Graph behavior, raw-fact
-> consumer, role execution, runtime integration, authorization, or Phase 12 work.
+> **Phase 11 complete boundary:** Phase 11H closes checkpoint
+> `081ae7f50ad4081bb3890a63a652a0bf782a6da1`. Phase 12A now accepts only the
+> separately governed Extension Platform architecture and documentation.
 
 
 ## Purpose and status
 
-Phase 10 is complete at checkpoint
-`6f7865dbacc7dd9c4b90d2b60bd229b89efbd535`. Phase 11 establishes the future
+Phase 11 is complete at checkpoint
+`081ae7f50ad4081bb3890a63a652a0bf782a6da1`. It establishes the
 authoritative Application Graph and language-neutral Intermediate
 Representation in a fixed dependency order.
 
@@ -109,3 +109,4 @@ and the checkpoint excludes every implementation directive and task report.
 - [Authoritative Application Graph](authoritative-application-graph.md)
 - [Current Application Graph](application-graph.md)
 - [Application Graph structural snapshot](../engineering/application-graph-structure.md)
+- [Phase 12 roadmap](phase-12-roadmap.md)

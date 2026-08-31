@@ -22,6 +22,7 @@ use Kongono\Console\CommandSummary;
 use Kongono\Console\CommandTokenParser;
 use Kongono\ConsoleApplication\Handler\ApplicationBuildCommandHandler;
 use Kongono\ConsoleApplication\Handler\ApplicationGraphInspectCommandHandler;
+use Kongono\ConsoleApplication\Handler\ExtensionInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
@@ -33,6 +34,7 @@ use Kongono\ConsolePresentation\MachineCommandPresenter;
 use Kongono\ConsoleRuntime\CommandDispatcher;
 use Kongono\ConsoleRuntime\CommandHandlerBinding;
 use Kongono\ConsoleRuntime\CommandHandlerSet;
+use Kongono\ExtensionInspection\Loading\ExtensionInspectionLoader;
 use Kongono\ObservabilityBuild\Workflow\ObservabilityBuildWorkflow;
 use Kongono\SecurityPolicyBuild\Workflow\SecurityPolicyBuildWorkflow;
 
@@ -44,6 +46,7 @@ final class KongoApplicationFactory
     {
         $applicationGraphInspect = new CommandIdentifier(KongoCommand::ApplicationGraphInspect->value);
         $applicationBuild = new CommandIdentifier(KongoCommand::ApplicationBuild->value);
+        $extensionInspect = new CommandIdentifier(KongoCommand::ExtensionInspect->value);
         $observabilityCheck = new CommandIdentifier(KongoCommand::ObservabilityCheck->value);
         $observabilityInspect = new CommandIdentifier(KongoCommand::ObservabilityInspect->value);
         $securityCheck = new CommandIdentifier(KongoCommand::SecurityCheck->value);
@@ -72,6 +75,18 @@ final class KongoApplicationFactory
                     new CommandInputDefinition(new CommandInputName('output-directory'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
                 ],
             ),
+            new CommandSpecification(
+                new CommandDefinition(
+                    $extensionInspect,
+                    new CommandSummary('Inspect detached extension platform evidence'),
+                    CommandInteractionPolicy::None,
+                    CommandMutationPolicy::ReadOnly,
+                ),
+                [
+                    new CommandInputDefinition(new CommandInputName('declaration-artifact-path'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                    new CommandInputDefinition(new CommandInputName('generated-wiring-path'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                ],
+            ),
             $this->readOnlySpecification($observabilityCheck, 'Check exact current observability configuration evidence'),
             $this->readOnlySpecification($observabilityInspect, 'Inspect planned observability configuration evidence'),
             $this->readOnlySpecification($securityCheck, 'Check exact current security policy evidence'),
@@ -82,6 +97,7 @@ final class KongoApplicationFactory
         $handlers = new CommandHandlerSet([
             new CommandHandlerBinding($applicationGraphInspect, new ApplicationGraphInspectCommandHandler(new ApplicationGraphArtifactLoader())),
             new CommandHandlerBinding($applicationBuild, new ApplicationBuildCommandHandler(new ApplicationBuildWorkflow())),
+            new CommandHandlerBinding($extensionInspect, new ExtensionInspectCommandHandler(new ExtensionInspectionLoader())),
             new CommandHandlerBinding($observabilityCheck, new ObservabilityCheckCommandHandler($observabilityWorkflow)),
             new CommandHandlerBinding($observabilityInspect, new ObservabilityInspectCommandHandler($observabilityWorkflow)),
             new CommandHandlerBinding($securityCheck, new SecurityCheckCommandHandler($policyWorkflow)),

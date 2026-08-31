@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c8f431813b1a45f95f4b562af1f9a7cf",
+    "content-hash": "ea00d524fdc886c6d60bed91f8ee00f1",
     "packages": [
         {
             "name": "google/protobuf",
@@ -430,7 +430,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/console-application",
-                "reference": "0c6fe2be56c07111875336faa498f748ceb337c7"
+                "reference": "0d92b3f5a8f41f036097380478e31c29da409458"
             },
             "require": {
                 "kongono/api-metadata": "*",
@@ -440,6 +440,7 @@
                 "kongono/console-presentation": "*",
                 "kongono/console-runtime": "*",
                 "kongono/diagnostics": "*",
+                "kongono/extension-inspection": "*",
                 "kongono/observability-build": "*",
                 "kongono/security-policy-build": "*",
                 "php": ">=8.5.0 <8.6.0"
@@ -988,6 +989,207 @@
                 }
             },
             "description": "Presentation-neutral bounded diagnostic values for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/extension-admission",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/extension-admission",
+                "reference": "890594783af6a3e7ce2fe62d4db08b11a6e10d1d"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-build": "*",
+                "kongono/application-graph-contract": "*",
+                "kongono/diagnostics": "*",
+                "kongono/extension-build": "*",
+                "kongono/extension-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExtensionAdmission\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExtensionAdmission\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic selection, admission, and Application Graph IR projection for Kongono extensions.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/extension-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/extension-build",
+                "reference": "61be17c11392cbc6910ea0c4c54a8775a17c548e"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/extension-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExtensionBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExtensionBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic declaration artifact build and publication for Kongono extensions.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/extension-composition",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/extension-composition",
+                "reference": "9c6f37a05dbfe922b656e49a185da5dedefa371d"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/extension-admission": "*",
+                "kongono/extension-build": "*",
+                "kongono/extension-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExtensionComposition\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExtensionComposition\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic capability grants and generated wiring for trusted Kongono extensions.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/extension-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/extension-contract",
+                "reference": "44c37e6fda58017e4b423ae55805301c63c05d77"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExtensionContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExtensionContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral versioned contracts for Kongono extension declarations.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/extension-host",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/extension-host",
+                "reference": "571ab4a9d5e1aff9c9ab0655f4f7c9d7aff226cb"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/extension-composition": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExtensionHost\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExtensionHost\\Tests\\": "tests/"
+                }
+            },
+            "description": "Bounded trusted in-process extension loading and lifecycle isolation for Kongono.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/extension-inspection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/extension-inspection",
+                "reference": "0eca69d6250a9cbd8a5dad73e87213e46e7bf1ac"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/extension-build": "*",
+                "kongono/extension-composition": "*",
+                "kongono/extension-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExtensionInspection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExtensionInspection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Visibility-safe detached extension-platform inspection and developer-intelligence evidence.",
             "transport-options": {
                 "relative": true
             }
@@ -7010,6 +7212,12 @@
         "kongono/diagnostic-handler": 20,
         "kongono/diagnostic-presentation": 20,
         "kongono/diagnostics": 20,
+        "kongono/extension-admission": 20,
+        "kongono/extension-build": 20,
+        "kongono/extension-composition": 20,
+        "kongono/extension-contract": 20,
+        "kongono/extension-host": 20,
+        "kongono/extension-inspection": 20,
         "kongono/hantei": 20,
         "kongono/http-message": 20,
         "kongono/http-server": 20,

@@ -1,5 +1,10 @@
 # Developer Intelligence
 
+Phase 12H externally proves the Phase 12G Chie, Hantei, and Oshie extension
+views as deterministic bounded evidence. The proof does not make any role an
+executing agent, repair mechanism, verifier of its own claims, or authority
+source. See [Phase 12 external acceptance](phase-12-external-acceptance.md).
+
 ## Purpose and status
 
 This document is the current architecture entrypoint for Kongono's
@@ -293,3 +298,9 @@ separate Safe aggregate derivation and independent verification boundary; it
 does not execute a role or grant raw or individual-fact Graph access. See
 [ADR 0129](../adr/0129-visibility-safe-application-graph-developer-intelligence.md)
 and the [Application Graph developer-intelligence guide](application-graph-developer-intelligence.md).
+
+Phase 12G separately adds role-addressed extension-platform views. Chie,
+Hantei, and Oshie receive the same Safe aggregate evidence plus a role token;
+they gain no extension authority, raw declaration access, host observation,
+execution, mutation, or dependency from the inspection package. See the
+[extension-inspection guide](extension-inspection-and-developer-intelligence.md).

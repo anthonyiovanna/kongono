@@ -10,6 +10,7 @@
         "kongono/console-presentation": "*",
         "kongono/console-runtime": "*",
         "kongono/diagnostics": "*",
+        "kongono/extension-inspection": "*",
         "kongono/observability-build": "*",
         "kongono/security-policy-build": "*",
         "php": ">=8.5.0 <8.6.0"

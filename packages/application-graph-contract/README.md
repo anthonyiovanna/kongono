@@ -23,3 +23,8 @@ evidence, not permission; secret material is excluded from the contract.
 
 Stability: Experimental, except the Public package exception marker. Kongono is
 pre-1.0 and not production-ready.
+
+Phase 12D adds only `ProducerContract::ExtensionV1` with value
+`kongono.extension/1` for attributable extension-owned IR. Contract version 1,
+the closed Graph vocabulary and schemas, and `CompositionV2` behavior remain
+unchanged. The producer contract grants no authority.

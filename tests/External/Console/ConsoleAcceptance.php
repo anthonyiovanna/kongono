@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Kongono\Tests\External\Console;
 
 use JsonException;
+use Kongono\ExtensionAdmission\Admission\ExtensionAdmissionBuilder;
+use Kongono\ExtensionAdmission\Selection\ExtensionAdmissionPlan;
+use Kongono\ExtensionBuild\Artifact\ExtensionDeclarationArtifactBuilder;
+use Kongono\ExtensionComposition\Generated\ExtensionWiringGenerator;
+use Kongono\ExtensionComposition\Plan\ExtensionGrantPlan;
 use RuntimeException;
 use Throwable;
 
@@ -114,6 +119,16 @@ final class ConsoleAcceptance
             ],
             $expectedHelp,
             [
+                'identifier' => 'extension:inspect',
+                'summary' => 'Inspect detached extension platform evidence',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'declaration-artifact-path', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'generated-wiring-path', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
                 'identifier' => 'observability:check',
                 'summary' => 'Check exact current observability configuration evidence',
                 'interaction' => 'none',
@@ -166,6 +181,12 @@ final class ConsoleAcceptance
             . "Interaction: none\nMutation: read_only\nInputs:\n"
             . "  --artifact-path=<value> (required, ordinary)\n\n"
             . $expectedHumanHelp
+            . "\nCommand: extension:inspect\n"
+            . "Summary: Inspect detached extension platform evidence\n"
+            . "Usage: kongo extension:inspect --declaration-artifact-path=<value> --generated-wiring-path=<value>\n"
+            . "Interaction: none\nMutation: read_only\nInputs:\n"
+            . "  --declaration-artifact-path=<value> (required, ordinary)\n"
+            . "  --generated-wiring-path=<value> (required, ordinary)\n"
             . "\nCommand: observability:check\n"
             . "Summary: Check exact current observability configuration evidence\n"
             . "Usage: kongo observability:check --application-root=<value> --output-directory=<value>\n"
@@ -196,6 +217,7 @@ final class ConsoleAcceptance
         $this->human($directHumanHelp->stdout());
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: application-graph:inspect'), 'human_help_command_count');
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: application:build'), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: extension:inspect'), 'human_help_command_count');
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: observability:check'), 'human_help_command_count');
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: observability:inspect'), 'human_help_command_count');
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: security:check'), 'human_help_command_count');
@@ -224,6 +246,37 @@ final class ConsoleAcceptance
             'commands' => [$expectedHelp],
         ] === $proxyHelpDocument, 'proxy_help_mismatch');
         $this->caseCompleted();
+
+        $declarationArtifact = (new ExtensionDeclarationArtifactBuilder())->build([]);
+        $admission = (new ExtensionAdmissionBuilder())->build(
+            [],
+            new ExtensionAdmissionPlan($declarationArtifact->declarationSetIdentity(), [], []),
+            [],
+        );
+        $wiringArtifact = (new ExtensionWiringGenerator())->generate(
+            [],
+            $admission,
+            new ExtensionGrantPlan($admission->admissionIdentity(), [], []),
+        );
+        $declarationPath = $application->outputPath('phase12g-declarations.json');
+        $wiringPath = $application->outputPath('phase12g-wiring.php');
+        $this->require(strlen($declarationArtifact->canonicalBytes()) === file_put_contents($declarationPath, $declarationArtifact->canonicalBytes()), 'extension_declaration_write_failed');
+        $this->require(strlen($wiringArtifact->canonicalBytes()) === file_put_contents($wiringPath, $wiringArtifact->canonicalBytes()), 'extension_wiring_write_failed');
+        $extensionInspection = $this->execute($application, $this->source, ['--json', 'extension:inspect', '--declaration-artifact-path=' . $declarationPath, '--generated-wiring-path=' . $wiringPath, '--no-interaction']);
+        $this->expectExitAndChannel($extensionInspection, 0, true);
+        $extensionDocument = $this->machine($extensionInspection->stdout());
+        $this->require('kongono.command-result' === $extensionDocument['schema'], 'extension_result_schema_invalid');
+        $serializedExtension = $extensionInspection->stdout();
+        foreach ([$declarationPath, $wiringPath, $application->sentinel(), 'generated_namespace', 'application_class', 'operation_class'] as $private) {
+            $this->require(!str_contains($serializedExtension, $private), 'extension_private_disclosure');
+        }
+        $this->caseCompleted();
+        $rejectedExtension = $this->execute($application, $this->source, ['--json', 'extension:inspect', '--declaration-artifact-path=' . $application->root() . '/PrivateRejected-' . $application->rejectedMarker() . '.json', '--generated-wiring-path=' . $wiringPath, '--no-interaction']);
+        $this->expectExitAndChannel($rejectedExtension, 3, true);
+        $this->require(!str_contains($rejectedExtension->stdout(), $application->rejectedMarker()) && !str_contains($rejectedExtension->stdout(), $wiringPath), 'extension_rejection_disclosure');
+        $this->caseCompleted();
+        $application->removeOwnedFile($declarationPath);
+        $application->removeOwnedFile($wiringPath);
 
         $unknown = $this->execute($application, $this->source, ['--json', 'unknown:command']);
         $this->expectExitAndChannel($unknown, 2, true);

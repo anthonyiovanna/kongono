@@ -20,6 +20,7 @@ enum ConsoleApplicationDiagnostic: string
     case BuildPrecondition = 'KGN-CONSOLE-APPLICATION-1002';
     case ApplicationFailure = 'KGN-CONSOLE-APPLICATION-1003';
     case GraphInspectionPrecondition = 'KGN-CONSOLE-APPLICATION-1004';
+    case ExtensionInspectionPrecondition = 'KGN-CONSOLE-APPLICATION-1005';
 
     public function context(): DiagnosticContext
     {
@@ -50,6 +51,7 @@ enum ConsoleApplicationDiagnostic: string
             self::BuildPrecondition => 'Application build precondition failed',
             self::ApplicationFailure => 'Kongo application infrastructure failed',
             self::GraphInspectionPrecondition => 'Application Graph inspection precondition failed',
+            self::ExtensionInspectionPrecondition => 'Extension inspection precondition failed',
         };
     }
 
@@ -60,6 +62,7 @@ enum ConsoleApplicationDiagnostic: string
             self::BuildPrecondition => 'Correct the application build precondition and retry explicitly.',
             self::ApplicationFailure => 'Inspect the retained failure only through an authorized boundary.',
             self::GraphInspectionPrecondition => 'Correct the explicit Application Graph artifact precondition and retry.',
+            self::ExtensionInspectionPrecondition => 'Correct the explicit extension inspection inputs and retry.',
         };
     }
 
@@ -70,6 +73,7 @@ enum ConsoleApplicationDiagnostic: string
             self::BuildPrecondition => 'application_build',
             self::ApplicationFailure => 'application_infrastructure',
             self::GraphInspectionPrecondition => 'application_graph_inspection',
+            self::ExtensionInspectionPrecondition => 'extension_inspection',
         };
     }
 
@@ -80,6 +84,7 @@ enum ConsoleApplicationDiagnostic: string
             self::BuildPrecondition => 'exact_current_build_state',
             self::ApplicationFailure => 'bounded_application_boundary',
             self::GraphInspectionPrecondition => 'explicit_valid_graph_artifact',
+            self::ExtensionInspectionPrecondition => 'explicit_valid_extension_artifacts',
         };
     }
 
@@ -90,6 +95,7 @@ enum ConsoleApplicationDiagnostic: string
             self::BuildPrecondition => 'correct_build_precondition',
             self::ApplicationFailure => 'inspect_authorized_failure',
             self::GraphInspectionPrecondition => 'correct_graph_artifact_precondition',
+            self::ExtensionInspectionPrecondition => 'correct_extension_artifact_precondition',
         };
     }
 }

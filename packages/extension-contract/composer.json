@@ -1,0 +1,23 @@
+{
+  "name": "kongono/extension-contract",
+  "description": "Neutral versioned contracts for Kongono extension declarations.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\ExtensionContract\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\ExtensionContract\\Tests\\": "tests/"
+    }
+  }
+}

@@ -1,16 +1,19 @@
 # Kongono Engineering Foundation
 
-> **Phase 11 complete boundary:** Phase 11H adds root-owned external proof and
-> the exact local checkpoint without changing production Graph behavior. The
-> topology remains 57 packages and 201 acyclic local production edges; Phase 12
-> and production-readiness remain outside the accepted boundary.
+Phase 12H adds the root-owned external Extension Platform harness and exact
+local checkpoint without changing production packages, manifests, dependencies,
+the lockfile, or the 63-package / 226-edge graph. See
+[Phase 12 external acceptance](../architecture/phase-12-external-acceptance.md).
 
+> **Phase 12 current boundary:** Phases 12A-12H are implemented to their
+> accepted boundaries. Phase 12H adds external acceptance evidence only; the
+> topology remains 63 packages / 226 acyclic local production edges.
 
 - [Read-only Hantei](../architecture/read-only-hantei.md) documents the fixed
   Phase 4E verifier, subject identity, evidence, process, and mutation boundary.
 ## Purpose and current scope
 
-Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all 52 production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
+Kongono's engineering foundation makes the repository's PHP quality expectations executable across the root and all 58 production packages. It gives contributors one reproducible development environment and one non-mutating local gate without implying that Experimental behavior is Stable or that planned capabilities exist.
 
 Phase 0X expands the automatically discovered inventory with eight Diagnostic
 Presentation declarations and six focused package tests. Existing quality rules
@@ -22,7 +25,7 @@ The root command is:
 composer quality
 ```
 
-It validates the root and all 52 package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
+It validates the root and all 58 package manifests in lexicographic order, audits the locked dependency graph, checks the actual runtime platform, checks formatting, performs maximum-level static analysis with strict rules, and runs tests. A passing gate means those configured checks passed for the current checkout and environment; it is not a claim of framework completeness, production readiness, or security certification.
 
 ## Guides
 
@@ -462,11 +465,47 @@ Future producer records remain non-authoritative until deterministic admission;
 future consumers receive only bounded visibility-filtered views and cannot
 treat omission as false or convert Graph facts into operational permission.
 
-The fixed order places identity/schema foundations before IR construction,
+The fixed order placed identity/schema foundations before IR construction,
 Composition projection, artifact publication, inspection, developer-
-intelligence derivation, and external acceptance. Each row requires separate
-authenticated authority. Phase 11C provides explicit IR records and complete
-deterministic Graph construction; Phase 11D provides Composition projection;
-Phase 11E provides canonical artifacts, caller-relative currentness, explicit
-loading, and no-clobber publication. Inspection, commands, consumers,
-extensions, and runtime integration remain absent; Phase 11F is unstarted.
+intelligence derivation, and external acceptance. Phase 11C provides explicit
+IR records and deterministic Graph construction; Phase 11D provides Composition
+projection; Phase 11E provides canonical artifacts, caller-relative
+currentness, loading, and no-clobber publication; Phase 11F provides bounded
+inspection; Phase 11G provides aggregate intelligence evidence; and Phase 11H
+provides external acceptance at the exact checkpoint.
+
+## Phase 12A Extension Platform engineering boundary
+
+Phase 12A changes documentation only. It adds ADR 0131 and the fixed Phase 12
+roadmap, reconciles the primary Extension Platform guide, and preserves every
+production/test PHP file, Composer file, package, dependency edge, script,
+configuration file, artifact, and runtime behavior.
+
+Future extension work must begin with explicit application selection and
+deterministic evidence. Declaration, admission, grant, and execution are
+separate engineering gates. Contributions are attributable IR inputs rather
+than automatic Graph facts. Generated ordinary PHP remains the preferred
+trusted/in-process wiring mechanism, with no runtime discovery, service
+location, or dishonest sandbox claim. Phase 12B now supplies only the neutral
+Extension Contract package, which depends on API Metadata and Diagnostics.
+Construction is not admission/currentness/trust, requests are not grants,
+contributions are not Graph facts, visibility is not authorization, lifecycle
+is not hosting, and category is not a security decision. No Application Graph
+integration exists. Phase 12C now adds the separate Extension Build package for
+exact canonical declaration evidence, strict value reconstruction,
+caller-relative currentness, and atomic no-clobber publication. It adds no
+public loader, admission, grant, Graph, Composition, host, or execution
+authority. Phase 12D implements exact deterministic selection, conflict
+resolution, provenance validation, and Graph IR structural admission in
+`kongono/extension-admission`. That checkpoint topology was 60 packages / 212
+local edges. Phase 12E adds the separate build-only
+`kongono/extension-composition` package for explicit grants and inert generated
+wiring. Phase 12F adds the separate `kongono/extension-host` runtime boundary
+for one exact generated file, typed application and operation lifecycle,
+reverse cleanup, leases, retirement, and failure preservation. Reflection is
+restricted to one-time loading validation, and trusted PHP remains
+non-sandboxed. The current topology is 62 packages / 220 local edges; Phase 12G
+now adds detached two-file structural inspection and one read-only command.
+The generated file remains inert, and currentness and runtime state remain
+unproven. The current topology is 63 packages / 226 local edges; Phase 12H adds
+only root-owned external evidence and the exact local checkpoint.

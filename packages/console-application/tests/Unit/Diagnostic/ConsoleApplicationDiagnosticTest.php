@@ -16,6 +16,7 @@ final class ConsoleApplicationDiagnosticTest extends TestCase
             'KGN-CONSOLE-APPLICATION-1002',
             'KGN-CONSOLE-APPLICATION-1003',
             'KGN-CONSOLE-APPLICATION-1004',
+            'KGN-CONSOLE-APPLICATION-1005',
         ], array_column(ConsoleApplicationDiagnostic::cases(), 'value'));
 
         foreach (ConsoleApplicationDiagnostic::cases() as $diagnostic) {

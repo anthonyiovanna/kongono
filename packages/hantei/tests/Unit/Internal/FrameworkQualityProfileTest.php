@@ -22,7 +22,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertIsArray($root);
         self::assertIsArray($root['scripts']);
         self::assertIsArray($root['scripts']['validate:packages']);
-        self::assertCount(57, $root['scripts']['validate:packages']);
+        self::assertCount(63, $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/application-graph-artifact validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/application-graph-build validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/application-graph-composition validate --no-check-publish', $root['scripts']['validate:packages']);
@@ -45,6 +45,12 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertContains('composer --working-dir=packages/database-pdo-pgsql validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/database-sql validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/database-sql-pgsql validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/extension-admission validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/extension-contract validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/extension-build validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/extension-composition validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/extension-host validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/extension-inspection validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/identity-access validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/metrics validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/observability validate --no-check-publish', $root['scripts']['validate:packages']);
@@ -77,6 +83,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertSame('@php tests/External/Security/run.php', $root['scripts']['acceptance:phase9']);
         self::assertSame('@php tests/External/Observability/run.php', $root['scripts']['acceptance:phase10']);
         self::assertSame('@php tests/External/ApplicationGraph/run.php', $root['scripts']['acceptance:phase11']);
+        self::assertSame('@php tests/External/ExtensionPlatform/run.php', $root['scripts']['acceptance:phase12']);
 
         $resource = json_decode(
             (string) file_get_contents(dirname(__DIR__, 3) . '/resources/framework-quality-v1.json'),
@@ -92,6 +99,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertSame($root['scripts']['acceptance:phase9'], $resource['composer_scripts']['acceptance:phase9']);
         self::assertSame($root['scripts']['acceptance:phase10'], $resource['composer_scripts']['acceptance:phase10']);
         self::assertSame($root['scripts']['acceptance:phase11'], $resource['composer_scripts']['acceptance:phase11']);
+        self::assertSame($root['scripts']['acceptance:phase12'], $resource['composer_scripts']['acceptance:phase12']);
     }
 
     public function testUnknownProfileIsRejected(): void

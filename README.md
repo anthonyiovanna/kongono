@@ -1,10 +1,15 @@
 # Kongono
 
-> **Phase 11 complete boundary:** Phase 11H adds root-owned external proof and
-> the exact local checkpoint without changing production Graph behavior. Raw
-> Graph facts, role execution, runtime integration, authorization, Phase 12,
-> and production-readiness remain outside the accepted boundary.
+Phase 12 is closed by the root-owned
+[external Extension Platform acceptance](docs/architecture/phase-12-external-acceptance.md).
+It exercises the accepted stack without changing production packages or their
+authority. Trusted in-process PHP remains non-sandboxed, inspection remains
+detached aggregate evidence, and Kongono remains Experimental and pre-1.0.
 
+> **Phase 12 current boundary:** Phases 12A-12H are implemented to their
+> accepted boundaries. Phase 12H adds only root-owned external acceptance and
+> checkpoint evidence; the production graph remains 63 packages / 226 acyclic
+> local edges.
 
 > **Build what comes next.**
 
@@ -18,9 +23,9 @@ Kongono is a planned modern application framework for applications that must be 
 
 ## Current status
 
-Phase 10 is complete at checkpoint
-`6f7865dbacc7dd9c4b90d2b60bd229b89efbd535`; Phase 11G brings the graph to exactly 57
-acyclic first-party production packages and 201 local
+Phase 11 is complete at checkpoint
+`081ae7f50ad4081bb3890a63a652a0bf782a6da1`; the graph now contains exactly 59
+acyclic first-party production packages and 206 local
 production edges. The official
 one-shot `kongo` executable implements exactly `application-graph:inspect`,
 `application:build`,
@@ -898,4 +903,31 @@ makes no external-currentness claim, and grants no authorization. Phase 11G
 adds the separate `kongono/application-graph-intelligence` package for one
 role-addressed Safe aggregate view and independent six-check verification. It
 does not execute Chie, Hantei, or Oshie or expose raw or individual Graph facts.
-Phase 11H remains unstarted.
+Phase 11H is complete. Phase 12A now accepts only the governed Extension
+Platform architecture in [ADR 0131](docs/adr/0131-governed-extension-platform-and-attributable-contribution-boundary.md),
+the primary [Extension Platform guide](docs/architecture/extension-platform.md),
+and the [fixed Phase 12 roadmap](docs/architecture/phase-12-roadmap.md). Extension
+selection is explicit; declaration, admission, grant, and execution remain
+separate; capabilities are attributable and deny by default; and contribution
+claims are non-authoritative IR inputs until admitted. Phase 12B adds only the
+neutral Extension Contract package, depending on API Metadata and Diagnostics.
+Its values are inert: construction is not admission/currentness/trust, requests
+are not grants, contributions are not Graph facts, visibility is not
+authorization, lifecycle is not hosting, and category is not a security
+decision. Phase 12C adds the separate `kongono/extension-build` package for
+canonical declaration evidence, exact structural reconstruction,
+caller-relative currentness, and content-addressed no-clobber publication. It
+adds no public loader, discovery, grant, Composition, host, or execution
+authority. Phase 12D now adds the separate deterministic Extension Admission
+package for exact selection, explicit conflict winners, attributable Graph IR,
+and complete structural admission. Its output is still IR rather than an
+authoritative Graph. That checkpoint was 60 packages / 212 local edges. Phase
+12E now adds explicit capability grants and inert generated extension wiring in
+the build-only `kongono/extension-composition` package. Phase 12F adds the
+bounded `kongono/extension-host` package for exact one-file loading, typed
+application and operation lifecycle, reverse cleanup, leases, and deterministic
+failure preservation. Trusted/in-process PHP is not sandboxed. The current
+Phase 12G adds detached aggregate-only extension inspection and the read-only
+`extension:inspect` command. It establishes neither currentness nor authority
+and never loads generated PHP. The graph is 63 packages / 226 local edges;
+Phase 12H closes the milestone with root-owned external evidence only, and Kongono remains Experimental and pre-1.0.

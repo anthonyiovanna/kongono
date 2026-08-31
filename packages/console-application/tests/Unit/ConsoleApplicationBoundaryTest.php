@@ -8,6 +8,7 @@ use Kongono\ApplicationGraphArtifact\Artifact\ApplicationGraphArtifactLoader;
 use Kongono\Composition\Workflow\ApplicationBuildWorkflow;
 use Kongono\ConsoleApplication\Handler\ApplicationBuildCommandHandler;
 use Kongono\ConsoleApplication\Handler\ApplicationGraphInspectCommandHandler;
+use Kongono\ConsoleApplication\Handler\ExtensionInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
@@ -17,6 +18,7 @@ use Kongono\ConsoleApplication\KongoCommand;
 use Kongono\ConsoleBuild\Build\ConsoleArtifactBuilder;
 use Kongono\ConsoleRuntime\CommandHandlerBinding;
 use Kongono\ConsoleRuntime\CommandHandlerSet;
+use Kongono\ExtensionInspection\Loading\ExtensionInspectionLoader;
 use Kongono\ObservabilityBuild\Workflow\ObservabilityBuildWorkflow;
 use Kongono\SecurityPolicyBuild\Workflow\SecurityPolicyBuildWorkflow;
 use PHPUnit\Framework\TestCase;
@@ -42,14 +44,15 @@ final class ConsoleApplicationBoundaryTest extends TestCase
             'kongono/console-presentation' => '*',
             'kongono/console-runtime' => '*',
             'kongono/diagnostics' => '*',
+            'kongono/extension-inspection' => '*',
             'kongono/observability-build' => '*',
             'kongono/security-policy-build' => '*',
             'php' => '>=8.5.0 <8.6.0',
         ], $manifest['require']);
         self::assertSame(['kongono/console-build' => '*'], $manifest['require-dev']);
         self::assertSame(['bin/kongo'], $manifest['bin']);
-        self::assertCount(18, self::phpFiles($root . '/src'));
-        self::assertCount(13, self::phpFiles($root . '/tests'));
+        self::assertCount(19, self::phpFiles($root . '/src'));
+        self::assertCount(14, self::phpFiles($root . '/tests'));
         self::assertSame(['kongo'], array_map('basename', self::ordinaryFiles($root . '/bin')));
     }
 
@@ -77,6 +80,10 @@ final class ConsoleApplicationBoundaryTest extends TestCase
                 new ApplicationBuildCommandHandler(new ApplicationBuildWorkflow()),
             ),
             new CommandHandlerBinding(
+                new \Kongono\Console\CommandIdentifier(KongoCommand::ExtensionInspect->value),
+                new ExtensionInspectCommandHandler(new ExtensionInspectionLoader()),
+            ),
+            new CommandHandlerBinding(
                 new \Kongono\Console\CommandIdentifier(KongoCommand::ObservabilityCheck->value),
                 new ObservabilityCheckCommandHandler(new ObservabilityBuildWorkflow()),
             ),
@@ -96,15 +103,16 @@ final class ConsoleApplicationBoundaryTest extends TestCase
         (new KongoCommandValidator())->validate($specifications, $handlers);
 
         $commands = $specifications->commands();
-        self::assertCount(6, $commands);
+        self::assertCount(7, $commands);
         self::assertSame(
-            ['application-graph:inspect', 'application:build', 'observability:check', 'observability:inspect', 'security:check', 'security:inspect'],
+            ['application-graph:inspect', 'application:build', 'extension:inspect', 'observability:check', 'observability:inspect', 'security:check', 'security:inspect'],
             array_map(static fn($command): string => $command->definition()->identifier()->value(), $commands),
         );
         self::assertSame(
             [
                 'Inspect one authoritative application graph artifact',
                 'Build exact current application composition outputs',
+                'Inspect detached extension platform evidence',
                 'Check exact current observability configuration evidence',
                 'Inspect planned observability configuration evidence',
                 'Check exact current security policy evidence',
@@ -113,7 +121,12 @@ final class ConsoleApplicationBoundaryTest extends TestCase
             array_map(static fn($command): string => $command->definition()->summary()->value(), $commands),
         );
         foreach ($commands as $position => $command) {
-            self::assertSame(0 === $position ? ['artifact-path'] : ['application-root', 'output-directory'], array_map(
+            $expectedInputs = match ($position) {
+                0 => ['artifact-path'],
+                2 => ['declaration-artifact-path', 'generated-wiring-path'],
+                default => ['application-root', 'output-directory'],
+            };
+            self::assertSame($expectedInputs, array_map(
                 static fn($input): string => $input->name()->value(),
                 $command->inputs(),
             ));

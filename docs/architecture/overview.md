@@ -1,16 +1,18 @@
 # Architecture Overview
 
-> **Phase 11 complete boundary:** Phase 11H adds root-owned external proof and
-> the exact local checkpoint without changing production Graph behavior. Raw
-> Graph facts, role execution, runtime integration, authorization, Phase 12,
-> and production-readiness remain outside the accepted boundary.
+Phase 12H closes the accepted Extension Platform milestone with root-owned
+external process evidence only. The graph remains 63 packages / 226 acyclic
+local production edges. See [Phase 12 external acceptance](phase-12-external-acceptance.md).
 
+> **Phase 12 current boundary:** Phases 12A-12H are implemented to their
+> accepted boundaries. Phase 12H adds external acceptance evidence only; the
+> graph remains 63 packages / 226 acyclic local edges.
 
 ## Current reality
 
-Phase 10 is complete at checkpoint
-`6f7865dbacc7dd9c4b90d2b60bd229b89efbd535`; Phase 11G brings the graph to exactly 57
-acyclic production packages and 201 local production
+Phase 11 is complete at checkpoint
+`081ae7f50ad4081bb3890a63a652a0bf782a6da1`; the graph now contains exactly 59
+acyclic production packages and 206 local production
 edges. The official one-shot
 `kongo` executable implements exactly `application-graph:inspect`,
 `application:build`,
@@ -19,8 +21,12 @@ edges. The official one-shot
 the neutral contract foundation, Phase 11C implements explicit IR admission,
 Phase 11D implements Composition projection, Phase 11E implements canonical
 Graph artifacts and guarded publication, and Phase 11F implements bounded
-artifact inspection and its explicit read-only command. Phase 11G remains
-unstarted.
+artifact inspection and its explicit read-only command. Phase 11G implements
+visibility-safe aggregate derivation, and Phase 11H closes the exact local
+checkpoint. Phase 12A is historical and complete; Phase 12B implements neutral
+extension declaration values. Phase 12C serializes and publishes those values
+as deterministic evidence without admission, grant, Graph, hosting, loading, or
+execution authority. Phase 12D implements deterministic admission only.
 The earlier Phase 2 checkpoint
 `647053d4bddc4c76090bca9bf3d693faa5880c52` retains its root-owned, test-owned
 runnable fixture. The
@@ -853,3 +859,39 @@ Phase 11G adds only the visibility-safe aggregate derivation and independent
 verification described in
 [ADR 0129](../adr/0129-visibility-safe-application-graph-developer-intelligence.md)
 and the [Application Graph developer-intelligence guide](application-graph-developer-intelligence.md).
+
+## Phase 12A governed Extension Platform architecture
+
+Phase 12A accepts [ADR 0131](../adr/0131-governed-extension-platform-and-attributable-contribution-boundary.md),
+the primary [Extension Platform guide](extension-platform.md), and the
+[fixed Phase 12 roadmap](phase-12-roadmap.md). Explicit application selection
+replaces ambient discovery. Declaration, admission, grant, and execution remain
+separate. Future capability requests and grants are typed, bounded,
+attributable, and denied by default.
+
+Extension contributions are future versioned language-neutral IR inputs, not
+automatic authoritative Graph facts or authority. Trusted/in-process PHP is
+not sandboxed by capability ports. Principal, Security, Observability, Graph,
+and developer-intelligence boundaries remain independent. The production graph
+is 59 packages and 206 acyclic local edges. The Extension Contract package
+depends only on API Metadata and Diagnostics; local construction is not
+admission/currentness/trust, requests are not grants, contributions are not
+Graph facts, visibility is not authorization, lifecycle is not hosting, and
+category is not a security decision. Phase 12C adds exact canonical bytes,
+declaration-set and artifact identities, strict reconstruction,
+caller-relative currentness, and path-safe atomic no-clobber publication. No
+public loader exists. Phase 12D adds the separate deterministic
+`kongono/extension-admission` boundary for exact selection, conflict winners,
+attributable Graph IR, and complete structural validation. It returns no
+authoritative Graph and grants no runtime authority. The topology is 60
+packages / 212 local edges at that checkpoint. Phase 12E now adds explicit
+capability grants and inert generated wiring in the separate build-only
+`kongono/extension-composition` package. Phase 12F adds the separate bounded
+`kongono/extension-host` runtime leaf: one exact generated file, one-time load
+validation, ordered application/operation activation, reverse cleanup, leases,
+and retirement. It is explicitly non-sandboxed and adds no Graph, Security,
+CLI, external-execution, or intelligence authority. The current topology is 62
+packages / 220 local edges. Phase 12G adds only detached aggregate extension
+inspection and one read-only command; generated PHP remains unloaded and the
+host remains unobserved. The current topology is 63 packages / 226 local edges;
+Phase 12H closes the milestone with root-owned external evidence only.

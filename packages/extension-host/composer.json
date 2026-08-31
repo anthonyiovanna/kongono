@@ -1,0 +1,24 @@
+{
+  "name": "kongono/extension-host",
+  "description": "Bounded trusted in-process extension loading and lifecycle isolation for Kongono.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "kongono/extension-composition": "*",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\ExtensionHost\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\ExtensionHost\\Tests\\": "tests/"
+    }
+  }
+}

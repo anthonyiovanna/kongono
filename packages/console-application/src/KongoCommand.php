@@ -13,6 +13,7 @@ enum KongoCommand: string
 {
     case ApplicationGraphInspect = 'application-graph:inspect';
     case ApplicationBuild = 'application:build';
+    case ExtensionInspect = 'extension:inspect';
     case ObservabilityCheck = 'observability:check';
     case ObservabilityInspect = 'observability:inspect';
     case SecurityCheck = 'security:check';

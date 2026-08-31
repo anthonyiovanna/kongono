@@ -1,5 +1,17 @@
 # Kongono AI-Agent Operating Policy
 
+## Phase 12 external acceptance policy
+
+Phase 12H accepts ADR 0138 and adds only the root-owned 50-case external
+Extension Platform harness, exact Hantei root-script inventory reconciliation,
+and the local Phase 12 checkpoint. It changes no production package, manifest,
+dependency, lockfile, topology, or authority boundary. Declaration evidence is
+not admission, requests are not grants, Graph IR is not execution authority,
+visibility is not authorization, inspection establishes no currentness or host
+state, and trusted in-process PHP remains non-sandboxed. Directives and reports
+remain outside the checkpoint. Phase 12H authorizes no push, tag, release,
+second commit, or Phase 13 work.
+
 This file is permanent repository policy for AI coding agents. It applies to every file beneath the repository root.
 
 ## Agent role
@@ -799,3 +811,116 @@ inspection, Console, role-projection, Chie, and Hantei boundaries without
 adding production PHP, a package, dependency, raw-fact access, role execution,
 runtime integration, network authority, or Phase 12 behavior. Directives and
 task reports remain outside the checkpoint.
+
+## Governed Extension Platform policy
+
+Phase 11 is complete at checkpoint
+`081ae7f50ad4081bb3890a63a652a0bf782a6da1`. Phase 12A historically accepts
+[ADR 0131](docs/adr/0131-governed-extension-platform-and-attributable-contribution-boundary.md),
+the primary [Extension Platform guide](docs/architecture/extension-platform.md),
+and the fixed [Phase 12 roadmap](docs/architecture/phase-12-roadmap.md) as
+documentation architecture only. Phase 12B accepts
+[ADR 0132](docs/adr/0132-neutral-versioned-extension-contract-foundation.md)
+and implements the Experimental `kongono/extension-contract` neutral package.
+Phase 12C accepts
+[ADR 0133](docs/adr/0133-deterministic-extension-declaration-artifact.md) and
+implements the separate Experimental `kongono/extension-build` package. The
+production graph is exactly 59 acyclic packages and 206 local production
+dependency edges. Extension Build depends only on API Metadata, Diagnostics,
+Extension Contract, and PHP; no Application Graph dependency or integration
+exists.
+
+An extension is an explicitly identified, versioned, attributable contribution
+unit selected by an application. Installed packages are not extensions by
+implication, and runtime scanning, Reflection discovery, mutable global
+registries, Composer plugin activation, package-name heuristics,
+environment-driven auto-enable, network discovery, and newest-file selection
+remain prohibited.
+
+Core, Trusted/in-process, Sandboxed, and External are architectural categories,
+not trust, installation, authorization, or grant decisions. Trusted/in-process
+PHP retains the technical power of its process; framework capability ports do
+not sandbox arbitrary PHP. Phase 12 selects no sandbox or external protocol.
+
+Declaration, deterministic admission, explicit application-owned capability
+grant, and separately governed execution remain distinct. Capabilities must be
+typed, versioned, purpose-bounded, attributable, explicitly granted, and denied
+by default. A manifest, package, signature, Graph fact, artifact, developer-
+intelligence answer, or extension self-claim grants no authority.
+
+Future extension contributions are versioned language-neutral IR inputs with
+extension identity, exact source state, provenance, visibility, and schema.
+They do not become authoritative Graph facts automatically. The Graph does not
+load or execute extensions, grant capabilities, prove package integrity,
+approve publishers, authorize Principals, or monitor health. Principal,
+Security, Observability, Graph, Chie, Hantei, and Oshie authority boundaries
+remain independent.
+
+Future hosted work must validate before acquisition, own exact bounded
+lifecycle and cleanup, preserve primary and cleanup failures, retain no
+per-operation state, and fail closed when retirement becomes uncertain. Phase
+12A selects no host API. Sandboxed/external profiles, distribution,
+installation/update/removal, signing and publisher trust, remote networking,
+Agent Principal runtime, frontend/UI contracts, production-readiness, and
+Stable/1.0 API remain outside Phase 12 unless later authority changes the
+boundary.
+
+Phase 12B contract values are inert evidence. Local construction proves only
+grammar, bounds, types, uniqueness, and canonical order; it does not establish
+admission, currentness, or trust. A capability request is not a grant, a
+contribution is not an Application Graph fact, visibility is not authorization,
+lifecycle is not hosting or execution, and category is not a security decision.
+Phase 12C artifacts are deterministic declaration evidence with caller-relative
+exact currentness and atomic content-addressed no-clobber publication. They are
+not discovery, selection, admission, trust, grants, Graph facts, Composition,
+loaded code, hosting, or execution authority, and no public loader exists.
+Phase 12D implements deterministic exact selection, declaration-set-bound
+admission, explicit contribution-conflict winners, attributable
+`kongono.extension/1` Graph IR, and complete structural validation in the
+separate Experimental `kongono/extension-admission` package. The result remains
+IR rather than authoritative Graph truth and grants no capability, Composition,
+host, loading, or execution authority. The Phase 12D graph was exactly 60
+packages / 212 local edges at that checkpoint.
+
+Phase 12E accepts ADR 0135 and implements the separate Experimental
+`kongono/extension-composition` build package. One explicit grant plan is bound
+to exact Phase 12D admission evidence and lists every declared request as an
+exact grant or denial. Granted entries name exact application- or operation-
+lifetime provider contracts; denied optional constructor arguments are omitted
+so PHP owns their declared defaults. Required denials, missing or extra
+decisions, mismatched declarations/admission/implementations, unsupported
+categories, and application-to-operation lifetime reachability fail closed.
+
+The package validates exact userland implementation and provider symbols with
+build-time Reflection, emits ordinary typed PHP in one content-addressed
+namespace, validates without executing generated bytes, and may publish one
+contained `<wiring-sha256>.php` file atomically, idempotently, initial-only, and
+without clobber. It never loads or executes the output and adds no runtime
+container, resolver, registry, autowiring, discovery, host, sandbox, external
+protocol, authorization grant, security enforcement, generated autoloading, or
+Phase 12F behavior. Trusted/in-process remains an architectural category rather
+than isolation: arbitrary PHP retains the technical power of its process. The
+graph was exactly 61 packages / 217 local edges at that checkpoint.
+
+Phase 12F accepts ADR 0136 and implements the separate Experimental
+`kongono/extension-host` package. One exact caller-selected local generated file
+is bound to its exact Extension Composition artifact and grant plan, validated
+before one irreversible `require`, and shape-checked once with Reflection.
+Generated lower hosted boundaries preserve the typed wiring and add only exact
+ordered-list delegation. Application and operation extensions activate in
+order, clean up in reverse, preserve primary and cleanup throwable identities,
+and detach operation state. Operation leases block shutdown without mutation;
+activation or cleanup uncertainty retires new operation authority while
+preserving explicit shutdown.
+
+The host is trusted/in-process and therefore not a sandbox. It adds no dynamic
+discovery, registry, resolver, arbitrary dispatch, Security or Graph authority,
+external process, CLI, marketplace, distribution, developer-intelligence, or
+production-readiness behavior. Reflection is absent after load and destructors
+perform no lifecycle work. The graph is exactly 62 packages / 220 local edges.
+Phase 12G adds only `kongono/extension-inspection`, detached two-file structural
+inspection, Safe aggregate role views, independent verification, and the
+read-only `extension:inspect` command. Generated PHP is never loaded by
+inspection; currentness, host state, execution, and authority remain
+unestablished. The graph is exactly 63 packages / 226 local edges. Phase 12H
+adds only root-owned external evidence and the exact local checkpoint.
