@@ -1,0 +1,31 @@
+{
+  "name": "kongono/agent-inspection",
+  "description": "Visibility-safe Agent Principal inspection and bounded cross-system evidence.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/agent-admission": "*",
+    "kongono/agent-application": "*",
+    "kongono/agent-declaration-build": "*",
+    "kongono/agent-principal-contract": "*",
+    "kongono/agent-runtime": "*",
+    "kongono/api-metadata": "*",
+    "kongono/application-graph-intelligence": "*",
+    "kongono/diagnostics": "*",
+    "kongono/observability": "*",
+    "kongono/security-audit": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\AgentInspection\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\AgentInspection\\Tests\\": "tests/"
+    }
+  }
+}

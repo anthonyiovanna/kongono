@@ -1,5 +1,17 @@
 # Developer Intelligence
 
+Phase 13G keeps Kongono Chie, Kongono Hantei, and Kongono Oshie separate from
+application Agent Principals. Their bounded developer evidence grants no
+application identity, delegation, consent, capability, authorization, or
+execution authority. Neither the neutral contract package nor deterministic
+declaration artifact build invokes these roles or grants them access. See the
+[Agent Principal Platform](agent-principal-platform.md) and
+[Agent Declaration Artifact](agent-declaration-artifact.md). The optional
+[Agent Principal Inspection and Evidence](agent-principal-inspection-and-evidence.md)
+package can address identical Safe inspection evidence to `chie`, `hantei`, or
+`oshie` purposes, but it has no dependency on and never executes, alters, or
+certifies those roles. Its independent PASS is comparison evidence only.
+
 Phase 12H externally proves the Phase 12G Chie, Hantei, and Oshie extension
 views as deterministic bounded evidence. The proof does not make any role an
 executing agent, repair mechanism, verifier of its own claims, or authority
@@ -304,3 +316,10 @@ Hantei, and Oshie receive the same Safe aggregate evidence plus a role token;
 they gain no extension authority, raw declaration access, host observation,
 execution, mutation, or dependency from the inspection package. See the
 [extension-inspection guide](extension-inspection-and-developer-intelligence.md).
+
+Phase 13G likewise derives separately addressed Chie, Hantei, and Oshie views
+from the same Safe Agent Principal inspection facts without depending on or
+executing those roles. Phase 13H proves that separation externally. The harness
+does not let a role output grant authority, repair evidence, record a
+projection, or certify application security. See
+[Phase 13 external acceptance](phase-13-external-acceptance.md).

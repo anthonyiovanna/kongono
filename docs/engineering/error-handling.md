@@ -7,6 +7,48 @@ Every deliberate framework failure must say what failed, why, where, and what
 the developer can do next while preserving package ownership and safe
 disclosure.
 
+Phase 13G adds five package-owned Agent Inspection diagnostics,
+`KGN-AGENT-INSPECTION-1346` through `1350`, for invalid inspection, exact
+binding, completed-runtime, Graph/role, and projection evidence. Context uses
+only fixed component tokens; raw principal, capability, constraint, evidence,
+proposal, result, receipt, generated-code, path, provider, credential, secret,
+and caller content is excluded. Translated failures retain prior throwables
+without claiming native trace sanitization.
+
+Phase 13F adds six package-owned Agent Application diagnostics,
+`KGN-AGENT-APPLICATION-1340` through `1345`, for invalid profile, invalid
+generated wiring, publication, loading, workflow, and lifecycle failures.
+Contexts carry only fixed bounded violation or stage evidence. Raw rejected
+values, filesystem paths, declaration or authorization content, prompts,
+provider values, capability data, credentials, and secrets are excluded.
+Operation failures preserve the original throwable; combined failures preserve
+the primary and every cleanup throwable separately without widening disclosure.
+
+Phase 13E adds four package-owned runtime diagnostics,
+`KGN-AGENT-RUNTIME-1330` through `1333`, for invalid input, operation failure,
+cleanup failure, and combined operation-plus-cleanup failure. Context carries
+only fixed bounded violation, stage, presence, and count evidence. Raw
+proposals, capability outputs, identities, purposes, evidence payloads,
+credentials, secrets, and paths are prohibited. Combined failures preserve the
+primary throwable and ordered cleanup throwables separately; cleanup
+uncertainty retires the operation and authorizes no retry.
+
+Phase 13D adds four package-owned admission diagnostics,
+`KGN-AGENT-ADMISSION-1320` through `1323`, for invalid requests, invalid or
+non-current declaration artifacts, invalid authority evidence, and canonical
+identity failures. Context contains only closed Safe/Protected metadata. Raw
+artifact bytes, rejected values, principal identifiers, capability purposes,
+policy payloads, credentials, secrets, and filesystem paths are prohibited.
+Ordinary deny outcomes remain decision evidence and are not exceptions.
+
+Phase 13C adds five package-owned declaration-build diagnostics,
+`KGN-AGENT-DECLARATION-1310` through `1314`. Their contexts contain only one
+closed Safe violation token and optional non-negative entry count, entry
+position, or artifact byte count. Raw JSON, identities, Principal IDs, purpose
+text, paths, digests, provider/model content, credentials, secrets, and
+Protected values are excluded from messages, context, prior-message
+composition, and stringification.
+
 Phase 0M implements package-local ID, title, and remediation for every current
 deliberate Kernel, Application Graph, and Dependency Injection failure. Three
 Internal backed-enum catalogs own those 42 mappings. Phase 0P additionally
@@ -23,6 +65,13 @@ detail.
 No universal diagnostic interface, HTTP or CLI mapping, logger, telemetry
 integration, retry engine, cleanup runner, incident system, development error
 page, or production renderer is implemented.
+
+Phase 13B adds exactly seven Internal Agent Principal Contract diagnostics,
+`KGN-AGENT-CONTRACT-1301` through `KGN-AGENT-CONTRACT-1307`. Their contexts
+contain only closed Safe violation tokens and optional non-negative list count
+or position. Rejected identities, purposes, digests, Principal IDs, provider or
+model content, paths, credentials, and Protected values never enter messages,
+contexts, previous-message composition, or deterministic stringification.
 
 Phase 4D adds ten `KGN-CHIE-1001` through `KGN-CHIE-1010` diagnostics for
 request admission, artifact availability/currentness/validity, unsupported

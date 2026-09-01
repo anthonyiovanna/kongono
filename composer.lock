@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ea00d524fdc886c6d60bed91f8ee00f1",
+    "content-hash": "9222288bea5104f2eca1d0c2959b533f",
     "packages": [
         {
             "name": "google/protobuf",
@@ -49,6 +49,220 @@
                 "source": "https://github.com/protocolbuffers/protobuf-php/tree/v5.36.0"
             },
             "time": "2026-08-20T13:06:50+00:00"
+        },
+        {
+            "name": "kongono/agent-admission",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/agent-admission",
+                "reference": "7f4599ecd9d74c2bf584d3e5b54885d164753d1c"
+            },
+            "require": {
+                "kongono/agent-declaration-build": "*",
+                "kongono/agent-principal-contract": "*",
+                "kongono/api-metadata": "*",
+                "kongono/authentication": "*",
+                "kongono/authorization": "*",
+                "kongono/diagnostics": "*",
+                "kongono/identity-access": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AgentAdmission\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AgentAdmission\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic application-owned admission and inert authority-plan evidence for Kongono Agent Principals.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/agent-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/agent-application",
+                "reference": "71cdf56e9e08eb6feda8af57a2ab6e78a55ea6d0"
+            },
+            "require": {
+                "kongono/agent-admission": "*",
+                "kongono/agent-declaration-build": "*",
+                "kongono/agent-principal-contract": "*",
+                "kongono/agent-runtime": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AgentApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AgentApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Exact-current single-profile application workflow for Kongono Agent Principals.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/agent-declaration-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/agent-declaration-build",
+                "reference": "fb42720206e39014b0359b6fef310d3ffc715016"
+            },
+            "require": {
+                "kongono/agent-principal-contract": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AgentDeclarationBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AgentDeclarationBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic declaration artifact build and publication for Kongono Agent Principals.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/agent-inspection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/agent-inspection",
+                "reference": "54d09845b993b30818eef789a97aae36e464310d"
+            },
+            "require": {
+                "kongono/agent-admission": "*",
+                "kongono/agent-application": "*",
+                "kongono/agent-declaration-build": "*",
+                "kongono/agent-principal-contract": "*",
+                "kongono/agent-runtime": "*",
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-intelligence": "*",
+                "kongono/diagnostics": "*",
+                "kongono/observability": "*",
+                "kongono/security-audit": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AgentInspection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AgentInspection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Visibility-safe Agent Principal inspection and bounded cross-system evidence.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/agent-principal-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/agent-principal-contract",
+                "reference": "547fdf65e4210af812ba5256cff7890df69f3e66"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/identity-access": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AgentPrincipalContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AgentPrincipalContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral versioned Agent Principal contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/agent-runtime",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/agent-runtime",
+                "reference": "a707cc10d08e040e0f07456bafe58aeeccb3a083"
+            },
+            "require": {
+                "kongono/agent-admission": "*",
+                "kongono/agent-declaration-build": "*",
+                "kongono/agent-principal-contract": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AgentRuntime\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AgentRuntime\\Tests\\": "tests/"
+                }
+            },
+            "description": "Provider-neutral bounded operation runtime for Kongono Agent Principals.",
+            "transport-options": {
+                "relative": true
+            }
         },
         {
             "name": "kongono/api-metadata",
@@ -7182,6 +7396,12 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
+        "kongono/agent-admission": 20,
+        "kongono/agent-application": 20,
+        "kongono/agent-declaration-build": 20,
+        "kongono/agent-inspection": 20,
+        "kongono/agent-principal-contract": 20,
+        "kongono/agent-runtime": 20,
         "kongono/api-metadata": 20,
         "kongono/application-graph": 20,
         "kongono/application-graph-artifact": 20,

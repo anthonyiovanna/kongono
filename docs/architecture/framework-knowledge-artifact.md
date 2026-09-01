@@ -137,7 +137,7 @@ with no write.
 ## Bounds, security, and performance
 
 Inventory is limited to 65,536 bytes and 64 records; this slice requires 31.
-Paths are limited to 240 bytes, each source to 262,144 bytes, all sources to
+Paths are limited to 240 bytes, each source to 524,288 bytes, all sources to
 2,097,152 bytes, the artifact to 4,194,304 bytes, and JSON depth to 16.
 Generation and validation are linear in bounded input size. Full regeneration
 is intentional and retains no process-wide state.

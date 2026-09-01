@@ -1,0 +1,28 @@
+{
+  "name": "kongono/agent-admission",
+  "description": "Deterministic application-owned admission and inert authority-plan evidence for Kongono Agent Principals.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/agent-declaration-build": "*",
+    "kongono/agent-principal-contract": "*",
+    "kongono/api-metadata": "*",
+    "kongono/authentication": "*",
+    "kongono/authorization": "*",
+    "kongono/diagnostics": "*",
+    "kongono/identity-access": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\AgentAdmission\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\AgentAdmission\\Tests\\": "tests/"
+    }
+  }
+}

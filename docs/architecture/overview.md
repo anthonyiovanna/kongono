@@ -1,5 +1,25 @@
 # Architecture Overview
 
+Phase 13B implements the opt-in neutral Agent Principal contract package, Phase
+13C implements the opt-in deterministic [Agent Declaration Artifact](agent-declaration-artifact.md),
+Phase 13D implements deterministic
+[Agent Admission and Authority Plan](agent-admission-and-authority-plan.md)
+evidence, Phase 13E implements the provider-neutral
+[Agent Principal Runtime](agent-principal-runtime.md), and Phase 13F implements
+one exact-current [Agent Application Workflow](agent-application-workflow.md).
+Phase 13G implements optional visibility-safe
+[Agent Principal Inspection and Evidence](agent-principal-inspection-and-evidence.md). Applications own
+authentication, authorization, currentness, and explicit effect ports; the
+plan and profile remain evidence and receipts remain claims. Inspection and
+cross-system projections are inert evidence, not grants. Phase 13H adds only
+root-owned external acceptance and the exact local checkpoint. Phase 13 is
+closed, and Phase 14 remains absent.
+planned. The graph is 69 acyclic production packages / 260 local edges. See the
+[Agent Principal Platform](agent-principal-platform.md),
+[Agent Principal Contract Foundation](agent-principal-contract-foundation.md),
+[ADR 0139](../adr/0139-governed-agent-principals-and-deterministic-authority-boundary.md),
+and the [fixed Phase 13 roadmap](phase-13-roadmap.md).
+
 Phase 12H closes the accepted Extension Platform milestone with root-owned
 external process evidence only. The graph remains 63 packages / 226 acyclic
 local production edges. See [Phase 12 external acceptance](phase-12-external-acceptance.md).
@@ -8,12 +28,18 @@ local production edges. See [Phase 12 external acceptance](phase-12-external-acc
 > accepted boundaries. Phase 12H adds external acceptance evidence only; the
 > graph remains 63 packages / 226 acyclic local edges.
 
+> **Phase 13 current boundary:** Phases 13B-13G bring the graph to 69 acyclic
+> production packages / 260 local edges with separate neutral contract,
+> declaration, admission, one-operation runtime, and exact-current application
+> workflow packages plus one visibility-safe upper evidence leaf. Model, provider,
+> prompt, retrieval, memory, extension, Graph, visibility, inspection, and
+> developer-tool output grant no Agent Principal authority.
+
 ## Current reality
 
-Phase 11 is complete at checkpoint
-`081ae7f50ad4081bb3890a63a652a0bf782a6da1`; the graph now contains exactly 59
-acyclic production packages and 206 local production
-edges. The official one-shot
+Phase 12 is complete at checkpoint
+`17f53ae03cce32936f0c4c69387416c12afc263d`; the graph now contains exactly 69
+acyclic production packages and 260 local production edges. The official one-shot
 `kongo` executable implements exactly `application-graph:inspect`,
 `application:build`,
 `observability:check`, `observability:inspect`, `security:check`, and
@@ -27,6 +53,9 @@ checkpoint. Phase 12A is historical and complete; Phase 12B implements neutral
 extension declaration values. Phase 12C serializes and publishes those values
 as deterministic evidence without admission, grant, Graph, hosting, loading, or
 execution authority. Phase 12D implements deterministic admission only.
+Phase 13A now accepts deterministic Agent Principal authority separation and
+the fixed A-H roadmap without adding a package, schema, runtime, model,
+provider, command, workflow, test, or production edge.
 The earlier Phase 2 checkpoint
 `647053d4bddc4c76090bca9bf3d693faa5880c52` retains its root-owned, test-owned
 runnable fixture. The

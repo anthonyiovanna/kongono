@@ -1,8 +1,34 @@
 # Progressive Architecture
 
+> **Phase 13 closed boundary:** The opt-in neutral Agent Principal contract,
+> deterministic declaration artifact, deterministic admission, and synchronous
+> one-operation runtime packages plus one exact-current Agent Application
+> workflow and one optional visibility-safe read-only inspection leaf are
+> implemented. Applications retain their
+> existing direct framework paths. Admission plans are not grants and receipts
+> are claims. No provider SDK, profile registry, command, autonomous loop,
+> retained session, live monitor, or inspection authority exists. Phase 13H
+> adds only root-owned external acceptance and the exact local checkpoint.
+
 ## Purpose
 
 Kongono should let an application begin simply and adopt stronger boundaries as complexity grows without requiring a framework migration.
+
+Agentic behavior is optional. Applications must remain buildable, testable,
+diagnosable, documented, deployable, and operable without AI, a provider, an
+account, or a network. An application may adopt the separate Phase 13B-13G
+Agent Principal packages explicitly; later capabilities remain available only
+through the separately authorized
+[Phase 13 roadmap](phase-13-roadmap.md); existing framework use does not acquire
+agent behavior or authority by implication.
+
+Phase 13H validates the accepted stack from a root-owned external process. The
+harness is test evidence, owns only temporary state, and changes no production
+composition or authority. Phase 13 is closed; Phase 14 has not begun.
+
+Adopting Agent Inspection adds only deterministic Safe aggregate evidence. It
+does not load or run the application, record projections, execute Chie/Hantei/
+Oshie, repair state, reveal hidden data, or establish current authority.
 
 ## MVC at the edge
 

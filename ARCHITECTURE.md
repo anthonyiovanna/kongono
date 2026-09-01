@@ -1,9 +1,54 @@
 # Kongono Architecture
 
+Phase 13A accepts the governed Agent Principal architecture in
+[ADR 0139](docs/adr/0139-governed-agent-principals-and-deterministic-authority-boundary.md),
+the [Agent Principal Platform guide](docs/architecture/agent-principal-platform.md),
+and the [fixed Phase 13 roadmap](docs/architecture/phase-13-roadmap.md) as
+documentation only. Identity,
+model output, prompts, provider responses, Graph facts, extension state,
+visibility, inspection, and developer-tool output grant no authority. Phase
+13B implements only the opt-in neutral
+[`kongono/agent-principal-contract`](docs/architecture/agent-principal-contract-foundation.md)
+value package under
+[ADR 0140](docs/adr/0140-neutral-versioned-agent-principal-contract-foundation.md).
+Phase 13C adds only the opt-in deterministic
+[Agent Declaration Artifact](docs/architecture/agent-declaration-artifact.md)
+boundary under [ADR 0141](docs/adr/0141-deterministic-agent-declaration-artifact.md).
+Its canonical bytes, strict typed reconstruction, explicit caller-relative
+currentness, and no-clobber publication are declaration evidence rather than
+authority. Phase 13D adds only deterministic
+[Agent Admission and Authority Plan](docs/architecture/agent-admission-and-authority-plan.md)
+evidence under [ADR 0142](docs/adr/0142-deterministic-agent-admission-and-authority-plan-evidence.md).
+Applications retain authentication and authorization evaluation; the resulting
+plan is not a grant, enforcement mechanism, model/provider request, or execution
+token. Phase 13E implements only the opt-in
+[Agent Principal Runtime](docs/architecture/agent-principal-runtime.md) under
+[ADR 0143](docs/adr/0143-provider-neutral-bounded-agent-principal-runtime.md):
+one synchronous bounded proposal and at most one explicit capability effect,
+with exact binding, current-authority rechecks, budgets, cancellation, receipts,
+and reverse cleanup. It is not a provider adapter, application workflow,
+autonomous loop, retained session, or sandbox. The graph is 67 acyclic
+production packages / 244 local edges. Phase 13F adds only the opt-in
+[Agent Application Workflow](docs/architecture/agent-application-workflow.md)
+under [ADR 0144](docs/adr/0144-exact-current-single-profile-agent-application-workflow.md):
+one exact-current profile, deterministic generated wiring, explicit contained
+loading, exact cleanup ownership transfer, and one synchronous application
+operation at a time. Generated identity is not authority and trusted generated
+PHP is not sandboxed. Phase 13G adds only optional
+[Agent Principal Inspection and Evidence](docs/architecture/agent-principal-inspection-and-evidence.md)
+under [ADR 0145](docs/adr/0145-visibility-safe-agent-principal-inspection-and-bounded-evidence.md):
+exact supplied-profile/wiring revalidation, an optional bounded completed-result
+summary, and inert bounded Graph, Observability, Security Audit, and
+role-addressed evidence. It performs no recording, role execution, repair,
+live-state observation, or authority decision. The graph is 69 acyclic
+production packages / 260 local edges. Phase 13H adds only root-owned external
+acceptance and the exact local checkpoint. Phase 13 is closed; the harness is
+test evidence, grants no authority, and Phase 14 has not begun.
+
 Phase 12 is closed by the root-owned external evidence described in
 [ADR 0138](docs/adr/0138-phase-12-external-extension-platform-acceptance-and-checkpoint.md)
 and the [Phase 12 external acceptance guide](docs/architecture/phase-12-external-acceptance.md).
-The production graph remains 63 packages / 226 acyclic local edges. The harness
+At the Phase 12 checkpoint the production graph was 63 packages / 226 acyclic local edges. The harness
 is test evidence and grants no production, installation, trust, sandbox, or
 extension authority.
 
@@ -11,6 +56,18 @@ extension authority.
 > accepted boundaries. Phase 12H adds only root-owned external acceptance and
 > checkpoint evidence; the production graph remains 63 packages / 226 acyclic
 > local edges.
+
+> **Phase 13 current boundary:** Phase 13B implements neutral immutable contract
+> values, Phase 13C implements deterministic declaration artifacts, Phase 13D
+> implements deterministic admission and inert authority-plan evidence, and
+> Phase 13E implements the provider-neutral one-operation runtime, and Phase
+> 13F implements one optional exact-current Agent Application workflow, and
+> Phase 13G implements optional visibility-safe inspection and bounded inert
+> cross-system evidence. Provider SDK integration, profile registries, live
+> inspection/monitoring, and external acceptance remain unimplemented. Phase
+> 13H requires a separate authenticated directive. The exact Phase 12
+> checkpoint is
+> `17f53ae03cce32936f0c4c69387416c12afc263d`.
 
 ## Status and scope
 
@@ -1101,5 +1158,6 @@ file, with ordered activation, reverse cleanup, operation leases, retirement,
 and honest non-sandbox semantics. The current graph is 62 packages / 220 local
 edges. Phase 12G adds detached visibility-safe inspection and the read-only
 `extension:inspect` command without loading generated PHP or observing the
-host. The current graph is 63 packages / 226 local edges; Phase 12H has not
-started.
+host. The current graph is 63 packages / 226 local edges; Phase 12H closes the
+milestone with root-owned external evidence only. Phase 13A adds documentation
+architecture only and no Agent Principal runtime.

@@ -1,5 +1,27 @@
 # Architecture Decision Records
 
+> **Phase 13 closed boundary:**
+> [ADR 0140](0140-neutral-versioned-agent-principal-contract-foundation.md)
+> implements the opt-in neutral Agent Principal contract package, and
+> [ADR 0141](0141-deterministic-agent-declaration-artifact.md) implements only
+> deterministic declaration artifact build, strict typed validation, explicit
+> caller-relative currentness, and content-addressed no-clobber publication.
+> [ADR 0142](0142-deterministic-agent-admission-and-authority-plan-evidence.md)
+> adds deterministic application-owned admission and inert authority-plan
+> evidence. [ADR 0143](0143-provider-neutral-bounded-agent-principal-runtime.md)
+> adds one synchronous provider-neutral runtime over explicit caller-owned
+> proposal and capability ports. [ADR 0144](0144-exact-current-single-profile-agent-application-workflow.md)
+> adds one exact-current application profile, deterministic generated PHP
+> wiring, explicit contained loading, and one synchronous operation at a time.
+> [ADR 0145](0145-visibility-safe-agent-principal-inspection-and-bounded-evidence.md)
+> adds optional deterministic read-only Safe aggregate inspection and inert
+> bounded cross-system evidence without recording, role execution, repair, or
+> authority. The graph is 69 acyclic packages / 260 local production edges.
+> [ADR 0146](0146-phase-13-external-agent-principal-acceptance-and-checkpoint.md)
+> adds only root-owned deterministic offline external acceptance and the exact
+> local checkpoint. Provider SDKs, profile registries, autonomous loops, and
+> live monitoring do not exist. Phase 14 has not begun.
+
 > **Phase 12F current boundary:** ADR 0132 is the historical neutral contract
 > foundation. ADR 0133 implements deterministic declaration artifacts,
 > caller-relative currentness, and atomic no-clobber publication. The graph is
@@ -584,3 +606,90 @@ observation, or generated-PHP loading. The current topology is 63 packages /
 226 local edges. [ADR 0138](0138-phase-12-external-extension-platform-acceptance-and-checkpoint.md)
 accepts the root-owned Phase 12 external acceptance process and exact local
 checkpoint. This evidence changes no production package or authority boundary.
+
+### [ADR 0139: Governed Agent Principals and Deterministic Authority Boundary](0139-governed-agent-principals-and-deterministic-authority-boundary.md)
+
+Accepted 2026-08-31. Phase 13A defines an Agent Principal as an application
+actor kind whose identity grants no authentication, authorization, delegation,
+consent, capability, visibility, or execution authority. Model, provider,
+prompt, retrieval, memory, extension, Graph, inspection, and developer-tool
+output cannot make authoritative allow/deny decisions. Future capabilities are
+explicit, typed, bounded, attributable, and denied by default; future work has
+explicit lifecycle ceilings, cancellation, revocation, retirement, and cleanup.
+Phase 13A is documentation only and fixes the separately authorized Phase
+13A-H dependency order without implementing a package, schema, provider,
+protocol, runtime, command, workflow, or Agent Principal behavior.
+
+### [ADR 0140: Neutral Versioned Agent Principal Contract Foundation](0140-neutral-versioned-agent-principal-contract-foundation.md)
+
+Accepted 2026-08-31. Phase 13B implements the opt-in Experimental
+`kongono/agent-principal-contract` package for Agent-only Principal references,
+bounded intent and proposal values, capability requests, inert constraints,
+external evidence references, provenance, visibility, and receipt claims. The
+package grants no authority and performs no work; Phase 13C's separate artifact
+boundary does not change those contract semantics.
+
+### [ADR 0141: Deterministic Agent Declaration Artifact](0141-deterministic-agent-declaration-artifact.md)
+
+Accepted 2026-08-31. Phase 13C implements the opt-in Experimental
+`kongono/agent-declaration-build` package for one explicit application-owned
+canonical declaration artifact, strict typed reconstruction, explicit
+caller-relative currentness, and atomic content-addressed no-clobber
+publication. The artifact is declaration evidence rather than authentication,
+admission, authority, grants, provider/model work, execution, or a receipt.
+Phase 13D is implemented separately and does not change declaration-artifact
+authority semantics.
+
+### [ADR 0142: Deterministic Agent Admission and Inert Authority-Plan Evidence](0142-deterministic-agent-admission-and-authority-plan-evidence.md)
+
+Accepted 2026-08-31. Phase 13D implements the opt-in Experimental
+`kongono/agent-admission` package. It binds one exact current declaration to
+explicit completed application-owned authentication and authorization evidence,
+denies undeclared and unpermitted capability by default, and returns immutable
+admission and authority-plan evidence. The package evaluates no credential or
+policy, grants and enforces nothing, performs no model or tool work, and adds no
+runtime integration within that package. Phases 13E through 13G are implemented
+separately; Phase 13H remains planned.
+
+### [ADR 0143: Provider-Neutral Bounded Agent Principal Runtime](0143-provider-neutral-bounded-agent-principal-runtime.md)
+
+Accepted 2026-08-31. Phase 13E implements the opt-in Experimental
+`kongono/agent-runtime` package. It binds one exact declaration to one matching
+admitted plan, rechecks caller-owned current-authority evidence before each
+possible effect, applies all nine explicit budgets, and coordinates at most one
+proposal and one exact capability invocation with fixed cancellation/time
+checkpoints, deterministic receipts, and reverse cleanup. It adds no provider
+SDK, ambient registry, application workflow, autonomous loop, retained session,
+or sandbox. Phases 13F and 13G are implemented separately; Phase 13H remains
+planned.
+
+### [ADR 0144: Exact-Current Single-Profile Agent Application Workflow](0144-exact-current-single-profile-agent-application-workflow.md)
+
+Accepted 2026-08-31. Phase 13F implements the opt-in Experimental
+`kongono/agent-application` package. It binds one exact current declaration
+artifact and matching admitted plan into one immutable profile, deterministic
+content-addressed PHP wiring, explicit snapshot/reverified loading, and one
+synchronous application operation at a time. Cleanup ownership transfers
+exactly once to the Phase 13E runtime. Profiles and generated identity are
+evidence rather than authority; no provider, registry, command, retained
+session, background work, live monitoring, or sandbox is added. Phase 13G is
+implemented separately; Phase 13H remains planned.
+
+### [ADR 0145: Visibility-Safe Agent Principal Inspection and Bounded Evidence](0145-visibility-safe-agent-principal-inspection-and-bounded-evidence.md)
+
+Accepted 2026-08-31. Phase 13G implements the optional Experimental
+`kongono/agent-inspection` upper evidence leaf. It revalidates one exact
+supplied profile/wiring pair, optionally summarizes one completed runtime
+result, and creates Safe aggregate Graph, Observability, Security Audit, and
+role-addressed evidence without loading, execution, recording, repair, hidden
+data access, live-state observation, or authority. The graph is 69 packages /
+260 local edges / acyclic.
+
+### [ADR 0146: Phase 13 External Agent Principal Acceptance and Checkpoint](0146-phase-13-external-agent-principal-acceptance-and-checkpoint.md)
+
+Accepted 2026-08-31. Phase 13H adds the root-owned 40-case deterministic
+offline Agent Principal process harness and one exact local checkpoint. It
+changes no production PHP, package manifest, dependency, lockfile, topology,
+or authority boundary. The harness is bounded, cleanup-complete,
+repository-preserving, and disclosure-safe test evidence. Phase 13 is closed;
+there is no push, tag, release, Stable/1.0 claim, or Phase 14 behavior.

@@ -1,5 +1,28 @@
 # Package Layout
 
+Phase 13B adds the opt-in Experimental `packages/agent-principal-contract`
+package. Phase 13C adds the opt-in Experimental
+`packages/agent-declaration-build` package. Phase 13D adds exactly the opt-in
+Experimental `packages/agent-admission` package above declaration build, Agent
+Principal Contract, API Metadata, Authentication, Authorization, Diagnostics,
+Identity Access, and PHP. No existing production package depends on admission.
+Phase 13E adds exactly the opt-in Experimental `packages/agent-runtime`
+package above Agent Admission, Agent Declaration Build, Agent Principal
+Contract, API Metadata, Diagnostics, and PHP. No existing production package
+depends on runtime except the root aggregate and the Phase 13F outer package.
+Phase 13F adds exactly the opt-in Experimental `packages/agent-application`
+package with those six local dependencies. No production package depends on
+Agent Application except the root aggregate and Phase 13G's upper evidence
+leaf. Phase 13G adds exactly the opt-in Experimental
+`packages/agent-inspection` package with PHP and the ten Agent Admission, Agent
+Application, Agent Declaration Build, Agent Principal Contract, Agent Runtime,
+API Metadata, Application Graph Intelligence, Diagnostics, Observability, and
+Security Audit dependencies. No production package depends on Agent Inspection
+except the root aggregate. The topology is exactly 69 acyclic production
+packages / 260 local production edges. Phase 13H responsibilities named by the
+[roadmap](../architecture/phase-13-roadmap.md) are not current packages,
+manifests, dependencies, namespaces, or public APIs.
+
 Phase 12H adds no production package and no local production edge. The topology
 remains exactly 63 packages / 226 acyclic edges; the new root-owned harness is
 test evidence outside every package. See
@@ -8,6 +31,12 @@ test evidence outside every package. See
 > **Phase 12 current boundary:** Phases 12A-12H are implemented to their
 > accepted boundaries. Phase 12H adds no package or production edge; the
 > topology remains 63 packages / 226 acyclic local production edges.
+
+> **Phase 13 current boundary:** Separate opt-in contract, declaration-build,
+> admission, one-operation runtime, exact-current single-profile Agent
+> Application, and visibility-safe Agent Inspection packages exist. No provider
+> SDK, profile registry, live monitor, command, retained session, or background
+> workflow exists.
 
 ## Purpose and convention
 

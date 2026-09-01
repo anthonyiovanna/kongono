@@ -1,5 +1,43 @@
 # Kongono Glossary
 
+**Phase 13 external acceptance** is the root-owned deterministic offline
+process evidence that closes the governed Agent Principal milestone. It uses
+production APIs with root-owned fixtures and temporary state, but is not a
+production host, provider, authority source, live monitor, repair mechanism, or
+certification. See [Phase 13 external acceptance](architecture/phase-13-external-acceptance.md).
+
+**Phase 13G** adds the optional Experimental Agent Inspection upper evidence
+leaf. It revalidates one explicit exact profile/wiring pair and can summarize
+one completed runtime result, consume separately supplied bounded Graph
+intelligence, and produce inert Observability, Security Audit, and
+role-addressed views. It records nothing, executes no runtime or developer role,
+repairs nothing, observes no live state, and grants no authority. See
+[Agent Principal Inspection and Evidence](architecture/agent-principal-inspection-and-evidence.md).
+
+**Phase 13F** adds the opt-in Agent Application package above the exact
+declaration, admission, and one-operation runtime boundaries. It supports one
+immutable exact-current profile, deterministic generated PHP wiring, explicit
+contained loading, exact cleanup ownership transfer, and one synchronous
+operation at a time. It is not a grant, provider adapter, registry, command,
+retained session, background runtime, or sandbox. See the
+[Agent Application Workflow](architecture/agent-application-workflow.md).
+
+**Phase 13E** adds the opt-in Agent Runtime package above the deterministic
+Agent Admission package, Phase 13B neutral contract, and Phase 13C declaration
+artifact. It binds exact admitted evidence, rechecks current authority, and
+coordinates at most one proposal and one explicit capability port under fixed
+budgets, cancellation, receipts, and cleanup. It is not a provider adapter,
+application workflow, autonomous loop, retained session, or sandbox. See the
+[Agent Principal Runtime](architecture/agent-principal-runtime.md).
+
+**Phase 13D** adds the opt-in deterministic Agent Admission package above the
+Phase 13B neutral contract and Phase 13C declaration artifact. It reconciles one
+exact current declaration with explicit completed application-owned
+authentication and authorization evidence. Its decision and authority plan are
+inert evidence, not a grant, enforcement, provider/model request, execution
+token, or tool effect. See the
+[Agent Admission and Authority Plan](architecture/agent-admission-and-authority-plan.md).
+
 **Phase 12 external acceptance** is the root-owned process evidence that closes
 the accepted Extension Platform milestone. It is not a production API, runtime,
 installer, trust decision, sandbox, or authority source. See
@@ -8,6 +46,10 @@ installer, trust decision, sandbox, or authority source. See
 > **Phase 12 current boundary:** Phases 12A-12H are implemented to their
 > accepted boundaries. Phase 12H adds external acceptance evidence only; the
 > graph remains 63 packages / 226 acyclic local edges.
+
+> **Phase 13 closed boundary:** Phases 13B-13H are implemented. The graph
+> remains 69 acyclic production packages / 260 local edges. Phase 13H adds
+> external test evidence and the exact checkpoint only; Phase 14 has not begun.
 
 ## Authoritative Application Graph
 
@@ -99,7 +141,40 @@ The experience presented to AI agents through structured, authorized, machine-re
 
 ## Agent Principal
 
-A Principal representing an AI agent that may act only within its identity, permissions, capabilities, constraints, and delegated authority. It is not merely an API client. Resolution and execution semantics remain open.
+An application actor kind within Kongono's broader Principal model. Its
+identity is an immutable reference and grants no authentication, authorization,
+delegation, consent, trust, capability, visibility, or execution authority. A
+future Agent Principal may act only through separately admitted and
+deterministically authorized explicit capabilities under bounded constraints
+and lifecycle. Phase 13E implements only one synchronous provider-neutral
+operation runtime over explicit caller-owned ports. See
+[ADR 0139](adr/0139-governed-agent-principals-and-deterministic-authority-boundary.md).
+
+## Agent Admission
+
+A deterministic application-owned reconciliation of one exact current Agent
+Declaration with explicit completed authentication and authorization evidence.
+Admission denies undeclared, missing, denied, indeterminate, identity-mismatched,
+and unmet required capabilities by default. It is evidence of a bounded decision,
+not authentication, authorization evaluation, a grant, enforcement, or
+execution.
+
+## Agent Authority Plan
+
+The immutable Phase 13D evidence that preserves ordered capability decisions,
+declaration constraints, evidence references, and a deterministic admission
+identity. A plan contains no callable, resolver, handler, registry, credential,
+model request, or executable token and cannot confer ambient authority.
+
+## Agent Principal Runtime
+
+The opt-in Experimental Phase 13E boundary that synchronously coordinates one
+bounded proposal and at most one exact capability invocation from an exact
+declaration and matching admitted plan. It rechecks caller-owned current
+authority before each effect, observes fixed cancellation/time checkpoints,
+meters nine budgets, emits deterministic receipt claims, and closes every
+accepted port. It supplies no provider SDK, ambient tool registry, application
+workflow, autonomous loop, retained session, or sandbox.
 
 ## Application Graph
 
@@ -1774,6 +1849,16 @@ capability planning and generated wiring, trusted/in-process hosting, bounded
 inspection, and root-owned external acceptance. Phase 12B neutral contracts are
 the historical foundation and Phase 12C declaration artifacts are current.
 Phases 12D-12H are implemented to their separately authenticated boundaries; no later phase begins automatically.
+
+## Phase 13 Roadmap
+
+The fixed dependency order from governed documentation architecture through
+neutral Agent Principal contracts, deterministic declaration evidence,
+application-owned admission and authority-plan evidence, bounded provider-
+neutral orchestration, one supported workflow, visibility-safe inspection, and
+root-owned external acceptance. The roadmap names planned responsibilities,
+not current packages or behavior. Phase 13A is documentation only; every later
+row requires separate independently authenticated authority.
 
 ## Extension Contract Declaration
 

@@ -14,7 +14,7 @@ use Kongono\Knowledge\Exception\InvalidKnowledgeSourceException;
 final class PathGuard
 {
     public const MAX_PATH_BYTES = 240;
-    public const MAX_SOURCE_BYTES = 262144;
+    public const MAX_SOURCE_BYTES = 524288;
     public const MAX_TOTAL_SOURCE_BYTES = 2097152;
 
     public static function resolveRoot(string $root): string

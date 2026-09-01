@@ -8,6 +8,18 @@ parameters:
         - packages/database-application/tests/StaticAnalysis/KongonoDataMinimalAccountRepository.phpstan
         - packages/persistence-application/tests/StaticAnalysis/PersistenceMinimalGenerated.phpstan
     paths:
+        - packages/agent-admission/src
+        - packages/agent-admission/tests
+        - packages/agent-application/src
+        - packages/agent-application/tests
+        - packages/agent-declaration-build/src
+        - packages/agent-declaration-build/tests
+        - packages/agent-inspection/src
+        - packages/agent-inspection/tests
+        - packages/agent-principal-contract/src
+        - packages/agent-principal-contract/tests
+        - packages/agent-runtime/src
+        - packages/agent-runtime/tests
         - packages/api-metadata/src
         - packages/api-metadata/tests
         - packages/application-graph/src

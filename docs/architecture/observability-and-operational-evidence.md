@@ -1,5 +1,31 @@
 # Observability and Operational Evidence
 
+## Phase 13G Agent Principal relationship
+
+Phase 13C adds no Agent Principal instrumentation or runtime integration.
+Declaration artifact bytes and digests are deterministic evidence but are not
+automatically emitted as signals, audit records, or reusable authority.
+Future receipts, traces, metrics, operational events, and security audit records
+remain bounded evidence rather than identity, authorization, capability,
+business truth, or perfect real-world truth. Agent identity grants no signal
+visibility, and signal presence or absence grants no Agent Principal authority.
+
+Any later Agent Principal evidence must preserve existing disclosure,
+cardinality, provenance, retention-intent, lifecycle, and failure boundaries.
+It may not claim durable audit, compliance, non-repudiation, or complete
+observability without separately implemented and proven behavior. See
+[ADR 0139](../adr/0139-governed-agent-principals-and-deterministic-authority-boundary.md).
+
+Phase 13G's optional Agent Inspection package can project one neutral
+`kongono.agent.inspection` version 1 operational Observation and one fixed
+`kongono.agent.inspection.security` version 1 Security Audit evidence value.
+Both contain closed Safe aggregate/token attributes and remain inert. The
+package calls no recorder or Security Audit runtime and performs no export,
+buffer, sampling, flush, retry, persistence, or timestamping. Projection
+success does not establish authentication, authorization, capability, external
+effect, delivery, durability, retention duration, compliance, non-repudiation,
+tamper evidence, or application security.
+
 ## Purpose and current status
 
 Observability is bounded evidence about what an operation or framework

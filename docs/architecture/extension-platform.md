@@ -1,5 +1,14 @@
 # Extension Platform
 
+Phase 13C preserves the independence of extensions and application Agent
+Principals. An extension is not an agent by implication, and an Agent Principal
+is not an extension by implication. Declaration, admission, grant, hosting,
+Graph presence, or inspection grants no Agent Principal identity or authority.
+The neutral contract and declaration-build packages depend on no Extension
+package and perform no Extension integration. An Agent declaration artifact is
+not an Extension declaration or admission record. See the
+[Agent Declaration Artifact](agent-declaration-artifact.md).
+
 Phase 12 is closed by the root-owned evidence in
 [ADR 0138](../adr/0138-phase-12-external-extension-platform-acceptance-and-checkpoint.md)
 and [Phase 12 external acceptance](phase-12-external-acceptance.md). That

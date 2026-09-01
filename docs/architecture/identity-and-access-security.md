@@ -1,5 +1,61 @@
 # Identity and Access Security
 
+## Phase 13G Agent Principal relationship
+
+Phase 13B adds an Agent-only wrapper around the existing neutral
+`PrincipalReference` without changing any Phase 9 package or runtime behavior.
+The wrapper validates only `PrincipalKind::Agent`; it does not authenticate the
+Principal or construct a Security Context. Agent
+kind, identity, authenticated facts, delegation, consent, a model proposal,
+Graph visibility, extension state, and previous success grant no permission.
+Only an exact deterministic authorization decision over current explicit
+evidence may reach a separately protected capability.
+
+Phase 13C declaration artifacts reconstruct one Agent-kind reference but do not
+authenticate it, create a Security Context, evaluate policy, validate external
+evidence currentness, or authorize a capability. Exact-current artifact bytes
+are not current authority evidence. Phase 9 Security behavior is unchanged.
+
+Phase 13D validates one exact current declaration artifact against explicit
+completed application-owned authentication and authorization evidence. It does
+not invoke an authenticator or policy evaluator, validate the external
+currentness of a receipt, create a Security Context, grant a capability, enforce
+a constraint, or execute work. Identity mismatch, missing evidence, Deny,
+Indeterminate, undeclared requests, and unmet required capability deny admission
+by default. See [Agent Admission and Authority Plan](agent-admission-and-authority-plan.md).
+
+Phase 13E consumes only an exact matching admitted plan and asks one explicit
+caller-owned currentness port to affirm the plan and operation immediately
+before proposal and capability effects. It neither evaluates policy nor turns
+the plan, currentness response, proposal, or receipt into a grant. Only one
+explicit matching capability port may perform work. No ambient Security
+Context, tool registry, provider adapter, autonomous loop, or sandbox is added.
+See [Agent Principal Runtime](agent-principal-runtime.md).
+
+Phase 13F binds one exact declaration artifact and matching admitted plan into
+one generated and explicitly loaded application profile. Profile and generated
+identities remain evidence, not authentication, authorization, currentness, or
+a Security Context. Every operation still supplies the Phase 13E currentness
+port explicitly before possible effects. See
+[Agent Application Workflow](agent-application-workflow.md).
+
+Phase 13G revalidates only the exact explicit profile/wiring relationship and
+may summarize a completed result. Its inspection identity, aggregate counts,
+runtime evidence, Graph context, observations, audit evidence, role tokens, and
+verification PASS are inert evidence. They do not authenticate a principal,
+reevaluate or currentize authorization, grant a capability, create a Security
+Context, prove revocation/consent/delegation, establish an agent-to-Graph
+relationship, observe a live application/provider, or prove an external effect
+or application security. See
+[Agent Principal Inspection and Evidence](agent-principal-inspection-and-evidence.md).
+
+Agent Principal capability requests and grants remain distinct.
+Capabilities are explicit, typed, versioned, purpose-bounded, attributable,
+constrained, and denied by default. No ambient Security Context, current agent,
+policy, credential, tool registry, or authorization state is introduced. See
+[ADR 0139](../adr/0139-governed-agent-principals-and-deterministic-authority-boundary.md)
+and the [Agent Principal Contract Foundation](agent-principal-contract-foundation.md).
+
 ## Purpose and current scope
 
 Phase 9 establishes Kongono's Identity and Access Security direction without
@@ -442,3 +498,13 @@ through 9H are complete at that checkpoint; Kongono remains pre-1.0 and Phase
 - [Structured CLI](structured-cli.md)
 - [Error handling and actionable diagnostics](../engineering/error-handling.md)
 - [Package layout](../engineering/package-layout.md)
+
+## Phase 13 external closure
+
+Phase 13H supplies completed application-owned authentication and authorization
+evidence to the deterministic admission boundary and proves denial for missing,
+stale, mismatched, undeclared, or unpermitted cases. The harness does not
+authenticate a principal, evaluate credentials, grant a capability, or turn an
+admission plan, inspection, Graph view, Observation, Security Audit value, or
+verifier PASS into authority. See
+[Phase 13 external acceptance](phase-13-external-acceptance.md).

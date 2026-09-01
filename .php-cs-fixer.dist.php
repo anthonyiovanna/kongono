@@ -3,6 +3,16 @@
 declare(strict_types=1);
 
 $finder = PhpCsFixer\Finder::create()
+    ->in(__DIR__.'/packages/agent-admission/src')
+    ->in(__DIR__.'/packages/agent-admission/tests')
+    ->in(__DIR__.'/packages/agent-application/src')
+    ->in(__DIR__.'/packages/agent-application/tests')
+    ->in(__DIR__.'/packages/agent-declaration-build/src')
+    ->in(__DIR__.'/packages/agent-declaration-build/tests')
+    ->in(__DIR__.'/packages/agent-inspection/src')
+    ->in(__DIR__.'/packages/agent-inspection/tests')
+    ->in(__DIR__.'/packages/agent-runtime/src')
+    ->in(__DIR__.'/packages/agent-runtime/tests')
     ->in(__DIR__.'/packages/api-metadata/src')
     ->in(__DIR__.'/packages/api-metadata/tests')
     ->in(__DIR__.'/packages/application-graph/src')

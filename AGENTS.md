@@ -1,5 +1,126 @@
 # Kongono AI-Agent Operating Policy
 
+## Phase 13 governed Agent Principal contract policy
+
+Phase 12 is complete at checkpoint
+`17f53ae03cce32936f0c4c69387416c12afc263d`. Phase 13A accepts
+[ADR 0139](docs/adr/0139-governed-agent-principals-and-deterministic-authority-boundary.md),
+the [Agent Principal Platform guide](docs/architecture/agent-principal-platform.md),
+and the fixed [Phase 13 roadmap](docs/architecture/phase-13-roadmap.md) as
+documentation architecture only. It adds no production or test PHP, package,
+dependency, schema, command, provider, protocol, model, capability port,
+runtime, workflow, store, or Agent Principal execution behavior. Phase 13B now
+accepts [ADR 0140](docs/adr/0140-neutral-versioned-agent-principal-contract-foundation.md)
+and implements only the opt-in Experimental
+`kongono/agent-principal-contract` neutral value package. Phase 13C accepts
+[ADR 0141](docs/adr/0141-deterministic-agent-declaration-artifact.md) and adds
+only the opt-in Experimental `kongono/agent-declaration-build` deterministic
+artifact boundary. Phase 13D accepts
+[ADR 0142](docs/adr/0142-deterministic-agent-admission-and-authority-plan-evidence.md)
+and implements only the opt-in Experimental `kongono/agent-admission`
+deterministic admission and inert authority-plan evidence boundary. Phase 13E
+accepts [ADR 0143](docs/adr/0143-provider-neutral-bounded-agent-principal-runtime.md)
+and implements only the opt-in Experimental `kongono/agent-runtime`
+provider-neutral, synchronous, one-operation runtime over explicit
+caller-supplied ports. The graph is exactly 67 acyclic production packages and
+244 local production edges. Phase 13F accepts
+[ADR 0144](docs/adr/0144-exact-current-single-profile-agent-application-workflow.md)
+and implements only the opt-in Experimental `kongono/agent-application`
+exact-current single-profile workflow, deterministic generated wiring, and
+one-operation application boundary. Phase 13G accepts
+[ADR 0145](docs/adr/0145-visibility-safe-agent-principal-inspection-and-bounded-evidence.md)
+and implements only the optional Experimental `kongono/agent-inspection` upper
+evidence leaf. It revalidates one exact supplied profile/wiring pair, optionally
+summarizes one completed runtime result, and emits bounded Graph, Observability,
+Security Audit, and role-addressed developer-intelligence evidence without
+recording or role execution. The graph is exactly 69 acyclic production
+packages and 260 local production edges. Phase 13H accepts ADR 0146 and adds
+only the root-owned 40-case external Agent Principal harness, exact Hantei
+script reconciliation, and the local Phase 13 checkpoint. It changes no
+production PHP, package manifest, dependency, lockfile, topology, or authority
+boundary. Phase 13 is closed; Phase 14 has not begun.
+
+Phase 13G inspection is deterministic, offline, read-only, stateless, and
+presentation-neutral. Exact supplied-profile currentness does not establish
+external authority currentness, live application/provider state, a Graph
+relationship, authentication, authorization, capability grants, external
+effects, delivery, durability, application security, or certification. Chie,
+Hantei, and Oshie tokens address evidence only; the package does not depend on
+or execute those roles. Raw principal, capability, constraint, evidence,
+proposal, result, receipt, generated-code, path, provider, credential, secret,
+and arbitrary caller content remains omitted. Trusted generated and in-process
+PHP remains not sandboxed.
+
+Phase 13F binds one exact current declaration artifact to one matching admitted
+authority plan, emits canonical content-addressed PHP wiring, publishes and
+loads one explicit contained path with snapshot/reverification, and starts one
+application once. Generated wiring is inert on load and grants no authority.
+Every operation supplies proposal, capability, currentness, cancellation,
+clock, intent, and budget collaborators explicitly. The application owns
+cleanup until the Phase 13E runtime accepts the request, then transfers cleanup
+ownership exactly once. One synchronous operation may be active; sequential
+operations are isolated. Trusted generated and in-process PHP are not
+sandboxed. No provider, registry, second profile, command, retained session,
+background work, marketplace, remote service, or deployment manager exists.
+
+Phase 13E binds one exact declaration to one matching admitted authority plan,
+rechecks caller-owned current-authority evidence before proposal and capability
+effects, enforces all nine explicit budgets, checks cancellation and monotonic
+time at four fixed checkpoints, and invokes at most one proposal plus one exact
+capability port. It closes every accepted capability port in reverse order and
+the proposal port last, preserves primary and cleanup failure identities, and
+emits deterministic receipts as claims rather than grants. It has no provider
+SDK, ambient registry, dynamic lookup, application workflow, retry, delegation,
+autonomous loop, background worker, retained session, or sandbox. Trusted
+in-process PHP remains non-sandboxed.
+
+Phase 13D consumes only one explicit exact-current declaration artifact and
+application-owned completed authentication and authorization evidence. It
+denies undeclared, missing, denied, indeterminate, identity-mismatched, and
+unfulfilled required capability cases by default. Its decisions, plan, and
+identity are inert evidence: they are not grants, enforcement, credentials,
+execution tokens, callables, resolvers, service locators, model requests, or
+tool effects. The package performs no authentication or authorization
+evaluation and validates no external evidence currentness.
+
+Phase 13C artifacts are declaration evidence only. Exact typed reconstruction,
+caller-relative currentness, and content-addressed no-clobber publication do
+not authenticate or admit an agent, validate external evidence currentness,
+grant capability, enforce constraints, authorize or execute work, invoke a
+model/provider, or issue a receipt. Build and currentness use only the explicit
+caller-supplied declaration; publication accepts only one explicit existing
+application-owned directory. No discovery, public loader, command, runtime,
+workflow, Graph, Extension, or Security integration exists.
+
+Phase 13B values are inert. Agent-kind identity is not authentication or
+authority; intent and proposals are not admission; capability requests are not
+grants; constraints do not enforce budgets; evidence references do not accept
+delegation, consent, authentication, authorization, declaration, or policy
+claims; provenance is not truth; visibility is not access control; and receipts
+are bounded claims rather than reusable authority or perfect external truth.
+The package performs no model/provider call, authorization, effect, discovery,
+serialization, persistence, Graph or Extension integration, application
+workflow, inspection, or runtime lifecycle behavior. Phase 13C adds only the
+separate deterministic declaration artifact boundary described above.
+
+An Agent Principal is an application actor kind, not an authority grant.
+Identity, authenticated evidence, authorization, delegation, consent, intent,
+proposals, capability requests and grants, constraints, results, receipts, and
+operational evidence remain distinct. Models may propose; only separately
+governed deterministic Kongono or application mechanisms may admit and
+authorize effects. Prompts, completions, provider responses, retrieved content,
+memory, extension state, Graph facts, inspection, and developer-tool output are
+inert evidence and cannot expand authority.
+
+Future capability execution is explicit, typed, versioned, purpose-bounded,
+attributable, constrained, and denied by default. No ambient tool registry,
+filesystem, process, network, database, credential, secret, deployment, Git,
+container, Graph, extension-host, Security Context, or developer-tool authority
+is inferred. Future work must be bounded by explicit budgets, cancellation,
+revocation, retirement, and cleanup. Chie, Hantei, and Oshie remain optional
+developer companions, not application Agent Principals. Every Phase 13C-13H
+row requires a separately authenticated architect directive.
+
 ## Phase 12 external acceptance policy
 
 Phase 12H accepts ADR 0138 and adds only the root-owned 50-case external

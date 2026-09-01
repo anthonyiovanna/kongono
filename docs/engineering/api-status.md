@@ -4,6 +4,28 @@
 
 Kongono requires explicit, machine-checkable compatibility metadata for every production class, interface, trait, and enum beneath `packages/*/src`. Namespace and file location do not silently supply a default.
 
+Phase 13G retains the Agent Principal Contract, declaration-build, admission,
+and runtime classifications. It classifies the agent-application
+`ExceptionInterface` as Public; profile, generated-wiring, workflow,
+application, and concrete exception types as Experimental; and diagnostics,
+canonical emitters, path guards, and lifecycle helpers as Internal. The
+agent-runtime
+`ExceptionInterface` as Public; runtime values, ports, enums, and concrete
+exceptions as Experimental; and runtime guards, budget meter, receipt factory,
+lifecycle composer, diagnostics, and abstract exception as Internal. Phase 13D
+classifies the agent-admission `ExceptionInterface` as
+Public; admission requests, decisions, authority-plan evidence, identities, and
+concrete exceptions as Experimental; and guards, canonicalization, diagnostics,
+and its abstract exception as Internal. The declaration-build
+`ExceptionInterface` remains Public; declaration values, artifact operations,
+and concrete exceptions remain Experimental; and its
+diagnostic catalog, helpers, and abstract exception as Internal. It adds no
+Stable declaration. Agent Inspection classifies its package exception marker
+as Public; requests, inspections, projectors, Graph/role/verification values,
+and concrete exceptions as Experimental; and diagnostics, canonical encoding,
+and the abstract exception as Internal. It adds no Stable declaration. The
+global inventory is 1,213 production declarations across 69 packages.
+
 Phase 0C defines the non-repeatable class-like `#[Api(ApiStatus::...)]` attribute and exactly three statuses; later phases apply the same convention to the Application Graph, Dependency Injection, package-local diagnostic catalogs, Diagnostics values, Diagnostic Presentation projection types, and HTTP messages and factories:
 
 | Status | Supported use | Compatibility and extension contract |

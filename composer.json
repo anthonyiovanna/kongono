@@ -25,6 +25,12 @@
     }
   ],
   "require": {
+    "kongono/agent-admission": "@dev",
+    "kongono/agent-application": "@dev",
+    "kongono/agent-declaration-build": "@dev",
+    "kongono/agent-inspection": "@dev",
+    "kongono/agent-principal-contract": "@dev",
+    "kongono/agent-runtime": "@dev",
     "kongono/api-metadata": "@dev",
     "kongono/application-graph": "@dev",
     "kongono/application-graph-artifact": "@dev",
@@ -99,6 +105,12 @@
   "autoload-dev": {
     "psr-4": {
       "App\\": "skeletons/minimal/src/",
+      "Kongono\\AgentAdmission\\Tests\\": "packages/agent-admission/tests/",
+      "Kongono\\AgentApplication\\Tests\\": "packages/agent-application/tests/",
+      "Kongono\\AgentDeclarationBuild\\Tests\\": "packages/agent-declaration-build/tests/",
+      "Kongono\\AgentInspection\\Tests\\": "packages/agent-inspection/tests/",
+      "Kongono\\AgentPrincipalContract\\Tests\\": "packages/agent-principal-contract/tests/",
+      "Kongono\\AgentRuntime\\Tests\\": "packages/agent-runtime/tests/",
       "Kongono\\ApiMetadata\\Tests\\": "packages/api-metadata/tests/",
       "Kongono\\ApplicationGraph\\Tests\\": "packages/application-graph/tests/",
       "Kongono\\ApplicationGraphArtifact\\Tests\\": "packages/application-graph-artifact/tests/",
@@ -206,6 +218,7 @@
     "acceptance:phase10": "@php tests/External/Observability/run.php",
     "acceptance:phase11": "@php tests/External/ApplicationGraph/run.php",
     "acceptance:phase12": "@php tests/External/ExtensionPlatform/run.php",
+    "acceptance:phase13": "@php tests/External/AgentPrincipal/run.php",
     "analyse": "@php -d memory_limit=512M vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress",
     "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
     "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
@@ -213,6 +226,12 @@
     "platform": "composer check-platform-reqs",
     "validate:composer": "composer validate --no-check-publish",
     "validate:packages": [
+      "composer --working-dir=packages/agent-admission validate --no-check-publish",
+      "composer --working-dir=packages/agent-application validate --no-check-publish",
+      "composer --working-dir=packages/agent-declaration-build validate --no-check-publish",
+      "composer --working-dir=packages/agent-inspection validate --no-check-publish",
+      "composer --working-dir=packages/agent-principal-contract validate --no-check-publish",
+      "composer --working-dir=packages/agent-runtime validate --no-check-publish",
       "composer --working-dir=packages/api-metadata validate --no-check-publish",
       "composer --working-dir=packages/application-graph validate --no-check-publish",
       "composer --working-dir=packages/application-graph-artifact validate --no-check-publish",

@@ -302,3 +302,19 @@ Hantei mirrors this exact script in `framework-quality-v1`. The command adds no
 dependency, package, baseline, suppression, audit-policy exception, production
 exporter/provider/backend, or environment discovery. Phase 10A-H is complete
 only at the exact local checkpoint, and Kongono remains pre-1.0.
+
+## Phase 13 external acceptance
+
+Run `composer acceptance:phase13` to execute the root-owned 40-case Agent
+Principal process harness. The script is exactly
+`@php tests/External/AgentPrincipal/run.php` and is mirrored by the fixed
+Hantei profile without changing its eight checks. The harness uses production
+autoloading, root fixture collaborators, a unique temporary workspace outside
+the repository, 1 MiB independent stream bounds, sequential and concurrent
+child processes, a fixed failure token, and repository fingerprinting.
+
+The command is deterministic and offline. It adds no dependency, provider SDK,
+network access, account, profile registry, command surface, baseline,
+suppression, quality-stage change, audit exception, production runtime, or
+Phase 14 behavior. See
+[Phase 13 external acceptance](../architecture/phase-13-external-acceptance.md).

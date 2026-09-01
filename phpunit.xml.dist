@@ -14,6 +14,11 @@
          beStrictAboutOutputDuringTests="true">
     <testsuites>
         <testsuite name="Kongono">
+            <directory>packages/agent-admission/tests</directory>
+            <directory>packages/agent-application/tests</directory>
+            <directory>packages/agent-declaration-build/tests</directory>
+            <directory>packages/agent-inspection/tests</directory>
+            <directory>packages/agent-runtime/tests</directory>
             <directory>packages/api-metadata/tests</directory>
             <directory>packages/application-graph/tests</directory>
             <directory>packages/application-graph-artifact/tests</directory>
@@ -80,6 +85,11 @@
     </testsuites>
     <source>
         <include>
+            <directory>packages/agent-admission/src</directory>
+            <directory>packages/agent-application/src</directory>
+            <directory>packages/agent-declaration-build/src</directory>
+            <directory>packages/agent-inspection/src</directory>
+            <directory>packages/agent-runtime/src</directory>
             <directory>packages/api-metadata/src</directory>
             <directory>packages/application-graph/src</directory>
             <directory>packages/application-graph-artifact/src</directory>
