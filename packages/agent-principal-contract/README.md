@@ -5,6 +5,11 @@ for neutral, versioned Agent Principal values. It depends only on API Metadata,
 Diagnostics, Identity Access, and PHP. Existing packages and application
 profiles do not depend on it.
 
+Phase 14E's separate optional bridge can construct these inert proposal values
+from one eligible normalized model result through trusted application mapping.
+That construction does not authenticate, admit, authorize, grant, invoke, or
+prove an effect, and raw model arguments do not become capability inputs.
+
 Phase 13C's separate opt-in `kongono/agent-declaration-build` package may
 project selected contract values into deterministic declaration evidence. That
 artifact does not change this package's authority semantics: construction and

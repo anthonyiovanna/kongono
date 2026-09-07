@@ -147,19 +147,42 @@ final class DatabaseValueContractTest extends TestCase
             } catch (InvalidDatabaseValueException) {
             }
         }
-        foreach ([["\xC3\x28", true], [str_repeat('x', 16_777_217), true], [str_repeat("\0", 16_777_217), false]] as [$bytes, $text]) {
-            try {
-                $text ? DatabaseValue::text($bytes) : DatabaseValue::binary($bytes);
-                self::fail('Invalid or oversized bytes were accepted.');
-            } catch (InvalidDatabaseValueException) {
-            }
+
+        try {
+            DatabaseValue::text("\xC3\x28");
+            self::fail('Invalid or oversized bytes were accepted.');
+        } catch (InvalidDatabaseValueException) {
         }
-        $text = DatabaseValue::text(str_repeat('x', 16_777_216))->value();
-        $binary = DatabaseValue::binary(str_repeat("\0", 16_777_216))->value();
+
+        $oversizedText = str_repeat('x', 16_777_217);
+        try {
+            DatabaseValue::text($oversizedText);
+            self::fail('Invalid or oversized bytes were accepted.');
+        } catch (InvalidDatabaseValueException) {
+        }
+        unset($oversizedText);
+
+        $oversizedBinary = str_repeat("\0", 16_777_217);
+        try {
+            DatabaseValue::binary($oversizedBinary);
+            self::fail('Invalid or oversized bytes were accepted.');
+        } catch (InvalidDatabaseValueException) {
+        }
+        unset($oversizedBinary);
+
+        $textInput = str_repeat('x', 16_777_216);
+        $text = DatabaseValue::text($textInput)->value();
+        unset($textInput);
         self::assertIsString($text);
-        self::assertIsString($binary);
         self::assertSame(16_777_216, strlen($text));
+        unset($text);
+
+        $binaryInput = str_repeat("\0", 16_777_216);
+        $binary = DatabaseValue::binary($binaryInput)->value();
+        unset($binaryInput);
+        self::assertIsString($binary);
         self::assertSame(16_777_216, strlen($binary));
+        unset($binary);
     }
 
     public function testColumnsRowsAndExactLabelAccessPreserveOrderAndDuplicates(): void

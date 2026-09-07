@@ -1,5 +1,85 @@
 # Kongono Glossary
 
+**Model invocation inspection** is the optional Experimental Phase 14G
+offline, read-only, stateless, presentation-neutral upper evidence leaf. It
+revalidates one exact supplied profile/wiring pair without loading generated
+PHP, may summarize one completed detached runtime result without replay, and
+emits only bounded inert Graph, Observability, Security Audit, and
+role-addressed evidence. Exact supplied evidence is not live provider,
+application, or authority truth. See the [inspection guide](architecture/model-invocation-inspection-and-evidence.md).
+
+**Model invocation application workflow** is the optional Experimental Phase
+14F boundary over one exact-current application-owned profile, deterministic
+inert generated wiring, one directly supplied identity-matching adapter, and one
+terminal synchronous Phase 14D operation. One application instance runs at most
+once. It performs no provider/default/credential discovery, retry/fallback,
+second-profile, CLI, retained-session, background, deployment, Agent-port, or
+automatic bridge work. Trusted generated PHP is not a sandbox. See
+[ADR 0152](adr/0152-exact-current-single-profile-model-invocation-application-workflow.md)
+and the [workflow guide](architecture/model-invocation-application-workflow.md).
+
+**Model-result to Agent-proposal bridge** is the optional Experimental Phase
+14E deterministic reduction boundary. It validates one successful retired
+action-suggestion result and uses one exact trusted application mapping to
+produce inert Phase 13 proposal evidence. It is not an `AgentProposalPort`,
+admission, authorization, capability grant, capability invocation, or proof of
+effect. Raw model action arguments are hashed and counted but never become
+capability inputs. See [ADR 0151](adr/0151-inert-model-result-to-agent-proposal-bridge.md)
+and the [bridge guide](architecture/model-result-agent-proposal-bridge.md).
+
+**Model invocation runtime** is the Phase 14D optional synchronous pull
+boundary that validates one exact-current plan, invokes one directly supplied
+matching adapter once, enforces explicit evidence budgets and
+cancellation/time probes, and deterministically closes the session. Its
+normalized output and receipts remain evidence, not authority. Phase 14E adds
+only the separate inert bridge described above.
+
+**Model-invocation contract foundation** is the implemented optional
+Experimental Phase 14B neutral vocabulary for exact profiles, bounded requests,
+normalized results, partial stream evidence, usage/cost claims, receipts,
+lifecycle, visibility, and non-disclosing failures. Values are inert and
+perform no provider, network, credential, adapter, authority, Agent, or effect
+work. See [ADR 0148](adr/0148-neutral-versioned-model-invocation-contract-foundation.md)
+and the [contract guide](architecture/model-invocation-contract-foundation.md).
+
+**Provider-neutral model invocation** is the optional Accepted architecture for
+bounded model work over an explicit application-supplied adapter while keeping
+provider transport, credentials, policy, and effects outside the neutral core.
+Phase 14B implements contracts, Phase 14C deterministic plan evidence, Phase
+14D bounded execution, Phase 14E only the inert proposal bridge, Phase 14F only
+the exact-current single-profile application workflow, and Phase 14G only the
+visibility-safe inspection leaf. See the [Provider-Neutral Model Invocation
+guide](architecture/provider-neutral-model-invocation.md).
+
+**Model profile reference** is implemented application-owned configuration evidence
+for one exact model-invocation profile. It is not a credential, provider object,
+global default, registry entry, currentness proof, or authority grant.
+
+**Invocation plan artifact** is Phase 14C compact canonical coordination
+evidence that binds a complete request by digest while omitting raw messages.
+It contains plan/profile/request metadata, a finite inert budget, and
+source/request hashes. It is not an adapter, credential, provider request,
+authorization decision, runtime receipt, or proof of external currentness. See
+the [plan-artifact guide](architecture/model-invocation-plan-artifact.md).
+
+**Invocation plan source** is one explicit application-owned typed value
+binding an exact version-1 neutral request, a plan identity, an adapter selector
+label, and a finite one-attempt execution budget. It establishes local shape
+only and does not acquire an adapter or validate live provider state.
+
+**Normalized model result** is planned bounded provider-neutral evidence derived
+from an untrusted response or completed stream. Validation does not make it
+true, safe, authoritative, or executable.
+
+**Proposed action** is an inert model suggestion, including a tool-call
+suggestion and bounded arguments. It requires explicit application mapping and
+the separate Phase 13 admission, authorization, and capability boundary before
+any effect.
+
+**Invocation receipt** is an implemented bounded claim vocabulary about one model-invocation
+lifecycle and its attempts. It is not a grant, replay token, billing record,
+delivery guarantee, provider truth, or security certification.
+
 **Phase 13 external acceptance** is the root-owned deterministic offline
 process evidence that closes the governed Agent Principal milestone. It uses
 production APIs with root-owned fixtures and temporary state, but is not a
@@ -49,7 +129,10 @@ installer, trust decision, sandbox, or authority source. See
 
 > **Phase 13 closed boundary:** Phases 13B-13H are implemented. The graph
 > remains 69 acyclic production packages / 260 local edges. Phase 13H adds
-> external test evidence and the exact checkpoint only; Phase 14 has not begun.
+> external test evidence and exact checkpoint
+> `63376c802ac4672c21458b67b2fcadaf8e03a019` only. Phase 14A now adds
+> documentation architecture; Phase 14B now adds only the separate neutral
+> contract and plan-artifact packages, bringing the graph to 71 packages / 265 local edges.
 
 ## Authoritative Application Graph
 
@@ -1856,9 +1939,10 @@ The fixed dependency order from governed documentation architecture through
 neutral Agent Principal contracts, deterministic declaration evidence,
 application-owned admission and authority-plan evidence, bounded provider-
 neutral orchestration, one supported workflow, visibility-safe inspection, and
-root-owned external acceptance. The roadmap names planned responsibilities,
-not current packages or behavior. Phase 13A is documentation only; every later
-row requires separate independently authenticated authority.
+root-owned external acceptance. Each row required separate independently
+authenticated authority. Phases 13B-13G now implement their accepted packages,
+and Phase 13H closes the milestone with external evidence and checkpoint
+`63376c802ac4672c21458b67b2fcadaf8e03a019`.
 
 ## Extension Contract Declaration
 
@@ -1921,3 +2005,11 @@ An **Extension Platform Inspection** is detached Safe aggregate evidence from
 one structurally valid declaration artifact and one structurally valid generated
 wiring file with the same declaration-set identity. It establishes neither
 currentness nor authority and never loads the generated PHP or observes a host.
+
+## Phase 14 External Acceptance
+
+**Phase 14 External Acceptance** is root-owned deterministic offline process
+evidence for the accepted provider-neutral model-invocation stack. Its fake
+adapter is test evidence, not provider integration. It adds no authority,
+credentials, account, network, live state, billing truth, deployment truth,
+certification, or proof of effect.

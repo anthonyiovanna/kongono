@@ -110,6 +110,18 @@ parameters:
         - packages/knowledge/bin/kongono-knowledge
         - packages/metrics/src
         - packages/metrics/tests
+        - packages/model-invocation-agent-bridge/src
+        - packages/model-invocation-agent-bridge/tests
+        - packages/model-invocation-application/src
+        - packages/model-invocation-application/tests
+        - packages/model-invocation-build/src
+        - packages/model-invocation-build/tests
+        - packages/model-invocation-contract/src
+        - packages/model-invocation-contract/tests
+        - packages/model-invocation-inspection/src
+        - packages/model-invocation-inspection/tests
+        - packages/model-invocation-runtime/src
+        - packages/model-invocation-runtime/tests
         - packages/observability/src
         - packages/observability/tests
         - packages/opentelemetry/src

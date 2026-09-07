@@ -6,6 +6,12 @@
 > Phase 11H externally proves that boundary without adding a role adapter,
 > production coupling, or role-execution authority.
 
+Phase 14G's optional [model-invocation inspection leaf](model-invocation-inspection-and-evidence.md)
+may consume one explicitly supplied current intelligence view that matches its
+requested role. This creates no production dependency in the Graph package,
+executes no role, and establishes no relationship between a model invocation
+and the authoritative Graph.
+
 ## Purpose and context
 
 This boundary gives later Chie, Hantei, and Oshie adapters one deterministic,

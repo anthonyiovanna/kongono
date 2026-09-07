@@ -31,3 +31,8 @@ Phase 13H's separate root-owned
 exercises this package through production APIs without changing its behavior.
 The harness remains test evidence and grants no inspection, Graph, projection,
 developer-role, provider, model, or external-effect authority.
+
+Phase 14G's separate
+[`kongono/model-invocation-inspection`](../model-invocation-inspection/README.md)
+follows the same evidence-only separation for model invocation. Neither
+inspection package depends on, calls, or widens the other.

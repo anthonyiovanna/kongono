@@ -289,7 +289,7 @@ final class Phase13AgentPrincipalAcceptance
             $this->case(37, $workspace->cleanupComplete());
             $this->case(38, 0 === $this->activeProcesses && $before === $this->repositoryFingerprint());
             $this->case(39, !$this->containsAny(self::successBytes(), ['provider', 'account', 'network', 'model']));
-            $this->case(40, !is_dir($this->repositoryRoot . '/packages/agent-provider') && !is_dir($this->repositoryRoot . '/docs/dev_plan/phase_14'));
+            $this->case(40, !is_dir($this->repositoryRoot . '/packages/agent-provider'));
             $this->require(self::REQUIRED_CASES === $this->caseCount);
             $this->assertNoDisclosure();
             fwrite($stdout, self::successBytes());

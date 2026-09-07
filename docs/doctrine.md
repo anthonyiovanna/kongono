@@ -1,5 +1,41 @@
 # Kongono Architectural Doctrine
 
+> **Current through Phase 14G:** the optional bounded model-invocation runtime
+> validates one exact-current plan and runs one directly supplied adapter once.
+> The optional inert bridge validates one eligible action suggestion and maps
+> it through exact trusted application configuration into proposal evidence.
+> Phase 14F binds one exact-current profile, deterministic inert wiring, and one
+> direct adapter for one terminal operation without calling the bridge. The
+> optional inspection leaf revalidates exact supplied evidence without loading
+> generated PHP and emits only bounded inert aggregate views. The graph is 75
+> packages / 289 local edges / acyclic. Phase 14H remains planned.
+
+Phase 14B accepts [ADR 0148](adr/0148-neutral-versioned-model-invocation-contract-foundation.md)
+and implements only the optional Experimental
+`kongono/model-invocation-contract` values described by the [contract
+guide](architecture/model-invocation-contract-foundation.md). Phase 14C accepts
+[ADR 0149](adr/0149-deterministic-model-invocation-plan-artifact.md) and adds
+only the optional deterministic [plan-artifact boundary](architecture/model-invocation-plan-artifact.md). Optional model
+invocation sits beside, not
+inside, Phase 13 authority. Applications own policy, exact profile and adapter
+supply, credentials, transport, budgets, and any selection of a result-to-
+proposal mapping. Phase 14E supplies only a deterministic reduction mechanism;
+the mapping remains trusted application configuration and the model arguments
+remain untrusted inert content.
+Provider capabilities, prompts, responses, stream events, tool suggestions,
+normalized results, usage/cost evidence, and receipts remain inert evidence.
+The values perform no provider/model call, SDK or credential work, network,
+adapter execution, plan build, authority effect, serialization,
+command, persistence, or runtime enforcement. Raw messages are absent from plan
+artifact bytes; plans, budgets, adapter labels, and digests remain evidence.
+The bridge is not an `AgentProposalPort`, grant, capability invocation, or
+proof of effect. Raw action arguments never become capability input. Phase 14F
+adds only the separate single-profile application workflow; trusted generated
+PHP is not a sandbox. Phase 14G inspection is explicit, offline, read-only,
+stateless, and presentation-neutral; it does not replay runtime evidence or
+establish live provider, application, or authority truth. The graph is 75
+packages / 289 local edges / acyclic. Phase 14H remains planned.
+
 Phase 13 is closed. Phases 13B-G implement separate opt-in neutral Agent Principal contract,
 deterministic declaration artifact, deterministic admission, and synchronous
 one-operation runtime packages plus one exact-current application workflow and
@@ -43,7 +79,10 @@ not sandboxed. See [ADR 0138](adr/0138-phase-12-external-extension-platform-acce
 > provider adapter, profile registry, state or memory store, autonomous loop, or
 > background runtime exists. Inspection records nothing and observes no live
 > application, provider, or external-authority state. Phase 13H adds only
-> root-owned external evidence and the exact checkpoint; Phase 14 has not begun.
+> root-owned external evidence and exact checkpoint
+> `63376c802ac4672c21458b67b2fcadaf8e03a019`. Phase 14A now adds documentation
+> architecture only; Phase 14B now adds only the separate neutral contract
+> package and Phase 14C remains planned.
 
 ## Status
 
@@ -1032,3 +1071,11 @@ local edges. Phase 12G adds detached structural inspection and Safe aggregate
 evidence only. It never loads generated PHP and does not establish currentness,
 host state, execution, trust, authorization, or production readiness. The
 current topology is 63 packages / 226 local edges; Phase 12H closes the milestone with root-owned external evidence only.
+
+## Provider-neutral model-invocation acceptance doctrine
+
+Phase 14A-H are implemented and Phase 14 is closed. Root external evidence may
+exercise one explicit offline fake adapter, but model identities, plans,
+responses, usage, cost, receipts, proposals, inspection, and verifier output
+remain evidence rather than authority or truth. See [Phase 14 external
+acceptance](architecture/phase-14-external-acceptance.md).

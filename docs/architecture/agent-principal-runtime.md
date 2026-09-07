@@ -1,5 +1,11 @@
 # Agent Principal Runtime
 
+> **Phase 14E separation:** the optional model-result bridge prepares only an
+> `AgentProposalResult` value that an application-owned `AgentProposalPort` may
+> choose to return. It neither implements that port nor bypasses this runtime's
+> current-authority, proposal, capability, budget, cancellation, lifecycle, or
+> cleanup checks. Raw model action arguments never become capability inputs.
+
 > **Outer application boundary:** Phase 13F's
 > [Agent Application Workflow](agent-application-workflow.md) binds one exact
 > profile and transfers cleanup ownership to this runtime exactly once. The

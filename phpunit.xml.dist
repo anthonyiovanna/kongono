@@ -62,6 +62,11 @@
             <directory>packages/kernel/tests</directory>
             <directory>packages/knowledge/tests</directory>
             <directory>packages/metrics/tests</directory>
+            <directory>packages/model-invocation-agent-bridge/tests</directory>
+            <directory>packages/model-invocation-application/tests</directory>
+            <directory>packages/model-invocation-build/tests</directory>
+            <directory>packages/model-invocation-inspection/tests</directory>
+            <directory>packages/model-invocation-runtime/tests</directory>
             <directory>packages/observability/tests</directory>
             <directory>packages/opentelemetry/tests</directory>
             <directory>packages/operational-events/tests</directory>
@@ -133,6 +138,11 @@
             <directory>packages/kernel/src</directory>
             <directory>packages/knowledge/src</directory>
             <directory>packages/metrics/src</directory>
+            <directory>packages/model-invocation-agent-bridge/src</directory>
+            <directory>packages/model-invocation-application/src</directory>
+            <directory>packages/model-invocation-build/src</directory>
+            <directory>packages/model-invocation-inspection/src</directory>
+            <directory>packages/model-invocation-runtime/src</directory>
             <directory>packages/observability/src</directory>
             <directory>packages/opentelemetry/src</directory>
             <directory>packages/operational-events/src</directory>

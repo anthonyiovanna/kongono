@@ -1,5 +1,16 @@
 # Kongono Engineering Foundation
 
+Phase 14B implements the optional Experimental
+`kongono/model-invocation-contract` package accepted by [ADR
+0148](../adr/0148-neutral-versioned-model-invocation-contract-foundation.md)
+and documented in the [contract guide](../architecture/model-invocation-contract-foundation.md).
+It adds only immutable bounded values and non-disclosing failures, plus exact
+root Composer, PHPStan, Hantei, API-status, lockfile, and test integration. It
+adds no provider SDK, network/model execution, credential mechanism, adapter,
+plan, Agent bridge, authority effect, serialization, command, or runtime. The
+topology is 70/262/acyclic and inventories are 1,254/634/76 PHP files. Phase
+14C remains planned and requires separate authenticated authority.
+
 Phase 12H adds the root-owned external Extension Platform harness and exact
 local checkpoint without changing production packages, manifests, dependencies,
 the lockfile, or the 63-package / 226-edge graph. See

@@ -1,5 +1,14 @@
 # PHP Engineering Toolchain
 
+Phase 14B adds the exact `kongono/model-invocation-contract` root requirement,
+test namespace, sorted package validator, PHPStan source/test paths, matching
+Hantei fixed-profile entry, and Composer-generated lock record. It adds no new
+quality stage, dependency policy, baseline, suppression, audit exception,
+provider SDK, network client, adapter, or runtime. `composer quality` remains
+canonical, supplemented by focused syntax, PHPStan, cache-free style, package,
+Hantei, API architecture, semantic/nondisclosure, documentation, file-safety,
+and preservation gates described by the [Phase 14 roadmap](../architecture/phase-14-roadmap.md).
+
 ## Purpose
 
 The toolchain turns Kongono's contributor expectations into deterministic commands. The root `composer.lock` fixes the development-tool versions, while Composer scripts provide the same entry points across supported contributor environments.
@@ -316,5 +325,11 @@ child processes, a fixed failure token, and repository fingerprinting.
 The command is deterministic and offline. It adds no dependency, provider SDK,
 network access, account, profile registry, command surface, baseline,
 suppression, quality-stage change, audit exception, production runtime, or
-Phase 14 behavior. See
+model-invocation behavior. Phase 14A separately adds documentation only. See
 [Phase 13 external acceptance](../architecture/phase-13-external-acceptance.md).
+
+`composer acceptance:phase14` is the deterministic offline Phase 14 external
+entry point. The fixed Hantei profile mirrors it without changing the eight
+quality checks. It adds no provider SDK, account, credentials, network, command
+surface, dependency, suppression, baseline, or quality-stage policy. See [Phase
+14 external acceptance](../architecture/phase-14-external-acceptance.md).

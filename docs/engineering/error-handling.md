@@ -1,5 +1,66 @@
 # Error Handling and Actionable Diagnostics
 
+Phase 14G uses exactly five inspection diagnostics:
+`KGN-MODEL-INSPECTION-1437` through `1441` for invalid inspection values, exact
+profile/wiring binding, optional completed-runtime evidence, projection, and
+developer-intelligence/verification evidence. Context contains only a fixed
+Safe component token. Raw profiles, identities, providers, models, messages,
+results, receipts, usage/cost claims, digests, paths, credentials, and arbitrary
+caller or throwable content remain undisclosed.
+
+Phase 14F uses exactly seven application diagnostics:
+`KGN-MODEL-APPLICATION-1430` through `1436` for invalid profiles, generated
+wiring, publication, explicit loading, workflow, lifecycle, and operation
+construction. Context contains only closed Safe violation or stage labels.
+Request content, model output, action arguments, credentials, endpoints, paths,
+generated PHP, artifact bytes, and foreign throwable messages are excluded.
+Exact lower-runtime receipts, cleanup evidence, and previous throwable identity
+remain inspectable; native trace-argument erasure is not claimed.
+
+Phase 14E uses exactly four bridge diagnostics:
+`KGN-MODEL-BRIDGE-1425` through `1428` for invalid mapping construction,
+ineligible runtime evidence, exact mapping/permission rejection, and usage or
+projection rejection. Context contains only closed Safe labels and bounded
+counts. Raw action arguments, identities, prompts, provider/model labels,
+credentials, paths, URLs, and foreign throwable messages are excluded from
+bridge-produced messages and deterministic exception strings. The exact
+previous throwable identity may be retained without disclosing its message.
+
+Phase 14D uses eight package-owned diagnostics for invalid input, preflight
+rejection, adapter failure, protocol violation, budget excess, probe failure,
+cleanup failure, and combined failure. Rejection carries zero attempts;
+operation failures retain the exact primary throwable as `previous`; cleanup
+and combined failures carry `Uncertain` receipts and detached exact close
+throwables. Fixed messages and Safe context omit caller/provider values.
+
+Phase 14C model-invocation plan construction and publication use exactly seven
+package-owned diagnostics: `KGN-MODEL-BUILD-1410` through `1416` for invalid
+plan identity, adapter identity, execution budget, source, artifact,
+currentness, and publication. Presentation contains only closed Safe violation
+and field labels plus bounded counts, positions, and numeric limits. Raw
+messages, identities, provider/model/adapter labels, digests, currency/amount
+text, paths, credentials, secrets, and throwable messages are excluded.
+Structural validation does not claim source currentness; stale evidence has a
+distinct failure from malformed bytes, and publication preserves primary plus
+cleanup failure identity.
+
+Phase 14B model-invocation contract construction uses nine fixed
+`KGN-MODEL-CONTRACT-1401` through `1409` diagnostics. Context schemas contain
+only allowlisted Safe violation labels, counts, positions, limits, result modes,
+or event kinds. Unknown labels become `unsupported_violation`; rejected
+identities, message/result content, action arguments, provider/model input,
+currency/amount text, credentials, secrets, paths, and throwable messages are
+never copied into message, context, remediation, or deterministic exception
+stringification. Previous throwables are retained by identity only. The
+Accepted [provider-neutral model-invocation architecture](../architecture/provider-neutral-model-invocation.md)
+requires later failures to distinguish currentness, capability,
+credential supply, transport attempt, provider response, streaming, budget,
+cancellation, normalization, usage, receipt, and cleanup concerns using bounded
+nondisclosing evidence. Raw prompts, responses, stream fragments, tool
+arguments, credentials, secrets, hidden reasoning, provider payloads, personal
+data, and arbitrary caller values remain excluded. Silent retry or fallback
+must not conceal the primary failure or an uncertain outcome.
+
 ## Purpose and current status
 
 This guide is the operational source of truth for Kongono failure behavior.

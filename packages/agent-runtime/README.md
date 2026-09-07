@@ -5,6 +5,12 @@ synchronous, provider-neutral Agent Principal operation. It consumes one exact
 declaration, one matching admitted authority plan, and explicit caller-owned
 proposal, capability, currentness, cancellation, and monotonic-clock ports.
 
+Phase 14E's separate optional model-result bridge may prepare an inert
+`AgentProposalResult` that an application-owned proposal port chooses to
+return. It does not implement the port or bypass any current-authority,
+proposal, capability, budget, cancellation, lifecycle, or cleanup check. Model
+action arguments never become capability inputs through that bridge.
+
 ## Calling contract
 
 Call the stateless `AgentRuntime::run()` once with an `AgentRuntimeRequest`.

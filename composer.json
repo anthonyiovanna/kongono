@@ -21,6 +21,18 @@
     },
     {
       "type": "path",
+      "url": "packages/model-invocation-agent-bridge"
+    },
+    {
+      "type": "path",
+      "url": "packages/model-invocation-application"
+    },
+    {
+      "type": "path",
+      "url": "packages/model-invocation-inspection"
+    },
+    {
+      "type": "path",
       "url": "packages/*"
     }
   ],
@@ -74,6 +86,12 @@
     "kongono/kernel": "@dev",
     "kongono/knowledge": "@dev",
     "kongono/metrics": "@dev",
+    "kongono/model-invocation-agent-bridge": "@dev",
+    "kongono/model-invocation-application": "@dev",
+    "kongono/model-invocation-build": "@dev",
+    "kongono/model-invocation-contract": "@dev",
+    "kongono/model-invocation-inspection": "@dev",
+    "kongono/model-invocation-runtime": "@dev",
     "kongono/observability": "@dev",
     "kongono/observability-application": "@dev",
     "kongono/observability-build": "@dev",
@@ -154,6 +172,12 @@
       "Kongono\\Kernel\\Tests\\": "packages/kernel/tests/",
       "Kongono\\Knowledge\\Tests\\": "packages/knowledge/tests/",
       "Kongono\\Metrics\\Tests\\": "packages/metrics/tests/",
+      "Kongono\\ModelInvocationAgentBridge\\Tests\\": "packages/model-invocation-agent-bridge/tests/",
+      "Kongono\\ModelInvocationApplication\\Tests\\": "packages/model-invocation-application/tests/",
+      "Kongono\\ModelInvocationBuild\\Tests\\": "packages/model-invocation-build/tests/",
+      "Kongono\\ModelInvocationContract\\Tests\\": "packages/model-invocation-contract/tests/",
+      "Kongono\\ModelInvocationInspection\\Tests\\": "packages/model-invocation-inspection/tests/",
+      "Kongono\\ModelInvocationRuntime\\Tests\\": "packages/model-invocation-runtime/tests/",
       "Kongono\\Observability\\Tests\\": "packages/observability/tests/",
       "Kongono\\ObservabilityApplication\\Tests\\": "packages/observability-application/tests/",
       "Kongono\\ObservabilityBuild\\Tests\\": "packages/observability-build/tests/",
@@ -219,6 +243,7 @@
     "acceptance:phase11": "@php tests/External/ApplicationGraph/run.php",
     "acceptance:phase12": "@php tests/External/ExtensionPlatform/run.php",
     "acceptance:phase13": "@php tests/External/AgentPrincipal/run.php",
+    "acceptance:phase14": "@php tests/External/ModelInvocation/run.php",
     "analyse": "@php -d memory_limit=512M vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress",
     "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
     "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
@@ -275,6 +300,12 @@
       "composer --working-dir=packages/kernel validate --no-check-publish",
       "composer --working-dir=packages/knowledge validate --no-check-publish",
       "composer --working-dir=packages/metrics validate --no-check-publish",
+      "composer --working-dir=packages/model-invocation-agent-bridge validate --no-check-publish",
+      "composer --working-dir=packages/model-invocation-application validate --no-check-publish",
+      "composer --working-dir=packages/model-invocation-build validate --no-check-publish",
+      "composer --working-dir=packages/model-invocation-contract validate --no-check-publish",
+      "composer --working-dir=packages/model-invocation-inspection validate --no-check-publish",
+      "composer --working-dir=packages/model-invocation-runtime validate --no-check-publish",
       "composer --working-dir=packages/observability validate --no-check-publish",
       "composer --working-dir=packages/observability-application validate --no-check-publish",
       "composer --working-dir=packages/observability-build validate --no-check-publish",

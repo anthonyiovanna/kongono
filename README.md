@@ -1,5 +1,44 @@
 # Kongono
 
+Phase 14B implements the optional Experimental
+`kongono/model-invocation-contract` neutral value package and the deterministic
+`kongono/model-invocation-build` plan-evidence package and bounded
+`kongono/model-invocation-runtime` package under the
+provider-neutral model-invocation architecture accepted in
+[ADR 0147](docs/adr/0147-provider-neutral-model-invocation-and-adapter-boundary.md),
+[ADR 0148](docs/adr/0148-neutral-versioned-model-invocation-contract-foundation.md),
+[ADR 0149](docs/adr/0149-deterministic-model-invocation-plan-artifact.md),
+[ADR 0150](docs/adr/0150-bounded-provider-neutral-model-invocation-runtime.md),
+[ADR 0151](docs/adr/0151-inert-model-result-to-agent-proposal-bridge.md),
+[ADR 0152](docs/adr/0152-exact-current-single-profile-model-invocation-application-workflow.md),
+[ADR 0153](docs/adr/0153-visibility-safe-model-invocation-inspection-and-bounded-evidence.md),
+the [contract guide](docs/architecture/model-invocation-contract-foundation.md),
+the [plan-artifact guide](docs/architecture/model-invocation-plan-artifact.md),
+the [runtime guide](docs/architecture/model-invocation-runtime.md),
+the [bridge guide](docs/architecture/model-result-agent-proposal-bridge.md),
+the [application workflow guide](docs/architecture/model-invocation-application-workflow.md),
+the [inspection guide](docs/architecture/model-invocation-inspection-and-evidence.md),
+and the [fixed roadmap](docs/architecture/phase-14-roadmap.md). Its bounded
+values remain inert evidence and cannot bypass Phase 13 authority. It adds no
+provider SDK, credential lookup, adapter discovery, retry/fallback, registry,
+command, recording, telemetry, or background work. Phase
+14D directly executes one caller-supplied adapter under exact-current plan
+binding and finite evidence budgets. Phase 14E validates one eligible normalized
+action suggestion and maps it through trusted application configuration into
+inert Agent proposal evidence. The bridge is not a proposal port, grant,
+capability invocation, or proof of effect; raw model arguments never become
+capability inputs. The graph was 73 acyclic production packages / 275 local
+edges before Phase 14F. Phase 14F adds one exact-current single-profile
+application workflow with deterministic inert generated wiring, a directly
+supplied matching adapter, and one terminal Phase 14D operation. It does not
+call the Phase 14E bridge. Phase 14G adds an explicit, offline, read-only,
+stateless, presentation-neutral inspection leaf over an exact supplied
+profile/wiring pair and optional completed detached runtime evidence. It loads
+no generated PHP and emits only bounded Safe aggregate evidence. The current
+graph is 75 acyclic production packages / 289 local edges; PHP inventories are
+1,358 production / 686 package-test / 76 root-test files. Phase 14H remains
+planned.
+
 Phase 13A accepts governed application Agent Principal architecture through
 [ADR 0139](docs/adr/0139-governed-agent-principals-and-deterministic-authority-boundary.md),
 the [Agent Principal Platform guide](docs/architecture/agent-principal-platform.md),
@@ -39,8 +78,10 @@ Safe aggregate inspection, optional Graph context, neutral Observability and
 Security Audit projections, and role-addressed evidence. It records nothing,
 executes no role or runtime, observes no live application/provider state, and
 grants no authority. Phase 13H adds only the deterministic offline root external
-acceptance harness and exact local checkpoint. Phase 13 is closed; no provider,
-release, push, tag, Stable/1.0 claim, or Phase 14 behavior is added.
+acceptance harness and exact local checkpoint
+`63376c802ac4672c21458b67b2fcadaf8e03a019`. Phase 13 is closed. Phase 14A adds
+only the documentation architecture linked above; no executable Phase 14
+behavior, release, push, tag, or Stable/1.0 claim is added.
 
 Phase 12 is closed by the root-owned
 [external Extension Platform acceptance](docs/architecture/phase-12-external-acceptance.md).
@@ -62,8 +103,9 @@ detached aggregate evidence, and Kongono remains Experimental and pre-1.0.
 > acyclic production packages / 260 local edges. Requests, plans,
 > profiles, and generated identity are not grants; receipts are bounded claims;
 > inspection, Graph context, observations, audit evidence, and verification
-> PASS are not grants; trusted in-process PHP is not sandboxed. Phase 13H has
-> not begun.
+> PASS are not grants; trusted in-process PHP is not sandboxed. Phase 13H adds
+> only external evidence and closes the milestone at checkpoint
+> `63376c802ac4672c21458b67b2fcadaf8e03a019`.
 
 > **Build what comes next.**
 
@@ -985,3 +1027,12 @@ Phase 12G adds detached aggregate-only extension inspection and the read-only
 `extension:inspect` command. It establishes neither currentness nor authority
 and never loads generated PHP. The graph is 63 packages / 226 local edges;
 Phase 12H closes the milestone with root-owned external evidence only, and Kongono remains Experimental and pre-1.0.
+
+## Completed Phase 14 provider-neutral model invocation
+
+Phases 14A-H are implemented and Phase 14 is closed. The [external acceptance
+guide](docs/architecture/phase-14-external-acceptance.md) describes the
+deterministic offline root harness and exact local checkpoint. Its explicit fake
+adapter is test evidence, not provider integration or authority. Kongono remains
+Experimental, pre-1.0, and fully usable without AI, a provider, credentials, or
+a network.

@@ -1,5 +1,15 @@
 # Agent Model
 
+Phase 14B implements only the optional neutral values described by [ADR
+0148](../adr/0148-neutral-versioned-model-invocation-contract-foundation.md)
+and the [contract guide](model-invocation-contract-foundation.md) as a separate
+proposal-producing concern. A model profile,
+request, prompt, provider response, stream event, normalized result, tool-call
+suggestion, usage/cost claim, or receipt does not identify, authenticate,
+authorize, or grant an Agent Principal. Any future bridge may create only inert
+proposal evidence for the existing Phase 13 authority flow. Phase 14B adds no
+provider/model call, adapter, Agent bridge, authority, or effect behavior.
+
 > **Current boundary:** Phase 13B implements the opt-in neutral
 > [Agent Principal Contract Foundation](agent-principal-contract-foundation.md),
 > Phase 13C implements the opt-in deterministic

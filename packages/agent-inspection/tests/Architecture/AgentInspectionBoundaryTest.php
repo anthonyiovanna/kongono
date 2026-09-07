@@ -37,12 +37,12 @@ final class AgentInspectionBoundaryTest extends TestCase
         }
     }
 
-    public function testRepositoryGraphIsExactlySixtyNinePackagesAndTwoHundredSixtyEdges(): void
+    public function testRepositoryGraphIsExactlySeventyPackagesAndTwoHundredSixtyTwoEdges(): void
     {
         $root = dirname(__DIR__, 4);
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(69, $manifests);
+        self::assertCount(75, $manifests);
         $names = [];
         $decoded = [];
         foreach ($manifests as $path) {
@@ -61,6 +61,6 @@ final class AgentInspectionBoundaryTest extends TestCase
                 }
             }
         }
-        self::assertSame(260, $edges);
+        self::assertSame(289, $edges);
     }
 }

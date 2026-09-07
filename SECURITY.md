@@ -1,5 +1,18 @@
 # Security Policy
 
+Phase 14B implements only the inert neutral values in
+[ADR 0148](docs/adr/0148-neutral-versioned-model-invocation-contract-foundation.md)
+and the [contract guide](docs/architecture/model-invocation-contract-foundation.md).
+Provider capabilities, profiles, prompts, responses,
+streaming events, tool suggestions, normalized results, usage/cost evidence,
+and receipts are untrusted evidence, never authentication, authorization,
+capability grants, or executable authority. Applications retain exact provider
+choice, adapter and transport supply, credential policy, budgets, result
+eligibility, and all Phase 13 authority decisions. See
+[ADR 0147](docs/adr/0147-provider-neutral-model-invocation-and-adapter-boundary.md).
+The package contains no credential, provider SDK, endpoint, network, adapter,
+invocation plan, runtime enforcement, serialization, Agent bridge, or recording.
+
 ## Project status
 
 Kongono is pre-alpha and contains runnable Experimental Kernel lifecycle, Application Graph structural, and explicit dependency-resolution functionality. There are no Stable APIs or supported production releases.
@@ -34,9 +47,9 @@ The reporting address, response targets, disclosure timeline, supported-version 
 
 Planned framework work must make authorization, trust, identity, delegation, and security metadata deterministic and inspectable. AI output may assist analysis but must never be authoritative for authorization or security policy.
 
-Extensions must not automatically receive unrestricted access to databases, filesystems, secrets, networks, shells, or processes. The planned Extension Host will govern permissions, capabilities, lifecycle, storage, network access, secrets, events, UI contributions, agent capabilities, updates, removal, and health. Exact mechanisms remain open and must not be inferred from this policy.
+Extensions must not automatically receive unrestricted access to databases, filesystems, secrets, networks, shells, or processes. The implemented Extension Host governs only its accepted bounded in-process lifecycle; it is not a sandbox and grants no ambient resource authority. Future permissions, storage, network, secret, UI, update, removal, or health mechanisms require separate authority and must not be inferred from this policy.
 
-Persistent runtimes require explicit lifecycle and operation scopes so that identity, authorization, tenant, request, and sensitive state cannot leak between operations. Runtime-specific security contracts have not yet been designed.
+Persistent runtimes require explicit lifecycle and operation scopes so that identity, authorization, tenant, request, credential, prompt, provider-response, and sensitive state cannot leak between operations. Phase 14A selects no runtime, but fixes explicit bounded lifecycle, cancellation, timeout, attempt, streaming, and cleanup direction for later separately authorized work.
 
 Phase 0F dependency definitions may invoke registered autoloaders, and resolution executes consumer constructors. Applications must treat supplied definitions and implementations as reviewed executable input. The resolver retains no constructed service instance, exposes no ambient current resolver, and provides no authorization boundary, secret injection, or special Kernel lifecycle behavior.
 

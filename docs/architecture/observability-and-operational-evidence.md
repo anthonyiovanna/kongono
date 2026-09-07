@@ -1,5 +1,24 @@
 # Observability and Operational Evidence
 
+## Phase 14G model-invocation relationship
+
+The implemented [neutral contract foundation](model-invocation-contract-foundation.md)
+under the Accepted [provider-neutral model-invocation architecture](provider-neutral-model-invocation.md)
+keeps diagnostics, observability, Security Audit, invocation receipts, and
+usage/cost evidence distinct. All are bounded claims and none grants authority,
+proves billing truth, or makes provider content safe. Credentials, secrets, raw
+prompts and responses, stream fragments, tool arguments, hidden reasoning,
+provider payloads, and arbitrary caller content are denied from operational
+evidence by default. Phase 14B adds no exporter, recorder, provider telemetry,
+live inspection, serialization, billing truth, or runtime integration.
+
+Phase 14G's optional inspection package can project one neutral
+`kongono.model-invocation.inspection` version 1 Observation and one fixed
+Security Audit evidence value from an already validated inspection. Both use
+closed Safe aggregate attributes and remain inert. The projectors call no
+recorder or Security Audit runtime and perform no export, buffering, sampling,
+flush, retry, persistence, timestamping, or telemetry delivery.
+
 ## Phase 13G Agent Principal relationship
 
 Phase 13C adds no Agent Principal instrumentation or runtime integration.
@@ -401,3 +420,8 @@ readiness, certified observability or security, complete OpenTelemetry support,
 universal portability, zero overhead, durable audit storage, autonomous
 operations, or Phase 11 behavior. Kongono remains pre-1.0. See the
 [Phase 10 external acceptance guide](phase-10-external-acceptance.md).
+
+Phase 14H constructs only pure model-invocation Observation and Security Audit
+values. It performs no recording, sampling, export, delivery, persistence,
+backend access, monitoring, or live-state claim. See [Phase 14 external
+acceptance](phase-14-external-acceptance.md).

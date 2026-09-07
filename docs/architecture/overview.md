@@ -1,5 +1,45 @@
 # Architecture Overview
 
+> **Current through Phase 14G:** ADR 0153 adds only the optional Experimental
+> visibility-safe inspection leaf above the exact-current application workflow.
+> It revalidates supplied profile/wiring evidence without loading generated PHP
+> and may summarize completed detached runtime evidence without replay. The
+> graph is 75 packages / 289 local edges / acyclic; inventories are 1,358
+> production / 686 package-test / 76 root-test PHP files. Phase 14H remains
+> planned.
+
+The bridge validates one eligible normalized action-suggestion result and one
+trusted application mapping. It emits inert proposal evidence, not an
+`AgentProposalPort` implementation, admission, authorization, capability grant,
+capability invocation, or proof of effect. Raw model arguments are hashed and
+counted but never become Phase 13 capability inputs. Kongono remains operable
+without AI, a provider, an account, credentials, or a network.
+
+The [Phase 14F workflow](model-invocation-application-workflow.md) validates one
+exact profile, explicitly loads trusted generated PHP, and delegates once to
+Phase 14D. Generated wiring is not a sandbox. The workflow does not depend on
+or call the Phase 14E bridge, and no runtime evidence becomes authority or
+proof of effect.
+
+The [Phase 14G inspection leaf](model-invocation-inspection-and-evidence.md) is
+explicit, offline, read-only, stateless, and presentation-neutral. Its bounded
+Graph, Observability, Security Audit, and role-addressed views are inert values,
+not calls, recording, monitoring, certification, or authority.
+
+At the Phase 14B/14C checkpoint, Phase 14B implements the optional neutral values in [ADR
+0148](../adr/0148-neutral-versioned-model-invocation-contract-foundation.md),
+[ADR 0149](../adr/0149-deterministic-model-invocation-plan-artifact.md),
+the [Model Invocation Contract Foundation](model-invocation-contract-foundation.md),
+and the [Model Invocation Plan Artifact](model-invocation-plan-artifact.md)
+under the [Provider-Neutral Model Invocation](provider-neutral-model-invocation.md)
+architecture. Invocation remains above application-owned policy and beside the Phase 13
+authority path. Model output may become inert proposal evidence only; it cannot
+authenticate, admit, authorize, grant, or execute. Phase 14B adds no provider,
+network, credential, adapter, plan, Agent bridge, serialization, or runtime.
+The graph is 71 packages / 265 local edges / acyclic; inventories are 1,273
+production / 648 package-test / 76 root-test PHP files. Phase 14D was planned at
+that checkpoint.
+
 Phase 13B implements the opt-in neutral Agent Principal contract package, Phase
 13C implements the opt-in deterministic [Agent Declaration Artifact](agent-declaration-artifact.md),
 Phase 13D implements deterministic
@@ -12,9 +52,11 @@ Phase 13G implements optional visibility-safe
 authentication, authorization, currentness, and explicit effect ports; the
 plan and profile remain evidence and receipts remain claims. Inspection and
 cross-system projections are inert evidence, not grants. Phase 13H adds only
-root-owned external acceptance and the exact local checkpoint. Phase 13 is
-closed, and Phase 14 remains absent.
-planned. The graph is 69 acyclic production packages / 260 local edges. See the
+root-owned external acceptance and exact local checkpoint
+`63376c802ac4672c21458b67b2fcadaf8e03a019`. Phase 13 is closed. Phase 14A
+architecture, Phase 14B contracts, and Phase 14C plan evidence were implemented;
+Phase 14D was planned at that checkpoint. The graph was 71 acyclic production
+packages / 265 local edges. See the
 [Agent Principal Platform](agent-principal-platform.md),
 [Agent Principal Contract Foundation](agent-principal-contract-foundation.md),
 [ADR 0139](../adr/0139-governed-agent-principals-and-deterministic-authority-boundary.md),
@@ -38,8 +80,8 @@ local production edges. See [Phase 12 external acceptance](phase-12-external-acc
 ## Current reality
 
 Phase 12 is complete at checkpoint
-`17f53ae03cce32936f0c4c69387416c12afc263d`; the graph now contains exactly 69
-acyclic production packages and 260 local production edges. The official one-shot
+`17f53ae03cce32936f0c4c69387416c12afc263d`; the graph now contains exactly 70
+acyclic production packages and 262 local production edges. The official one-shot
 `kongo` executable implements exactly `application-graph:inspect`,
 `application:build`,
 `observability:check`, `observability:inspect`, `security:check`, and
@@ -924,3 +966,9 @@ packages / 220 local edges. Phase 12G adds only detached aggregate extension
 inspection and one read-only command; generated PHP remains unloaded and the
 host remains unobserved. The current topology is 63 packages / 226 local edges;
 Phase 12H closes the milestone with root-owned external evidence only.
+
+Phase 14A-H are implemented and Phase 14 is closed by ADR 0154, the root-owned
+offline external harness, and one exact local checkpoint. The graph remains 75
+packages / 289 local edges / acyclic. No provider integration, network,
+credential mechanism, authority widening, release, or Phase 15 behavior is
+added. See [Phase 14 external acceptance](phase-14-external-acceptance.md).

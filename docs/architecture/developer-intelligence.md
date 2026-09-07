@@ -1,5 +1,29 @@
 # Developer Intelligence
 
+> **Phase 14G separation:** the model-invocation runtime and application workflow emit only bounded
+> package diagnostics. Chie, Hantei, and Oshie do not select adapters, supply
+> credentials, inspect live providers, repair sessions, map model results,
+> authorize proposals, load generated application wiring, or certify receipts.
+> The inert bridge and application workflow have no dependency on and grant no
+> authority to those roles. Phase 14G may address identical bounded inspection
+> evidence to those role names, but it does not depend on or execute them.
+
+Phase 14G's optional [Model Invocation Inspection and Evidence](model-invocation-inspection-and-evidence.md)
+leaf emits closed `chie`, `hantei`, or `oshie` purpose values over one supplied
+inspection. They are inert developer-intelligence evidence, not role calls,
+hidden reasoning, certification, repair, authority, or proof of live state.
+
+Phase 14B and Phase 14C do not turn Chie, Hantei, or Oshie into application
+model-invocation services. The implemented [neutral contract foundation](model-invocation-contract-foundation.md)
+and [deterministic plan-artifact boundary](model-invocation-plan-artifact.md)
+under the accepted [provider-neutral model-invocation architecture](provider-neutral-model-invocation.md)
+add only inert values, deterministic privacy-preserving evidence, guarded
+publication, and non-disclosing failures;
+Chie may explain exact-current accepted sources, Hantei may independently verify
+future deterministic evidence, and Oshie may teach the boundary. None selects a
+provider or profile, supplies credentials, invokes an adapter, reads hidden
+reasoning, authorizes a tool, repairs runtime state, or certifies itself.
+
 Phase 13G keeps Kongono Chie, Kongono Hantei, and Kongono Oshie separate from
 application Agent Principals. Their bounded developer evidence grants no
 application identity, delegation, consent, capability, authorization, or
@@ -323,3 +347,8 @@ executing those roles. Phase 13H proves that separation externally. The harness
 does not let a role output grant authority, repair evidence, record a
 projection, or certify application security. See
 [Phase 13 external acceptance](phase-13-external-acceptance.md).
+
+Phase 14H likewise proves that model-invocation inspection only addresses Chie,
+Hantei, and Oshie views. It executes no role, records no output, performs no
+repair, and grants no provider or Agent authority. See [Phase 14 external
+acceptance](phase-14-external-acceptance.md).

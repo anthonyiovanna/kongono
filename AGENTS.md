@@ -1,5 +1,53 @@
 # Kongono AI-Agent Operating Policy
 
+## Phase 14 provider-neutral model-invocation contract policy
+
+Phase 14A accepts ADR 0147 and the fixed provider-neutral invocation
+architecture. Phase 14B accepts ADR 0148 and implements only the optional
+Experimental `kongono/model-invocation-contract` neutral value package. Its
+immutable provider/model/profile identities, declared capabilities, requests,
+normalized results, inert action suggestions, stream events, usage/cost claims,
+lifecycle vocabulary, visibility, receipts, and non-disclosing failures are
+evidence only. Phase 14C accepts ADR 0149 and implements only the optional
+Experimental `kongono/model-invocation-build` deterministic plan-artifact
+boundary over one explicit typed request, adapter label, and finite inert
+budget. Its current validation uses only one supplied complete source and its
+content-addressed publisher is atomic and no-clobber. Raw messages are hashed
+but omitted from published plan bytes. Phase 14D accepts ADR 0150 and implements
+only the optional Experimental `kongono/model-invocation-runtime` boundary over
+one exact-current plan and one directly supplied identity-matching adapter. It
+performs one synchronous pull-based attempt with explicit cancellation,
+monotonic time, evidence budgets, normalized lifecycle validation, receipts,
+and deterministic close. Phase 14E accepts ADR 0151 and implements only the
+optional Experimental `kongono/model-invocation-agent-bridge` deterministic
+reduction boundary. It validates one successful retired Phase 14D
+action-suggestion result and maps it through one explicit application-owned
+action/capability/usage mapping into inert Phase 13 proposal evidence. Raw
+model action arguments are hashed and counted but never become capability
+input or returned proposal content. The bridge is not an `AgentProposalPort`,
+grant, invocation, authorization decision, or proof of effect. Phase 14F
+accepts ADR 0152 and implements only the optional Experimental
+`kongono/model-invocation-application` exact-current single-profile workflow.
+It deterministically generates, publishes, validates, and explicitly loads
+inert wiring, binds one direct identity-matching application adapter, and
+delegates one terminal synchronous operation to a fresh Phase 14D runtime.
+Phase 14G accepts ADR 0153 and implements only the optional Experimental
+`kongono/model-invocation-inspection` visibility-safe inspection boundary. It
+revalidates one exact supplied profile/wiring pair without loading generated
+PHP, optionally summarizes one completed detached runtime result without
+replay, and emits only Safe aggregate Graph, Observability, Security Audit, and
+role-addressed developer-intelligence evidence. It is explicit, offline,
+read-only, stateless, and presentation-neutral. The graph is exactly 75
+acyclic production packages and 289 local production edges. No Phase 14 package
+supplies a provider SDK, credential lookup, adapter
+discovery, retry/fallback, authority decision, capability effect, registry,
+command, recording, telemetry, or background work. Usage, cost,
+receipts, plans, proposals, budgets, adapter labels, and digests are not
+external truth or authority. Trusted generated and in-process PHP is not a
+sandbox, and the inspector never loads it. Exact supplied-profile evidence is
+not live provider, application, or authority truth. Phase 14H remains planned
+and requires a separately authenticated architect directive.
+
 ## Phase 13 governed Agent Principal contract policy
 
 Phase 12 is complete at checkpoint
@@ -38,7 +86,8 @@ packages and 260 local production edges. Phase 13H accepts ADR 0146 and adds
 only the root-owned 40-case external Agent Principal harness, exact Hantei
 script reconciliation, and the local Phase 13 checkpoint. It changes no
 production PHP, package manifest, dependency, lockfile, topology, or authority
-boundary. Phase 13 is closed; Phase 14 has not begun.
+boundary. Phase 13 is closed; Phase 14A and Phase 14B are implemented as the
+separate boundaries described above.
 
 Phase 13G inspection is deterministic, offline, read-only, stateless, and
 presentation-neutral. Exact supplied-profile currentness does not establish
@@ -1045,3 +1094,12 @@ read-only `extension:inspect` command. Generated PHP is never loaded by
 inspection; currentness, host state, execution, and authority remain
 unestablished. The graph is exactly 63 packages / 226 local edges. Phase 12H
 adds only root-owned external evidence and the exact local checkpoint.
+
+## Phase 14 external acceptance policy
+
+Phase 14H accepts ADR 0154 and adds only the root-owned 56-case external
+model-invocation harness, exact Hantei script reconciliation, and the local
+Phase 14 checkpoint. It changes no production PHP, package manifest,
+dependency, lockfile, topology, or authority boundary. The fake adapter is
+offline test evidence, not a provider integration. Phase 14 is closed at the
+checkpoint; no provider SDK, push, tag, release, or Phase 15 behavior is added.

@@ -1,5 +1,57 @@
 # Package Layout
 
+Phase 14G adds exactly the optional Experimental
+`packages/model-invocation-inspection` upper evidence leaf with 22 production
+and six package-test PHP files. It depends only on PHP, API Metadata,
+Application Graph Intelligence, Diagnostics, Model Invocation Application,
+Build, Contract, and Runtime, Observability, and Security Audit; no existing
+production package depends on it. The graph is 75 packages / 289 local edges /
+acyclic. It contains no provider SDK or adapter, credential lookup, registry,
+retry/fallback, command, generated-PHP loading, recording, telemetry delivery,
+repair, role execution, or background work. See the
+[inspection guide](../architecture/model-invocation-inspection-and-evidence.md).
+
+Phase 14F adds exactly the optional Experimental
+`packages/model-invocation-application` outer leaf with 29 production and 11
+package-test PHP files. It depends only on PHP, API Metadata, Diagnostics,
+Model Invocation Contract, Model Invocation Build, and Model Invocation Runtime;
+no existing production package depends on it. The graph is 74 packages / 280
+local edges / acyclic. It contains no provider SDK or first-party adapter,
+credential discovery, registry/default, retry/fallback, second profile, CLI,
+retained session, background work, Agent port, or bridge dependency. See the
+[application workflow guide](../architecture/model-invocation-application-workflow.md).
+
+Phase 14E adds exactly the optional Experimental
+`packages/model-invocation-agent-bridge` library with 13 production and nine
+package-test PHP files. It depends inward only on Agent Principal Contract,
+Agent Runtime, API Metadata, Diagnostics, Model Invocation Contract, and Model
+Invocation Runtime; no production package depends on it. The graph is 73
+packages / 275 local edges / acyclic. The package contains no proposal-port
+implementation, provider, adapter, capability executor, registry, or workflow.
+
+Phase 14D adds exactly the optional Experimental
+`packages/model-invocation-runtime` library with 21 production declarations and
+12 package tests. It depends only on PHP, API Metadata, Diagnostics, the
+model-invocation contract, and model-invocation build packages; no existing
+production package depends on it. The graph is 72 packages / 269 local edges / acyclic.
+
+Phase 14B adds exactly the optional Experimental
+`packages/model-invocation-contract` library with 41 production PHP files and
+17 package-test PHP files. It depends only on API Metadata and Diagnostics; no
+only `kongono/model-invocation-build` depends on it. Phase 14C adds exactly the
+optional Experimental `packages/model-invocation-build` library with 19
+production and 14 package-test PHP files. It depends only on API Metadata,
+Diagnostics, and Model Invocation Contract; no existing production package
+depends on it. The production topology is 71 packages / 265 local edges /
+acyclic. The [contract
+guide](../architecture/model-invocation-contract-foundation.md) keeps neutral
+contracts away from vendor SDKs and concrete
+provider adapters as explicit application-supplied outer leaves. It selects no
+provider, adapter, model
+profile, credential mechanism, or runtime. The [plan-artifact
+guide](../architecture/model-invocation-plan-artifact.md) defines the separate
+deterministic privacy-preserving evidence and publication boundary.
+
 Phase 13B adds the opt-in Experimental `packages/agent-principal-contract`
 package. Phase 13C adds the opt-in Experimental
 `packages/agent-declaration-build` package. Phase 13D adds exactly the opt-in
@@ -19,9 +71,10 @@ Application, Agent Declaration Build, Agent Principal Contract, Agent Runtime,
 API Metadata, Application Graph Intelligence, Diagnostics, Observability, and
 Security Audit dependencies. No production package depends on Agent Inspection
 except the root aggregate. The topology is exactly 69 acyclic production
-packages / 260 local production edges. Phase 13H responsibilities named by the
-[roadmap](../architecture/phase-13-roadmap.md) are not current packages,
-manifests, dependencies, namespaces, or public APIs.
+packages / 260 local production edges. Phase 13H adds only the root-owned
+external harness and checkpoint evidence named by the
+[roadmap](../architecture/phase-13-roadmap.md); it adds no package, manifest,
+dependency, namespace, or public API.
 
 Phase 12H adds no production package and no local production edge. The topology
 remains exactly 63 packages / 226 acyclic edges; the new root-owned harness is

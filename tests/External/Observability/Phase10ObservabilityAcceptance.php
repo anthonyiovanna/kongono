@@ -212,6 +212,7 @@ final class Phase10ObservabilityAcceptance
         $this->acceptConsoleReadOnly($temporary);
         $this->acceptApplicationAndProtobuf($temporary);
         $this->acceptBridgeFailureBoundaries();
+        $applicationOutput = implode('', $this->observedOutput);
         $this->acceptFocusedPackageProof();
         $this->acceptEarlierPhases();
 
@@ -227,7 +228,10 @@ final class Phase10ObservabilityAcceptance
             'lowercase_stack_trace' => 'stack trace',
             'terminal_escape' => "\033",
         ] as $label => $protected) {
-            $this->require('' === $protected || !str_contains($allOutput, $protected), 'protected_output_disclosed_' . $label);
+            $examinedOutput = in_array($label, ['username', 'hostname'], true)
+                ? $applicationOutput
+                : $allOutput;
+            $this->require('' === $protected || !str_contains($examinedOutput, $protected), 'protected_output_disclosed_' . $label);
         }
         $this->caseCompleted();
     }

@@ -88,7 +88,7 @@ final class ExtensionBuildBoundaryTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(69, $manifests);
+        self::assertCount(75, $manifests);
         /** @var array<string, list<string>> $graph */
         $graph = [];
         $edges = 0;
@@ -111,7 +111,7 @@ final class ExtensionBuildBoundaryTest extends TestCase
                 self::assertArrayNotHasKey('kongono/extension-build', $require);
             }
         }
-        self::assertSame(260, $edges);
+        self::assertSame(289, $edges);
         $visit = static function (string $packageName, array $path = []) use (&$visit, $graph): void {
             self::assertArrayNotHasKey($packageName, $path);
             $path[$packageName] = true;

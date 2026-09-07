@@ -1,5 +1,23 @@
 # Progressive Architecture
 
+> **Current through Phase 14G:** exact-current plan evidence may be executed by
+> one directly supplied adapter through the optional bounded runtime. This adds
+> no provider SDK, registry, workflow, or authority. The optional inert bridge
+> can reduce one eligible normalized action suggestion through an exact trusted
+> application mapping into proposal evidence. It is not a proposal port and
+> performs no authority or effect. The optional application workflow binds one
+> exact-current profile, deterministic inert wiring, and one direct adapter for
+> one terminal operation. It does not call the bridge. The optional inspection
+> leaf revalidates explicit supplied profile/wiring evidence without loading PHP
+> and emits bounded inert Safe aggregate views. Phase 14H remains planned.
+
+> **Phase 14C checkpoint context:** The optional neutral model-invocation contract
+> and deterministic invocation-plan artifact packages are implemented. An
+> application may opt into typed requests and privacy-preserving plan evidence
+> without adopting provider execution. Raw messages are omitted from published
+> plan bytes; plans, adapter labels, budgets, and digests grant no authority.
+> Phase 14D runtime was planned at that checkpoint.
+
 > **Phase 13 closed boundary:** The opt-in neutral Agent Principal contract,
 > deterministic declaration artifact, deterministic admission, and synchronous
 > one-operation runtime packages plus one exact-current Agent Application
@@ -24,7 +42,9 @@ agent behavior or authority by implication.
 
 Phase 13H validates the accepted stack from a root-owned external process. The
 harness is test evidence, owns only temporary state, and changes no production
-composition or authority. Phase 13 is closed; Phase 14 has not begun.
+composition or authority. Phase 13 is closed. Phase 14A through 14G are
+implemented as separate architecture, neutral-contract, deterministic
+plan-evidence, runtime, bridge, application, and inspection boundaries.
 
 Adopting Agent Inspection adds only deterministic Safe aggregate evidence. It
 does not load or run the application, record projections, execute Chie/Hantei/
@@ -292,3 +312,9 @@ Phase 11A implements none of those mechanisms and does not change the Phase 0J
 snapshot, introduce a package or command, or grant AI, extensions, or agents
 authority. See the [Authoritative Application Graph guide](authoritative-application-graph.md)
 and [ADR 0123](../adr/0123-authoritative-application-graph-and-language-neutral-ir-boundary.md).
+
+Phase 14 closes with an optional provider-neutral stack and offline external
+evidence. It adds no default provider, ambient registry, credential discovery,
+automatic fallback, authority decision, or external effect. Applications remain
+responsible for explicit adapters and policy. See [Phase 14 external
+acceptance](phase-14-external-acceptance.md).

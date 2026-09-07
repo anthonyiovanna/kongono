@@ -4,11 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Tests\External\DeveloperIntelligence;
 
-use FilesystemIterator;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 use RuntimeException;
-use SplFileInfo;
 use Throwable;
 
 /** Executes the closed 28-scenario Phase 4 developer-intelligence matrix. */
@@ -492,21 +488,51 @@ PHP
 
     private function copyProtectedRepository(TemporaryWorkspace $workspace, string $destination): void
     {
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($this->root, FilesystemIterator::SKIP_DOTS),
+        foreach ($this->ordinaryTreeFiles(
+            $this->root,
+            ['.git', 'vendor', 'docs/dev_plan', 'docs/task_reports'],
+            true,
+        ) as [$source, $relative]) {
+            $this->copyOrdinaryFile($workspace, $destination . '/' . $relative, $source);
+        }
+    }
+
+    private function copyOrdinaryFile(TemporaryWorkspace $workspace, string $relative, string $source): void
+    {
+        [$sourceSize, $sourceDigest] = $this->ordinaryFileIdentity($source);
+        $target = $workspace->write($relative, '');
+        $sourceStream = @fopen($source, 'rb');
+        if (false === $sourceStream) {
+            throw new RuntimeException('ordinary_file_read_failed');
+        }
+        $targetStream = @fopen($target, 'wb');
+        if (false === $targetStream) {
+            fclose($sourceStream);
+
+            throw new RuntimeException('temporary_write_failed');
+        }
+        $copied = stream_copy_to_stream($sourceStream, $targetStream);
+        $sourceClosed = fclose($sourceStream);
+        $targetFlushed = fflush($targetStream);
+        $targetClosed = fclose($targetStream);
+        if (false === $copied || $copied !== $sourceSize || !$sourceClosed) {
+            throw new RuntimeException('ordinary_file_read_failed');
+        }
+        if (!$targetFlushed || !$targetClosed) {
+            throw new RuntimeException('temporary_write_failed');
+        }
+
+        [$sourceSizeAfter, $sourceDigestAfter] = $this->ordinaryFileIdentity($source);
+        [$targetSize, $targetDigest] = $this->ordinaryFileIdentity(
+            $target,
+            'temporary_write_failed',
+            'temporary_write_failed',
         );
-        /** @var SplFileInfo $file */
-        foreach ($iterator as $file) {
-            if (!$file->isFile() || $file->isLink()) {
-                continue;
-            }
-            $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($this->root) + 1));
-            if ($this->ignoredRepositoryPath($relative)
-                || str_starts_with($relative, 'docs/dev_plan/')
-                || str_starts_with($relative, 'docs/task_reports/')) {
-                continue;
-            }
-            $workspace->write($destination . '/' . $relative, $this->readOrdinary($file->getPathname()));
+        if ($sourceSize !== $sourceSizeAfter || $sourceDigest !== $sourceDigestAfter) {
+            throw new RuntimeException('ordinary_file_read_failed');
+        }
+        if ($targetSize !== $sourceSize || $targetDigest !== $sourceDigest) {
+            throw new RuntimeException('temporary_write_failed');
         }
     }
 
@@ -853,25 +879,140 @@ PHP
     private function treeIdentity(string $root, array $excludedDirectories): string
     {
         $records = [];
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
-        );
-        /** @var SplFileInfo $file */
-        foreach ($iterator as $file) {
-            $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($root) + 1));
-            $first = explode('/', $relative, 2)[0];
-            if (in_array($first, $excludedDirectories, true) || ($root === $this->root && $this->ignoredRepositoryPath($relative))) {
-                continue;
-            }
-            if ($file->isLink() || !$file->isFile()) {
-                throw new RuntimeException('repository_special_file');
-            }
-            $bytes = $this->readOrdinary($file->getPathname());
-            $records[] = $relative . "\0" . strlen($bytes) . "\0" . hash('sha256', $bytes);
+        foreach ($this->ordinaryTreeFiles($root, $excludedDirectories, $root === $this->root) as [$path, $relative]) {
+            [$size, $digest] = $this->ordinaryFileIdentity($path);
+            $records[] = $relative . "\0" . $size . "\0" . $digest;
         }
         sort($records, SORT_STRING);
 
         return hash('sha256', implode("\n", $records));
+    }
+
+    /**
+     * @param list<string> $excludedPaths
+     *
+     * @return iterable<array{0: string, 1: string}>
+     */
+    private function ordinaryTreeFiles(string $root, array $excludedPaths, bool $repositoryRules): iterable
+    {
+        $resolvedRoot = $this->ordinaryTreeDirectory($root);
+
+        yield from $this->ordinaryTreeDirectoryFiles($resolvedRoot, '', $excludedPaths, $repositoryRules);
+    }
+
+    /**
+     * @param list<string> $excludedPaths
+     *
+     * @return iterable<array{0: string, 1: string}>
+     */
+    private function ordinaryTreeDirectoryFiles(
+        string $directory,
+        string $prefix,
+        array $excludedPaths,
+        bool $repositoryRules,
+    ): iterable {
+        $entries = scandir($directory);
+        if (false === $entries) {
+            throw new RuntimeException('repository_special_file');
+        }
+        $entries = array_values(array_diff($entries, ['.', '..']));
+        sort($entries, SORT_STRING);
+
+        foreach ($entries as $entry) {
+            $relative = '' === $prefix ? $entry : $prefix . '/' . $entry;
+            if ($this->excludedTreePath($relative, $excludedPaths)
+                || ($repositoryRules && $this->ignoredRepositoryPath($relative))) {
+                continue;
+            }
+            $path = $directory . DIRECTORY_SEPARATOR . $entry;
+            $stat = @lstat($path);
+            if (false === $stat || is_link($path)) {
+                throw new RuntimeException('repository_special_file');
+            }
+            $type = $stat['mode'] & 0170000;
+            if (0040000 === $type && is_dir($path)) {
+                $resolved = $this->ordinaryTreeDirectory($path);
+
+                yield from $this->ordinaryTreeDirectoryFiles($resolved, $relative, $excludedPaths, $repositoryRules);
+
+                continue;
+            }
+            if (0100000 !== $type || !is_file($path)) {
+                throw new RuntimeException('repository_special_file');
+            }
+            $resolved = realpath($path);
+            if (false === $resolved || $this->normalizePath($resolved) !== $this->normalizePath($path)) {
+                throw new RuntimeException('repository_special_file');
+            }
+
+            yield [$resolved, $relative];
+        }
+    }
+
+    private function ordinaryTreeDirectory(string $path): string
+    {
+        $stat = @lstat($path);
+        $resolved = realpath($path);
+        if (false === $stat
+            || false === $resolved
+            || is_link($path)
+            || !is_dir($path)
+            || (($stat['mode'] & 0170000) !== 0040000)
+            || $this->normalizePath($resolved) !== $this->normalizePath($path)) {
+            throw new RuntimeException('repository_special_file');
+        }
+
+        return $resolved;
+    }
+
+    /** @param list<string> $excludedPaths */
+    private function excludedTreePath(string $relative, array $excludedPaths): bool
+    {
+        foreach ($excludedPaths as $excluded) {
+            if ($relative === $excluded || str_starts_with($relative, $excluded . '/')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return array{0: int, 1: string} */
+    private function ordinaryFileIdentity(
+        string $path,
+        string $requiredFailure = 'ordinary_file_required',
+        string $readFailure = 'ordinary_file_read_failed',
+    ): array {
+        $stat = @lstat($path);
+        $resolved = realpath($path);
+        if (false === $stat
+            || false === $resolved
+            || is_link($path)
+            || !is_file($path)
+            || (($stat['mode'] & 0170000) !== 0100000)
+            || $this->normalizePath($resolved) !== $this->normalizePath($path)) {
+            throw new RuntimeException($requiredFailure);
+        }
+        $size = $stat['size'];
+        $digest = hash_file('sha256', $resolved);
+        $after = @lstat($resolved);
+        if (false === $digest
+            || false === $after
+            || is_link($resolved)
+            || !is_file($resolved)
+            || (($after['mode'] & 0170000) !== 0100000)
+            || $after['size'] !== $size) {
+            throw new RuntimeException($readFailure);
+        }
+
+        return [$size, $digest];
+    }
+
+    private function normalizePath(string $path): string
+    {
+        $normalized = rtrim(str_replace('\\', '/', $path), '/');
+
+        return '\\' === DIRECTORY_SEPARATOR ? strtolower($normalized) : $normalized;
     }
 
     private function ignoredRepositoryPath(string $path): bool

@@ -1,0 +1,25 @@
+{
+  "name": "kongono/model-invocation-runtime",
+  "description": "Bounded provider-neutral execution runtime for Kongono model invocation.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "kongono/model-invocation-contract": "*",
+    "kongono/model-invocation-build": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\ModelInvocationRuntime\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\ModelInvocationRuntime\\Tests\\": "tests/"
+    }
+  }
+}

@@ -1,5 +1,17 @@
 # Identity and Access Security
 
+## Phase 14B model-invocation relationship
+
+The implemented [neutral contract foundation](model-invocation-contract-foundation.md)
+under the Accepted [provider-neutral model-invocation architecture](provider-neutral-model-invocation.md)
+does not change this authority boundary. Provider capabilities, profiles,
+prompts, responses, stream events, normalized results, tool suggestions,
+usage/cost evidence, and receipts do not authenticate a Principal or authorize
+an effect. Applications retain credential policy and supply, model policy,
+adapter and transport authority, result eligibility, and exact Phase 13
+admission and authorization. Phase 14B adds no credential mechanism, provider
+SDK, network, adapter, Agent bridge, runtime, currentness, or enforcement behavior.
+
 ## Phase 13G Agent Principal relationship
 
 Phase 13B adds an Agent-only wrapper around the existing neutral
@@ -48,6 +60,14 @@ Context, prove revocation/consent/delegation, establish an agent-to-Graph
 relationship, observe a live application/provider, or prove an external effect
 or application security. See
 [Agent Principal Inspection and Evidence](agent-principal-inspection-and-evidence.md).
+
+Phase 14G follows the same evidence separation for model invocation. Exact
+supplied profile/wiring proof, optional completed detached runtime evidence,
+inspection identity, Graph context, projections, role tokens, and verifier PASS
+do not establish credentials, authentication, authorization, live provider or
+application state, current external authority, or proof of effect. Raw model,
+provider, application, credential, path, and arbitrary caller content is
+omitted. See [Model Invocation Inspection and Evidence](model-invocation-inspection-and-evidence.md).
 
 Agent Principal capability requests and grants remain distinct.
 Capabilities are explicit, typed, versioned, purpose-bounded, attributable,
@@ -508,3 +528,8 @@ authenticate a principal, evaluate credentials, grant a capability, or turn an
 admission plan, inspection, Graph view, Observation, Security Audit value, or
 verifier PASS into authority. See
 [Phase 13 external acceptance](phase-13-external-acceptance.md).
+
+Phase 14H confirms that provider/model labels, plans, results, receipts,
+proposals, inspection, and verifier PASS do not authenticate, admit, authorize,
+grant, invoke, or prove an effect. See [Phase 14 external
+acceptance](phase-14-external-acceptance.md).

@@ -22,7 +22,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertIsArray($root);
         self::assertIsArray($root['scripts']);
         self::assertIsArray($root['scripts']['validate:packages']);
-        self::assertCount(69, $root['scripts']['validate:packages']);
+        self::assertCount(75, $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/agent-admission validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/agent-application validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/agent-declaration-build validate --no-check-publish', $root['scripts']['validate:packages']);
@@ -59,6 +59,12 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertContains('composer --working-dir=packages/extension-inspection validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/identity-access validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/metrics validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/model-invocation-agent-bridge validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/model-invocation-application validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/model-invocation-contract validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/model-invocation-inspection validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/model-invocation-build validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/model-invocation-runtime validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/observability validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/observability-application validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/observability-build validate --no-check-publish', $root['scripts']['validate:packages']);
@@ -91,6 +97,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertSame('@php tests/External/ApplicationGraph/run.php', $root['scripts']['acceptance:phase11']);
         self::assertSame('@php tests/External/ExtensionPlatform/run.php', $root['scripts']['acceptance:phase12']);
         self::assertSame('@php tests/External/AgentPrincipal/run.php', $root['scripts']['acceptance:phase13']);
+        self::assertSame('@php tests/External/ModelInvocation/run.php', $root['scripts']['acceptance:phase14']);
 
         $resource = json_decode(
             (string) file_get_contents(dirname(__DIR__, 3) . '/resources/framework-quality-v1.json'),
@@ -108,6 +115,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertSame($root['scripts']['acceptance:phase11'], $resource['composer_scripts']['acceptance:phase11']);
         self::assertSame($root['scripts']['acceptance:phase12'], $resource['composer_scripts']['acceptance:phase12']);
         self::assertSame($root['scripts']['acceptance:phase13'], $resource['composer_scripts']['acceptance:phase13']);
+        self::assertSame($root['scripts']['acceptance:phase14'], $resource['composer_scripts']['acceptance:phase14']);
     }
 
     public function testUnknownProfileIsRejected(): void

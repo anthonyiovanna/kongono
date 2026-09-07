@@ -1,5 +1,64 @@
 # Testing
 
+Phase 14G adds exactly six package-test PHP files covering its 22-file
+production boundary: exact profile/wiring rebinding without generated-PHP
+loading, optional completed detached runtime summaries without replay, bounded
+Graph/Observability/Security Audit/role evidence, independent verification,
+determinism, adversarial non-disclosure, diagnostics, API inventory, dependency
+direction, and forbidden-surface absence. Architecture proof uses the exact
+75-package / 289-edge acyclic graph and 1,358/686/76 PHP inventories. These
+tests do not prove live provider/application state, external authority,
+recording, telemetry delivery, certification, or production readiness.
+
+Phase 14F adds exactly 11 package-test PHP files covering its 29-file production
+boundary: exact profile currentness, deterministic privacy-preserving wiring,
+distinct structural/current validation, contained atomic no-clobber
+publication, explicit-path one-use loading, direct adapter identity, one-run
+lifecycle, cancellation, cleanup and failure preservation, reentrancy,
+sequential instance isolation, diagnostics, nondisclosure, topology, and
+forbidden-surface absence. Architecture proof uses the exact 74-package /
+280-edge acyclic graph and 1,336/680/76 PHP inventories. Passing these tests
+does not prove provider availability, credentials, account state, authority,
+external effect, or production readiness.
+
+Phase 14E adds exactly nine package-test PHP files covering exact dependency
+and API inventory, eligibility and receipt relations, exact action and
+capability mapping, exact usage selection, deterministic evidence identities,
+raw-argument omission, visibility projection, request-value preservation,
+stateless reuse, and non-disclosing rejection. Architecture proof uses the
+exact 73-package / 275-edge acyclic graph and 1,307/669/76 PHP inventories.
+Passing these tests does not prove provider availability, authentication,
+authorization, a capability grant or invocation, external effect, or
+production readiness.
+
+Phase 14D adds exactly 12 package tests for direct adapter binding,
+exact-current preflight, one-attempt pull lifecycle, cancellation, monotonic
+time, evidence budgets, streaming, receipts, cleanup composition, reentrancy,
+sequential reuse, and nondisclosure. Architecture proof uses the exact
+72-package / 269-edge acyclic graph and 1,294/660/76 PHP inventories.
+
+Phase 14C adds exactly 14 package tests covering the 19-file
+`kongono/model-invocation-build` boundary: identity and budget limits,
+detachment and isolation, canonical request/source/artifact digest
+reproduction, same-process and fresh-process determinism, raw-message omission,
+strict structural and exact-current validation, capability compatibility,
+nondisclosing failures, and atomic/idempotent/no-clobber contained publication
+with temporary cleanup. Architecture coverage reconciles the 71-package,
+265-edge acyclic graph and 1,273/648/76 PHP inventories. Passing these tests
+does not prove provider availability, credentials, account state, pricing,
+runtime enforcement, Agent authority, or external currentness.
+
+Phase 14B adds exactly 17 package tests covering the 41-file neutral contract
+boundary: dependency/API inventory, immutability, enum vocabularies, grammars,
+raw-byte/list/integer limits, canonical ordering, profile capability matching,
+request/result/stream/receipt relations, nondisclosure, and sequential
+isolation. Tests use no provider, network, credential, adapter, environment,
+sleep, baseline, suppression, or external state. Passing those
+tests would not prove live provider compatibility, availability, pricing,
+account entitlement, latency, security, or production readiness. See the
+[Provider-Neutral Model Invocation guide](../architecture/provider-neutral-model-invocation.md)
+and [Phase 14 roadmap](../architecture/phase-14-roadmap.md).
+
 Phase 13H closes the milestone with a root-owned 40-case external process
 harness above the Phase 13G focused syntax, static-analysis, style, unit,
 architecture, semantic, adversarial, and file-safety coverage from the neutral
@@ -37,10 +96,10 @@ See [Phase 12 external acceptance](../architecture/phase-12-external-acceptance.
 > accepted boundaries. Phase 12H adds root-owned external evidence only; the
 > topology remains 63 packages / 226 acyclic local edges.
 
-> **Phase 13 current boundary:** Focused package and root architecture tests
-> validate the Phase 13B-13F contract, declaration, admission, one-operation
-> runtime, and exact-current application boundaries; no external Phase 13
-> acceptance profile is added.
+> **Phase 13 closed boundary:** Focused package and root architecture tests plus
+> the root-owned 40-case external harness validate Phases 13B-13H. The milestone
+> is closed at checkpoint `63376c802ac4672c21458b67b2fcadaf8e03a019` without a
+> provider, SDK, network call, or wider authority boundary.
 
 ## Purpose and runner
 
@@ -822,3 +881,11 @@ Phase 12G adds structural two-file, identity-binding, aggregate-total,
 role-derivation, independent-verification, no-load, nondisclosure, supported
 CLI, and topology coverage. Current architecture coverage is 63 packages / 226
 edges; Phase 12H closes the milestone with root-owned external evidence only.
+
+## Phase 14 external acceptance
+
+`composer acceptance:phase14` runs fresh external PHP processes over production
+Phase 14 APIs with root-owned fixtures and an offline fake adapter. It proves
+canonical success/failure streams, sequential and concurrent determinism,
+bounded output, repository preservation, and complete temporary cleanup. See
+[Phase 14 external acceptance](../architecture/phase-14-external-acceptance.md).

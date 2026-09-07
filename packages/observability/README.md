@@ -81,5 +81,9 @@ recorder, service locator, Reflection discovery, serialization hook, or debug
 output. Tracing and Metrics consume the vocabulary without changing that
 boundary.
 
+Phase 14G's outer model-invocation inspection package may construct one inert
+bounded Observation from this vocabulary. It supplies no recorder and performs
+no recording, export, buffering, delivery, persistence, or live monitoring.
+
 See [ADR 0116](../../docs/adr/0116-neutral-observability-contracts-and-package-boundary.md)
 and the [Observability and Operational Evidence guide](../../docs/architecture/observability-and-operational-evidence.md).

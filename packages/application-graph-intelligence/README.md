@@ -23,3 +23,7 @@ watcher, mutation, Git, deployment, production, or runtime integration exists.
 Currentness relative to Composition, source, generated wiring, workspace,
 deployment, or runtime is not established. Existing Chie, Hantei, and Oshie
 operations remain unchanged. Kongono is pre-1.0 and not production-ready.
+
+Phase 14G's optional model-invocation inspection leaf may consume one explicitly
+supplied matching intelligence view. That outer use creates no dependency here,
+executes no developer role, and establishes no Graph relationship or authority.

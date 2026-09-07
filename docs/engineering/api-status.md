@@ -1,5 +1,56 @@
 # API Status
 
+Phase 14G adds 22 `kongono/model-invocation-inspection` production
+declarations. `ExceptionInterface` is Public. The inspection request/result,
+inspector, bounded evidence values and projectors, developer-role value,
+independent verifier, verdict, verification, and typed failures are
+Experimental. The diagnostic, canonical JSON helper, abstract package
+exception, and construction-only failures are Internal. No Stable or Deprecated
+API is added. The repository has 1,358 production PHP files across 75 packages.
+See [ADR 0153](../adr/0153-visibility-safe-model-invocation-inspection-and-bounded-evidence.md)
+and the [inspection guide](../architecture/model-invocation-inspection-and-evidence.md).
+
+Phase 14F adds 29 `kongono/model-invocation-application` production
+declarations. `ExceptionInterface` is Public. Profile, wiring, workflow,
+application, run input, state, and typed operational failures are Experimental.
+Diagnostics, abstract bases, canonical/path/generation helpers, and
+construction-only failures are Internal. No Stable or Deprecated API is added.
+That Phase 14F inventory was 1,336 production PHP files across 74 packages. See
+[ADR 0152](../adr/0152-exact-current-single-profile-model-invocation-application-workflow.md)
+and the [application workflow guide](../architecture/model-invocation-application-workflow.md).
+
+Phase 14E adds 13 `kongono/model-invocation-agent-bridge` production
+declarations. `ExceptionInterface` is Public. The bridge, action mapping,
+usage selector, and typed rejection are Experimental. The diagnostic, abstract
+exception, construction failure, and five internal helpers are Internal. No
+Stable or Deprecated API is added. That Phase 14E inventory was 1,307
+production PHP files across 73 packages.
+
+Phase 14D adds 21 `kongono/model-invocation-runtime` production declarations.
+Only `ExceptionInterface` is Public. Adapter/session/emission, clock,
+cancellation, execution values, runtime, and concrete exceptions are
+Experimental; the diagnostic, abstract exception, and five helpers are
+Internal. That Phase 14D inventory was 1,294 production PHP files across 72
+packages.
+
+Phase 14B adds the `kongono/model-invocation-contract` status inventory.
+Phase 14C adds 19 `kongono/model-invocation-build` production declarations:
+`ExceptionInterface` is Public; the diagnostic enum, abstract package
+exception, `CanonicalJson`, and `PathGuard` are Internal; the three budget
+values, three plan values, artifact value, builder, validator, publisher, and
+four concrete exceptions are Experimental. No alias, loader, workflow,
+registry, command, or generic validator interface is added.
+
+The Phase 14B inventory remains:
+`ExceptionInterface` is Public; all immutable values, backed enums, and
+`InvalidModelInvocationContractException` are Experimental; `ContractGuard`,
+`ModelInvocationContractDiagnostic`, and the abstract
+`ModelInvocationContractException` are Internal. No Stable or Deprecated API
+is added. The global inventory is 1,273 production declarations across 71
+packages. See [ADR 0148](../adr/0148-neutral-versioned-model-invocation-contract-foundation.md)
+the [contract guide](../architecture/model-invocation-contract-foundation.md),
+and the [plan-artifact guide](../architecture/model-invocation-plan-artifact.md).
+
 ## Purpose
 
 Kongono requires explicit, machine-checkable compatibility metadata for every production class, interface, trait, and enum beneath `packages/*/src`. Namespace and file location do not silently supply a default.
@@ -24,7 +75,7 @@ Stable declaration. Agent Inspection classifies its package exception marker
 as Public; requests, inspections, projectors, Graph/role/verification values,
 and concrete exceptions as Experimental; and diagnostics, canonical encoding,
 and the abstract exception as Internal. It adds no Stable declaration. The
-global inventory is 1,213 production declarations across 69 packages.
+historical Phase 13 inventory was 1,213 production declarations across 69 packages.
 
 Phase 0C defines the non-repeatable class-like `#[Api(ApiStatus::...)]` attribute and exactly three statuses; later phases apply the same convention to the Application Graph, Dependency Injection, package-local diagnostic catalogs, Diagnostics values, Diagnostic Presentation projection types, and HTTP messages and factories:
 

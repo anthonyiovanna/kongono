@@ -1,5 +1,25 @@
 # Agent Principal Platform
 
+> **Phase 14E separation:** bounded model invocation is implemented in a
+> separate optional package. Results, action suggestions, usage, cost, and
+> receipts remain inert evidence and do not enter this authority flow
+> automatically. The optional bridge can prepare inert proposal evidence from
+> one eligible result through trusted application mapping, but it is not an
+> `AgentProposalPort` or an authority or effect mechanism.
+
+Phase 13 is closed at checkpoint
+`63376c802ac4672c21458b67b2fcadaf8e03a019`. Phase 14B now implements only the
+separate optional [model-invocation contract foundation](model-invocation-contract-foundation.md)
+and [deterministic plan-artifact boundary](model-invocation-plan-artifact.md)
+under the [provider-neutral boundary](provider-neutral-model-invocation.md).
+That boundary may supply inert proposal evidence through the already
+implemented caller-supplied Phase 13 proposal port; it does not move model or
+provider work into declaration, admission, runtime authority, capability
+execution, or inspection. It adds no provider SDK, credential mechanism,
+ambient adapter selection, capability invocation, or authority behavior.
+Phase 14D runtime and Phase 14E inert proposal reduction are implemented;
+plans, digests, normalized results, and proposals remain inert evidence.
+
 > **Current boundary:** Phase 13B implements the opt-in neutral
 > [Agent Principal Contract Foundation](agent-principal-contract-foundation.md),
 > Phase 13C implements the opt-in deterministic
@@ -35,8 +55,8 @@ The implementation dependency order is fixed by the
 ## Current reality
 
 Phase 12 is complete at checkpoint
-`17f53ae03cce32936f0c4c69387416c12afc263d`. Kongono now implements 69
-acyclic production packages and 260 local production edges. Phase 13B adds the
+`17f53ae03cce32936f0c4c69387416c12afc263d`. Kongono now implements 70
+acyclic production packages and 262 local production edges. Phase 13B adds the
 neutral contract package, Phase 13C the declaration-build package, Phase 13D
 the admission package, Phase 13E the one-operation runtime package, and Phase
 13F the Agent Application package, and Phase 13G the Agent Inspection package.

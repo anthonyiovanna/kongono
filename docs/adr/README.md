@@ -1,5 +1,21 @@
 # Architecture Decision Records
 
+> **Current through Phase 14G:** ADR 0153 accepts only the optional Experimental
+> visibility-safe model-invocation inspection leaf. It revalidates one exact
+> supplied profile/wiring pair without loading generated PHP and optionally
+> summarizes completed detached runtime evidence without replay. The graph is
+> 75 packages / 289 local edges / acyclic. Phase 14H remains planned.
+
+> **Phase 14A current boundary:** The provider-neutral model-invocation and
+> adapter boundary, architecture guide, and fixed Phase 14 roadmap are Accepted
+> documentation architecture only. Future invocation remains optional, uses an
+> explicit application-supplied outer adapter, and can produce only untrusted
+> normalized evidence. It cannot bypass Phase 13 authority. No Phase 14
+> provider, SDK, profile, credential mechanism, network client, package, API,
+> schema, command, adapter, runtime, or Agent bridge exists in that Phase 13
+> boundary; Phase 14B adds its separate neutral contract package and Phase 14C
+> adds only deterministic privacy-preserving plan evidence and publication.
+
 > **Phase 13 closed boundary:**
 > [ADR 0140](0140-neutral-versioned-agent-principal-contract-foundation.md)
 > implements the opt-in neutral Agent Principal contract package, and
@@ -20,7 +36,10 @@
 > [ADR 0146](0146-phase-13-external-agent-principal-acceptance-and-checkpoint.md)
 > adds only root-owned deterministic offline external acceptance and the exact
 > local checkpoint. Provider SDKs, profile registries, autonomous loops, and
-> live monitoring do not exist. Phase 14 has not begun.
+> live monitoring do not exist. Phase 14A adds documentation architecture;
+> Phase 14B adds the separate neutral contract package and Phase 14C adds the
+> separate plan-artifact package. The current graph is 71 packages / 265 local
+> edges / acyclic, and Phase 14D remains planned.
 
 > **Phase 12F current boundary:** ADR 0132 is the historical neutral contract
 > foundation. ADR 0133 implements deterministic declaration artifacts,
@@ -649,7 +668,7 @@ denies undeclared and unpermitted capability by default, and returns immutable
 admission and authority-plan evidence. The package evaluates no credential or
 policy, grants and enforces nothing, performs no model or tool work, and adds no
 runtime integration within that package. Phases 13E through 13G are implemented
-separately; Phase 13H remains planned.
+separately; Phase 13H is completed at the Phase 13 checkpoint.
 
 ### [ADR 0143: Provider-Neutral Bounded Agent Principal Runtime](0143-provider-neutral-bounded-agent-principal-runtime.md)
 
@@ -660,8 +679,8 @@ possible effect, applies all nine explicit budgets, and coordinates at most one
 proposal and one exact capability invocation with fixed cancellation/time
 checkpoints, deterministic receipts, and reverse cleanup. It adds no provider
 SDK, ambient registry, application workflow, autonomous loop, retained session,
-or sandbox. Phases 13F and 13G are implemented separately; Phase 13H remains
-planned.
+or sandbox. Phases 13F and 13G are implemented separately; Phase 13H is
+completed at the Phase 13 checkpoint.
 
 ### [ADR 0144: Exact-Current Single-Profile Agent Application Workflow](0144-exact-current-single-profile-agent-application-workflow.md)
 
@@ -673,7 +692,7 @@ synchronous application operation at a time. Cleanup ownership transfers
 exactly once to the Phase 13E runtime. Profiles and generated identity are
 evidence rather than authority; no provider, registry, command, retained
 session, background work, live monitoring, or sandbox is added. Phase 13G is
-implemented separately; Phase 13H remains planned.
+implemented separately; Phase 13H is completed at the Phase 13 checkpoint.
 
 ### [ADR 0145: Visibility-Safe Agent Principal Inspection and Bounded Evidence](0145-visibility-safe-agent-principal-inspection-and-bounded-evidence.md)
 
@@ -691,5 +710,99 @@ Accepted 2026-08-31. Phase 13H adds the root-owned 40-case deterministic
 offline Agent Principal process harness and one exact local checkpoint. It
 changes no production PHP, package manifest, dependency, lockfile, topology,
 or authority boundary. The harness is bounded, cleanup-complete,
-repository-preserving, and disclosure-safe test evidence. Phase 13 is closed;
-there is no push, tag, release, Stable/1.0 claim, or Phase 14 behavior.
+repository-preserving, and disclosure-safe test evidence. Phase 13 is closed at
+checkpoint `63376c802ac4672c21458b67b2fcadaf8e03a019`; there is no push, tag,
+release, or Stable/1.0 claim.
+
+### [ADR 0147: Provider-Neutral Model Invocation and Adapter Boundary](0147-provider-neutral-model-invocation-and-adapter-boundary.md)
+
+Accepted 2026-08-31. Phase 14A defines the optional provider-neutral
+model-invocation boundary above application-owned policy and beside the Phase 13
+authority flow. Neutral contracts remain independent of vendor SDKs; concrete
+adapters are explicit application-supplied outer leaves; credentials remain
+application-owned and outside profiles and evidence; provider output,
+normalized results, proposed actions, usage/cost evidence, and receipts remain
+non-authoritative. Phase 14A is documentation only and implements no provider,
+SDK, profile, credential mechanism, network client, package, API, schema,
+command, adapter, runtime, Agent bridge, or Phase 14B behavior. See the
+[architecture guide](../architecture/provider-neutral-model-invocation.md) and
+[fixed roadmap](../architecture/phase-14-roadmap.md).
+
+### [ADR 0148: Neutral Versioned Model-Invocation Contract Foundation](0148-neutral-versioned-model-invocation-contract-foundation.md)
+
+Accepted 2026-08-31. Phase 14B implements only the optional Experimental
+`kongono/model-invocation-contract` package for immutable bounded provider/model
+identities, declared capabilities, one application-owned profile reference,
+requests, normalized results, inert action suggestions, stream events,
+usage/cost claims, lifecycle vocabulary, visibility, receipts, and
+non-disclosing failures. It depends only on API Metadata and Diagnostics. It
+performs no provider/model call, network, credential lookup, adapter execution,
+plan build, Agent bridge, authority effect, serialization, persistence,
+recording, or role work. The graph is 70 packages / 262 local edges / acyclic.
+See the [contract guide](../architecture/model-invocation-contract-foundation.md).
+
+### [ADR 0149: Deterministic Model-Invocation Plan Artifact](0149-deterministic-model-invocation-plan-artifact.md)
+
+Accepted 2026-09-01. Phase 14C implements only the optional Experimental
+`kongono/model-invocation-build` package. One explicit typed source binds one
+exact neutral request, application-selected adapter identity, and finite
+one-attempt budget. Canonical request and source projections are hashed; raw
+messages are omitted from the compact plan artifact. Structural validation is
+strict, currentness rebuilds only from one supplied complete source, and
+publication is content-addressed, atomic, idempotent for identical bytes, and
+no-clobber. Plans, budgets, labels, and digests remain inert evidence. There is
+no provider/model call, credential, network, adapter execution, runtime, Agent
+bridge, workflow, registry, discovery, or command. The graph is 71 packages /
+265 local edges / acyclic. See the [plan-artifact guide](../architecture/model-invocation-plan-artifact.md).
+
+### [ADR 0150: Bounded Provider-Neutral Model-Invocation Runtime](0150-bounded-provider-neutral-model-invocation-runtime.md)
+
+Accepted 2026-09-01. Phase 14D implements only the optional Experimental
+`kongono/model-invocation-runtime` package. One exact-current plan binds one
+directly supplied identity-matching adapter and one synchronous pull session.
+Explicit cancellation, monotonic time, output/stream/usage/cost/evidence
+budgets, receipts, and deterministic close are enforced without provider SDK,
+credential lookup, registry, retry/fallback, Agent bridge, workflow, command,
+recording, telemetry, or background work. The graph is 72 packages / 269 local
+edges / acyclic. See the [runtime guide](../architecture/model-invocation-runtime.md).
+
+### [ADR 0151: Inert Model-Result to Agent-Proposal Bridge](0151-inert-model-result-to-agent-proposal-bridge.md)
+
+Accepted 2026-09-01. Phase 14E implements only the optional Experimental
+`kongono/model-invocation-agent-bridge` package. It validates one successful,
+retired, cleanup-complete, one-attempt action-suggestion result and maps it
+through exact application-owned action, capability, and usage configuration
+into inert Phase 13 proposal evidence. The bridge is not an `AgentProposalPort`,
+authorization, capability grant or invocation, or proof of effect. Raw model
+arguments are hashed and counted but omitted from proposal and capability
+inputs. The graph is 73 packages / 275 local edges / acyclic. See the
+[bridge guide](../architecture/model-result-agent-proposal-bridge.md).
+
+### [ADR 0152: Exact-Current Single-Profile Model-Invocation Application Workflow](0152-exact-current-single-profile-model-invocation-application-workflow.md)
+
+Accepted 2026-09-01. Phase 14F implements only the optional Experimental
+`kongono/model-invocation-application` package. It proves one exact-current
+profile through Phase 14C, generates and explicitly loads deterministic inert
+PHP wiring, binds one directly supplied identity-matching adapter, and delegates
+one terminal synchronous operation to Phase 14D. It contains no provider SDK,
+credential discovery, registry/default, retry/fallback, second profile, CLI,
+retained session, background work, deployment, Agent port, or bridge dependency.
+The graph is 74 packages / 280 local edges / acyclic. See the
+[application workflow guide](../architecture/model-invocation-application-workflow.md).
+
+### [ADR 0153: Visibility-Safe Model-Invocation Inspection and Bounded Evidence](0153-visibility-safe-model-invocation-inspection-and-bounded-evidence.md)
+
+Accepted 2026-09-01. Phase 14G implements only the optional Experimental
+`kongono/model-invocation-inspection` upper evidence leaf. It revalidates one
+exact supplied profile/wiring pair without loading generated PHP, optionally
+summarizes one completed detached runtime result without replay, and projects
+only bounded inert Graph, Observability, Security Audit, and role-addressed
+developer-intelligence evidence. It has no provider, credentials, registry,
+retry/fallback, command, recording, repair, role execution, telemetry delivery,
+or authority. The graph is 75 packages / 289 local edges / acyclic. See the
+[inspection guide](../architecture/model-invocation-inspection-and-evidence.md).
+
+- [ADR 0154: Phase 14 External Model-Invocation Acceptance and Checkpoint](0154-phase-14-external-model-invocation-acceptance-and-checkpoint.md)
+  closes Phase 14 with root-owned offline external-process evidence and one
+  exact local checkpoint. The fake adapter remains test evidence rather than a
+  provider integration, and all model-invocation evidence remains inert.

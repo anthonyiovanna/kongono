@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9222288bea5104f2eca1d0c2959b533f",
+    "content-hash": "c0c45a5003cbd11722501980e5cebe35",
     "packages": [
         {
             "name": "google/protobuf",
@@ -1620,6 +1620,215 @@
                 }
             },
             "description": "Bounded provider-neutral metric aggregation contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/model-invocation-agent-bridge",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/model-invocation-agent-bridge",
+                "reference": "d7ba444e381db6926a88c0ac06bc5d37ed5af2ae"
+            },
+            "require": {
+                "kongono/agent-principal-contract": "*",
+                "kongono/agent-runtime": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/model-invocation-contract": "*",
+                "kongono/model-invocation-runtime": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationAgentBridge\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationAgentBridge\\Tests\\": "tests/"
+                }
+            },
+            "description": "Inert bridge from normalized model results to Kongono Agent proposal evidence.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/model-invocation-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/model-invocation-application",
+                "reference": "26e8e5e6d217fbf41a68548a92a8a1e9f9c11e97"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/model-invocation-build": "*",
+                "kongono/model-invocation-contract": "*",
+                "kongono/model-invocation-runtime": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Exact-current single-profile application workflow for Kongono model invocation.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/model-invocation-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/model-invocation-build",
+                "reference": "431be6fe7accec65ecc8db8f574f7648ca343db6"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/model-invocation-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic invocation-plan artifact build and publication for Kongono model invocation.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/model-invocation-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/model-invocation-contract",
+                "reference": "bc17c3c6be0e32b14a065d1c2a31a0a8ddf21246"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral versioned model-invocation contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/model-invocation-inspection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/model-invocation-inspection",
+                "reference": "b4604e063502ef4b9389a3bd498c549213a3128a"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-intelligence": "*",
+                "kongono/diagnostics": "*",
+                "kongono/model-invocation-application": "*",
+                "kongono/model-invocation-build": "*",
+                "kongono/model-invocation-contract": "*",
+                "kongono/model-invocation-runtime": "*",
+                "kongono/observability": "*",
+                "kongono/security-audit": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationInspection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationInspection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Visibility-safe model-invocation inspection and bounded cross-system evidence.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/model-invocation-runtime",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/model-invocation-runtime",
+                "reference": "a5c38f0485444ff2e0a2873526a234ce94dedc5b"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/model-invocation-build": "*",
+                "kongono/model-invocation-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationRuntime\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ModelInvocationRuntime\\Tests\\": "tests/"
+                }
+            },
+            "description": "Bounded provider-neutral execution runtime for Kongono model invocation.",
             "transport-options": {
                 "relative": true
             }
@@ -7445,6 +7654,12 @@
         "kongono/kernel": 20,
         "kongono/knowledge": 20,
         "kongono/metrics": 20,
+        "kongono/model-invocation-agent-bridge": 20,
+        "kongono/model-invocation-application": 20,
+        "kongono/model-invocation-build": 20,
+        "kongono/model-invocation-contract": 20,
+        "kongono/model-invocation-inspection": 20,
+        "kongono/model-invocation-runtime": 20,
         "kongono/observability": 20,
         "kongono/observability-application": 20,
         "kongono/observability-build": 20,

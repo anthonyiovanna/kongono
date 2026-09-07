@@ -36,5 +36,9 @@ A successful call means only that the supplied in-process recorder returned;
 the package provides no store, export, backend, provider, queue, retry, flush,
 application integration, or durability claim.
 
+Phase 14G's outer model-invocation inspection package may construct one inert
+bounded Security Audit evidence value. It calls no recorder or runtime and
+establishes no durability, compliance, authority, or live security truth.
+
 See [ADR 0119](../../docs/adr/0119-structured-operational-events-and-bounded-security-audit-evidence.md)
 and the [Observability and Operational Evidence guide](../../docs/architecture/observability-and-operational-evidence.md).
