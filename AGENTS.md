@@ -1,5 +1,66 @@
 # Kongono AI-Agent Operating Policy
 
+## Phase 15 governed network-egress contract policy
+
+Phase 15A accepts ADR 0155 and the fixed general outbound HTTP and governed
+network-egress architecture. Phase 15B accepts ADR 0156 and implements only the
+optional Experimental `kongono/network-egress-contract` neutral value package.
+Its operation, attempt, and receipt identities; canonical origins;
+application-owned authority references; exact policy references; finite
+budgets; cancellation and lifecycle vocabulary; transport capabilities;
+negotiated protocol; transfer evidence; outcomes; failures; requests,
+responses, and receipts are inert evidence only. They grant no authority and
+establish no external truth.
+
+Phase 15B reuses PSR-7 request and response interfaces only for message
+semantics. It is not a PSR-18 client or control plane. Construction and access
+never read, rewind, seek, write, stringify, serialize, hash, buffer, or copy a
+body stream, and no deep stream immutability is claimed. The package performs
+no DNS, socket, TLS, credential, policy, redirect, retry, pool, provider,
+filesystem, process, or network behavior. Its diagnostics and deliberate
+exception string are bounded and nondisclosing.
+
+Phase 15C accepts ADR 0157 and implements only the optional Experimental
+`kongono/network-egress-policy-build` deterministic artifact boundary. One
+explicit application-owned typed policy source binds exact canonical origins,
+closed postures, a finite budget, and required transport capabilities. Its
+canonical artifact, source/artifact digests, caller-relative currentness, and
+content-addressed no-clobber publication are inert evidence only. Artifact
+bytes are Protected and failures are bounded and nondisclosing. The package
+performs no resolver, DNS, connection, socket, TLS implementation, credential
+provider, proxy discovery, cookie jar, transport, runtime authorization,
+network effect, command, loader, registry, or provider work. The graph is
+extended by Phase 15D, which accepts ADR 0158 and implements only the optional
+Experimental `kongono/network-egress-runtime` one-operation coordinator over
+explicit caller-owned authority-currentness, resolver, transport,
+cancellation, clock, and exact-current policy evidence. It resolves once,
+fails closed across all candidates, binds the selected address to one direct
+transport attempt, enforces finite transfer and time budgets, never consumes
+message bodies, preserves uncertain effects, and closes every opened session
+exactly once. It supplies no concrete resolver, DNS, socket, TLS, credential,
+proxy, cookie, provider, registry, command, retry, redirect, fallback,
+background worker, or application workflow. The graph is extended by Phase
+15E, which accepts ADR 0159 and implements only the optional Experimental
+`kongono/network-egress-curl` HTTP/1.1 adapter, and by Phase 15F, which accepts
+ADR 0160 and implements only the optional Experimental
+`kongono/network-egress-application` exact-current single-profile workflow.
+The workflow produces deterministic generated wiring, loads one exact
+contained generated class, checks required transport capabilities before
+resolution, and delegates one terminal synchronous operation to a fresh Phase
+15D runtime over explicit caller-owned collaborators. Phase 15G accepts ADR
+0161 and implements only the optional Experimental
+`kongono/network-egress-inspection` visibility-safe evidence leaf. It
+revalidates one exact supplied profile/wiring pair without loading generated
+PHP and may summarize only one exactly paired detached operation/runtime result
+without replay. Its Graph, Observability, Security Audit, and role-addressed
+developer-intelligence values contain only Protected digests, closed tokens,
+and Safe aggregates; they perform no network, authority, recording, role,
+repair, or certification behavior. The graph is exactly 81 acyclic production
+packages and 317 local production edges. Phase 15H accepts ADR 0162, adds only
+the root-owned local external acceptance harness and exact Phase 15 checkpoint,
+and closes Phase 15. Phase 16 requires separately authenticated architect
+authority.
+
 ## Phase 14 provider-neutral model-invocation contract policy
 
 Phase 14A accepts ADR 0147 and the fixed provider-neutral invocation
@@ -45,8 +106,9 @@ command, recording, telemetry, or background work. Usage, cost,
 receipts, plans, proposals, budgets, adapter labels, and digests are not
 external truth or authority. Trusted generated and in-process PHP is not a
 sandbox, and the inspector never loads it. Exact supplied-profile evidence is
-not live provider, application, or authority truth. Phase 14H remains planned
-and requires a separately authenticated architect directive.
+not live provider, application, or authority truth. Phase 14H accepts ADR 0154
+and closes Phase 14 with root-owned offline external acceptance and one exact
+local checkpoint.
 
 ## Phase 13 governed Agent Principal contract policy
 

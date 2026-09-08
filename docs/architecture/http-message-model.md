@@ -349,3 +349,18 @@ PHP 9, prerelease, nightly, and automatic future-minor support are not claimed.
 No HTTP Message runtime behavior, package, dependency, public API, polyfill,
 shim, release/LTS promise, or composition/build capability is added. Phase 5A
 remains accepted; Phase 5C is next and has not begun.
+
+## Relationship to governed outbound HTTP
+
+Phase 15A leaves this inbound, transport-neutral HTTP message model unchanged.
+Phase 15B implements an inert
+[network-egress contract](network-egress-contract-foundation.md) that reuses
+PSR-7 message semantics where they fit, while keeping current
+egress authority, canonical origin, resolution binding, selected address,
+attempt lifecycle, budgets, cancellation, uncertainty, and cleanup outside the
+message itself. Request and response body streams are retained by reference,
+never read or claimed deeply immutable. PSR-18 compatibility is an optional
+future outer adapter, not the core control plane. ADR 0155 and
+[ADR 0156](../adr/0156-neutral-versioned-network-egress-contract-foundation.md)
+are Accepted; Phase 15C remains planned and no outbound client, transport, or
+network behavior exists.

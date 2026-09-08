@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c0c45a5003cbd11722501980e5cebe35",
+    "content-hash": "5e651a1c26414edd9bb8b007d84d1393",
     "packages": [
         {
             "name": "google/protobuf",
@@ -1829,6 +1829,218 @@
                 }
             },
             "description": "Bounded provider-neutral execution runtime for Kongono model invocation.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/network-egress-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/network-egress-application",
+                "reference": "5fd32ee62ee1a5b50a599296612fb846bd223833"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/network-egress-contract": "*",
+                "kongono/network-egress-policy-build": "*",
+                "kongono/network-egress-runtime": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Exact-current single-profile application workflow for Kongono network egress.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/network-egress-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/network-egress-contract",
+                "reference": "64ba73e6e1ce7c26a1090f166292316a3144efb3"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-message": "^2.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral versioned network-egress contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/network-egress-curl",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/network-egress-curl",
+                "reference": "9e577ed60b2899f0ec354748a80c08b2eab061fc"
+            },
+            "require": {
+                "ext-curl": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/http-message": "*",
+                "kongono/network-egress-contract": "*",
+                "kongono/network-egress-runtime": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-message": "^1.1 || ^2.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressCurl\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressCurl\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit bounded cURL HTTP/1.1 egress transport for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/network-egress-inspection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/network-egress-inspection",
+                "reference": "fb3768db4fd9d09778182b285866eb7e47726839"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-intelligence": "*",
+                "kongono/diagnostics": "*",
+                "kongono/network-egress-application": "*",
+                "kongono/network-egress-contract": "*",
+                "kongono/network-egress-policy-build": "*",
+                "kongono/network-egress-runtime": "*",
+                "kongono/observability": "*",
+                "kongono/security-audit": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressInspection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressInspection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Visibility-safe network-egress inspection and bounded cross-system evidence.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/network-egress-policy-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/network-egress-policy-build",
+                "reference": "f03d2f96064346f03c4b6d9172916fa272a119d2"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/network-egress-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressPolicyBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressPolicyBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic network-egress policy artifact build and publication for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/network-egress-runtime",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/network-egress-runtime",
+                "reference": "2765a394cb890dcc8a6eec5f165b11ca2bf68101"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/network-egress-contract": "*",
+                "kongono/network-egress-policy-build": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-message": "^1.1 || ^2.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressRuntime\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\NetworkEgressRuntime\\Tests\\": "tests/"
+                }
+            },
+            "description": "Bounded provider-neutral network-egress runtime for Kongono Framework.",
             "transport-options": {
                 "relative": true
             }
@@ -7660,6 +7872,12 @@
         "kongono/model-invocation-contract": 20,
         "kongono/model-invocation-inspection": 20,
         "kongono/model-invocation-runtime": 20,
+        "kongono/network-egress-application": 20,
+        "kongono/network-egress-contract": 20,
+        "kongono/network-egress-curl": 20,
+        "kongono/network-egress-inspection": 20,
+        "kongono/network-egress-policy-build": 20,
+        "kongono/network-egress-runtime": 20,
         "kongono/observability": 20,
         "kongono/observability-application": 20,
         "kongono/observability-build": 20,

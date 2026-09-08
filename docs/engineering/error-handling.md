@@ -1722,3 +1722,79 @@ Phase 12G inspection failures use fixed non-disclosing diagnostics for unsafe
 files, structural rejection, declaration-set mismatch, inconsistent aggregates,
 and invalid verification evidence. Caller paths, bytes, class names, and native
 exception messages are not copied into presentation.
+
+## Governed-egress contract failures
+
+Phase 15A accepts the failure architecture in
+[ADR 0155](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md).
+Phase 15B accepts [ADR 0156](../adr/0156-neutral-versioned-network-egress-contract-foundation.md)
+and implements the deliberate `NetworkEgressContractException` family. Its
+bounded outcomes and failure kinds distinguish validation, policy denial,
+resolution,
+connection, TLS, protocol, redirect, budget, cancellation, timeout, response,
+cleanup, and uncertain-effect classes without exposing full URLs, queries,
+credentials, headers, cookies, bodies, private addresses, proxy secrets,
+certificates, paths, arbitrary reason input, or foreign exception text.
+Diagnostic IDs `KGN-EGRESS-CONTRACT-1501` through
+`KGN-EGRESS-CONTRACT-1508` use closed Safe fields and deterministic
+non-native stringification. Partial transmission and a lost
+response remain different from failure-before-effect, so an exception cannot
+silently authorize retry. These failures are construction evidence, not a
+runtime, network effect, authorization result, or retry grant.
+
+Phase 15C adds the separate `NetworkEgressPolicyBuildException` family and
+closed diagnostic IDs `KGN-EGRESS-POLICY-1510` through
+`KGN-EGRESS-POLICY-1516`. It distinguishes invalid identities, invalid or
+incompatible typed sources, invalid or stale artifacts, publication failures,
+and artifact-size limits. Diagnostic context uses only closed Safe violation
+and field labels plus bounded numeric counts, positions, limits, and byte
+sizes. It omits exact origins, policy identities, digests, paths, credentials,
+and foreign throwable messages. A stale artifact is caller-relative evidence,
+not a runtime denial or authorization result.
+
+Phase 15D adds bounded `EgressOperationException`, `EgressCleanupException`,
+and `EgressOperationAndCleanupException` evidence under diagnostic IDs
+`KGN-EGRESS-RUNTIME-1520` through `KGN-EGRESS-RUNTIME-1529`. Expected policy,
+resolution, transport, budget, timeout, protocol, and cancellation outcomes
+remain typed results. Unexpected foreign throws retain exact throwable identity
+without importing their messages or traces into presentation; cleanup and
+operation failures stay separately inspectable. Engine `Error` remains
+unwrapped. Phase 15E adds diagnostic IDs `KGN-EGRESS-CURL-1530` through
+`KGN-EGRESS-CURL-1535` for its bounded adapter profile, native capability,
+request, transfer, response, and cleanup failures. Phase 15F adds diagnostic
+IDs `KGN-NET-1540` through `KGN-NET-1548` for bounded profile, generated-wiring,
+publication, loading, lifecycle, operation, and workflow failures. Phase 15G
+adds `KGN-NET-1549` through `KGN-NET-1553` for invalid inspection,
+binding mismatch, optional runtime evidence mismatch, intelligence/verifier
+evidence, and projection failure. Phase 15H remains Planned.
+
+## Phase 15E cURL transport and Phase 15F application workflow status
+
+Phase 15E accepts ADR 0159 and implements the optional Experimental
+`kongono/network-egress-curl` HTTP/1.1 adapter. It binds the canonical origin
+to the single Phase 15D selected address, uses explicit in-memory CA-bundle
+bytes with strict TLS verification, and performs one bounded synchronous
+transfer without proxy, redirect, cookie, netrc, automatic authentication,
+retry, pooling, or PSR-18 control-plane behavior.
+
+Phase 15F accepts ADR 0160 and implements the optional Experimental
+`kongono/network-egress-application` exact-current single-profile workflow.
+It derives canonical profile and generated-wiring evidence from one supplied
+policy source, validates and publishes the wiring without overwrite, loads one
+exact contained generated class, checks required transport capabilities before
+resolution, and delegates one terminal synchronous operation to a fresh Phase
+15D runtime. Authority currentness, resolver, transport, cancellation, and
+clock collaborators remain explicit and caller-owned.
+
+Phase 15G accepts ADR 0161 and implements the optional Experimental
+`kongono/network-egress-inspection` offline upper evidence leaf. It
+revalidates exact supplied profile/wiring evidence and can summarize one exactly
+paired detached operation/result without generated-code loading, networking,
+authority evaluation, recording, replay, repair, certification, or role
+execution.
+
+The current topology is 81 packages / 317 local edges / acyclic, with PHP
+inventories 1,514 / 768 / 80. Phase 15H remains Planned. No first-party
+resolver, credential provider, provider adapter, live inspection probe,
+inspection command, public compatibility certification, Stable/1.0 claim,
+production-readiness claim, or Phase 15 checkpoint exists.

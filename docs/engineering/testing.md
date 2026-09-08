@@ -889,3 +889,78 @@ Phase 14 APIs with root-owned fixtures and an offline fake adapter. It proves
 canonical success/failure streams, sequential and concurrent determinism,
 bounded output, repository preservation, and complete temporary cleanup. See
 [Phase 14 external acceptance](../architecture/phase-14-external-acceptance.md).
+
+## Phase 15A-15H testing posture
+
+Phase 15A is documentation architecture. Phase 15B adds deterministic unit and
+architecture tests for the optional neutral contract only. Local PSR-7 fakes
+prove that operation and result construction never call body-stream methods.
+Boundary tests prove exact identities, digests, origins, budgets, enums, sets,
+transfers, receipts, API statuses, dependencies, nondisclosure, and absence of
+network effects. No network probe, endpoint, credential, transport, or new
+quality stage is added. Later rows are planned to use bounded external-process
+conformance for SSRF address classes, resolution binding, DNS rebinding,
+redirect revalidation, TLS policy, streaming and decompression limits,
+backpressure, cancellation, partial writes, uncertain effects, concurrency,
+pool retirement, cleanup, and nondisclosure. Public Internet access and real
+credentials are not acceptance dependencies. See
+[ADR 0155](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md),
+[ADR 0156](../adr/0156-neutral-versioned-network-egress-contract-foundation.md),
+and the [Phase 15 roadmap](../architecture/phase-15-roadmap.md).
+
+Phase 15C adds deterministic package tests for identity and closed policy
+vocabularies, canonical origin ordering, policy compatibility, exact JSON
+framing/member order/digests, structural and caller-relative current
+validation, Protected-data nondisclosure, path-safe atomic no-clobber
+publication, and exact dependency/API boundaries. They use temporary local
+directories only and never resolve a host, open a socket, access credentials,
+or perform network I/O.
+
+Phase 15D adds deterministic in-memory tests for canonical address families and
+conservative categories, mixed-result denial, exact selected-address binding,
+policy and authority currentness, stable capabilities, header/transfer/time
+budgets, pull sequencing, cancellation, uncertainty, cleanup, reentrancy,
+sequential reuse, body-stream non-consumption, diagnostics, and contract
+evolution. Phase 15F adds deterministic in-memory package tests for canonical
+profiles, generated wiring, current validation, publication, contained loading,
+capability preflight, application lifecycle, one-operation delegation, cleanup,
+nondisclosure, and dependency/API boundaries. Phase 15G adds deterministic
+offline tests for exact profile/wiring and optional operation/result binding,
+canonical bounded evidence, all six terminal outcomes, hostile body
+non-consumption, Graph/Observability/Security projection, role-addressed views,
+independent verification, and nondisclosure. No test resolves DNS, opens a
+socket, reads proxy or credential state, uses wall-clock sleeping, or reaches
+the public Internet. The current inventory is 1,514 production, 768
+package-test, and 84 root-test PHP files. Phase 15H adds the bounded local
+external acceptance harness and Phase 15 is closed at one exact checkpoint.
+
+## Phase 15E cURL transport and Phase 15F application workflow status
+
+Phase 15E accepts ADR 0159 and implements the optional Experimental
+`kongono/network-egress-curl` HTTP/1.1 adapter. It binds the canonical origin
+to the single Phase 15D selected address, uses explicit in-memory CA-bundle
+bytes with strict TLS verification, and performs one bounded synchronous
+transfer without proxy, redirect, cookie, netrc, automatic authentication,
+retry, pooling, or PSR-18 control-plane behavior.
+
+Phase 15F accepts ADR 0160 and implements the optional Experimental
+`kongono/network-egress-application` exact-current single-profile workflow.
+It derives canonical profile and generated-wiring evidence from one supplied
+policy source, validates and publishes the wiring without overwrite, loads one
+exact contained generated class, checks required transport capabilities before
+resolution, and delegates one terminal synchronous operation to a fresh Phase
+15D runtime. Authority currentness, resolver, transport, cancellation, and
+clock collaborators remain explicit and caller-owned.
+
+Phase 15G accepts ADR 0161 and implements the optional Experimental
+`kongono/network-egress-inspection` offline upper evidence leaf. It
+revalidates exact supplied profile/wiring evidence and can summarize one exactly
+paired detached operation/result without generated-code loading, networking,
+authority evaluation, recording, replay, repair, certification, or role
+execution.
+
+The current topology is 81 packages / 317 local edges / acyclic, with PHP
+inventories 1,514 / 768 / 84. Phase 15 is closed. No first-party
+resolver, credential provider, provider adapter, live inspection probe,
+inspection command, public compatibility certification, Stable/1.0 claim,
+production-readiness claim exists.

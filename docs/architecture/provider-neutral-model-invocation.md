@@ -10,8 +10,8 @@
 > adds an explicit offline, read-only, stateless inspection leaf over one exact
 > supplied profile/wiring pair and optional completed detached runtime evidence.
 > The current graph is 75 packages / 289 local edges / acyclic, with 1,358
-> production / 686 package-test / 76 root-test PHP files. Phase 14H remains
-> planned.
+> production / 686 package-test / 80 root-test PHP files. Phase 14 is closed at
+> checkpoint `05bf8367b56e694a8c388ccb96cdc305cb6e40ae`.
 
 > **Phase 14B checkpoint context:** Phase 14B implements only the optional neutral
 > contract vocabulary in [ADR 0148](../adr/0148-neutral-versioned-model-invocation-contract-foundation.md)
@@ -488,7 +488,8 @@ Do not use model invocation as:
 ## Stability
 
 The architectural boundary is Accepted. Implemented Phase 14B-14G mechanisms
-remain Experimental; Phase 14H remains planned. Phase 14A makes no
+remain Experimental; Phase 14H closes the phase at checkpoint
+`05bf8367b56e694a8c388ccb96cdc305cb6e40ae`. Phase 14A makes no
 Stable, 1.0, production-readiness, compatibility, performance, cost, provider,
 compliance, or security-certification claim.
 
@@ -509,3 +510,12 @@ compliance, or security-certification claim.
 Phase 14A-H are implemented and Phase 14 is closed. The external harness uses
 one explicit offline fake adapter as test evidence only; it adds no provider
 integration, credential mechanism, network authority, or external effect.
+
+Phase 15A separately accepts the general [outbound HTTP and governed
+network-egress boundary](outbound-http-and-network-egress.md) beneath future
+provider adapters. Model requests, results, suggested actions, plans, and
+receipts cannot grant egress authority. Applications retain provider semantics,
+current network authority, policy, credentials, endpoint and transport
+selection. See [ADR 0155](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md)
+and the [Phase 15 roadmap](phase-15-roadmap.md). No model-provider adapter or
+Phase 15B implementation exists.

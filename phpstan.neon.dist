@@ -122,6 +122,18 @@ parameters:
         - packages/model-invocation-inspection/tests
         - packages/model-invocation-runtime/src
         - packages/model-invocation-runtime/tests
+        - packages/network-egress-application/src
+        - packages/network-egress-application/tests
+        - packages/network-egress-contract/src
+        - packages/network-egress-contract/tests
+        - packages/network-egress-curl/src
+        - packages/network-egress-curl/tests
+        - packages/network-egress-inspection/src
+        - packages/network-egress-inspection/tests
+        - packages/network-egress-policy-build/src
+        - packages/network-egress-policy-build/tests
+        - packages/network-egress-runtime/src
+        - packages/network-egress-runtime/tests
         - packages/observability/src
         - packages/observability/tests
         - packages/opentelemetry/src

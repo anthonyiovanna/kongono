@@ -520,3 +520,61 @@ now adds detached two-file structural inspection and one read-only command.
 The generated file remains inert, and currentness and runtime state remain
 unproven. The current topology is 63 packages / 226 local edges; Phase 12H adds
 only root-owned external evidence and the exact local checkpoint.
+
+## Phase 15A-15H governed network-egress boundary
+
+Phase 14 is closed at checkpoint
+`05bf8367b56e694a8c388ccb96cdc305cb6e40ae`. Phase 15A accepts
+[ADR 0155](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md),
+the [outbound HTTP and network-egress guide](../architecture/outbound-http-and-network-egress.md),
+and the [fixed roadmap](../architecture/phase-15-roadmap.md). Phase 15B accepts
+the optional Experimental neutral contract foundation. Phase 15C accepts [ADR
+0157](../adr/0157-deterministic-network-egress-policy-artifact.md) and the
+optional Experimental deterministic [policy artifact](../architecture/network-egress-policy-artifact.md).
+The builder creates, validates, compares, and optionally publishes inert offline
+evidence from one explicit typed application policy. Phase 15D accepts [ADR
+0158](../adr/0158-bounded-provider-neutral-network-egress-runtime.md) and the
+optional Experimental [bounded runtime](../architecture/network-egress-runtime.md).
+The runtime coordinates one direct bounded attempt over explicit caller-owned
+ports. Phase 15E adds the explicit cURL HTTP/1.1 adapter. Phase 15F accepts
+[ADR 0160](../adr/0160-exact-current-single-profile-network-egress-application-workflow.md)
+and the optional Experimental exact-current single-profile
+[application workflow](../architecture/network-egress-application-workflow.md).
+Phase 15G adds the optional Experimental
+[`kongono/network-egress-inspection`](../architecture/network-egress-inspection-and-evidence.md)
+leaf for exact supplied evidence and bounded inert projections. The current
+topology is 81 packages / 317 local edges / acyclic and inventories are
+1,514 / 768 / 84. No concrete resolver, credential provider, provider adapter,
+live inspection probe, command, or compatibility claim exists. Phase 15H adds
+bounded local external acceptance and closes Phase 15 at one exact checkpoint.
+
+## Phase 15E cURL transport and Phase 15F application workflow status
+
+Phase 15E accepts ADR 0159 and implements the optional Experimental
+`kongono/network-egress-curl` HTTP/1.1 adapter. It binds the canonical origin
+to the single Phase 15D selected address, uses explicit in-memory CA-bundle
+bytes with strict TLS verification, and performs one bounded synchronous
+transfer without proxy, redirect, cookie, netrc, automatic authentication,
+retry, pooling, or PSR-18 control-plane behavior.
+
+Phase 15F accepts ADR 0160 and implements the optional Experimental
+`kongono/network-egress-application` exact-current single-profile workflow.
+It derives canonical profile and generated-wiring evidence from one supplied
+policy source, validates and publishes the wiring without overwrite, loads one
+exact contained generated class, checks required transport capabilities before
+resolution, and delegates one terminal synchronous operation to a fresh Phase
+15D runtime. Authority currentness, resolver, transport, cancellation, and
+clock collaborators remain explicit and caller-owned.
+
+Phase 15G accepts ADR 0161 and implements the optional Experimental
+`kongono/network-egress-inspection` offline upper evidence leaf. It
+revalidates exact supplied profile/wiring evidence and can summarize one exactly
+paired detached operation/result without generated-code loading, networking,
+authority evaluation, recording, replay, repair, certification, or role
+execution.
+
+The current topology is 81 packages / 317 local edges / acyclic, with PHP
+inventories 1,514 / 768 / 84. Phase 15 is closed. No first-party
+resolver, credential provider, provider adapter, live inspection probe,
+inspection command, public compatibility certification, Stable/1.0 claim,
+production-readiness claim exists.

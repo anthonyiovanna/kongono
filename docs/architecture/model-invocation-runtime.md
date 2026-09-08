@@ -100,3 +100,15 @@ attempts, cancellation, terminal state, primary failure, and deterministic
 cleanup. The fake is root test evidence, not a provider integration, and no
 retry, fallback, account, credentials, or network is added. See [Phase 14
 external acceptance](phase-14-external-acceptance.md).
+
+## Relationship to Phase 15 egress
+
+Phase 14 is closed at checkpoint
+`05bf8367b56e694a8c388ccb96cdc305cb6e40ae`. Phase 15A accepts only the
+documentation architecture for a separate, general [outbound HTTP and governed
+network-egress boundary](outbound-http-and-network-egress.md). A future provider
+adapter may depend on explicit egress capabilities, but invocation plans,
+results, action suggestions, receipts, and adapter labels grant no network
+authority. Applications retain credentials, endpoint and transport selection,
+current policy and authority, and provider semantics. No provider adapter,
+network transport, or Phase 15B implementation exists.

@@ -666,3 +666,77 @@ exception text, endpoints, credentials, and provider details remain absent from
 diagnostics and command output. Transport is an explicit caller-owned
 capability; the repository skeleton's capturing transport performs no network
 access and is not a production exporter.
+
+## Governed outbound HTTP and network egress
+
+Phase 15A accepts documentation architecture for optional outbound HTTP.
+Phase 15B accepts the optional Experimental neutral contract in
+[ADR 0156](docs/adr/0156-neutral-versioned-network-egress-contract-foundation.md);
+it implements no network behavior. A URI, policy artifact, authority reference,
+capability claim, DNS answer, address,
+TLS certificate, redirect, response, receipt, Graph fact, model result, or
+developer-tool output is evidence rather than permission. Applications retain
+current authority, policy, credentials, endpoint and transport selection, and
+external-service semantics.
+
+The accepted direction binds resolution to the selected connection address,
+fails closed for SSRF and DNS-rebinding hazards, keeps TLS verification enabled,
+denies ambient proxies, credentials, cookies, redirects, and retries, and
+requires finite budgets, streaming backpressure, cancellation, uncertainty,
+and deterministic cleanup. Diagnostics omit URLs, queries, credentials,
+headers, cookies, bodies, private addresses, proxy secrets, certificates,
+paths, and foreign exception text. Contract construction retains PSR-7 body
+streams by reference without reading, copying, or claiming deep immutability.
+See [ADR 0155](docs/adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md),
+[ADR 0156](docs/adr/0156-neutral-versioned-network-egress-contract-foundation.md),
+and the [egress guide](docs/architecture/outbound-http-and-network-egress.md).
+
+Phase 15C accepts [ADR 0157](docs/adr/0157-deterministic-network-egress-policy-artifact.md)
+and the deterministic [policy-artifact boundary](docs/architecture/network-egress-policy-artifact.md).
+Exact origins and policy configuration in canonical artifacts are Protected,
+not diagnostic text or authority. Structural validation and caller-relative
+currentness use only supplied evidence. Publication is content-addressed,
+atomic, and no-clobber within one explicit checked directory; diagnostics omit
+origins, identities, digests, paths, credentials, and throwable messages. The
+package supplies no resolver, DNS, socket, TLS implementation, credential or
+proxy discovery, cookie jar, transport, runtime authorization, loader, or
+network effect. Phase 15D accepts [ADR 0158](docs/adr/0158-bounded-provider-neutral-network-egress-runtime.md)
+and the [bounded runtime](docs/architecture/network-egress-runtime.md). It
+validates exact-current policy, rejects mixed or forbidden resolution results,
+binds the exact selected address to one caller-owned transport attempt,
+rechecks authority before open, enforces finite byte/time/evidence limits, and
+closes every opened session once. It never consumes a body stream or discovers
+DNS, credentials, proxies, cookies, transports, or providers. Phase 15E adds
+only the explicit cURL HTTP/1.1 transport profile. Phase 15F adds only an
+exact-current single-profile application workflow over explicit caller-owned
+authority-currentness, resolver, transport, cancellation, and clock
+collaborators. Phase 15G adds only offline, read-only, visibility-safe
+inspection of one exact supplied profile/wiring value and optional exactly
+paired detached operation/result evidence. It performs no live probe,
+credential access, generated-code loading, authority evaluation, replay,
+recording, repair, or role execution. Phase 15H adds only bounded local
+external acceptance, and Phase 15 is closed at one exact local checkpoint.
+
+## Phase 15E cURL transport and Phase 15F application workflow status
+
+Phase 15E accepts ADR 0159 and implements the optional Experimental
+`kongono/network-egress-curl` HTTP/1.1 adapter. It binds the canonical origin
+to the single Phase 15D selected address, uses explicit in-memory CA-bundle
+bytes with strict TLS verification, and performs one bounded synchronous
+transfer without proxy, redirect, cookie, netrc, automatic authentication,
+retry, pooling, or PSR-18 control-plane behavior.
+
+Phase 15F accepts ADR 0160 and implements the optional Experimental
+`kongono/network-egress-application` exact-current single-profile workflow.
+It derives canonical profile and generated-wiring evidence from one supplied
+policy source, validates and publishes the wiring without overwrite, loads one
+exact contained generated class, checks required transport capabilities before
+resolution, and delegates one terminal synchronous operation to a fresh Phase
+15D runtime. Authority currentness, resolver, transport, cancellation, and
+clock collaborators remain explicit and caller-owned.
+
+The current topology is 81 packages / 317 local edges / acyclic, with PHP
+inventories 1,514 / 768 / 84. Phase 15A-H are Accepted and Phase 15 is closed.
+No first-party resolver, credential provider, provider adapter, live
+inspection probe, inspection command, public compatibility certification,
+Stable/1.0 claim, or production-readiness claim exists.

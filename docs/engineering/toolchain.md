@@ -333,3 +333,67 @@ entry point. The fixed Hantei profile mirrors it without changing the eight
 quality checks. It adds no provider SDK, account, credentials, network, command
 surface, dependency, suppression, baseline, or quality-stage policy. See [Phase
 14 external acceptance](../architecture/phase-14-external-acceptance.md).
+
+## Phase 15A-15H toolchain posture
+
+Phase 14 is closed at checkpoint
+`05bf8367b56e694a8c388ccb96cdc305cb6e40ae`. Phase 15A accepts documentation
+architecture through [ADR 0155](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md).
+Phase 15B accepts [ADR 0156](../adr/0156-neutral-versioned-network-egress-contract-foundation.md)
+and registers the optional `kongono/network-egress-contract` package in
+existing Composer validation, test autoload, PHPStan, PHPUnit, and style
+scopes. It reuses the already locked `psr/http-message` package and adds no
+third-party lock package, extension requirement, client, transport, command,
+network-enabled test, audit exception, suppression, baseline, runtime
+configuration, PHP-version claim, or quality-stage. Phase 15C registers the
+optional `kongono/network-egress-policy-build` package in those same existing
+scopes and adds exactly three local production edges. The required lock update
+adds only this local package; no third-party version or package changes and no
+new quality stage are authorized. Phase 15D registers
+`kongono/network-egress-runtime` in the same Composer validation, test autoload,
+PHPStan, PHPUnit, and style scopes and adds exactly four local production
+edges. Its lock update adds only that local package and reuses the already
+locked PSR-7 dependency. No new quality stage, suppression, baseline,
+extension, third-party version, or runtime configuration is added. Phase 15E
+registers `kongono/network-egress-curl` in the same canonical scopes and adds
+five local production edges without a third-party client stack or new quality
+stage. Phase 15F registers `kongono/network-egress-application` in those same
+scopes and adds five local production edges; its lock update adds only that
+local package. Phase 15G registers
+`kongono/network-egress-inspection` in the same canonical scopes, adds nine
+local production edges, and adds only that local package to the lock. No
+third-party package or version, quality stage, suppression, baseline, or
+runtime configuration changes. Phase 15H adds the root external harness and
+exact Composer/Hantei registration without changing the canonical quality
+stages; Phase 15 is closed at one exact local checkpoint.
+
+## Phase 15E cURL transport and Phase 15F application workflow status
+
+Phase 15E accepts ADR 0159 and implements the optional Experimental
+`kongono/network-egress-curl` HTTP/1.1 adapter. It binds the canonical origin
+to the single Phase 15D selected address, uses explicit in-memory CA-bundle
+bytes with strict TLS verification, and performs one bounded synchronous
+transfer without proxy, redirect, cookie, netrc, automatic authentication,
+retry, pooling, or PSR-18 control-plane behavior.
+
+Phase 15F accepts ADR 0160 and implements the optional Experimental
+`kongono/network-egress-application` exact-current single-profile workflow.
+It derives canonical profile and generated-wiring evidence from one supplied
+policy source, validates and publishes the wiring without overwrite, loads one
+exact contained generated class, checks required transport capabilities before
+resolution, and delegates one terminal synchronous operation to a fresh Phase
+15D runtime. Authority currentness, resolver, transport, cancellation, and
+clock collaborators remain explicit and caller-owned.
+
+Phase 15G accepts ADR 0161 and implements the optional Experimental
+`kongono/network-egress-inspection` offline upper evidence leaf. It
+revalidates exact supplied profile/wiring evidence and can summarize one exactly
+paired detached operation/result without generated-code loading, networking,
+authority evaluation, recording, replay, repair, certification, or role
+execution.
+
+The current topology is 81 packages / 317 local edges / acyclic, with PHP
+inventories 1,514 / 768 / 84. Phase 15 is closed. No first-party
+resolver, credential provider, provider adapter, live inspection probe,
+inspection command, public compatibility certification, Stable/1.0 claim,
+production-readiness claim exists.

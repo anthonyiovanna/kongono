@@ -67,6 +67,12 @@
             <directory>packages/model-invocation-build/tests</directory>
             <directory>packages/model-invocation-inspection/tests</directory>
             <directory>packages/model-invocation-runtime/tests</directory>
+            <directory>packages/network-egress-application/tests</directory>
+            <directory>packages/network-egress-contract/tests</directory>
+            <directory>packages/network-egress-curl/tests</directory>
+            <directory>packages/network-egress-inspection/tests</directory>
+            <directory>packages/network-egress-policy-build/tests</directory>
+            <directory>packages/network-egress-runtime/tests</directory>
             <directory>packages/observability/tests</directory>
             <directory>packages/opentelemetry/tests</directory>
             <directory>packages/operational-events/tests</directory>
@@ -143,6 +149,12 @@
             <directory>packages/model-invocation-build/src</directory>
             <directory>packages/model-invocation-inspection/src</directory>
             <directory>packages/model-invocation-runtime/src</directory>
+            <directory>packages/network-egress-application/src</directory>
+            <directory>packages/network-egress-contract/src</directory>
+            <directory>packages/network-egress-curl/src</directory>
+            <directory>packages/network-egress-inspection/src</directory>
+            <directory>packages/network-egress-policy-build/src</directory>
+            <directory>packages/network-egress-runtime/src</directory>
             <directory>packages/observability/src</directory>
             <directory>packages/opentelemetry/src</directory>
             <directory>packages/operational-events/src</directory>

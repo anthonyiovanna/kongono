@@ -425,3 +425,16 @@ Phase 14H constructs only pure model-invocation Observation and Security Audit
 values. It performs no recording, sampling, export, delivery, persistence,
 backend access, monitoring, or live-state claim. See [Phase 14 external
 acceptance](phase-14-external-acceptance.md).
+
+## Phase 15A egress evidence boundary
+
+Phase 15A accepts documentation architecture only for [governed outbound HTTP
+and network egress](outbound-http-and-network-egress.md). Planned operational
+evidence may contain allowlisted aggregate lifecycle and correlation facts, and
+Security Audit may receive bounded decisions without request or response
+payloads. Neither channel authorizes an origin, connection, redirect, retry, or
+other external effect, and neither proves delivery or live endpoint state.
+URLs, queries, credentials, headers, cookies, bodies, private addresses, proxy
+secrets, certificates, paths, and foreign exception text remain excluded.
+[ADR 0155](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md)
+adds no exporter, transport, recording, network call, or Phase 15B behavior.

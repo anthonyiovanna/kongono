@@ -43,7 +43,7 @@ inside Phase 13 authority.
 | **14E — Inert Agent proposal bridge (complete)** | [ADR 0151](../adr/0151-inert-model-result-to-agent-proposal-bridge.md) implements the optional Experimental `kongono/model-invocation-agent-bridge`. It validates one successful retired one-attempt action-suggestion result and maps it through one exact application-owned action, capability, and usage mapping into inert proposal evidence suitable for an explicit Phase 13 proposal port. | No `AgentProposalPort` implementation, raw model arguments as capability input, authentication, admission, authorization, capability grant or invocation, effect proof, tool registry, provider invocation, authority bypass, automatic action, or change to Phase 13 current-authority checks. |
 | **14F — Exact-current application workflow (complete)** | [ADR 0152](../adr/0152-exact-current-single-profile-model-invocation-application-workflow.md) implements the optional Experimental `kongono/model-invocation-application` boundary over one exact-current application-owned model profile, deterministic generated wiring, one explicit application-supplied adapter, and one terminal bounded invocation operation. | No ambient registry, auto-selection, automatic fallback, provider default, second profile, command, provider SDK selection, credential discovery, retained session, background work, deployment behavior, Agent port, or automatic bridge call. |
 | **14G — Visibility-safe inspection and bounded evidence (complete)** | [ADR 0153](../adr/0153-visibility-safe-model-invocation-inspection-and-bounded-evidence.md) implements the optional Experimental `kongono/model-invocation-inspection` boundary. It revalidates one exact supplied profile/wiring pair without loading generated PHP, optionally summarizes completed detached runtime evidence without replay, and emits bounded Graph, Security Audit, Observability, and role-addressed Chie/Hantei/Oshie evidence. | No provider invocation, credential access, authority decision, repair, recording, hidden reasoning, raw prompt/response disclosure, live application/provider/account observation, role execution, certification, or autonomous remediation. |
-| **14H — External acceptance and checkpoint** | A separately authorized root-owned deterministic external harness proving the accepted Phase 14 boundaries and one exact local checkpoint. | No production expansion, first-party provider SDK or adapter, release, push, tag, Stable/1.0 claim, deployment, live-provider support claim, or Phase 15 work. |
+| **14H — External acceptance and checkpoint (complete)** | [ADR 0154](../adr/0154-phase-14-external-model-invocation-acceptance-and-checkpoint.md) adds the root-owned deterministic external harness and closes Phase 14 at checkpoint `05bf8367b56e694a8c388ccb96cdc305cb6e40ae`. | No production expansion, first-party provider SDK or adapter, release, push, tag, Stable/1.0 claim, deployment, live-provider support claim, or Phase 15 runtime behavior. |
 
 ## Dependency order
 
@@ -178,3 +178,9 @@ and the [external acceptance guide](phase-14-external-acceptance.md). The
 root-owned offline harness and exact local checkpoint close Phase 14 without a
 provider SDK, first-party adapter, push, tag, release, live inspection, external
 effect, or Phase 15 behavior.
+
+Phase 15A now accepts documentation architecture for the separate general
+[outbound HTTP and governed network-egress boundary](outbound-http-and-network-egress.md).
+It does not retrofit network authority or transport behavior into Phase 14.
+See [ADR 0155](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md)
+and the [Phase 15 roadmap](phase-15-roadmap.md). Phase 15B remains planned.

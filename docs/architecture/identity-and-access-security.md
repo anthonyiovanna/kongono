@@ -533,3 +533,16 @@ Phase 14H confirms that provider/model labels, plans, results, receipts,
 proposals, inspection, and verifier PASS do not authenticate, admit, authorize,
 grant, invoke, or prove an effect. See [Phase 14 external
 acceptance](phase-14-external-acceptance.md).
+
+## Phase 15A network-authority boundary
+
+[ADR 0155](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md)
+accepts documentation architecture for optional [governed outbound HTTP and
+network egress](outbound-http-and-network-egress.md). Identity, authentication,
+authorization, policy references, a URI, DNS evidence, a TLS certificate, a
+model result, an Agent proposal, or a previous receipt does not grant network
+authority. Applications must supply current authority and policy for each
+possible external effect and retain credentials, endpoint and transport
+selection, and service semantics. Phase 15A changes no Security Context,
+capability grant, Agent, model-invocation, or execution behavior; Phase 15B
+remains planned.

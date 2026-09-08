@@ -5,8 +5,8 @@
 > It revalidates supplied profile/wiring evidence without loading generated PHP
 > and may summarize completed detached runtime evidence without replay. The
 > graph is 75 packages / 289 local edges / acyclic; inventories are 1,358
-> production / 686 package-test / 76 root-test PHP files. Phase 14H remains
-> planned.
+> production / 686 package-test / 80 root-test PHP files. Phase 14 is closed at
+> checkpoint `05bf8367b56e694a8c388ccb96cdc305cb6e40ae`.
 
 The bridge validates one eligible normalized action-suggestion result and one
 trusted application mapping. It emits inert proposal evidence, not an
@@ -972,3 +972,62 @@ offline external harness, and one exact local checkpoint. The graph remains 75
 packages / 289 local edges / acyclic. No provider integration, network,
 credential mechanism, authority widening, release, or Phase 15 behavior is
 added. See [Phase 14 external acceptance](phase-14-external-acceptance.md).
+
+Phase 15A accepts a general [outbound HTTP and governed network-egress
+boundary](outbound-http-and-network-egress.md) beneath future external-service
+adapters. Applications retain intent, current authority, policy, credentials,
+endpoint and transport selection, and service semantics. Planned coordination
+keeps URI, origin, resolution, selected address, attempt, response, and receipt
+distinct and bounded. Phase 15B accepts
+[ADR 0156](../adr/0156-neutral-versioned-network-egress-contract-foundation.md)
+and implements the optional Experimental
+[neutral contract](network-egress-contract-foundation.md). It retains PSR-7
+messages without reading body streams; contract evidence grants no authority.
+Phase 15C accepts [ADR 0157](../adr/0157-deterministic-network-egress-policy-artifact.md)
+and the optional Experimental deterministic
+[policy artifact](network-egress-policy-artifact.md), which builds and
+validates inert offline evidence from one explicit typed source. Phase 15D
+accepts [ADR 0158](../adr/0158-bounded-provider-neutral-network-egress-runtime.md)
+and its optional Experimental [bounded runtime](network-egress-runtime.md). It
+coordinates one attempt using explicit caller-owned ports while binding the
+selected address, budgets, cancellation, transfer evidence, and cleanup. The
+graph is extended by Phase 15E's optional Experimental cURL HTTP/1.1 adapter
+and Phase 15F's optional Experimental exact-current single-profile
+[application workflow](network-egress-application-workflow.md). Phase 15G adds
+the optional Experimental offline
+[inspection leaf](network-egress-inspection-and-evidence.md) over exact supplied
+evidence. It is now 81 packages / 317 local edges / acyclic and inventories are
+1,514 / 768 / 84. No first-party resolver, credential provider, provider
+adapter, live inspection probe, inspection command, public compatibility
+certification exists. Phase 15H adds bounded local external acceptance and
+closes Phase 15 at one exact local checkpoint.
+
+## Phase 15E cURL transport and Phase 15F application workflow status
+
+Phase 15E accepts ADR 0159 and implements the optional Experimental
+`kongono/network-egress-curl` HTTP/1.1 adapter. It binds the canonical origin
+to the single Phase 15D selected address, uses explicit in-memory CA-bundle
+bytes with strict TLS verification, and performs one bounded synchronous
+transfer without proxy, redirect, cookie, netrc, automatic authentication,
+retry, pooling, or PSR-18 control-plane behavior.
+
+Phase 15F accepts ADR 0160 and implements the optional Experimental
+`kongono/network-egress-application` exact-current single-profile workflow.
+It derives canonical profile and generated-wiring evidence from one supplied
+policy source, validates and publishes the wiring without overwrite, loads one
+exact contained generated class, checks required transport capabilities before
+resolution, and delegates one terminal synchronous operation to a fresh Phase
+15D runtime. Authority currentness, resolver, transport, cancellation, and
+clock collaborators remain explicit and caller-owned.
+
+Phase 15G accepts ADR 0161 and implements only the optional Experimental
+`kongono/network-egress-inspection` upper evidence leaf. It revalidates exact
+supplied profile/wiring evidence and can summarize one exactly paired detached
+operation/result without loading generated PHP, networking, authority
+evaluation, recording, replay, repair, certification, or role execution.
+
+The current topology is 81 packages / 317 local edges / acyclic, with PHP
+inventories 1,514 / 768 / 84. Phase 15 is closed. No first-party
+resolver, credential provider, provider adapter, live inspection probe,
+inspection command, public compatibility certification, Stable/1.0 claim, or
+production-readiness claim exists.

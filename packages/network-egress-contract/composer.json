@@ -1,0 +1,24 @@
+{
+  "name": "kongono/network-egress-contract",
+  "description": "Neutral versioned network-egress contracts for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "php": ">=8.5.0 <8.6.0",
+    "psr/http-message": "^2.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\NetworkEgressContract\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\NetworkEgressContract\\Tests\\": "tests/"
+    }
+  }
+}

@@ -1273,3 +1273,70 @@ acyclic local edges. Phase 12G adds `packages/extension-inspection`, depending
 only on API Metadata, Diagnostics, Extension Build, Extension Composition, and
 Extension Contract. Console Application adds the only upper command dependency.
 The current topology is 63 packages / 226 edges; Phase 12H closes the milestone with root-owned external evidence only.
+
+## Phase 15A-15G package boundary
+
+Phase 14 is closed with 75 production packages and 289 acyclic local
+production dependency edges at checkpoint
+`05bf8367b56e694a8c388ccb96cdc305cb6e40ae`. Phase 15A adds documentation
+architecture. Phase 15B adds only the optional Experimental
+`kongono/network-egress-contract` package, with 28 production PHP files and
+16 package-test PHP files. It depends locally only on API Metadata and
+Diagnostics and reuses the external PSR-7 interfaces. Phase 15C adds only
+`kongono/network-egress-policy-build`, with exactly 22 production PHP files and
+12 package-test PHP files. It depends locally only on API Metadata,
+Diagnostics, and Network Egress Contract. Phase 15D adds only
+`kongono/network-egress-runtime`, with exactly 31 production PHP files and 16
+package-test PHP files. It depends locally only on API Metadata, Diagnostics,
+Network Egress Contract, and Network Egress Policy Build, and reuses the
+existing PSR-7 interfaces. The current graph is 81 packages / 317 local edges /
+acyclic and inventories are 1,514 / 768 / 80. The accepted
+[egress architecture](../architecture/outbound-http-and-network-egress.md)
+keeps neutral behavior below explicit application-supplied resolver and
+transport adapters and below service/provider semantics. See
+[ADR 0155](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md),
+[ADR 0156](../adr/0156-neutral-versioned-network-egress-contract-foundation.md),
+and the [Phase 15 roadmap](../architecture/phase-15-roadmap.md). The build
+package is optional, Experimental, deterministic, inert, and offline. It is not
+a resolver, DNS implementation, transport, client, credential provider,
+runtime authorizer, loader, provider adapter, or network runtime. Phase 15D
+adds the separate one-operation runtime but no concrete resolver, transport,
+credential, provider, command, or workflow. Phase 15E adds only the optional
+Experimental `kongono/network-egress-curl` package. Phase 15F adds exactly the
+optional Experimental `kongono/network-egress-application` package, with 29
+production and 13 package-test PHP files and five local inward dependencies.
+Phase 15G adds exactly the optional Experimental
+`kongono/network-egress-inspection` upper evidence leaf, with 22 production
+and six package-test PHP files and nine local inward dependencies. No existing
+production package depends on the leaf. Phase 15H remains Planned.
+
+## Phase 15E cURL transport and Phase 15F application workflow status
+
+Phase 15E accepts ADR 0159 and implements the optional Experimental
+`kongono/network-egress-curl` HTTP/1.1 adapter. It binds the canonical origin
+to the single Phase 15D selected address, uses explicit in-memory CA-bundle
+bytes with strict TLS verification, and performs one bounded synchronous
+transfer without proxy, redirect, cookie, netrc, automatic authentication,
+retry, pooling, or PSR-18 control-plane behavior.
+
+Phase 15F accepts ADR 0160 and implements the optional Experimental
+`kongono/network-egress-application` exact-current single-profile workflow.
+It derives canonical profile and generated-wiring evidence from one supplied
+policy source, validates and publishes the wiring without overwrite, loads one
+exact contained generated class, checks required transport capabilities before
+resolution, and delegates one terminal synchronous operation to a fresh Phase
+15D runtime. Authority currentness, resolver, transport, cancellation, and
+clock collaborators remain explicit and caller-owned.
+
+Phase 15G accepts ADR 0161 and implements the optional Experimental
+`kongono/network-egress-inspection` offline upper evidence leaf. It
+revalidates exact supplied profile/wiring evidence and can summarize one exactly
+paired detached operation/result without generated-code loading, networking,
+authority evaluation, recording, replay, repair, certification, or role
+execution.
+
+The current topology is 81 packages / 317 local edges / acyclic, with PHP
+inventories 1,514 / 768 / 80. Phase 15H remains Planned. No first-party
+resolver, credential provider, provider adapter, live inspection probe,
+inspection command, public compatibility certification, Stable/1.0 claim,
+production-readiness claim, or Phase 15 checkpoint exists.

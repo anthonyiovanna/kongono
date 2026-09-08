@@ -32,7 +32,7 @@ final class AgentApplicationBoundaryTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(75, $manifests);
+        self::assertCount(81, $manifests);
         $edges = 0;
         foreach ($manifests as $path) {
             $candidate = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
@@ -47,7 +47,7 @@ final class AgentApplicationBoundaryTest extends TestCase
                 self::assertArrayNotHasKey('kongono/agent-application', $candidate['require']);
             }
         }
-        self::assertSame(289, $edges);
+        self::assertSame(317, $edges);
 
         foreach (self::phpFiles($package . '/src') as $path) {
             $source = (string) file_get_contents($path);

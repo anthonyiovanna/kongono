@@ -41,13 +41,20 @@ not recording, delivery, persistence, monitoring, repair, or live state.
 
 ## Checkpoint
 
-ADR 0154 accepts one exact local Phase 14 checkpoint. Directives and reports are
+ADR 0154 accepts exact local Phase 14 checkpoint
+`05bf8367b56e694a8c388ccb96cdc305cb6e40ae`. Directives and reports are
 excluded. The checkpoint performs no push, tag, release, provider integration,
-or Phase 15 work. Phase 14A-H are implemented and Phase 14 is closed while the
-framework remains Experimental and pre-1.0.
+or Phase 15 runtime work. Phase 14A-H are implemented and Phase 14 is closed
+while the framework remains Experimental and pre-1.0.
 
 ## Related material
 
 - [ADR 0154](../adr/0154-phase-14-external-model-invocation-acceptance-and-checkpoint.md)
 - [Phase 14 roadmap](phase-14-roadmap.md)
 - [Model-invocation inspection](model-invocation-inspection-and-evidence.md)
+- [ADR 0155: Explicit outbound HTTP and governed network egress](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md)
+- [Phase 15 roadmap](phase-15-roadmap.md)
+
+Phase 15A is documentation architecture only. It accepts a general egress
+foundation beneath future external-service adapters; it adds no provider
+adapter, transport, network authority, or Phase 15B implementation.
