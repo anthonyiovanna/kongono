@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5e651a1c26414edd9bb8b007d84d1393",
+    "content-hash": "baa49410bc0f2f532ba05bd5cbd0c1db",
     "packages": [
         {
             "name": "google/protobuf",
@@ -1404,6 +1404,229 @@
                 }
             },
             "description": "Visibility-safe detached extension-platform inspection and developer-intelligence evidence.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/external-service-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/external-service-application",
+                "reference": "46a909678b7bb9fdfc80d718f59bb0fbef294e32"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/external-service-binding-build": "*",
+                "kongono/external-service-contract": "*",
+                "kongono/external-service-credential-runtime": "*",
+                "kongono/network-egress-application": "*",
+                "kongono/network-egress-contract": "*",
+                "kongono/network-egress-policy-build": "*",
+                "kongono/network-egress-runtime": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-message": "^2.0"
+            },
+            "require-dev": {
+                "kongono/http-message": "*",
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Exact-current one-operation external-service composition for Kongono.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/external-service-binding-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/external-service-binding-build",
+                "reference": "b2cbf1061d7d2ccd6cc945c5fe2ad5998d888e38"
+            },
+            "require": {
+                "ext-hash": "*",
+                "ext-json": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/external-service-contract": "*",
+                "kongono/network-egress-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceBindingBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceBindingBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic secret-free external-service binding artifacts and generated PHP for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/external-service-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/external-service-contract",
+                "reference": "6e7bc56a4efac9bc3a745ac452dfe9f72ef3316c"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/network-egress-contract": "*",
+                "kongono/network-egress-runtime": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral external-service binding and credential-lease contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/external-service-credential-runtime",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/external-service-credential-runtime",
+                "reference": "4db41d5d6ba558df0391bc0b6622e584384e8834"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/external-service-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceCredentialRuntime\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceCredentialRuntime\\Tests\\": "tests/"
+                }
+            },
+            "description": "Operation-scoped credential lease coordination for Kongono external services.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/external-service-inspection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/external-service-inspection",
+                "reference": "79146fb187fb0c979036eb7aa3c8aeacde0f9df6"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-intelligence": "*",
+                "kongono/diagnostics": "*",
+                "kongono/external-service-application": "*",
+                "kongono/external-service-binding-build": "*",
+                "kongono/external-service-contract": "*",
+                "kongono/external-service-credential-runtime": "*",
+                "kongono/network-egress-application": "*",
+                "kongono/network-egress-contract": "*",
+                "kongono/network-egress-policy-build": "*",
+                "kongono/network-egress-runtime": "*",
+                "kongono/observability": "*",
+                "kongono/security-audit": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceInspection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceInspection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Visibility-safe external-service inspection and bounded verification evidence.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/external-service-resolver-system",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/external-service-resolver-system",
+                "reference": "59293188fd4aa3cdd8f0628875adaabc32f79f76"
+            },
+            "require": {
+                "ext-sockets": "*",
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/external-service-contract": "*",
+                "kongono/network-egress-contract": "*",
+                "kongono/network-egress-runtime": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceResolverSystem\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ExternalServiceResolverSystem\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit bounded operating-system resolver adapter for Kongono external-service endpoints.",
             "transport-options": {
                 "relative": true
             }
@@ -7859,6 +8082,12 @@
         "kongono/extension-contract": 20,
         "kongono/extension-host": 20,
         "kongono/extension-inspection": 20,
+        "kongono/external-service-application": 20,
+        "kongono/external-service-binding-build": 20,
+        "kongono/external-service-contract": 20,
+        "kongono/external-service-credential-runtime": 20,
+        "kongono/external-service-inspection": 20,
+        "kongono/external-service-resolver-system": 20,
         "kongono/hantei": 20,
         "kongono/http-message": 20,
         "kongono/http-server": 20,

@@ -58,7 +58,7 @@ final class NetworkEgressPolicyBuildBoundaryTest extends TestCase
         $root = dirname(__DIR__, 4);
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(81, $manifests);
+        self::assertCount(87, $manifests);
         $graph = [];
         $edges = 0;
         foreach ($manifests as $path) {
@@ -73,11 +73,11 @@ final class NetworkEgressPolicyBuildBoundaryTest extends TestCase
                     ++$edges;
                 }
             }
-            if (!in_array($manifest['name'], ['kongono/network-egress-application', 'kongono/network-egress-inspection', 'kongono/network-egress-policy-build', 'kongono/network-egress-runtime'], true)) {
+            if (!in_array($manifest['name'], ['kongono/external-service-application', 'kongono/external-service-inspection', 'kongono/network-egress-application', 'kongono/network-egress-inspection', 'kongono/network-egress-policy-build', 'kongono/network-egress-runtime'], true)) {
                 self::assertArrayNotHasKey('kongono/network-egress-policy-build', $manifest['require']);
             }
         }
-        self::assertSame(317, $edges);
+        self::assertSame(355, $edges);
         $visit = static function (string $name, array $path = []) use (&$visit, $graph): void {
             self::assertArrayNotHasKey($name, $path);
             $path[$name] = true;

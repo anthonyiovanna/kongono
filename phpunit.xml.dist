@@ -55,6 +55,12 @@
             <directory>packages/extension-contract/tests</directory>
             <directory>packages/extension-host/tests</directory>
             <directory>packages/extension-inspection/tests</directory>
+            <directory>packages/external-service-application/tests</directory>
+            <directory>packages/external-service-binding-build/tests</directory>
+            <directory>packages/external-service-contract/tests</directory>
+            <directory>packages/external-service-credential-runtime/tests</directory>
+            <directory>packages/external-service-inspection/tests</directory>
+            <directory>packages/external-service-resolver-system/tests</directory>
             <directory>packages/hantei/tests</directory>
             <directory>packages/http-message/tests</directory>
             <directory>packages/http-server/tests</directory>
@@ -137,6 +143,12 @@
             <directory>packages/extension-contract/src</directory>
             <directory>packages/extension-host/src</directory>
             <directory>packages/extension-inspection/src</directory>
+            <directory>packages/external-service-application/src</directory>
+            <directory>packages/external-service-binding-build/src</directory>
+            <directory>packages/external-service-contract/src</directory>
+            <directory>packages/external-service-credential-runtime/src</directory>
+            <directory>packages/external-service-inspection/src</directory>
+            <directory>packages/external-service-resolver-system/src</directory>
             <directory>packages/hantei/src</directory>
             <directory>packages/http-message/src</directory>
             <directory>packages/http-server/src</directory>

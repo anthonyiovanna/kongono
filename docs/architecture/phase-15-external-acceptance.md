@@ -79,3 +79,19 @@ Experimental and pre-1.0; Phase 16 requires separate authorization.
 - [Outbound HTTP and governed network egress](outbound-http-and-network-egress.md)
 - [Network-egress cURL transport](network-egress-curl-transport.md)
 - [Network-egress inspection and evidence](network-egress-inspection-and-evidence.md)
+
+## Phase 16A handoff
+
+Phase 15A-H remain Accepted and the exact checkpoint is
+`b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Phase 16A separately accepts
+[ADR 0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](phase-16-roadmap.md) as documentation only. Phase
+16B-H are Planned and separately authorized.
+
+No Phase 16 package, resolver implementation, credential provider, provider
+adapter, schema, command, or runtime exists. Service binding evidence,
+credential references and leases, endpoint and address selection, resolution
+evidence, transport, provider semantics, and current authority remain distinct;
+secret material remains application-owned and absent from deterministic
+evidence and developer output.

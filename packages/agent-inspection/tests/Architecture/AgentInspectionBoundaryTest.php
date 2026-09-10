@@ -42,7 +42,7 @@ final class AgentInspectionBoundaryTest extends TestCase
         $root = dirname(__DIR__, 4);
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(81, $manifests);
+        self::assertCount(87, $manifests);
         $names = [];
         $decoded = [];
         foreach ($manifests as $path) {
@@ -61,6 +61,6 @@ final class AgentInspectionBoundaryTest extends TestCase
                 }
             }
         }
-        self::assertSame(317, $edges);
+        self::assertSame(355, $edges);
     }
 }

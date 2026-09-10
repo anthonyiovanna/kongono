@@ -1146,3 +1146,58 @@ inventories 1,514 / 768 / 84. Phase 15 is closed. No first-party
 resolver, credential provider, provider adapter, live inspection probe,
 inspection command, public compatibility certification, Stable/1.0 claim,
 production-readiness claim exists.
+
+## Phase 16A-C external-service binding doctrine
+
+Phase 16A accepts [ADR 0163](adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](architecture/external-service-binding-and-secret-leases.md),
+and the [fixed roadmap](architecture/phase-16-roadmap.md) as documentation
+architecture. Phase 16B accepts
+[ADR 0164](adr/0164-neutral-external-service-binding-and-credential-lease-contracts.md)
+and the optional Experimental `kongono/external-service-contract` package.
+
+Service binding evidence, credential references, operation-scoped credential
+leases, endpoint selection, resolution evidence, selected addresses,
+transport, provider-specific semantics, and current network authority remain
+distinct. Evidence grants nothing; credential access and network access remain
+independent permissions. The 27 production declarations and 15 tests reuse
+Phase 15 origin, capability, resolver, and resolution evidence. Bindings and
+references are secret-free; the one borrowed-consumer material parameter
+cannot prevent copies or promise PHP zeroization. The package supplies ports,
+not implementations, and exposes nondisclosing failures. Phase 16C accepts
+[ADR 0165](adr/0165-deterministic-external-service-binding-artifact-and-generated-php.md)
+and the optional Experimental `kongono/external-service-binding-build` package.
+Canonical artifact and ordinary-PHP bytes are deterministic inert evidence
+from one explicit typed secret-free source. Structural validation reconstructs
+exact bytes; currentness is relative only to one supplied current source.
+Generated PHP is never loaded, and path-safe content-addressed publication is
+atomic, identical-byte idempotent, and no-clobber. Phase 16D accepts
+[ADR 0166](adr/0166-explicit-bounded-system-resolver-adapter.md) and the
+optional Experimental system-resolver leaf. One explicit profile bounds one
+`ext-sockets` lookup; `SOL_TCP`, omitted `ai_family`, complete fail-closed
+validation, Phase 15 classification, and deterministic selected membership are
+evidence only. No connection, network grant, credential access, cache, retry,
+fallback, or DNS truth claim is added. Phase 16E accepts [ADR
+0167](adr/0167-operation-scoped-credential-lease-runtime.md) and an optional
+Experimental runtime coordinating one explicitly supplied source, request,
+consumer, and monotonic clock. It validates exact lease relations, delegates
+borrowed material without receiving it, and retires every acquired lease once.
+It supplies no credential source, network permission, refresh, renewal, retry,
+fallback, or reliable-zeroization guarantee. Phase 16F accepts [ADR
+0168](adr/0168-exact-current-external-service-binding-application.md) and one
+optional Experimental one-use coordinator over an exact-current binding and
+Phase 15 profile. Credential possession and network permission remain
+independent; neither profiles nor results grant authority. Caller code owns the
+request factory and its credential-copy risk. Phase 16G accepts [ADR
+0169](adr/0169-visibility-safe-external-service-inspection-and-bounded-evidence.md)
+and an optional visibility-safe evidence leaf. Inspection revalidates only
+explicit supplied evidence, never retrieves material or performs network work,
+and does not convert digests, Graph facts, cleanup claims, or role-addressed
+views into authority or external truth. Phase 16H accepts [ADR
+0170](adr/0170-phase-16-external-service-acceptance-and-checkpoint.md) and adds
+only a root-owned deterministic local acceptance command plus the exact Phase
+16 checkpoint. Local loopback, numeric resolver, inert lease, and inspection
+evidence grant no authority and prove no public DNS, TLS, credential, provider,
+remote-effect, deployment, or production-readiness truth. Phase 16 is closed;
+Stable/1.0 and Phase 17 remain unauthorized. The current graph is 87 packages /
+355 local production edges / acyclic; PHP inventories are 1,647 / 851 / 88.

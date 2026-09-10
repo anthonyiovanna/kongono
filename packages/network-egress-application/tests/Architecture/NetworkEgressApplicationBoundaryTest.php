@@ -46,6 +46,11 @@ final class NetworkEgressApplicationBoundaryTest extends TestCase
         ], $manifest);
         self::assertCount(29, $this->phpFiles($package . '/src'));
         self::assertCount(13, $this->phpFiles($package . '/tests'));
+        $consumer = json_decode((string) file_get_contents($root . '/packages/external-service-application/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        self::assertIsArray($consumer);
+        $requirements = $consumer['require'] ?? null;
+        self::assertIsArray($requirements);
+        self::assertSame('*', $requirements['kongono/network-egress-application'] ?? null);
 
         $production = implode("\n", array_map(static fn(string $path): string => (string) file_get_contents($path), $this->phpFiles($package . '/src')));
         foreach (['NetworkEgressCurl', 'Psr\\Http\\Client', 'gethostbyname(', 'dns_get_record(', 'fsockopen(', 'curl_exec(', 'getenv('] as $forbidden) {

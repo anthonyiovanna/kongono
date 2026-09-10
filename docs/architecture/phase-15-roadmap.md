@@ -155,3 +155,18 @@ Phase 15H accepts ADR 0162 and adds only the root-owned bounded local external
 acceptance harness and exact local checkpoint. The topology is 81 packages /
 317 local edges / acyclic, with PHP inventories 1,514 / 768 / 84. Phase 15 is
 closed; Phase 16 requires separate authority.
+
+## Phase 16A handoff
+
+Phase 15A-H remain Accepted and Phase 15 is closed at commit
+`b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Phase 16A separately accepts
+[ADR 0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](phase-16-roadmap.md) as documentation only. Phase
+16B-H remain Planned and separately authorized.
+
+The Phase 16 architecture keeps service binding, credential reference and
+lease, endpoint selection, resolution evidence, selected address, transport,
+provider semantics, and current network authority distinct. It preserves every
+Phase 15 authority and selected-address rule. No Phase 16 package, schema,
+resolver, credential provider, provider adapter, command, or runtime exists.

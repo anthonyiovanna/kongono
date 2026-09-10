@@ -101,14 +101,21 @@ cleanup. The fake is root test evidence, not a provider integration, and no
 retry, fallback, account, credentials, or network is added. See [Phase 14
 external acceptance](phase-14-external-acceptance.md).
 
-## Relationship to Phase 15 egress
+## Relationship to Phase 15 egress and Phase 16 binding
 
 Phase 14 is closed at checkpoint
-`05bf8367b56e694a8c388ccb96cdc305cb6e40ae`. Phase 15A accepts only the
-documentation architecture for a separate, general [outbound HTTP and governed
-network-egress boundary](outbound-http-and-network-egress.md). A future provider
-adapter may depend on explicit egress capabilities, but invocation plans,
-results, action suggestions, receipts, and adapter labels grant no network
-authority. Applications retain credentials, endpoint and transport selection,
-current policy and authority, and provider semantics. No provider adapter,
-network transport, or Phase 15B implementation exists.
+`05bf8367b56e694a8c388ccb96cdc305cb6e40ae`. Phase 15A-H accept the
+separate general [outbound HTTP and governed network-egress
+boundary](outbound-http-and-network-egress.md), and Phase 15 is closed at
+commit `b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Invocation plans, results,
+action suggestions, receipts, and adapter labels grant no network authority.
+
+Phase 16A accepts [ADR 0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](phase-16-roadmap.md) as documentation only. Models
+cannot choose or authorize service bindings, credential references or leases,
+endpoints, resolution evidence, selected addresses, transport, or provider
+semantics. Secrets remain application-owned and absent from deterministic
+evidence and developer output. Phase 16B-H are Planned; no resolver,
+credential provider, provider adapter, Phase 16 package, schema, command, or
+runtime exists.

@@ -22,7 +22,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertIsArray($root);
         self::assertIsArray($root['scripts']);
         self::assertIsArray($root['scripts']['validate:packages']);
-        self::assertCount(81, $root['scripts']['validate:packages']);
+        self::assertCount(87, $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/agent-admission validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/agent-application validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/agent-declaration-build validate --no-check-publish', $root['scripts']['validate:packages']);
@@ -57,6 +57,12 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertContains('composer --working-dir=packages/extension-composition validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/extension-host validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/extension-inspection validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertSame(1, count(array_keys($root['scripts']['validate:packages'], 'composer --working-dir=packages/external-service-application validate --no-check-publish', true)));
+        self::assertSame(1, count(array_keys($root['scripts']['validate:packages'], 'composer --working-dir=packages/external-service-binding-build validate --no-check-publish', true)));
+        self::assertSame(1, count(array_keys($root['scripts']['validate:packages'], 'composer --working-dir=packages/external-service-contract validate --no-check-publish', true)));
+        self::assertSame(1, count(array_keys($root['scripts']['validate:packages'], 'composer --working-dir=packages/external-service-credential-runtime validate --no-check-publish', true)));
+        self::assertSame(1, count(array_keys($root['scripts']['validate:packages'], 'composer --working-dir=packages/external-service-inspection validate --no-check-publish', true)));
+        self::assertSame(1, count(array_keys($root['scripts']['validate:packages'], 'composer --working-dir=packages/external-service-resolver-system validate --no-check-publish', true)));
         self::assertContains('composer --working-dir=packages/identity-access validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/metrics validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/model-invocation-agent-bridge validate --no-check-publish', $root['scripts']['validate:packages']);
@@ -105,6 +111,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertSame('@php tests/External/AgentPrincipal/run.php', $root['scripts']['acceptance:phase13']);
         self::assertSame('@php tests/External/ModelInvocation/run.php', $root['scripts']['acceptance:phase14']);
         self::assertSame('@php tests/External/NetworkEgress/run.php', $root['scripts']['acceptance:phase15']);
+        self::assertSame('@php tests/External/ExternalService/run.php', $root['scripts']['acceptance:phase16']);
 
         $resource = json_decode(
             (string) file_get_contents(dirname(__DIR__, 3) . '/resources/framework-quality-v1.json'),
@@ -124,6 +131,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertSame($root['scripts']['acceptance:phase13'], $resource['composer_scripts']['acceptance:phase13']);
         self::assertSame($root['scripts']['acceptance:phase14'], $resource['composer_scripts']['acceptance:phase14']);
         self::assertSame($root['scripts']['acceptance:phase15'], $resource['composer_scripts']['acceptance:phase15']);
+        self::assertSame($root['scripts']['acceptance:phase16'], $resource['composer_scripts']['acceptance:phase16']);
     }
 
     public function testUnknownProfileIsRejected(): void

@@ -170,3 +170,18 @@ Phase 14H externally proves exact-current publication, explicit trusted loading,
 one matching caller-supplied adapter, one terminal operation, and retirement.
 There is still no registry, default, discovery, fallback, retained session, or
 background work. See [Phase 14 external acceptance](phase-14-external-acceptance.md).
+
+## Relationship to Phase 16 service binding
+
+Phase 15A-H remain Accepted and Phase 15 is closed at commit
+`b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Phase 16A accepts [ADR
+0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](phase-16-roadmap.md) as documentation only.
+
+Model wiring, provider labels, plans, results, and receipts cannot choose or
+authorize a binding, credential reference or lease, endpoint, resolution
+evidence, selected address, transport, provider adapter, or current network
+authority. Secrets stay application-owned and out of deterministic evidence
+and developer output. Phase 16B-H are Planned; no Phase 16 package, resolver,
+credential provider, provider adapter, schema, command, or runtime exists.

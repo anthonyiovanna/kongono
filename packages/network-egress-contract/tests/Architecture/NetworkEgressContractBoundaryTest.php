@@ -44,13 +44,13 @@ final class NetworkEgressContractBoundaryTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(81, $manifests);
+        self::assertCount(87, $manifests);
         foreach ($manifests as $path) {
             $candidate = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
             self::assertIsArray($candidate);
             self::assertIsString($candidate['name']);
             self::assertIsArray($candidate['require']);
-            if (!in_array($candidate['name'], ['kongono/network-egress-application', 'kongono/network-egress-contract', 'kongono/network-egress-curl', 'kongono/network-egress-inspection', 'kongono/network-egress-policy-build', 'kongono/network-egress-runtime'], true)) {
+            if (!in_array($candidate['name'], ['kongono/external-service-application', 'kongono/external-service-binding-build', 'kongono/external-service-contract', 'kongono/external-service-inspection', 'kongono/external-service-resolver-system', 'kongono/network-egress-application', 'kongono/network-egress-contract', 'kongono/network-egress-curl', 'kongono/network-egress-inspection', 'kongono/network-egress-policy-build', 'kongono/network-egress-runtime'], true)) {
                 self::assertArrayNotHasKey('kongono/network-egress-contract', $candidate['require']);
             }
         }

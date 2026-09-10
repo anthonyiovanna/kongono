@@ -1308,7 +1308,8 @@ production and 13 package-test PHP files and five local inward dependencies.
 Phase 15G adds exactly the optional Experimental
 `kongono/network-egress-inspection` upper evidence leaf, with 22 production
 and six package-test PHP files and nine local inward dependencies. No existing
-production package depends on the leaf. Phase 15H remains Planned.
+production package depends on the leaf. Phase 15H adds no package; it accepts
+only the root-owned external harness and exact local checkpoint.
 
 ## Phase 15E cURL transport and Phase 15F application workflow status
 
@@ -1336,7 +1337,62 @@ authority evaluation, recording, replay, repair, certification, or role
 execution.
 
 The current topology is 81 packages / 317 local edges / acyclic, with PHP
-inventories 1,514 / 768 / 80. Phase 15H remains Planned. No first-party
+inventories 1,514 / 768 / 84. Phase 15A-H are Accepted and Phase 15 is closed
+at commit `b4cb57ffa01eea130a693daee0be605ae7f0dda5`. No first-party
 resolver, credential provider, provider adapter, live inspection probe,
 inspection command, public compatibility certification, Stable/1.0 claim,
-production-readiness claim, or Phase 15 checkpoint exists.
+or production-readiness claim exists.
+
+## Phase 16A-C package direction
+
+Phase 16A accepts [ADR 0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](../architecture/external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](../architecture/phase-16-roadmap.md). Phase 16B
+accepts [ADR 0164](../adr/0164-neutral-external-service-binding-and-credential-lease-contracts.md)
+and adds exactly `packages/external-service-contract`: 27 production and 15
+test PHP files.
+
+The package depends inward only on PHP, API Metadata, Diagnostics, Network
+Egress Contract, and Network Egress Runtime. No existing production package
+depends on it. It reuses Phase 15 origin, capability, resolver, and resolution
+evidence and provides no concrete resolver, credential source, lease, provider,
+artifact, runtime, application, command, or network behavior. Phase 16C accepts
+[ADR 0165](../adr/0165-deterministic-external-service-binding-artifact-and-generated-php.md)
+and adds exactly `packages/external-service-binding-build`: 27 production and
+15 test PHP files. Its four local production dependencies are API Metadata,
+Diagnostics, External Service Contract, and Network Egress Contract. It builds
+and validates only inert secret-free artifact and ordinary-PHP bytes and
+publishes each independently without loading generated PHP. Phase 16D accepts
+[ADR 0166](../adr/0166-explicit-bounded-system-resolver-adapter.md) and adds
+exactly `packages/external-service-resolver-system`: 17 production and 13 test
+PHP files. Its five local production dependencies are API Metadata,
+Diagnostics, External Service Contract, Network Egress Contract, and Network
+Egress Runtime; it additionally requires PHP 8.5 and `ext-sockets`. It is an
+optional leaf and no existing package depends on it. One explicit profile and
+one system lookup produce bounded deterministic Phase 15 resolution evidence
+without connection, credential, cache, retry, fallback, provider, command, or
+runtime-orchestration behavior. Phase 16E accepts [ADR
+0167](../adr/0167-operation-scoped-credential-lease-runtime.md) and adds exactly
+`packages/external-service-credential-runtime`: 20 production and 16 test PHP
+files plus its manifest and README. Its three local production edges point only
+to API metadata, diagnostics, and the neutral external-service contract.
+Applications without external credentials do not install it. Phase 16F accepts
+[ADR 0168](../adr/0168-exact-current-external-service-binding-application.md)
+and adds exactly `packages/external-service-application`: 20 production and 18
+test PHP files plus its manifest and README. Its nine local production edges
+point to API metadata, diagnostics, the Phase 16 binding/contract/credential
+packages, and the Phase 15 application/contract/policy/runtime packages; PSR-7
+is its sole non-PHP external production contract. Applications without
+external-service access do not install it. Phase 16G accepts [ADR
+0169](../adr/0169-visibility-safe-external-service-inspection-and-bounded-evidence.md)
+and adds exactly `packages/external-service-inspection`: 22 production and six
+test PHP files plus its manifest and README. Its 13 local production edges point
+only to the explicit Phase 16/15 evidence packages plus API metadata, Graph
+intelligence, diagnostics, observability, and security audit. It is an optional
+upper evidence leaf. Phase 16H adds no package; it adds four root-test PHP files
+under `tests/External/ExternalService/`, acceptance documentation, and one
+explicit root Composer script. Phase 16 is closed at one exact local checkpoint.
+Provider adapters, Stable/1.0, production readiness, and Phase 17 remain
+unauthorized. Current topology is 87 packages / 355 local production edges /
+acyclic; PHP inventories are 1,647 / 851 / 88. See [ADR
+0170](../adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).

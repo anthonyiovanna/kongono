@@ -511,11 +511,17 @@ Phase 14A-H are implemented and Phase 14 is closed. The external harness uses
 one explicit offline fake adapter as test evidence only; it adds no provider
 integration, credential mechanism, network authority, or external effect.
 
-Phase 15A separately accepts the general [outbound HTTP and governed
-network-egress boundary](outbound-http-and-network-egress.md) beneath future
-provider adapters. Model requests, results, suggested actions, plans, and
-receipts cannot grant egress authority. Applications retain provider semantics,
-current network authority, policy, credentials, endpoint and transport
-selection. See [ADR 0155](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md)
-and the [Phase 15 roadmap](phase-15-roadmap.md). No model-provider adapter or
-Phase 15B implementation exists.
+Phase 15A-H accept the general [outbound HTTP and governed network-egress
+boundary](outbound-http-and-network-egress.md) beneath future provider
+adapters, and Phase 15 is closed at commit
+`b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Model requests, results,
+suggested actions, plans, and receipts cannot grant egress authority.
+
+Phase 16A accepts [ADR 0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](phase-16-roadmap.md) as documentation only. A model
+cannot choose a credential reference or lease, endpoint, resolution result,
+selected address, transport, provider adapter, or current authority. Secrets
+remain application-owned and absent from deterministic evidence and developer
+output. Phase 16B-H are Planned; no resolver, credential provider, provider
+adapter, Phase 16 package, schema, command, or runtime exists.

@@ -578,3 +578,38 @@ inventories 1,514 / 768 / 84. Phase 15 is closed. No first-party
 resolver, credential provider, provider adapter, live inspection probe,
 inspection command, public compatibility certification, Stable/1.0 claim,
 production-readiness claim exists.
+
+## Phase 16A external-service binding documentation
+
+Phase 16A accepts [ADR 0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [developer guide](../architecture/external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](../architecture/phase-16-roadmap.md) as documentation
+architecture. Phase 15A-H remain Accepted and Phase 15 is closed at commit
+`b4cb57ffa01eea130a693daee0be605ae7f0dda5`; Phase 16B-H are Planned and
+separately authorized.
+
+Binding evidence, credential references and operation leases, endpoint
+selection, resolution evidence, selected addresses, transport, provider
+semantics, and current network authority stay separate. Credential access and
+network access are independent. Secrets remain application-owned and excluded
+from deterministic evidence and developer output. No Phase 16 package, PHP
+API, schema, resolver implementation, credential provider, provider adapter,
+command, or runtime exists.
+
+## Phase 16B-16H external-service implementation and closure
+
+Phase 16B-G add the separately accepted optional Experimental contract,
+deterministic binding build, system resolver, credential runtime, exact-current
+application, and inspection packages described by ADRs 0164 through 0169.
+Phase 16H accepts [ADR
+0170](../adr/0170-phase-16-external-service-acceptance-and-checkpoint.md), adds
+the root-owned local external-process proof, and closes Phase 16 at one exact
+local checkpoint. Run it explicitly with `composer acceptance:phase16`; it is
+not part of canonical quality.
+
+The closed topology is 87 packages / 355 local production edges / acyclic, and
+PHP inventories are 1,647 production / 851 package-test / 88 root-test. The
+local proof uses no real credential, provider adapter or SDK, ambient
+production DNS, public endpoint, or non-loopback effect and makes no
+compatibility, deployment, release, Stable/1.0, or production-readiness claim.
+Phase 17 has not begun.

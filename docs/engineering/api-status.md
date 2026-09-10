@@ -1,5 +1,56 @@
 # API Status
 
+Phase 16H adds no production declaration and changes no API status. It accepts
+the root-owned local external-service acceptance harness and closes Phase 16 at
+one exact local checkpoint. The graph remains 87 packages / 355 local
+production edges / acyclic; PHP inventories are 1,647 / 851 / 88. No
+declaration is promoted to Stable/1.0, and Phase 17 has not begun. See [ADR
+0170](../adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).
+
+Phase 16G adds 22 `kongono/external-service-inspection` production
+declarations. The diagnostic enum, canonical JSON helper, and abstract base
+exception are Internal; the remaining 19 declarations are Experimental. No
+declaration is Public, Stable, or Deprecated. These statuses grant no
+credential access, network access, authority, external truth, replay safety,
+erasure proof, or certification. See [ADR
+0169](../adr/0169-visibility-safe-external-service-inspection-and-bounded-evidence.md).
+
+Phase 16F adds 20 `kongono/external-service-application` production
+declarations. `ExceptionInterface` is the sole Public declaration. The six
+helpers under `Internal` are Internal; the diagnostic, abstract and concrete
+exceptions, profile values/factory, request-factory port, input/result values,
+application, and lifecycle enum are Experimental. Nothing is Stable or
+Deprecated. These statuses grant neither credential nor network authority.
+The current graph is 87 packages / 355 local production edges / acyclic; PHP
+inventories are 1,647 / 851 / 88. See [ADR
+0168](../adr/0168-exact-current-external-service-binding-application.md).
+
+Phase 16E adds 20 `kongono/external-service-credential-runtime` production
+declarations. `ExceptionInterface` is the sole Public declaration. The clock,
+request, result, lifecycle/outcome/failure values, runtime, and four concrete
+exceptions are Experimental. The diagnostic, abstract exception, lease guard,
+budget meter, lifecycle tracker, result factory, and failure composer are
+Internal. Nothing is Stable or Deprecated, and API status grants neither
+credential nor network authority. Phase 17 remains unauthorized.
+See [ADR
+0167](../adr/0167-operation-scoped-credential-lease-runtime.md).
+
+Phase 16C adds 27 `kongono/external-service-binding-build` production
+declarations. `ExceptionInterface` is the only Public declaration. Source,
+artifact, generated-PHP, generator, validator, publisher, version, and concrete
+exception declarations are Experimental. The diagnostic enum, abstract
+exception, codecs, canonical JSON and path helpers, emitter, and implementation
+identity helper are Internal. No Stable or Deprecated declaration is added.
+These statuses describe compatibility, not credential or network authority.
+In that Phase 16C state, Phase 16D-H and Phase 17 remained unauthorized. See [ADR 0165](../adr/0165-deterministic-external-service-binding-artifact-and-generated-php.md).
+
+Phase 16B adds 27 `kongono/external-service-contract` production declarations.
+`ExceptionInterface` is Public only as the exception-family marker. The
+diagnostic enum, abstract package exception, and `ContractGuard` are Internal;
+all other declarations are Experimental. The package contains no Stable or
+Deprecated declaration. These statuses describe compatibility, not credential
+or network authority. In that Phase 16B state, Phase 16C-H and Phase 17 remained unauthorized.
+
 Phase 14G adds 22 `kongono/model-invocation-inspection` production
 declarations. `ExceptionInterface` is Public. The inspection request/result,
 inspector, bounded evidence values and projectors, developer-role value,

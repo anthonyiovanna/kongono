@@ -1,0 +1,34 @@
+{
+  "name": "kongono/external-service-inspection",
+  "description": "Visibility-safe external-service inspection and bounded verification evidence.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/api-metadata": "*",
+    "kongono/application-graph-intelligence": "*",
+    "kongono/diagnostics": "*",
+    "kongono/external-service-application": "*",
+    "kongono/external-service-binding-build": "*",
+    "kongono/external-service-contract": "*",
+    "kongono/external-service-credential-runtime": "*",
+    "kongono/network-egress-application": "*",
+    "kongono/network-egress-contract": "*",
+    "kongono/network-egress-policy-build": "*",
+    "kongono/network-egress-runtime": "*",
+    "kongono/observability": "*",
+    "kongono/security-audit": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\ExternalServiceInspection\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\ExternalServiceInspection\\Tests\\": "tests/"
+    }
+  }
+}

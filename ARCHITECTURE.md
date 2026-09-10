@@ -1280,3 +1280,61 @@ inventories 1,514 / 768 / 84. Phase 15A-H are Accepted and Phase 15 is closed.
 No first-party resolver, credential provider, provider adapter, live
 inspection probe, inspection command, public compatibility certification,
 Stable/1.0 claim, or production-readiness claim exists.
+
+## Phase 16A-C external-service binding architecture
+
+Phase 16A accepts [ADR 0163](docs/adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [architecture guide](docs/architecture/external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](docs/architecture/phase-16-roadmap.md). Phase 16B
+accepts [ADR 0164](docs/adr/0164-neutral-external-service-binding-and-credential-lease-contracts.md)
+and implements the optional Experimental `kongono/external-service-contract`
+boundary above Phase 15 and below future service/provider adapters. Its 27
+production declarations and 15 tests depend only on PHP, API Metadata,
+Diagnostics, Network Egress Contract, and Network Egress Runtime.
+
+Secret-free service binding evidence, endpoint selection, one opaque
+credential reference, resolution evidence, deterministic selected-address
+binding, transport, an operation-scoped credential lease, provider-specific
+semantics, and current network authority remain distinct. Secrets are
+application-owned and absent from bindings and credential references. The
+borrowed consumer is the only secret-bearing signature; it cannot prevent
+caller copies or promise PHP memory zeroization. The package supplies ports,
+not implementations, and its diagnostics and exceptions are nondisclosing.
+Phase 16C accepts [ADR 0165](docs/adr/0165-deterministic-external-service-binding-artifact-and-generated-php.md)
+and adds the optional Experimental `kongono/external-service-binding-build`
+package. One explicit typed secret-free source produces canonical JSON and
+deterministic ordinary PHP. Validation is structural or caller-relative to one
+explicit current source; generated PHP is never loaded. Independent publishers
+are path-safe, content-addressed, atomic, idempotent for identical valid bytes,
+and no-clobber. Evidence and digests grant neither credential nor network
+authority. Phase 16D accepts [ADR 0166](docs/adr/0166-explicit-bounded-system-resolver-adapter.md)
+and adds the optional Experimental `kongono/external-service-resolver-system`
+leaf. One explicit profile bounds one `ext-sockets` lookup; complete candidate
+validation, Phase 15 classification, deterministic family/binary ordering, and
+one selected member produce evidence only. The adapter uses `SOL_TCP`, omits
+the `ai_family` hint for the fixed unspecified-family PHP-binding policy, and
+provides no connection, network grant, credential behavior, cache, retry,
+fallback, or DNS authenticity/TTL/deadline claim. Phase 16E accepts [ADR
+0167](docs/adr/0167-operation-scoped-credential-lease-runtime.md) and adds the
+optional Experimental `kongono/external-service-credential-runtime`. One
+explicit source, secret-free request, consumer, and monotonic clock coordinate
+one synchronous lease lifecycle without exposing material, supplying a source,
+or granting network authority. Phase 16F accepts [ADR
+0168](docs/adr/0168-exact-current-external-service-binding-application.md) and
+the optional Experimental `kongono/external-service-application`. It validates
+one exact-current binding/profile pair and composes explicit credential,
+resolver, transport, authority, cancellation, and clock collaborators for one
+terminal operation. Provider semantics and all effect-capable implementations
+remain caller-owned. Phase 16G accepts [ADR
+0169](docs/adr/0169-visibility-safe-external-service-inspection-and-bounded-evidence.md)
+and the optional Experimental `kongono/external-service-inspection` upper
+evidence leaf. One explicit exact-current profile and optional matching detached
+completed result produce bounded visibility-safe evidence without credential or
+network access, generated-code loading, replay, recording, repair, or
+certification. Phase 16H accepts [ADR
+0170](docs/adr/0170-phase-16-external-service-acceptance-and-checkpoint.md),
+adds the root-owned local external-service acceptance harness, and closes
+Phase 16 at one exact local checkpoint. Phase 17 remains unauthorized. The
+current graph is 87 packages / 355 local production edges / acyclic; PHP
+inventories are 1,647 / 851 / 88. `composer acceptance:phase16` is explicit
+local acceptance and is not part of canonical quality.

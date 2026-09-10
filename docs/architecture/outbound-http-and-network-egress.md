@@ -329,3 +329,62 @@ inventories 1,514 / 768 / 84. Phase 15H is Accepted and Phase 15 is closed. No f
 resolver, credential provider, provider adapter, live inspection probe,
 inspection command, public compatibility certification, Stable/1.0 claim,
 production-readiness claim exists.
+
+## Phase 16A-C relationship
+
+Phase 16A accepts the optional documentation layer described by [ADR
+0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](phase-16-roadmap.md). Phase 15A-H remain Accepted
+and Phase 15 is closed at commit
+`b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Phase 16B accepts
+[ADR 0164](../adr/0164-neutral-external-service-binding-and-credential-lease-contracts.md)
+and the optional Experimental `kongono/external-service-contract` package.
+
+Phase 16's service binding, endpoint selection, credential reference,
+resolution evidence, selected address, credential lease, provider adapter,
+and current authority do not replace the Phase 15 policy gates or transport
+boundary. Credential access and network access remain independent. Secrets
+stay application-owned and out of binding/reference evidence and developer
+output. The 27-declaration package reuses Phase 15 origin, capability,
+resolver, and resolution evidence and provides ports only. Its borrowed
+consumer signature cannot prevent copies or promise PHP zeroization. Phase
+16C accepts [ADR 0165](../adr/0165-deterministic-external-service-binding-artifact-and-generated-php.md)
+and the optional Experimental `kongono/external-service-binding-build` package.
+One explicit typed secret-free source produces one canonical JSON artifact and
+deterministic ordinary PHP. Structural validation or validation against one
+explicit current source yields only inert evidence. Generated PHP is never
+loaded or executed. Publication is explicit, path-safe, content-addressed,
+atomic, idempotent for identical bytes, and no-clobber. Credential access and
+network authority remain independent and absent. Phase 16D accepts
+[ADR 0166](../adr/0166-explicit-bounded-system-resolver-adapter.md) and the
+optional Experimental `kongono/external-service-resolver-system` leaf. One
+explicit profile bounds one `ext-sockets` lookup using `SOL_TCP` and no
+`ai_family` hint. Complete fail-closed validation, Phase 15 conservative
+classification, canonical binary ordering, and exact selected membership
+produce evidence for the existing exact-address transport boundary. The leaf
+does not connect, grant network authority, access credentials, cache, retry,
+fallback, or claim TTL, DNSSEC, resolver provenance, or a portable deadline.
+Phase 16E accepts [ADR
+0167](../adr/0167-operation-scoped-credential-lease-runtime.md). Its optional
+runtime coordinates one caller-selected credential source and lease lifecycle
+without receiving material or granting network authority; credential and
+network permissions remain independent. Phase 16F accepts [ADR
+0168](../adr/0168-exact-current-external-service-binding-application.md). The
+optional application package validates one exact-current binding and egress
+profile before composing one explicit resolver, transport, credential source,
+authority-currentness port, cancellation port, and pair of clocks for one
+operation. It adds no transport, resolver, provider, retry, fallback, command,
+or network bypass. Phase 16G accepts [ADR
+0169](../adr/0169-visibility-safe-external-service-inspection-and-bounded-evidence.md)
+and adds only an offline visibility-safe evidence leaf over one exact supplied
+profile and optional detached completed result. It cannot retrieve credentials,
+resolve, connect, load generated PHP, or establish live network/provider truth.
+Phase 16H accepts [ADR
+0170](../adr/0170-phase-16-external-service-acceptance-and-checkpoint.md), adds
+only explicit root-owned local acceptance over a selected loopback address and
+an inert credential lease, and closes Phase 16 at one exact local checkpoint.
+The proof does not establish public DNS, TLS, credential, provider, remote-
+effect, deployment, or production-readiness truth. Stable/1.0 and Phase 17
+remain unauthorized. Current topology is 87 packages / 355 local production
+edges / acyclic; PHP inventories are 1,647 / 851 / 88.

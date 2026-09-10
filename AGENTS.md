@@ -1,5 +1,84 @@
 # Kongono AI-Agent Operating Policy
 
+## Phase 16 explicit external-service binding architecture policy
+
+Phase 16A accepts ADR 0163 and the fixed documentation architecture for an
+optional external-service binding layer above the accepted Phase 15 egress
+platform and below future service/provider adapters. Secret-free service
+binding evidence, resolution evidence bound to one selected address, and an
+operation-scoped credential lease remain distinct. Credential access and
+network access are independent current permissions; neither evidence nor
+possession grants the other. Secrets remain application-owned and never enter
+deterministic artifacts, generated PHP, Graph facts, diagnostics, logs,
+receipts, inspection, or developer-tool output. Ordinary PHP strings carry no
+reliable memory-zeroization claim.
+
+Phase 16A is documentation-only. Phase 16B accepts ADR 0164 and implements
+only the optional Experimental `kongono/external-service-contract` neutral
+value and port package. Its 27 production declarations and 15 package tests
+reuse Phase 15 origin, capability, resolver, and resolution evidence. The
+borrowed material consumer is the sole secret-bearing signature; it cannot
+prevent caller copies or promise PHP memory zeroization. The package supplies
+no resolver, credential source, lease implementation, provider adapter,
+runtime orchestration, command, or network effect. Phase 16C accepts ADR 0165
+and adds only the optional Experimental
+`kongono/external-service-binding-build` package. One explicit secret-free
+typed source deterministically produces canonical JSON artifact bytes and
+ordinary PHP bytes. Structural validation reconstructs and re-emits evidence;
+currentness is relative only to one explicit current source. Both independent
+publishers are path-safe, content-addressed, atomic, idempotent for identical
+valid bytes, and no-clobber. Generated PHP is never loaded or executed.
+Artifacts, generated PHP, credential references, provenance, and digests grant
+neither credential access nor network authority. Phase 15A-H
+remain Accepted and Phase 15 is closed at commit
+`b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Phase 16D accepts ADR 0166 and
+adds only the optional Experimental `kongono/external-service-resolver-system`
+leaf. It performs one bounded `ext-sockets` system lookup, validates every
+candidate, reuses Phase 15 classification, and returns deterministically
+ordered selected-address evidence without connecting, authorizing network
+access, accessing credentials, caching, retrying, or claiming DNS truth.
+`SOL_TCP` is required and `ai_family` is omitted to express the fixed
+unspecified-family PHP-binding policy. Phase 16E accepts ADR 0167 and adds only
+the optional Experimental `kongono/external-service-credential-runtime`
+package. One caller-selected source, secret-free request, consumer, and
+monotonic clock coordinate at most one acquisition and material-use attempt
+with exactly one retirement attempt for every acquired lease. The runtime
+never receives material, supplies no credential source or network behavior,
+and makes no reliable-zeroization or preemptive-deadline claim. Phase 16F
+accepts ADR 0168 and adds only the optional Experimental
+`kongono/external-service-application` package. It composes one exact-current
+binding, one already loaded exact-current Phase 15 application, and explicit
+credential, resolver, transport, authority, cancellation, and clock
+collaborators for one terminal operation. Request construction occurs once
+inside borrowed material access and every acquired lease is retired through
+Phase 16E. It supplies no provider, source, resolver, transport, discovery,
+retry, command, inspection, or reliable-zeroization claim. Phase 16G accepts
+ADR 0169 and adds only the optional Experimental
+`kongono/external-service-inspection` evidence leaf. It revalidates one exact
+supplied Phase 16F profile and may summarize one matching detached completed
+result without loading generated PHP, reading credential material or message
+bodies, resolving, networking, replaying, recording, repairing, or certifying.
+Its Graph, Observability, Security Audit, and role-addressed views contain only
+Protected digests, closed tokens, and Safe bounded aggregates. Phase 16H accepts
+ADR 0170, adds only the root-owned deterministic local external-service
+acceptance harness and exact Phase 16 checkpoint, and closes Phase 16. Phase 17
+does not begin automatically. The
+graph is exactly 87 acyclic production packages and 355 local production
+edges; PHP inventories are 1,647 production, 851 package-test, and 88 root-test
+files. See [ADR
+0163](docs/adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [Phase 16B decision](docs/adr/0164-neutral-external-service-binding-and-credential-lease-contracts.md),
+the [Phase 16C decision](docs/adr/0165-deterministic-external-service-binding-artifact-and-generated-php.md),
+the [Phase 16D decision](docs/adr/0166-explicit-bounded-system-resolver-adapter.md),
+the [Phase 16E decision](docs/adr/0167-operation-scoped-credential-lease-runtime.md),
+the [Phase 16F decision](docs/adr/0168-exact-current-external-service-binding-application.md),
+the [Phase 16G decision](docs/adr/0169-visibility-safe-external-service-inspection-and-bounded-evidence.md),
+the [Phase 16H decision](docs/adr/0170-phase-16-external-service-acceptance-and-checkpoint.md),
+the [external-service binding guide](docs/architecture/external-service-binding-and-secret-leases.md),
+the [external-service inspection guide](docs/architecture/external-service-inspection-and-evidence.md),
+the [Phase 16 external acceptance guide](docs/architecture/phase-16-external-acceptance.md),
+and the [Phase 16 roadmap](docs/architecture/phase-16-roadmap.md).
+
 ## Phase 15 governed network-egress contract policy
 
 Phase 15A accepts ADR 0155 and the fixed general outbound HTTP and governed

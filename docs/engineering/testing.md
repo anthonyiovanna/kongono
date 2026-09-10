@@ -964,3 +964,66 @@ inventories 1,514 / 768 / 84. Phase 15 is closed. No first-party
 resolver, credential provider, provider adapter, live inspection probe,
 inspection command, public compatibility certification, Stable/1.0 claim,
 production-readiness claim exists.
+
+## Phase 16A-C testing boundary
+
+Phase 16A accepts [ADR 0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](../architecture/external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](../architecture/phase-16-roadmap.md). Phase 16B
+accepts [ADR 0164](../adr/0164-neutral-external-service-binding-and-credential-lease-contracts.md)
+and adds 15 package-test PHP files for 27 production declarations.
+
+The suite proves exact identities, endpoint/reference adjacent bounds, binding
+shape, lease-port signatures, the sole `SensitiveParameter`, Phase 15 resolver
+compatibility, lifecycle/result coherence, nondisclosure, statuses,
+dependencies, inventories, and prohibited-surface absence. Fixtures use inert
+placeholders and reserved `.test` names; no real credential, public endpoint,
+production DNS, resolver/source implementation, provider claim, network work,
+artifact, runtime, command, or later-phase behavior exists. Phase 16C accepts
+[ADR 0165](../adr/0165-deterministic-external-service-binding-artifact-and-generated-php.md)
+and adds 15 package-test PHP files for 27 build-package production declarations.
+They prove exact source, canonical artifact and generated-PHP framing,
+determinism, semantic sensitivity, structural/current/stale distinctions,
+inert validation without execution, bounded nondisclosure, and independent
+path-safe atomic no-clobber publication. Synthetic `.test` inputs contain no
+secret material. Phase 16D accepts
+[ADR 0166](../adr/0166-explicit-bounded-system-resolver-adapter.md) and adds 13
+package-test PHP files for 17 system-resolver declarations. Hostname and
+adversarial behavior uses a package-test-only fake lookup. Native tests use
+only canonical numeric IPv4/IPv6 loopback literals with `AI_NUMERICHOST`, never
+public DNS. Tests prove the exact three-key `SOL_TCP` hints with omitted
+`ai_family`, one call, count-before-explain bounds, complete malformed-result
+rejection, duplicate collapse, deterministic family/binary ordering, selected
+membership, Phase 15 classifications, fresh sequential calls, four closed
+failure reasons, unchanged `Error` propagation, nondisclosure, and the absence
+of connection/cache/retry/fallback behavior. Phase 16E accepts [ADR
+0167](../adr/0167-operation-scoped-credential-lease-runtime.md) and adds 16
+package-test PHP files for 20 runtime declarations. Tests cover exact request
+relations, inclusive and plus-one lifetime observations, initial/post-use/final
+lease states, primary and retirement failure identity, reentrancy, sequential
+recovery, separate-instance overlap, randomized nondisclosure sentinels, and
+the absence of source, provider, network, refresh, retry, fallback, background,
+or zeroization behavior. Phase 16F accepts [ADR
+0168](../adr/0168-exact-current-external-service-binding-application.md) and
+adds 18 package-test PHP files for 20 application declarations. Deterministic
+fakes prove exact-current profile relations, borrowed-material call order,
+request containment, one Phase 15 operation, exactly-once lease retirement,
+all outcome/failure mappings, replay rejection, nested throwable identity, and
+nondisclosure. No test uses public DNS, a socket, a real credential, an
+environment source, a vault, cloud metadata, or a provider account. Phase 16G
+accepts [ADR
+0169](../adr/0169-visibility-safe-external-service-inspection-and-bounded-evidence.md)
+and adds six package-test PHP files for 22 inspection declarations. The tests
+cover exact profile reconstruction, independent binding/policy comparison,
+optional result coherence across all six outcomes, bounded credential and
+egress evidence, role/Graph/Observability/Security Audit projection,
+nondisclosure, and the absence of body, credential, resolver, network, replay,
+recording, repair, or certification behavior. Phase 16H adds the explicit
+`composer acceptance:phase16` root-test-only external-process proof. It uses
+only local IPv4 loopback, a numeric resolver proof, and one inert test lease;
+it is not part of canonical quality and does not certify public DNS, TLS,
+credentials, providers, remote effects, deployment, or production readiness.
+Phase 16 is closed; Phase 17 remains unauthorized. Current topology is 87
+packages / 355 local production edges / acyclic; PHP inventories are 1,647 /
+851 / 88. See [ADR
+0170](../adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).

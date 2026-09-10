@@ -41,6 +41,22 @@
     },
     {
       "type": "path",
+      "url": "packages/external-service-credential-runtime"
+    },
+    {
+      "type": "path",
+      "url": "packages/external-service-application"
+    },
+    {
+      "type": "path",
+      "url": "packages/external-service-inspection"
+    },
+    {
+      "type": "path",
+      "url": "packages/external-service-resolver-system"
+    },
+    {
+      "type": "path",
       "url": "packages/*"
     }
   ],
@@ -87,6 +103,12 @@
     "kongono/extension-contract": "@dev",
     "kongono/extension-host": "@dev",
     "kongono/extension-inspection": "@dev",
+    "kongono/external-service-application": "@dev",
+    "kongono/external-service-binding-build": "@dev",
+    "kongono/external-service-contract": "@dev",
+    "kongono/external-service-credential-runtime": "@dev",
+    "kongono/external-service-inspection": "@dev",
+    "kongono/external-service-resolver-system": "@dev",
     "kongono/hantei": "@dev",
     "kongono/http-message": "@dev",
     "kongono/http-server": "@dev",
@@ -179,6 +201,12 @@
       "Kongono\\ExtensionContract\\Tests\\": "packages/extension-contract/tests/",
       "Kongono\\ExtensionHost\\Tests\\": "packages/extension-host/tests/",
       "Kongono\\ExtensionInspection\\Tests\\": "packages/extension-inspection/tests/",
+      "Kongono\\ExternalServiceApplication\\Tests\\": "packages/external-service-application/tests/",
+      "Kongono\\ExternalServiceBindingBuild\\Tests\\": "packages/external-service-binding-build/tests/",
+      "Kongono\\ExternalServiceContract\\Tests\\": "packages/external-service-contract/tests/",
+      "Kongono\\ExternalServiceCredentialRuntime\\Tests\\": "packages/external-service-credential-runtime/tests/",
+      "Kongono\\ExternalServiceInspection\\Tests\\": "packages/external-service-inspection/tests/",
+      "Kongono\\ExternalServiceResolverSystem\\Tests\\": "packages/external-service-resolver-system/tests/",
       "Kongono\\Hantei\\Tests\\": "packages/hantei/tests/",
       "Kongono\\Http\\Message\\Tests\\": "packages/http-message/tests/",
       "Kongono\\Http\\Server\\Tests\\": "packages/http-server/tests/",
@@ -265,6 +293,7 @@
     "acceptance:phase13": "@php tests/External/AgentPrincipal/run.php",
     "acceptance:phase14": "@php tests/External/ModelInvocation/run.php",
     "acceptance:phase15": "@php tests/External/NetworkEgress/run.php",
+    "acceptance:phase16": "@php tests/External/ExternalService/run.php",
     "analyse": "@php -d memory_limit=512M vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress",
     "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
     "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
@@ -314,6 +343,12 @@
       "composer --working-dir=packages/extension-contract validate --no-check-publish",
       "composer --working-dir=packages/extension-host validate --no-check-publish",
       "composer --working-dir=packages/extension-inspection validate --no-check-publish",
+      "composer --working-dir=packages/external-service-application validate --no-check-publish",
+      "composer --working-dir=packages/external-service-binding-build validate --no-check-publish",
+      "composer --working-dir=packages/external-service-contract validate --no-check-publish",
+      "composer --working-dir=packages/external-service-credential-runtime validate --no-check-publish",
+      "composer --working-dir=packages/external-service-inspection validate --no-check-publish",
+      "composer --working-dir=packages/external-service-resolver-system validate --no-check-publish",
       "composer --working-dir=packages/hantei validate --no-check-publish",
       "composer --working-dir=packages/http-message validate --no-check-publish",
       "composer --working-dir=packages/http-server validate --no-check-publish",

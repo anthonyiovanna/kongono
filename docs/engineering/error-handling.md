@@ -1766,7 +1766,8 @@ IDs `KGN-NET-1540` through `KGN-NET-1548` for bounded profile, generated-wiring,
 publication, loading, lifecycle, operation, and workflow failures. Phase 15G
 adds `KGN-NET-1549` through `KGN-NET-1553` for invalid inspection,
 binding mismatch, optional runtime evidence mismatch, intelligence/verifier
-evidence, and projection failure. Phase 15H remains Planned.
+evidence, and projection failure. Phase 15H adds no production failure surface;
+it accepts only root-owned external evidence and the exact local checkpoint.
 
 ## Phase 15E cURL transport and Phase 15F application workflow status
 
@@ -1794,7 +1795,65 @@ authority evaluation, recording, replay, repair, certification, or role
 execution.
 
 The current topology is 81 packages / 317 local edges / acyclic, with PHP
-inventories 1,514 / 768 / 80. Phase 15H remains Planned. No first-party
+inventories 1,514 / 768 / 84. Phase 15A-H are Accepted and Phase 15 is closed
+at commit `b4cb57ffa01eea130a693daee0be605ae7f0dda5`. No first-party
 resolver, credential provider, provider adapter, live inspection probe,
 inspection command, public compatibility certification, Stable/1.0 claim,
-production-readiness claim, or Phase 15 checkpoint exists.
+or production-readiness claim exists.
+
+## Phase 16A-C failure direction
+
+Phase 16A accepts [ADR 0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](../architecture/external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](../architecture/phase-16-roadmap.md). Phase 16B
+accepts [ADR 0164](../adr/0164-neutral-external-service-binding-and-credential-lease-contracts.md)
+and implements eight diagnostics, `KGN-EXTERNAL-SERVICE-CONTRACT-1601`
+through `1608`, with a closed Safe context schema.
+
+These failures distinguish contract identity, endpoint, binding, credential
+reference/lease, lifecycle, result, and bound violations without revealing
+secret or resource existence. Binding evidence, a credential
+reference, a lease, endpoint and address selection, resolution evidence,
+transport, provider semantics, and current authority remain separate. Secrets
+stay application-owned and out of values, messages, deterministic exception
+strings, and diagnostics. Previous throwable identity is preserved but its text
+and stack are omitted. Phase 16C accepts [ADR 0165](../adr/0165-deterministic-external-service-binding-artifact-and-generated-php.md)
+and adds diagnostics `KGN-EXTERNAL-SERVICE-BINDING-BUILD-1609` through `1617`
+for invalid or stale source-derived evidence, size limits, and publication
+failures. Their closed Safe context never projects source, artifact, generated
+PHP, digest, credential reference, path, foreign exception text, or secret
+material. Phase 16D accepts [ADR 0166](../adr/0166-explicit-bounded-system-resolver-adapter.md)
+and diagnostics `KGN-RESOLVER-1618` through `KGN-RESOLVER-1623` for invalid
+profiles, unavailable capabilities, native failure, rejected results, candidate
+overflow, and empty results. Context is closed to stage, violation,
+family-preference, count, limit, and bounded position. It never exposes a host,
+origin, port, address, native message/code, resolver configuration, credential,
+provider value, path, or foreign exception text. Ordinary lookup defects return
+the four closed Phase 15 resolution-failure reasons; profile and environment
+defects throw deterministic local exceptions, while impossible native `Error`
+identity propagates unchanged. Phase 16E accepts [ADR
+0167](../adr/0167-operation-scoped-credential-lease-runtime.md) and diagnostics
+`KGN-EXTERNAL-SERVICE-CREDENTIAL-RUNTIME-1601` through `1607`. Package messages,
+context, and stringification remain bounded and nondisclosing; exact foreign
+primary and retirement failures are available only through deliberate
+programmatic accessors and are not presentation-safe. The exact primary versus
+retirement matrix distinguishes cleanup-complete failure from retirement
+uncertainty. Phase 16F accepts [ADR
+0168](../adr/0168-exact-current-external-service-binding-application.md) and
+diagnostics `KGN-EXTERNAL-SERVICE-APPLICATION-1624` through `1627`. Profile,
+lifecycle, operation, and invariant failures expose only closed tokens. An
+operation exception may expose an exact detached egress result and exact
+previous throwable programmatically; neither surface is presentation-safe.
+Phase 16G accepts [ADR
+0169](../adr/0169-visibility-safe-external-service-inspection-and-bounded-evidence.md)
+and diagnostics `KGN-EXTERNAL-SERVICE-INSPECTION-1628` through `1632`.
+Inspection, binding, completed-result, intelligence, and projection failures
+expose only one closed Safe component token. Translated failures retain their
+prior throwable identity programmatically without copying foreign presentation.
+Phase 16H adds no production diagnostic or exception. Its external parent and
+children expose only fixed canonical success or
+`phase16_acceptance_failed` output while retaining bounded internal evidence.
+Phase 16 is closed; provider adapters, production readiness, Stable/1.0, and
+Phase 17 remain unauthorized. The graph is 87 packages / 355 local production
+edges / acyclic; PHP inventories are 1,647 / 851 / 88. See [ADR
+0170](../adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).

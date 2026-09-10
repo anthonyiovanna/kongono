@@ -2128,3 +2128,77 @@ inventories 1,514 / 768 / 84. Phase 15H is Accepted and Phase 15 is closed. No f
 resolver, credential provider, provider adapter, live inspection probe,
 inspection command, public compatibility certification, Stable/1.0 claim,
 production-readiness claim exists.
+
+## Phase 16 external-service binding vocabulary
+
+Phase 16A accepts [ADR 0163](adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](architecture/external-service-binding-and-secret-leases.md),
+and the [fixed roadmap](architecture/phase-16-roadmap.md) as documentation.
+Phase 16B accepts [ADR 0164](adr/0164-neutral-external-service-binding-and-credential-lease-contracts.md)
+and the optional Experimental `kongono/external-service-contract` package.
+
+A **service binding** is immutable, secret-free evidence
+for an application-owned profile, endpoint constraints, exact credential
+reference, and required capabilities. A **credential reference**
+is a bounded opaque identifier, not secret material. A **credential lease** is
+an Experimental port for operation-scoped sensitive material bound to one exact
+reference and purpose; retirement does not prove reliable zeroization or
+prevent caller copies. The borrowed consumer parameter is the only
+secret-bearing signature, and the package supplies no port implementation.
+
+**Endpoint selection** chooses normalized endpoint constraints. **Resolution
+evidence** describes one bounded complete resolution attempt. A **selected
+address** is one candidate permitted and chosen under the current Phase 15
+policy and must be bound to the transport connection. **Transport** performs
+the bounded attempt, while a **service/provider adapter** owns service-specific
+semantics. **Current network authority** remains explicit application-owned
+authorization plus the Phase 15 policy gates. Credential access and network
+access are independent permissions.
+
+Secrets remain application-owned and cannot enter binding/reference evidence,
+diagnostics, exception strings, or developer output. The package reuses Phase
+15 origin, capability, resolver, and resolution evidence and grants neither
+credential nor network permission. Phase 16C accepts [ADR 0165](adr/0165-deterministic-external-service-binding-artifact-and-generated-php.md)
+and the optional Experimental `kongono/external-service-binding-build` package.
+A **binding artifact** is canonical secret-free JSON derived from one explicit
+typed source. **Generated external-service bindings** are deterministic
+ordinary PHP bytes derived from that artifact; Phase 16C validates them as inert
+bytes and never loads or executes them. Structural validation proves canonical
+self-consistency, while **current validation** is caller-relative to one
+explicit typed current source. Digests and provenance identify bytes rather
+than grant authority. Phase 16D accepts
+[ADR 0166](adr/0166-explicit-bounded-system-resolver-adapter.md). A **system
+resolver profile** is the explicit family-order preference and candidate bound.
+The optional **system resolver adapter** performs one `ext-sockets`
+`getaddrinfo()` lookup, using `SOL_TCP` and omitted `ai_family` for the fixed
+unspecified-family PHP-binding policy. It validates the complete native result,
+reuses Phase 15 conservative address categories, orders candidates by preferred
+family and binary address bytes, and identifies one exact selected member.
+**System resolution evidence** is only a detached snapshot; it is not network
+authority, credential access, a connection, TTL, DNSSEC, resolver provenance,
+availability, or current external truth. Phase 16E accepts [ADR
+0167](adr/0167-operation-scoped-credential-lease-runtime.md). A **credential
+lease runtime** is the optional Experimental one-operation coordinator for one
+explicit source, matching secret-free request, consumer, and monotonic clock.
+It validates lease reference, purpose, and state, delegates borrowed material
+without receiving it, and retires every acquired lease exactly once. Its
+evidence grants no authority and PHP supplies no reliable memory-zeroization
+claim. Phase 16F accepts [ADR
+0168](adr/0168-exact-current-external-service-binding-application.md). An
+**external-service application profile** is deterministic evidence binding one
+exact-current selected service binding to one exact-current Phase 15 profile.
+An **external-service application** is a fresh one-use coordinator that invokes
+one caller-owned request factory while material is borrowed, validates the
+request boundary, delegates at most one egress operation, and relies on Phase
+16E for retirement. It is not a provider client, authority grant, credential
+source, resolver, transport, registry, or effect proof. An **external-service
+inspection** is an offline exact-supplied-evidence comparison and bounded
+optional detached-result summary. It neither accesses credentials or message
+bodies nor resolves, networks, replays, records, repairs, or certifies. Phase
+16H accepts the explicit root-owned local external-service acceptance command
+and closes Phase 16 at one exact local checkpoint. It adds no provider adapter,
+production credential source, production DNS default, Stable/1.0 status,
+release, deployment, or production-readiness claim. Phase 17 remains
+unauthorized. Current topology is 87 packages / 355 local production edges /
+acyclic; PHP inventories are 1,647 / 851 / 88. See [ADR
+0170](adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).

@@ -94,6 +94,18 @@ parameters:
         - packages/extension-host/tests
         - packages/extension-inspection/src
         - packages/extension-inspection/tests
+        - packages/external-service-application/src
+        - packages/external-service-application/tests
+        - packages/external-service-binding-build/src
+        - packages/external-service-binding-build/tests
+        - packages/external-service-contract/src
+        - packages/external-service-contract/tests
+        - packages/external-service-credential-runtime/src
+        - packages/external-service-credential-runtime/tests
+        - packages/external-service-inspection/src
+        - packages/external-service-inspection/tests
+        - packages/external-service-resolver-system/src
+        - packages/external-service-resolver-system/tests
         - packages/hantei/src
         - packages/hantei/tests
         - packages/hantei/bin/kongono-hantei

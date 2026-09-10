@@ -534,15 +534,28 @@ proposals, inspection, and verifier PASS do not authenticate, admit, authorize,
 grant, invoke, or prove an effect. See [Phase 14 external
 acceptance](phase-14-external-acceptance.md).
 
-## Phase 15A network-authority boundary
+## Phase 15 network-authority boundary
 
 [ADR 0155](../adr/0155-explicit-outbound-http-and-governed-network-egress-boundary.md)
-accepts documentation architecture for optional [governed outbound HTTP and
-network egress](outbound-http-and-network-egress.md). Identity, authentication,
+begins the optional [governed outbound HTTP and network
+egress](outbound-http-and-network-egress.md). Phase 15A-H are Accepted and
+Phase 15 is closed at commit
+`b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Identity, authentication,
 authorization, policy references, a URI, DNS evidence, a TLS certificate, a
 model result, an Agent proposal, or a previous receipt does not grant network
 authority. Applications must supply current authority and policy for each
 possible external effect and retain credentials, endpoint and transport
-selection, and service semantics. Phase 15A changes no Security Context,
-capability grant, Agent, model-invocation, or execution behavior; Phase 15B
-remains planned.
+selection, and service semantics.
+
+## Phase 16A credential and binding boundary
+
+Phase 16A accepts [ADR 0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](phase-16-roadmap.md) as documentation only. Binding
+evidence, credential references, operation-scoped leases, endpoint selection,
+resolution evidence, selected addresses, transport, provider semantics, and
+current authority remain distinct. Credential access and network access are
+independent permissions. Secrets remain application-owned and absent from
+deterministic evidence and developer output. Phase 16B-H are Planned; no Phase
+16 package, resolver, credential provider, provider adapter, schema, command,
+or runtime exists.

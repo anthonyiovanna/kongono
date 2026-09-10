@@ -320,3 +320,19 @@ separately authenticated architect directive.
 - [Observability and Operational Evidence](observability-and-operational-evidence.md)
 - [Phase 13 External Acceptance](phase-13-external-acceptance.md)
 - [Architectural doctrine](../doctrine.md)
+
+## Relationship to Phase 16 external-service binding
+
+Phase 15A-H remain Accepted and Phase 15 is closed at commit
+`b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Phase 16A accepts [ADR
+0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [external-service binding guide](external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](phase-16-roadmap.md) as documentation only.
+
+Agent identity, intent, proposals, plans, results, receipts, or Graph evidence
+cannot select or authorize service binding evidence, credential references or
+leases, endpoint selection, resolution evidence, a selected address, transport,
+provider semantics, or current network authority. Secrets remain
+application-owned and excluded from deterministic evidence and developer
+output. Phase 16B-H are Planned; no resolver, credential provider, provider
+adapter, Phase 16 package, schema, command, or runtime exists.

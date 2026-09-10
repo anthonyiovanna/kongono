@@ -740,3 +740,65 @@ inventories 1,514 / 768 / 84. Phase 15A-H are Accepted and Phase 15 is closed.
 No first-party resolver, credential provider, provider adapter, live
 inspection probe, inspection command, public compatibility certification,
 Stable/1.0 claim, or production-readiness claim exists.
+
+## Phase 16A-C external-service binding and secret-lease security boundary
+
+Phase 16A accepts [ADR 0163](docs/adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
+the [security-facing architecture guide](docs/architecture/external-service-binding-and-secret-leases.md),
+and the [Phase 16 roadmap](docs/architecture/phase-16-roadmap.md). Phase 16B
+accepts [ADR 0164](docs/adr/0164-neutral-external-service-binding-and-credential-lease-contracts.md)
+and the optional Experimental `kongono/external-service-contract` package.
+Its 27 production declarations and 15 tests reuse Phase 15 origin, capability,
+resolver, and resolution evidence without granting authority.
+
+Binding evidence carries an opaque reference, never secret material. A
+credential lease is operation-scoped and distinct from endpoint selection,
+resolution evidence, the selected address, transport, provider semantics, and
+current network authority. Credential access and network access are separate
+permissions. PHP retirement minimizes lifetime and copies but cannot prove
+reliable memory zeroization or prevent caller copies. The borrowed consumer is
+the sole secret-bearing signature. The package provides no lease, source,
+resolver, provider, artifact, cache, environment, runtime, command, or network
+implementation. Its diagnostic and exception surfaces admit only bounded Safe
+context. Phase 16C accepts [ADR 0165](docs/adr/0165-deterministic-external-service-binding-artifact-and-generated-php.md)
+and adds only secret-free deterministic artifact and ordinary-PHP evidence.
+Generated PHP is never loaded; structural or explicit-source-current validation
+grants nothing. Path-safe content-addressed atomic publication never overwrites
+a conflict. No material, material-derived hash or length, provider value,
+environment value, query string, or foreign exception text is admitted.
+Credential and network permissions remain independent and absent. Phase 16D
+accepts [ADR 0166](docs/adr/0166-explicit-bounded-system-resolver-adapter.md)
+and an optional Experimental system-resolver leaf. It performs one bounded
+`ext-sockets` lookup with `SOL_TCP` and omitted `ai_family`, validates every
+entry, preserves every conservative Phase 15 address category, and returns
+selected-address evidence without connecting or granting authority. Native
+messages, hostnames, addresses, ports, resolver configuration, credentials,
+and provider data never enter diagnostics. There is no cache, retry, fallback,
+TTL, DNSSEC, provenance, or portable deadline claim. Phase 16E accepts [ADR
+0167](docs/adr/0167-operation-scoped-credential-lease-runtime.md) and one
+explicit operation-scoped lease coordinator. It delegates borrowed material
+directly from the lease to the consumer, retires every acquired lease exactly
+once, keeps package diagnostics nondisclosing, and preserves foreign failures
+only for deliberate programmatic handling. It supplies no credential source or
+network permission and cannot promise PHP memory zeroization. Phase 16F accepts
+[ADR 0168](docs/adr/0168-exact-current-external-service-binding-application.md)
+and one optional one-use application coordinator. Request construction occurs
+only inside borrowed material access; the request factory, PSR-7 value, caller,
+and transport may still copy material. Package diagnostics omit secrets,
+requests, responses, URIs, hosts, addresses, paths, and foreign details, while
+exact throwable identity remains available only programmatically. Phase 16G
+accepts [ADR
+0169](docs/adr/0169-visibility-safe-external-service-inspection-and-bounded-evidence.md)
+and a visibility-safe inspection leaf. It compares endpoint and credential
+references without rendering them, never reads credential material or message
+bodies, and reports only Protected digests, closed tokens, and Safe aggregates.
+Retirement and cleanup do not prove physical erasure, and possible effects
+remain uncertain. Phase 16H accepts the root-owned local external-service
+acceptance proof and closes Phase 16 at one exact local checkpoint. The proof
+uses only an inert test credential, numeric loopback resolution, and an
+explicit `.invalid` selected-address exchange; it grants no credential or
+network authority and does not establish physical erasure, public DNS, TLS,
+provider, remote-effect, deployment, or production-readiness truth. Stable/1.0
+and Phase 17 remain unauthorized. Current topology is 87 packages / 355 local
+production edges / acyclic; PHP inventories are 1,647 / 851 / 88. See [ADR
+0170](docs/adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).
