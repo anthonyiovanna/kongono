@@ -1,0 +1,1 @@
+{"id":"resp_synthetic_incomplete","incomplete_details":{"reason":"max_tokens"},"model":"openai-test-model","object":"response","output":[{"content":[{"annotations":[],"text":"synthetic partial output","type":"output_text"}],"id":"msg_synthetic_incomplete","role":"assistant","status":"incomplete","type":"message"}],"status":"incomplete"}

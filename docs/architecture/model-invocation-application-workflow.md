@@ -174,14 +174,35 @@ background work. See [Phase 14 external acceptance](phase-14-external-acceptance
 ## Relationship to Phase 16 service binding
 
 Phase 15A-H remain Accepted and Phase 15 is closed at commit
-`b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Phase 16A accepts [ADR
-0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
-the [external-service binding guide](external-service-binding-and-secret-leases.md),
-and the [Phase 16 roadmap](phase-16-roadmap.md) as documentation only.
+`b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Phase 16A-H are Accepted and
+Phase 16 is closed at commit `3690aab42e3759d3f42e711703d4f23e6588fa85`.
 
 Model wiring, provider labels, plans, results, and receipts cannot choose or
 authorize a binding, credential reference or lease, endpoint, resolution
 evidence, selected address, transport, provider adapter, or current network
 authority. Secrets stay application-owned and out of deterministic evidence
-and developer output. Phase 16B-H are Planned; no Phase 16 package, resolver,
-credential provider, provider adapter, schema, command, or runtime exists.
+and developer output.
+
+Phase 17A accepts [ADR 0171](../adr/0171-first-party-openai-responses-adapter-boundary.md)
+and the [adapter guide](openai-responses-provider-adapter.md). Phase 17B accepts
+[ADR 0172](../adr/0172-deterministic-openai-responses-offline-protocol-mapping.md)
+and adds only the optional offline request/response mapping leaf. It does not
+implement this workflow, an adapter session, registry, default provider/model,
+automatic retry, or tool effect. Phase 17C accepts [ADR
+0173](../adr/0173-one-shot-openai-responses-invocation-adapter.md) and uses the
+existing explicit application-owned collaborators for one non-streaming
+attempt. Phase 17D accepts [ADR
+0174](../adr/0174-pull-based-openai-responses-sse-streaming.md) and selects the
+same adapter with the exact streaming capability profile; consumer pulls drive
+bounded SSE parsing and neutral events without a registry, workflow change,
+background reader, reconnect, replay, or immediate first-token guarantee.
+Phase 17E accepts [ADR
+0175](../adr/0175-strict-structured-output-and-inert-openai-function-call-mapping.md)
+for strict non-streaming structured and inert action profiles. Phase 17F
+accepts [ADR 0176](../adr/0176-exact-current-openai-responses-application-workflow.md)
+and adds one provider-specific outer workflow that delegates its explicit
+`build()` and write-free `check()` to this accepted workflow, then runs one
+single-use application through the returned exact loaded wiring. It does not
+change this provider-neutral package or its ownership rules. Phase 17G adds a
+separate optional offline inspection leaf; Phase 17H remains Planned and
+separately unauthorized.

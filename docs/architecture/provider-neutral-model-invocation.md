@@ -517,11 +517,32 @@ adapters, and Phase 15 is closed at commit
 `b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Model requests, results,
 suggested actions, plans, and receipts cannot grant egress authority.
 
-Phase 16A accepts [ADR 0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
-the [external-service binding guide](external-service-binding-and-secret-leases.md),
-and the [Phase 16 roadmap](phase-16-roadmap.md) as documentation only. A model
-cannot choose a credential reference or lease, endpoint, resolution result,
-selected address, transport, provider adapter, or current authority. Secrets
-remain application-owned and absent from deterministic evidence and developer
-output. Phase 16B-H are Planned; no resolver, credential provider, provider
-adapter, Phase 16 package, schema, command, or runtime exists.
+Phase 16A-H are Accepted and Phase 16 is closed at commit
+`3690aab42e3759d3f42e711703d4f23e6588fa85`. A model cannot choose a
+credential reference or lease, endpoint, resolution result, selected address,
+transport, provider adapter, or current authority. Secrets remain application-
+owned and absent from deterministic evidence and developer output.
+
+Phase 17A accepts [ADR 0171](../adr/0171-first-party-openai-responses-adapter-boundary.md)
+and the [provider-adapter guide](openai-responses-provider-adapter.md) as
+documentation only. Phase 17B accepts [ADR 0172](../adr/0172-deterministic-openai-responses-offline-protocol-mapping.md)
+and adds the optional exact offline mapping leaf, not a Phase 14 semantic
+change, provider default, or generic compatibility promise. Provider output is
+strictly bounded untrusted evidence, and decoded evidence is deliberately not
+a neutral `ModelResult`. No SDK, credential, endpoint, provider call, Chie
+connection, runtime adapter, or live support is supplied by Phase 17B itself.
+Phase 17C accepts the one-shot adapter in [ADR
+0173](../adr/0173-one-shot-openai-responses-invocation-adapter.md). Phase 17D
+accepts [ADR 0174](../adr/0174-pull-based-openai-responses-sse-streaming.md)
+and uses the existing neutral streaming vocabulary unchanged: one closed
+provider SSE sequence becomes contiguous neutral text events and one terminal
+result. Provider events remain untrusted evidence and grant no authority.
+Consumer pulls, cancellation, budgets, and cleanup remain Phase 14 runtime
+responsibilities; no background reader, replay, or realtime guarantee exists.
+Phase 17E accepts [ADR
+0175](../adr/0175-strict-structured-output-and-inert-openai-function-call-mapping.md)
+without changing the neutral contract: exact non-streaming structured output is
+locally schema-validated into `ResultText`, and one provider function call maps
+only to an inert neutral `ActionSuggestion`. Neither result is authority or
+proof of truth, and the adapter executes no tool or effect. Phase 17F-H remain
+Planned.

@@ -1,10 +1,22 @@
 # API Status
 
+Phase 17A-H are Accepted. [ADRs 0172 through
+0177](../architecture/phase-17-roadmap.md) add 77 production declarations
+across the optional OpenAI Responses provider and inspection packages: 47 are
+Experimental and 30 are Internal. Phase 17H accepts [ADR
+0178](../adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md),
+adds no production declaration, and closes Phase 17 with root-owned local
+acceptance. No Phase 17 declaration is Public, Stable, or Deprecated, and no
+provider-certified, compatible, or production-ready claim exists. The graph
+is 89 packages / 375 local production edges / acyclic; PHP inventories are
+1,726 / 894 / 92. Phase 18 remains separately unauthorized.
+
 Phase 16H adds no production declaration and changes no API status. It accepts
 the root-owned local external-service acceptance harness and closes Phase 16 at
-one exact local checkpoint. The graph remains 87 packages / 355 local
-production edges / acyclic; PHP inventories are 1,647 / 851 / 88. No
-declaration is promoted to Stable/1.0, and Phase 17 has not begun. See [ADR
+one exact local checkpoint. After Phase 17B, the graph is 88 packages / 358
+local production edges / acyclic; PHP inventories are 1,665 / 860 / 88. No
+declaration is promoted to Stable/1.0. Phase 17A is accepted above as
+documentation only. See [ADR
 0170](../adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).
 
 Phase 16G adds 22 `kongono/external-service-inspection` production
@@ -31,7 +43,8 @@ request, result, lifecycle/outcome/failure values, runtime, and four concrete
 exceptions are Experimental. The diagnostic, abstract exception, lease guard,
 budget meter, lifecycle tracker, result factory, and failure composer are
 Internal. Nothing is Stable or Deprecated, and API status grants neither
-credential nor network authority. Phase 17 remains unauthorized.
+credential nor network authority. In that Phase 16E state, Phase 17 remained
+unauthorized.
 See [ADR
 0167](../adr/0167-operation-scoped-credential-lease-runtime.md).
 

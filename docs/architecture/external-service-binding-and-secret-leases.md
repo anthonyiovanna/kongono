@@ -47,8 +47,10 @@ without credential access, DNS, network behavior, generated-code loading,
 recording, replay, repair, or certification. Phase 16H accepts [ADR
 0170](../adr/0170-phase-16-external-service-acceptance-and-checkpoint.md), adds
 the root-owned local external-service acceptance harness, and closes Phase 16
-at one exact local checkpoint. Current topology is 87 packages / 355 local
-production edges / acyclic; PHP inventories are 1,647 / 851 / 88.
+at one exact local checkpoint. Phase 17B-F add one optional mapping, adapter,
+and exact-current application leaf over this accepted application boundary.
+Current topology is 89 packages / 375 local production edges / acyclic; PHP
+inventories are 1,726 / 894 / 88.
 
 ## Accepted system resolver adapter
 
@@ -319,8 +321,9 @@ secret-memory zeroization claim, although no secret enters the package.
 | **16G - Visibility-safe inspection and verification** | Accepted optional Experimental offline read-only exact-current binding inspection with bounded role-aware evidence and optional detached completed-result pairing. | No secret retrieval, DNS, networking, generated-code execution, authority evaluation, provider invocation, recording, replay, repair, live probe, or certification. |
 | **16H - External acceptance and checkpoint** | Accepted root-owned deterministic local external-process acceptance of the separately implemented Phase 16 boundaries and one exact local checkpoint. | No public endpoint, real credential, production DNS dependency, provider compatibility claim, push, tag, release, Stable/1.0 claim, production-readiness claim, or Phase 17 behavior. |
 
-Phase 16A through Phase 16H are Accepted, and Phase 16 is closed. Phase 17 has
-not begun and requires separate authenticated authority.
+Phase 16A through Phase 16H are Accepted, and Phase 16 is closed. Phase 17A-G
+are Accepted; Phase 17H requires separate authenticated authority and alone may
+checkpoint Phase 17.
 
 ## Related material
 
@@ -344,3 +347,23 @@ not begun and requires separate authenticated authority.
 - [Agent Principal platform](agent-principal-platform.md)
 - [Error handling](../engineering/error-handling.md)
 - [Testing](../engineering/testing.md)
+
+## Relationship to Phase 17 provider adapters
+
+Phase 17A accepts [ADR 0171](../adr/0171-first-party-openai-responses-adapter-boundary.md)
+and the [OpenAI Responses adapter guide](openai-responses-provider-adapter.md)
+as the fixed architecture. Phase 17C accepts [ADR
+0173](../adr/0173-one-shot-openai-responses-invocation-adapter.md): its optional
+Responses adapter consumes one exact-current binding and borrows material
+through one operation-scoped lease while Phase 15 independently governs the
+single network attempt. Provider/model selection,
+binding evidence, credential access, network authority, provider output,
+action suggestions, and application effects remain separate.
+
+Phase 17B-E supply deterministic mapping and adapter behavior. Phase 17F
+accepts [ADR 0176](../adr/0176-exact-current-openai-responses-application-workflow.md)
+and binds one exact-current service application profile into an explicit
+provider-specific build/check/run path without moving credential or network
+authority into the provider leaf. No default provider, ambient endpoint or
+credential, SDK, retry, live provider proof, or compatibility claim exists.
+Phase 17H remains Planned under the [fixed Phase 17 roadmap](phase-17-roadmap.md).

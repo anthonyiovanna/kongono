@@ -1,0 +1,1 @@
+{"id":"resp_synthetic_completed","incomplete_details":null,"model":"openai-test-model","object":"response","output":[{"content":[{"annotations":[],"text":"synthetic output","type":"output_text"}],"id":"msg_synthetic_completed","role":"assistant","status":"completed","type":"message"}],"status":"completed"}

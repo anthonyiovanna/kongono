@@ -73,6 +73,8 @@
             <directory>packages/model-invocation-build/tests</directory>
             <directory>packages/model-invocation-inspection/tests</directory>
             <directory>packages/model-invocation-runtime/tests</directory>
+            <directory>packages/model-provider-openai-responses/tests</directory>
+            <directory>packages/model-provider-openai-responses-inspection/tests</directory>
             <directory>packages/network-egress-application/tests</directory>
             <directory>packages/network-egress-contract/tests</directory>
             <directory>packages/network-egress-curl/tests</directory>
@@ -161,6 +163,8 @@
             <directory>packages/model-invocation-build/src</directory>
             <directory>packages/model-invocation-inspection/src</directory>
             <directory>packages/model-invocation-runtime/src</directory>
+            <directory>packages/model-provider-openai-responses/src</directory>
+            <directory>packages/model-provider-openai-responses-inspection/src</directory>
             <directory>packages/network-egress-application/src</directory>
             <directory>packages/network-egress-contract/src</directory>
             <directory>packages/network-egress-curl/src</directory>

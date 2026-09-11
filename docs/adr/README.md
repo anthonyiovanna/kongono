@@ -1,5 +1,14 @@
 # Architecture Decision Records
 
+> **Current through Phase 17H:** Phase 17A-G accept the optional Experimental
+> OpenAI Responses mapping, one-shot and pull-streaming adapters, strict
+> structured and inert action-suggestion profiles, exact-current application,
+> and visibility-safe inspection. Phase 17H accepts ADR 0178, adds the
+> root-owned local provider-protocol acceptance proof, creates the exact local
+> checkpoint, and closes Phase 17. The graph is 89 packages / 375 local edges /
+> acyclic; PHP inventories are 1,726 / 894 / 92. Phase 18 is not begun and
+> remains separately unauthorized.
+
 > **Current through Phase 16H:** Phase 16A accepts ADR 0163 as documentation
 > architecture. Phase 16B accepts ADR 0164 and the optional Experimental
 > `kongono/external-service-contract` neutral value and port package. Phase 16C
@@ -1047,4 +1056,96 @@ and offline inspection evidence. It adds no production declaration, package,
 dependency, provider adapter, production credential source, authority, public
 network destination, compatibility, deployment, release, Stable/1.0, or
 production-readiness claim. Phase 16A-H are Accepted, Phase 16 is closed, and
-Phase 17 has not begun.
+Phase 17A-H are Accepted and Phase 17 is closed. Phase 18 remains unauthorized.
+
+## [ADR 0171: First-Party OpenAI Responses Adapter Boundary](0171-first-party-openai-responses-adapter-boundary.md)
+
+Accepted 2026-09-09 for Phase 17A only. It fixes the architecture and A-H
+roadmap for one optional outer OpenAI Responses API adapter composed over
+Phase 14 neutral invocation, Phase 16 exact-current service binding and
+credential leases, and Phase 15 governed egress. OpenAI is not Kongono's
+default provider or a generic compatibility promise. Provider material remains
+bounded untrusted evidence, action suggestions execute nothing, and credential,
+network, tool, and effect authority remain independently application-owned.
+Phase 17A adds no PHP, package, API, codec, SDK, credential, network call,
+command, Chie integration, or runtime behavior. Phase 17B-H remain Planned and
+separately authorized; Phase 18 does not begin automatically.
+
+## [ADR 0172: Deterministic OpenAI Responses Offline Protocol Mapping](0172-deterministic-openai-responses-offline-protocol-mapping.md)
+
+Accepted 2026-09-10 for Phase 17B only. It adds the optional Experimental
+`kongono/model-provider-openai-responses` leaf with exact mapping version
+`kongono-openai-responses/1`, an exact text-and-usage profile, deterministic
+bounded request encoding, strict bounded duplicate-safe response decoding,
+typed untrusted provider evidence, synthetic fixtures, and nondisclosing
+diagnostics. It adds no SDK, credential, endpoint, HTTP transport, network
+call, runtime adapter session, streaming, tools, application workflow, Chie
+connection, or live support claim. Phase 17A-H are Accepted and Phase 17 is
+closed; Phase 18 remains unauthorized.
+
+## [ADR 0173: One-Shot OpenAI Responses Invocation Adapter](0173-one-shot-openai-responses-invocation-adapter.md)
+
+Accepted 2026-09-10 for Phase 17C only. It composes the exact offline mapping
+through one fresh Phase 16 application and Phase 15 governed-egress attempt,
+strictly closes one bounded terminal JSON body, and normalizes one Phase 14
+text result without retry, fallback, SDK, ambient state, or live support claim.
+
+## [ADR 0174: Pull-Based OpenAI Responses SSE Streaming](0174-pull-based-openai-responses-sse-streaming.md)
+
+Accepted 2026-09-10 for Phase 17D only. It adds one Internal consumer-driven
+SSE session for the exact text, streaming, and usage profile, with bounded
+framing and JSON, closed event ordering, snapshot equality, contiguous neutral
+events, deterministic cleanup, and no background reader, reconnect, replay,
+WebSocket surface, or live-provider claim. Phase 17D is Accepted; Phase 17E is
+Current.
+
+## [ADR 0175: Strict Structured Output and Inert OpenAI Function-Call Mapping](0175-strict-structured-output-and-inert-openai-function-call-mapping.md)
+
+Accepted 2026-09-10 for Phase 17E only. It adds exact mapping version
+`kongono-openai-responses/2` for one non-streaming strict structured-result
+profile and one non-streaming inert function-call suggestion profile. Explicit
+closed schemas and returned values are bounded, duplicate-safe, and locally
+validated without coercion. Function calls remain evidence and are never
+resolved, invoked, authorized, returned to the provider, or converted into a
+second operation or application effect. Version 1 text and streaming remain
+accepted. Phase 17A-H are Accepted and Phase 17 is closed; Phase 18 remains
+unauthorized.
+
+## [ADR 0176: Exact-current OpenAI Responses application profile and supported workflow](0176-exact-current-openai-responses-application-workflow.md)
+
+Accepted 2026-09-10 for Phase 17F only. It binds exact Phase 14 invocation-
+application, Phase 17 provider, and Phase 16 external-service-application
+profiles into one bounded deterministic identity, delegates explicit build and
+write-free check operations to the accepted Phase 14 workflow, and supplies
+one single-use application-owned run composition over explicit collaborators.
+It adds no registry, defaults, discovery, SDK, alternate networking stack,
+retry, replay, tool execution, Chie application, live compatibility,
+certification, or production-readiness claim. Phase 17F and Phase 17H are
+Accepted; Phase 17 is closed and Phase 18 remains unauthorized.
+
+## [ADR 0177: Visibility-safe OpenAI Responses inspection and bounded evidence](0177-visibility-safe-openai-responses-inspection-and-bounded-evidence.md)
+
+Accepted 2026-09-11 for Phase 17G only. It adds the optional Experimental
+`kongono/model-provider-openai-responses-inspection` leaf, which revalidates one
+supplied exact-current Phase 17F profile and may summarize one matching detached
+completed Phase 14 runtime result. Canonical inspection, Graph projection,
+Observability and Security Audit values, role-addressed intelligence, and
+independent verification expose only Protected digests, closed tokens, and Safe
+aggregates. The package is offline, read-only, stateless, and visibility-safe;
+it performs no payload access, credential access, networking, provider
+observation, authority evaluation, replay, repair, recording, exporting,
+certification, or role execution. Phase 17A-H are Accepted and Phase 17 is
+closed; Phase 18 remains unauthorized.
+
+## [ADR 0178: Phase 17 OpenAI Responses local acceptance and checkpoint](0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md)
+
+Accepted 2026-09-11 for Phase 17H only. It adds the root-owned deterministic
+local provider-protocol harness and explicit `composer acceptance:phase17`
+entry. Fresh children prove the four exact text, pull-SSE, strict structured,
+and inert function-call profiles through the accepted Phase 14-17 composition,
+with owned loopback, explicit selected-address evidence, one-use credential
+leases, real cURL HTTP/1.1 transport, bounded processes and streams,
+nondisclosure, inspection, concurrency, and cleanup. It contacts no public
+endpoint, validates no real account or credential, and makes no compatibility,
+certification, deployment, production-readiness, or Stable/1.0 claim. Phase
+17A-H are Accepted and Phase 17 is closed; Phase 18 remains unauthorized.

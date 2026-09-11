@@ -607,9 +607,36 @@ the root-owned local external-process proof, and closes Phase 16 at one exact
 local checkpoint. Run it explicitly with `composer acceptance:phase16`; it is
 not part of canonical quality.
 
-The closed topology is 87 packages / 355 local production edges / acyclic, and
-PHP inventories are 1,647 production / 851 package-test / 88 root-test. The
+The current topology is 89 packages / 375 local production edges / acyclic,
+and PHP inventories are 1,726 production / 894 package-test / 92 root-test. The
 local proof uses no real credential, provider adapter or SDK, ambient
 production DNS, public endpoint, or non-loopback effect and makes no
 compatibility, deployment, release, Stable/1.0, or production-readiness claim.
-Phase 17 has not begun.
+Phase 17A is separately accepted below as documentation only.
+
+## Phase 17A-H provider-adapter, inspection, and acceptance boundaries
+
+Phase 17A accepts [ADR 0171](../adr/0171-first-party-openai-responses-adapter-boundary.md),
+the [developer guide](../architecture/openai-responses-provider-adapter.md), and
+the [fixed roadmap](../architecture/phase-17-roadmap.md). This row changes
+documentation only. It adds no package, PHP declaration, schema, dependency,
+fixture, command, provider SDK, credential, network behavior, or test.
+
+Phase 17B accepts [ADR 0172](../adr/0172-deterministic-openai-responses-offline-protocol-mapping.md)
+and implements the optional `kongono/model-provider-openai-responses` offline
+mapping leaf. Its exact text-and-usage profile, deterministic bounded request
+bytes, strict duplicate-safe decoder, typed untrusted provider evidence, and
+nondisclosing failures add no SDK, credential, endpoint, network call, runtime
+adapter, streaming, tools, or live support. Phase 17C-F accept the one-shot and
+pull-based adapter, strict structured/inert action mapping, and exact-current
+application workflow. Phase 17G accepts [ADR
+0177](../adr/0177-visibility-safe-openai-responses-inspection-and-bounded-evidence.md)
+and the optional offline, read-only, stateless, visibility-safe inspection leaf.
+It exposes only bounded evidence and performs no payload access, credential
+access, networking, provider observation, authority evaluation, replay, repair,
+recording, exporting, certification, or role execution. Phase 17H accepts [ADR
+0178](../adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md)
+and `composer acceptance:phase17` as root-owned local evidence. Phase 17A-H are
+Accepted and Phase 17 is closed at its exact local checkpoint. Topology remains
+89 / 375 / acyclic and PHP inventories are 1,726 / 894 / 92. Phase 18 does not
+begin automatically and remains separately unauthorized.

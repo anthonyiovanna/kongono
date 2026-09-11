@@ -110,12 +110,30 @@ boundary](outbound-http-and-network-egress.md), and Phase 15 is closed at
 commit `b4cb57ffa01eea130a693daee0be605ae7f0dda5`. Invocation plans, results,
 action suggestions, receipts, and adapter labels grant no network authority.
 
-Phase 16A accepts [ADR 0163](../adr/0163-explicit-external-service-binding-and-secret-lease-boundary.md),
-the [external-service binding guide](external-service-binding-and-secret-leases.md),
-and the [Phase 16 roadmap](phase-16-roadmap.md) as documentation only. Models
-cannot choose or authorize service bindings, credential references or leases,
-endpoints, resolution evidence, selected addresses, transport, or provider
-semantics. Secrets remain application-owned and absent from deterministic
-evidence and developer output. Phase 16B-H are Planned; no resolver,
-credential provider, provider adapter, Phase 16 package, schema, command, or
-runtime exists.
+Phase 16A-H are Accepted and Phase 16 is closed at commit
+`3690aab42e3759d3f42e711703d4f23e6588fa85`. Models cannot choose or
+authorize service bindings, credential references or leases, endpoints,
+resolution evidence, selected addresses, transport, or provider semantics.
+
+Phase 17A accepts the optional outer boundary in [ADR 0171](../adr/0171-first-party-openai-responses-adapter-boundary.md).
+Phase 17B accepts [ADR 0172](../adr/0172-deterministic-openai-responses-offline-protocol-mapping.md)
+and adds only deterministic offline mapping; decoded evidence alone is not a
+`ModelResult`. Phase 17C accepts [ADR
+0173](../adr/0173-one-shot-openai-responses-invocation-adapter.md) and implements
+this runtime's pull-based `InvocationAdapter` port through one explicit Phase
+16 application and one Phase 15 attempt. It emits one normalized result and
+then `null`, never retries uncertain or cancelled effects, and retains no
+session for another invocation. This local execution path is not live-provider
+compatibility. Phase 17D accepts [ADR
+0174](../adr/0174-pull-based-openai-responses-sse-streaming.md) and maps one
+closed bounded SSE sequence to contiguous `Started`, `ContentDelta`, optional
+`Usage`, and terminal events before the normalized result. The neutral runtime
+continues to own cancellation checks, sequence validation, evidence budgets,
+and final session cleanup. There is no background reader, retry, reconnect,
+replay, or immediate first-token guarantee. Phase 17E accepts [ADR
+0175](../adr/0175-strict-structured-output-and-inert-openai-function-call-mapping.md)
+and reuses the same one-operation runtime for non-streaming structured results
+and inert action suggestions. The runtime validates one normalized terminal
+result; it does not dispatch the suggestion, create function output, or open a
+second operation. Phase 17F-H remain Planned. See the [adapter
+guide](openai-responses-provider-adapter.md).

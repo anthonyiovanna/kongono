@@ -38,7 +38,7 @@ final class ExternalServiceContractBoundaryTest extends TestCase
         self::assertCount(15, self::phpFiles($package . '/tests'));
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(87, $manifests);
+        self::assertCount(89, $manifests);
         foreach ($manifests as $path) {
             $candidate = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
             self::assertIsArray($candidate);
@@ -46,7 +46,7 @@ final class ExternalServiceContractBoundaryTest extends TestCase
             $require = $candidate['require'] ?? null;
             self::assertIsString($name);
             self::assertIsArray($require);
-            if (!in_array($name, ['kongono/external-service-application', 'kongono/external-service-binding-build', 'kongono/external-service-contract', 'kongono/external-service-credential-runtime', 'kongono/external-service-inspection', 'kongono/external-service-resolver-system'], true)) {
+            if (!in_array($name, ['kongono/external-service-application', 'kongono/external-service-binding-build', 'kongono/external-service-contract', 'kongono/external-service-credential-runtime', 'kongono/external-service-inspection', 'kongono/external-service-resolver-system', 'kongono/model-provider-openai-responses'], true)) {
                 self::assertArrayNotHasKey('kongono/external-service-contract', $require);
             }
         }

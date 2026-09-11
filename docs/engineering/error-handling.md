@@ -1853,7 +1853,32 @@ prior throwable identity programmatically without copying foreign presentation.
 Phase 16H adds no production diagnostic or exception. Its external parent and
 children expose only fixed canonical success or
 `phase16_acceptance_failed` output while retaining bounded internal evidence.
-Phase 16 is closed; provider adapters, production readiness, Stable/1.0, and
-Phase 17 remain unauthorized. The graph is 87 packages / 355 local production
-edges / acyclic; PHP inventories are 1,647 / 851 / 88. See [ADR
+Phase 16 is closed; provider adapters, production readiness, and Stable/1.0
+remain unauthorized. Phase 17A is separately accepted below as documentation
+only. Phase 17B-G add the optional mapping/adapter application and inspection
+leaves. The graph is 89 packages / 375 local production edges / acyclic; PHP
+inventories are 1,726 / 894 / 88. See [ADR
 0170](../adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).
+
+## Phase 17 provider-adapter failure direction
+
+Phase 17B accepts [ADR 0172](../adr/0172-deterministic-openai-responses-offline-protocol-mapping.md)
+and adds diagnostics `KGN-OPENAI-RESPONSES-1701` through `1708` for invalid
+profile, unsupported request surface, request encoding and limit failures,
+invalid response syntax and structure, response limits, and unsupported
+response mapping. Context is a closed Safe schema. Exceptions preserve a
+previous throwable identity but omit its presentation and all raw input,
+output, JSON, identifiers, model names, endpoints, headers, and native
+messages. PHP traces are not claimed to be sanitized.
+
+Developer presentation must name only the failed boundary and bounded
+remediation. It must omit secret material, input/output, provider bodies,
+headers, URLs, private addresses, native messages, and stack arguments.
+Phase 17C-F add the accepted runtime and application-layer failure translation.
+Phase 17G reserves `KGN-OPENAI-RESPONSES-1724` through `1728` for invalid
+inspection, profile/binding mismatch, optional runtime-evidence mismatch,
+invalid intelligence/verifier evidence, and projection failure. Those failures
+retain only one closed Safe component token, preserve translated throwable
+identity, and omit raw or foreign presentation. Automatic retry, reconnect,
+fallback, polling, and replay remain absent; possible provider and billing
+effects remain uncertain.

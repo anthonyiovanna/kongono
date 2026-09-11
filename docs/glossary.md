@@ -2198,7 +2198,55 @@ bodies nor resolves, networks, replays, records, repairs, or certifies. Phase
 16H accepts the explicit root-owned local external-service acceptance command
 and closes Phase 16 at one exact local checkpoint. It adds no provider adapter,
 production credential source, production DNS default, Stable/1.0 status,
-release, deployment, or production-readiness claim. Phase 17 remains
-unauthorized. Current topology is 87 packages / 355 local production edges /
-acyclic; PHP inventories are 1,647 / 851 / 88. See [ADR
+release, deployment, or production-readiness claim. Phase 17A is separately
+accepted below as documentation only. Phase 17B-G add one optional mapping/
+adapter application leaf and one inspection leaf. Current topology is 89
+packages / 375 local production edges / acyclic; PHP inventories are 1,726 /
+894 / 92.
+See [ADR
 0170](adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).
+
+An **OpenAI Responses adapter profile** is the exact, optional Phase 17
+outer mapping for applications that explicitly choose OpenAI's Responses API.
+It is not a default provider, model, endpoint, credential source, generic
+"OpenAI-compatible" promise, SDK, or authority grant. A **provider mapping** is
+one versioned deterministic translation between provider-specific bounded
+material and Phase 14 neutral values. **Provider output** remains untrusted
+evidence even when it is well formed or schema-valid. An **action suggestion**
+is inert model evidence and is not an admitted tool call or application effect.
+Phase 17B accepts [ADR 0172](adr/0172-deterministic-openai-responses-offline-protocol-mapping.md)
+and mapping version `kongono-openai-responses/1` for bounded non-streaming text
+request and response evidence only. It adds no runtime adapter, credential,
+endpoint, HTTP transport, network call, SDK, structured output, tool effect, or
+live support. Phase 17C accepts the one-shot adapter. A **pull-based Responses
+SSE stream** is the Phase 17D closed text-event mapping accepted by [ADR
+0174](adr/0174-pull-based-openai-responses-sse-streaming.md). Consumer demand
+advances bounded PSR-7 body reads and yields contiguous neutral events, but the
+underlying Phase 15 transport may already have buffered the response; the term
+therefore makes no asynchronous, realtime, or immediate first-token promise.
+Phase 17E accepts [ADR
+0175](adr/0175-strict-structured-output-and-inert-openai-function-call-mapping.md)
+and mapping version `kongono-openai-responses/2`. A **strict structured output**
+is canonical JSON object evidence locally validated without coercion against one
+explicit closed bounded schema; schema-valid does not mean truthful. An
+**inert OpenAI function-call suggestion** is one bounded, name-matched,
+duplicate-safe, schema-validated provider call mapped to neutral
+`ActionSuggestion` evidence. It is not a callable, tool grant, proposal grant,
+approval, capability, dispatch, application effect, or second provider
+operation. Version 1 text and text streaming remain accepted. An **OpenAI
+Responses application profile** is Phase 17F bounded identity/currentness
+evidence binding one exact Phase 14 invocation-application profile, one selected
+Phase 17 provider profile, and one exact Phase 16 external-service-application
+profile. Its explicit build/write-free-check/single-use-run path grants no
+credential, network, tool, or application-effect authority. Phase 17A-E are
+Accepted. An **OpenAI Responses inspection** is Phase 17G caller-relative
+revalidation of one supplied exact-current application profile and optional
+matching detached completed runtime result. It is offline, read-only, stateless,
+visibility-safe evidence; it does not access hidden payloads, credentials,
+endpoints, networking, a provider, authority, replay, repair, recording,
+exporting, certification, or role execution. **Phase 17 local acceptance** is
+the root-owned loopback proof accepted by [ADR
+0178](adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md).
+It does not establish live provider compatibility or credential validity.
+Phase 17A-H are Accepted and Phase 17 is closed; Phase 18 remains separately
+unauthorized.

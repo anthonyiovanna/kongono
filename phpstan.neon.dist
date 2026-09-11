@@ -134,6 +134,10 @@ parameters:
         - packages/model-invocation-inspection/tests
         - packages/model-invocation-runtime/src
         - packages/model-invocation-runtime/tests
+        - packages/model-provider-openai-responses/src
+        - packages/model-provider-openai-responses/tests
+        - packages/model-provider-openai-responses-inspection/src
+        - packages/model-provider-openai-responses-inspection/tests
         - packages/network-egress-application/src
         - packages/network-egress-application/tests
         - packages/network-egress-contract/src

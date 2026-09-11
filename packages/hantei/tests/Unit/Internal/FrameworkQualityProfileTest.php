@@ -13,16 +13,36 @@ final class FrameworkQualityProfileTest extends TestCase
 {
     public function testRepositoryProfileMatchesEveryRequiredScriptExactly(): void
     {
-        $root = dirname(__DIR__, 5);
-        $profile = FrameworkQualityProfile::load($root);
-
-        self::assertSame(array_keys(HanteiCheckEvidence::CHECKS), array_column($profile->checks(), 'check_id'));
-        self::assertMatchesRegularExpression('/\A[a-f0-9]{64}\z/D', $profile->sha256());
         $root = json_decode((string) file_get_contents(dirname(__DIR__, 5) . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
         self::assertIsArray($root);
         self::assertIsArray($root['scripts']);
         self::assertIsArray($root['scripts']['validate:packages']);
-        self::assertCount(87, $root['scripts']['validate:packages']);
+        self::assertCount(89, $root['scripts']['validate:packages']);
+        $providerValidation = 'composer --working-dir=packages/model-provider-openai-responses validate --no-check-publish';
+        self::assertSame(1, count(array_keys($root['scripts']['validate:packages'], $providerValidation, true)));
+        self::assertFileExists(dirname(__DIR__, 5) . '/packages/model-provider-openai-responses/src/Stream/ResponsesSseFrameReader.php');
+        self::assertFileExists(dirname(__DIR__, 5) . '/packages/model-provider-openai-responses/tests/Integration/OpenAiResponsesStreamingAdapterTest.php');
+        $resource = json_decode(
+            (string) file_get_contents(dirname(__DIR__, 3) . '/resources/framework-quality-v1.json'),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+        self::assertIsArray($resource);
+        self::assertIsArray($resource['composer_scripts']);
+        $profileRoot = sys_get_temp_dir() . '/kongono-hantei-profile-' . bin2hex(random_bytes(8));
+        self::assertTrue(mkdir($profileRoot));
+        self::assertNotFalse(file_put_contents($profileRoot . '/composer.json', json_encode([
+            'scripts' => $root['scripts'],
+        ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT)));
+        try {
+            $profile = FrameworkQualityProfile::load($profileRoot);
+        } finally {
+            self::assertTrue(unlink($profileRoot . '/composer.json'));
+            self::assertTrue(rmdir($profileRoot));
+        }
+
+        self::assertSame(array_keys(HanteiCheckEvidence::CHECKS), array_column($profile->checks(), 'check_id'));
+        self::assertMatchesRegularExpression('/\A[a-f0-9]{64}\z/D', $profile->sha256());
         self::assertContains('composer --working-dir=packages/agent-admission validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/agent-application validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/agent-declaration-build validate --no-check-publish', $root['scripts']['validate:packages']);
@@ -71,6 +91,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertContains('composer --working-dir=packages/model-invocation-inspection validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/model-invocation-build validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/model-invocation-runtime validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/model-provider-openai-responses-inspection validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/network-egress-application validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/network-egress-contract validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/network-egress-curl validate --no-check-publish', $root['scripts']['validate:packages']);
@@ -112,14 +133,8 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertSame('@php tests/External/ModelInvocation/run.php', $root['scripts']['acceptance:phase14']);
         self::assertSame('@php tests/External/NetworkEgress/run.php', $root['scripts']['acceptance:phase15']);
         self::assertSame('@php tests/External/ExternalService/run.php', $root['scripts']['acceptance:phase16']);
+        self::assertSame('@php tests/External/OpenAiResponses/run.php', $root['scripts']['acceptance:phase17']);
 
-        $resource = json_decode(
-            (string) file_get_contents(dirname(__DIR__, 3) . '/resources/framework-quality-v1.json'),
-            true,
-            flags: JSON_THROW_ON_ERROR,
-        );
-        self::assertIsArray($resource);
-        self::assertIsArray($resource['composer_scripts']);
         self::assertSame($root['scripts']['validate:packages'], $resource['composer_scripts']['validate:packages']);
         self::assertSame($root['scripts']['validate:skeleton'], $resource['composer_scripts']['validate:skeleton']);
         self::assertSame($root['scripts']['acceptance:phase7'], $resource['composer_scripts']['acceptance:phase7']);
@@ -132,6 +147,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertSame($root['scripts']['acceptance:phase14'], $resource['composer_scripts']['acceptance:phase14']);
         self::assertSame($root['scripts']['acceptance:phase15'], $resource['composer_scripts']['acceptance:phase15']);
         self::assertSame($root['scripts']['acceptance:phase16'], $resource['composer_scripts']['acceptance:phase16']);
+        self::assertSame($root['scripts']['acceptance:phase17'], $resource['composer_scripts']['acceptance:phase17']);
     }
 
     public function testUnknownProfileIsRejected(): void

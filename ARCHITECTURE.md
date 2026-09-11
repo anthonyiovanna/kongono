@@ -1334,7 +1334,68 @@ network access, generated-code loading, replay, recording, repair, or
 certification. Phase 16H accepts [ADR
 0170](docs/adr/0170-phase-16-external-service-acceptance-and-checkpoint.md),
 adds the root-owned local external-service acceptance harness, and closes
-Phase 16 at one exact local checkpoint. Phase 17 remains unauthorized. The
-current graph is 87 packages / 355 local production edges / acyclic; PHP
-inventories are 1,647 / 851 / 88. `composer acceptance:phase16` is explicit
+Phase 16 at one exact local checkpoint. Phase 17A is separately accepted below
+as documentation only. The
+current graph is 89 packages / 375 local production edges / acyclic; PHP
+inventories are 1,726 / 894 / 92. `composer acceptance:phase16` is explicit
 local acceptance and is not part of canonical quality.
+
+## Phase 17A-H optional OpenAI Responses adapter boundary
+
+Phase 17A accepts [ADR 0171](docs/adr/0171-first-party-openai-responses-adapter-boundary.md)
+and the [fixed roadmap](docs/architecture/phase-17-roadmap.md) for one optional
+OpenAI Responses API outer adapter. The dependency direction is application
+intent and Phase 14 neutral invocation through the Phase 17 mapping profile,
+then Phase 16 binding and credential lease, then Phase 15 governed egress.
+Provider-specific values cross back into Phase 14 only after strict bounded
+validation. Evidence, credentials, network authority, action suggestions, and
+application effects remain distinct.
+
+Phase 17B accepts [ADR 0172](docs/adr/0172-deterministic-openai-responses-offline-protocol-mapping.md)
+and the optional Experimental `kongono/model-provider-openai-responses` offline
+mapping leaf. It owns one exact mapping version, typed text-and-usage profile,
+deterministic bounded request bytes, strict duplicate-safe response decoding,
+typed untrusted provider evidence, and nondisclosing diagnostics. The
+[developer guide](docs/architecture/openai-responses-provider-adapter.md)
+records the composition requirements without selecting an SDK, second
+transport stack, default provider/model, or live-provider claim.
+
+Phase 17C accepts [ADR 0173](docs/adr/0173-one-shot-openai-responses-invocation-adapter.md)
+and adds one one-open, pull-driven non-streaming `InvocationAdapter`. It uses an
+explicit context and fresh exact-profile Phase 16 application to borrow one
+operation-scoped credential, construct one exact outbound PSR-7 request, and
+delegate one attempt to Phase 15. One strictly bounded terminal JSON response
+is closed and normalized to one Phase 14 text result. Failures, uncertain
+effects, and both cancellation categories are terminal and never replayed.
+This is locally executable composition, not live-provider compatibility or
+certification. Phase 17D accepts [ADR
+0174](docs/adr/0174-pull-based-openai-responses-sse-streaming.md) and adds one
+Internal consumer-driven SSE session under the same adapter identity. It
+strictly bounds framing, JSON, event count, retained bytes, ordering, snapshots,
+and cleanup while emitting contiguous neutral text events and a terminal
+result. It adds no background reader, retry, reconnect, replay, WebSocket,
+provider SDK, or live compatibility claim; Phase 15 buffering means there is
+no immediate first-token guarantee. Phase 17E accepts [ADR
+0175](docs/adr/0175-strict-structured-output-and-inert-openai-function-call-mapping.md)
+and adds exact non-streaming Version 2 mappings for one locally schema-validated
+structured result or one inert function-call suggestion. Schemas are explicit,
+bounded, duplicate-safe, closed, and never inferred; structured values remain
+untrusted evidence. A function call grants no tool or application-effect
+authority and is never executed or returned to the provider. Version 1 text and
+streaming remain accepted. Phase 17F accepts [ADR
+0176](docs/adr/0176-exact-current-openai-responses-application-workflow.md)
+and adds one exact-profile application identity plus explicit build, write-free
+check, and single-use run composition over accepted Phase 14-16 ownership. It
+adds no registry, defaults, discovery, SDK, alternate networking stack, retry,
+tool effect, or live compatibility claim. Phase
+17G accepts [ADR 0177](docs/adr/0177-visibility-safe-openai-responses-inspection-and-bounded-evidence.md)
+and adds one offline read-only stateless visibility-safe inspection leaf over
+supplied exact-current profile evidence and optional matching detached runtime
+evidence. It exposes only bounded digests, tokens, aggregates, and separately
+derived Graph, Observability, Security Audit, and developer-role evidence; it
+does not inspect hidden payloads, network, observe a provider, evaluate
+authority, replay, repair, record, export, certify, or execute a role. The graph
+is 89 packages / 375 local production edges / acyclic; PHP inventories are
+1,726 / 894 / 92. Phase 17H accepts [ADR 0178](docs/adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md)
+and the root-owned local acceptance proof. Phase 17A-H are Accepted and Phase
+17 is closed at the exact local checkpoint. Phase 18 remains unauthorized.

@@ -385,6 +385,34 @@ Phase 16H accepts [ADR
 only explicit root-owned local acceptance over a selected loopback address and
 an inert credential lease, and closes Phase 16 at one exact local checkpoint.
 The proof does not establish public DNS, TLS, credential, provider, remote-
-effect, deployment, or production-readiness truth. Stable/1.0 and Phase 17
-remain unauthorized. Current topology is 87 packages / 355 local production
-edges / acyclic; PHP inventories are 1,647 / 851 / 88.
+effect, deployment, or production-readiness truth. Stable/1.0 remains
+unauthorized; Phase 17A is separately accepted below as documentation only.
+Phase 17B adds one offline mapping leaf and Phase 17C composes one governed
+one-shot attempt, and Phase 17D consumes one bounded SSE body through the same
+attempt. Current topology is 88 packages / 366 local production edges /
+acyclic; PHP inventories are 1,685 / 876 / 88.
+
+## Relationship to Phase 17 provider mapping
+
+Phase 17A accepts [ADR 0171](../adr/0171-first-party-openai-responses-adapter-boundary.md)
+and the [adapter guide](openai-responses-provider-adapter.md) as documentation
+only. Phase 17C accepts [ADR
+0173](../adr/0173-one-shot-openai-responses-invocation-adapter.md); its optional
+OpenAI Responses adapter uses this accepted egress application, resolver
+evidence, exact selected-address binding, budgets, cancellation, and selected
+transport. It cannot add direct cURL/socket behavior,
+another HTTP or DNS stack, ambient proxy discovery, automatic retry, fallback,
+reconnect, or replay.
+
+Current egress authority remains application-owned and independent from a
+credential lease or provider profile. Phase 17B adds request bytes as inert
+offline evidence. Phase 17C constructs one exact outbound PSR-7 request only
+inside borrowed credential access and delegates one governed attempt without
+retry or replay. The application still owns the endpoint, credential source,
+authority, resolver, and transport. This is not a live-provider compatibility
+claim. Phase 17D accepts [ADR
+0174](../adr/0174-pull-based-openai-responses-sse-streaming.md) without changing
+this egress contract: the adapter advances only the returned PSR-7 body on
+consumer pulls and closes it once. The transport may already have buffered the
+body, so no immediate first-token, nonblocking, or realtime latency claim is
+made. Phase 17E-H remain Planned.

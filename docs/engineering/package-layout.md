@@ -1392,7 +1392,28 @@ intelligence, diagnostics, observability, and security audit. It is an optional
 upper evidence leaf. Phase 16H adds no package; it adds four root-test PHP files
 under `tests/External/ExternalService/`, acceptance documentation, and one
 explicit root Composer script. Phase 16 is closed at one exact local checkpoint.
-Provider adapters, Stable/1.0, production readiness, and Phase 17 remain
-unauthorized. Current topology is 87 packages / 355 local production edges /
-acyclic; PHP inventories are 1,647 / 851 / 88. See [ADR
+Provider adapters, Stable/1.0, and production readiness remain unauthorized;
+Phase 17A is separately accepted below as documentation only. Phase 17B-G add
+one optional mapping/adapter application leaf and one inspection leaf. Current
+topology is 89 packages / 375 local production edges / acyclic; PHP inventories
+are 1,726 / 894 / 88. See [ADR
 0170](../adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).
+
+## Phase 17A-G package direction
+
+Phase 17B accepts one optional outer
+`kongono/model-provider-openai-responses` package. Its 12 local production
+edges point inward to API Metadata, Diagnostics, HTTP messages, and the
+accepted Phase 14-16 packages. No existing production package depends outward
+on it. Its 55 production PHP files, 35 package-test PHP files, and authenticated
+synthetic fixtures cover offline mapping, one-shot and pull-based adapter
+behavior, and the exact-current application workflow. No SDK or third-party
+production dependency exists. Phase 17G adds the separate optional
+`kongono/model-provider-openai-responses-inspection` upper evidence leaf with
+22 production PHP files, six package-test PHP files, and eight inward local
+edges. It is offline, read-only, stateless, and visibility-safe, and no existing
+production package depends outward on it. See [ADR 0171](../adr/0171-first-party-openai-responses-adapter-boundary.md),
+[ADR 0172](../adr/0172-deterministic-openai-responses-offline-protocol-mapping.md),
+[ADR 0176](../adr/0176-exact-current-openai-responses-application-workflow.md),
+[ADR 0177](../adr/0177-visibility-safe-openai-responses-inspection-and-bounded-evidence.md),
+and the [Phase 17 roadmap](../architecture/phase-17-roadmap.md).

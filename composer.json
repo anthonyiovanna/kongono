@@ -33,6 +33,10 @@
     },
     {
       "type": "path",
+      "url": "packages/model-provider-openai-responses-inspection"
+    },
+    {
+      "type": "path",
       "url": "packages/network-egress-application"
     },
     {
@@ -122,6 +126,8 @@
     "kongono/model-invocation-contract": "@dev",
     "kongono/model-invocation-inspection": "@dev",
     "kongono/model-invocation-runtime": "@dev",
+    "kongono/model-provider-openai-responses": "@dev",
+    "kongono/model-provider-openai-responses-inspection": "@dev",
     "kongono/network-egress-application": "@dev",
     "kongono/network-egress-contract": "@dev",
     "kongono/network-egress-curl": "@dev",
@@ -220,6 +226,8 @@
       "Kongono\\ModelInvocationContract\\Tests\\": "packages/model-invocation-contract/tests/",
       "Kongono\\ModelInvocationInspection\\Tests\\": "packages/model-invocation-inspection/tests/",
       "Kongono\\ModelInvocationRuntime\\Tests\\": "packages/model-invocation-runtime/tests/",
+      "Kongono\\ModelProviderOpenAiResponses\\Tests\\": "packages/model-provider-openai-responses/tests/",
+      "Kongono\\ModelProviderOpenAiResponsesInspection\\Tests\\": "packages/model-provider-openai-responses-inspection/tests/",
       "Kongono\\NetworkEgressApplication\\Tests\\": "packages/network-egress-application/tests/",
       "Kongono\\NetworkEgressContract\\Tests\\": "packages/network-egress-contract/tests/",
       "Kongono\\NetworkEgressCurl\\Tests\\": "packages/network-egress-curl/tests/",
@@ -294,6 +302,7 @@
     "acceptance:phase14": "@php tests/External/ModelInvocation/run.php",
     "acceptance:phase15": "@php tests/External/NetworkEgress/run.php",
     "acceptance:phase16": "@php tests/External/ExternalService/run.php",
+    "acceptance:phase17": "@php tests/External/OpenAiResponses/run.php",
     "analyse": "@php -d memory_limit=512M vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress",
     "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
     "cs:fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
@@ -362,6 +371,8 @@
       "composer --working-dir=packages/model-invocation-contract validate --no-check-publish",
       "composer --working-dir=packages/model-invocation-inspection validate --no-check-publish",
       "composer --working-dir=packages/model-invocation-runtime validate --no-check-publish",
+      "composer --working-dir=packages/model-provider-openai-responses validate --no-check-publish",
+      "composer --working-dir=packages/model-provider-openai-responses-inspection validate --no-check-publish",
       "composer --working-dir=packages/network-egress-application validate --no-check-publish",
       "composer --working-dir=packages/network-egress-contract validate --no-check-publish",
       "composer --working-dir=packages/network-egress-curl validate --no-check-publish",

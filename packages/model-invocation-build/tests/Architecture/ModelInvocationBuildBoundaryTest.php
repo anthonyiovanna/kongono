@@ -80,7 +80,7 @@ final class ModelInvocationBuildBoundaryTest extends TestCase
         $root = dirname(__DIR__, 4);
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(87, $manifests);
+        self::assertCount(89, $manifests);
         $graph = [];
         $edges = 0;
         foreach ($manifests as $manifestPath) {
@@ -97,11 +97,11 @@ final class ModelInvocationBuildBoundaryTest extends TestCase
                     ++$edges;
                 }
             }
-            if (!in_array($name, ['kongono/model-invocation-application', 'kongono/model-invocation-build', 'kongono/model-invocation-inspection', 'kongono/model-invocation-runtime'], true)) {
+            if (!in_array($name, ['kongono/model-invocation-application', 'kongono/model-invocation-build', 'kongono/model-invocation-inspection', 'kongono/model-invocation-runtime', 'kongono/model-provider-openai-responses'], true)) {
                 self::assertArrayNotHasKey('kongono/model-invocation-build', $manifest['require']);
             }
         }
-        self::assertSame(355, $edges);
+        self::assertSame(375, $edges);
         $visit = static function (string $name, array $path = []) use (&$visit, $graph): void {
             self::assertArrayNotHasKey($name, $path);
             $path[$name] = true;

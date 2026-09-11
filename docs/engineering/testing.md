@@ -1023,7 +1023,68 @@ recording, repair, or certification behavior. Phase 16H adds the explicit
 only local IPv4 loopback, a numeric resolver proof, and one inert test lease;
 it is not part of canonical quality and does not certify public DNS, TLS,
 credentials, providers, remote effects, deployment, or production readiness.
-Phase 16 is closed; Phase 17 remains unauthorized. Current topology is 87
-packages / 355 local production edges / acyclic; PHP inventories are 1,647 /
-851 / 88. See [ADR
+Phase 16 is closed; Phase 17A is separately accepted below as documentation
+only. Phase 17B-G add one optional mapping/adapter application leaf and one
+inspection leaf. Current topology is 89 packages / 375 local production edges
+/ acyclic; PHP inventories are 1,726 / 894 / 92. See [ADR
 0170](../adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).
+
+## Phase 17 testing and local acceptance
+
+Phase 17B accepts seven local synthetic response fixtures and nine package-test
+PHP files under [ADR 0172](../adr/0172-deterministic-openai-responses-offline-protocol-mapping.md).
+They prove exact mapping version and API status, profile restrictions,
+deterministic compact request bytes, byte/count/depth bounds, duplicate-key and
+unsupported-shape rejection, usage relations, nondisclosure, detached values,
+and repeated mixed-operation isolation. Tests perform no network, DNS,
+credential, endpoint, or provider operation. Phase 17C-D own adapter, SSE,
+runtime cancellation, transport uncertainty, and reverse cleanup proofs.
+
+Phase 17C tests prove the one-shot adapter through local external-service and
+egress fakes. Phase 17D adds three synthetic SSE fixtures and six package-test
+PHP files covering LF/CRLF framing, content-type and field rejection, bounded
+reads and stalls, duplicate-safe JSON, exact event order and snapshots,
+contiguous neutral emissions, terminal result equality, failure, nondisclosure,
+and exactly-once cleanup. The focused suite also exercises the real Phase 14
+runtime. It proves consumer-driven PHP body pulls, not immediate first-token
+delivery from a socket because Phase 15 may already have buffered the body.
+Phase 17E adds four synthetic JSON fixtures and
+eight package-test PHP files covering strict schema canonicalization and bounds,
+duplicate and unknown-member rejection, exact structured/action request hashes,
+local no-coercion value validation, inert function-call normalization, Version
+1 regressions, Version 2 pre-effect streaming rejection, one provider attempt,
+zero tool/effect calls, and zero second operations. Fixtures remain local
+evidence and do not establish current public-provider compatibility.
+
+Phase 17F adds four package-test PHP files covering canonical profile identity,
+all four supported mapping/mode combinations, exact lower-profile
+reconstruction, deterministic build output, write-free check identity, one
+single-use run, lazy cancellation, stale/mismatched pre-effect rejection,
+reentry/reuse, lower cleanup and uncertainty preservation, nondisclosure, and
+persistent-process isolation. These are local deterministic proofs, not a live
+provider, credential, public network, certification, or production-readiness
+claim. See [ADR
+0176](../adr/0176-exact-current-openai-responses-application-workflow.md).
+
+Phase 17G adds six package-test PHP files covering exact-current profile
+reconstruction, mixed and stale binding rejection, absent and matching detached
+runtime evidence, every terminal outcome, contiguous event identities, bounded
+canonical evidence, Graph absence and role matching, inert Observability and
+Security Audit projections, deterministic role-addressed derivation, independent
+verification, nondisclosure, statelessness, and prohibited side effects. The
+tests use only synthetic fakes and inspect no hidden request, response, text,
+structured, action, credential, endpoint, transport, or event payload material.
+See [ADR
+0177](../adr/0177-visibility-safe-openai-responses-inspection-and-bounded-evidence.md).
+
+Phase 17H accepts [ADR
+0178](../adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md)
+and adds four root-test PHP files beneath `tests/External/OpenAiResponses/`.
+`composer acceptance:phase17` runs fresh sequential and concurrent children
+against an owned IPv4 loopback provider-protocol emulator and proves all four
+supported profiles through the real Phase 14-17 composition. Streams,
+requests, responses, timeouts, repository fingerprints, and temporary cleanup
+are bounded; public output is canonical and nondisclosing. No real credential,
+account, public OpenAI endpoint, provider certification, live compatibility,
+production-readiness, or Phase 18 claim follows from the local evidence. Phase
+17A-H are Accepted and Phase 17 is closed; Phase 18 remains unauthorized.

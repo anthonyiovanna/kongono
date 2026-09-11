@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "baa49410bc0f2f532ba05bd5cbd0c1db",
+    "content-hash": "ed02c0af228fc2a31395de12e19349ef",
     "packages": [
         {
             "name": "google/protobuf",
@@ -2052,6 +2052,86 @@
                 }
             },
             "description": "Bounded provider-neutral execution runtime for Kongono model invocation.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/model-provider-openai-responses",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/model-provider-openai-responses",
+                "reference": "5a5c1c65c62d88b3dbf51258f1336738edb67278"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/external-service-application": "*",
+                "kongono/external-service-contract": "*",
+                "kongono/external-service-credential-runtime": "*",
+                "kongono/http-message": "*",
+                "kongono/model-invocation-application": "*",
+                "kongono/model-invocation-build": "*",
+                "kongono/model-invocation-contract": "*",
+                "kongono/model-invocation-runtime": "*",
+                "kongono/network-egress-contract": "*",
+                "kongono/network-egress-runtime": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ModelProviderOpenAiResponses\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ModelProviderOpenAiResponses\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic offline OpenAI Responses protocol mapping for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/model-provider-openai-responses-inspection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/model-provider-openai-responses-inspection",
+                "reference": "0046eed600958c3813b8eb613f5913f0e76b06e1"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-intelligence": "*",
+                "kongono/diagnostics": "*",
+                "kongono/model-invocation-contract": "*",
+                "kongono/model-invocation-runtime": "*",
+                "kongono/model-provider-openai-responses": "*",
+                "kongono/observability": "*",
+                "kongono/security-audit": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ModelProviderOpenAiResponsesInspection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ModelProviderOpenAiResponsesInspection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Visibility-safe OpenAI Responses inspection and bounded cross-system evidence.",
             "transport-options": {
                 "relative": true
             }
@@ -8101,6 +8181,8 @@
         "kongono/model-invocation-contract": 20,
         "kongono/model-invocation-inspection": 20,
         "kongono/model-invocation-runtime": 20,
+        "kongono/model-provider-openai-responses": 20,
+        "kongono/model-provider-openai-responses-inspection": 20,
         "kongono/network-egress-application": 20,
         "kongono/network-egress-contract": 20,
         "kongono/network-egress-curl": 20,

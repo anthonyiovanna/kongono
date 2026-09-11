@@ -1199,5 +1199,32 @@ only a root-owned deterministic local acceptance command plus the exact Phase
 16 checkpoint. Local loopback, numeric resolver, inert lease, and inspection
 evidence grant no authority and prove no public DNS, TLS, credential, provider,
 remote-effect, deployment, or production-readiness truth. Phase 16 is closed;
-Stable/1.0 and Phase 17 remain unauthorized. The current graph is 87 packages /
-355 local production edges / acyclic; PHP inventories are 1,647 / 851 / 88.
+Stable/1.0 remains unauthorized, and Phase 17A is separately accepted below as
+documentation only. Phase 17B-G add the optional mapping/adapter application
+and inspection leaves. The
+current graph is 89 packages / 375 local production edges / acyclic; PHP
+inventories are 1,726 / 894 / 92.
+
+## Phase 17 provider mapping remains an outer evidence boundary
+
+Phase 17A accepts [ADR 0171](adr/0171-first-party-openai-responses-adapter-boundary.md)
+and the [fixed roadmap](architecture/phase-17-roadmap.md) as documentation only.
+One optional OpenAI Responses profile maps between Phase 14 neutral
+invocation and the accepted Phase 16 and Phase 15 service boundaries. The
+provider is not a default or a generic compatibility fiction.
+
+Provider mapping is not neutral invocation; provider output is not authority;
+structured output is not truth; an action suggestion is not a capability or
+effect; a credential lease is not network permission; and successful egress is
+not proof of billing, delivery, safety, or application effect. Phase 17B
+accepts [ADR 0172](adr/0172-deterministic-openai-responses-offline-protocol-mapping.md)
+and adds only exact bounded offline request/response mapping with closed
+nondisclosing failures. It adds no credential, endpoint, HTTP transport,
+network request, runtime adapter, tool effect, or live connection. Phase 17C-G
+are separately accepted, culminating in the optional offline visibility-safe
+inspection leaf. Phase 17H accepts the root-owned local proof without promoting
+provider evidence to authority or compatibility truth. Phase 17A-H are
+Accepted and Phase 17 is closed; Phase 18 requires separate authority. See the
+[adapter guide](architecture/openai-responses-provider-adapter.md) and
+[inspection guide](architecture/openai-responses-inspection-and-evidence.md),
+plus [ADR 0178](adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md).

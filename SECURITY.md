@@ -799,6 +799,55 @@ uses only an inert test credential, numeric loopback resolution, and an
 explicit `.invalid` selected-address exchange; it grants no credential or
 network authority and does not establish physical erasure, public DNS, TLS,
 provider, remote-effect, deployment, or production-readiness truth. Stable/1.0
-and Phase 17 remain unauthorized. Current topology is 87 packages / 355 local
-production edges / acyclic; PHP inventories are 1,647 / 851 / 88. See [ADR
+remains unauthorized; Phase 17A is separately accepted below as documentation
+only. Phase 17B-G add the optional mapping/adapter application and inspection
+leaves. Current topology is 89 packages / 375 local production edges / acyclic;
+PHP inventories are 1,726 / 894 / 92. See [ADR
 0170](docs/adr/0170-phase-16-external-service-acceptance-and-checkpoint.md).
+
+## Phase 17A-H provider-adapter security boundary
+
+Phase 17A accepts [ADR 0171](docs/adr/0171-first-party-openai-responses-adapter-boundary.md)
+as documentation architecture for an optional OpenAI Responses adapter. Every
+future attempt still requires separate current application authorization,
+Phase 14 plan currentness, Phase 16 binding and credential-lease currentness,
+and Phase 15 network authority. Possession of a key, model name, response ID,
+provider acknowledgement, receipt, or Agent proposal grants none of those.
+
+Secrets may be borrowed only through the Phase 16 lease while constructing one
+terminal authorization field and must not enter deterministic evidence,
+generated PHP, URLs, model material, diagnostics, logs, traces, metrics,
+receipts, Graph facts, inspection, tests, or reports. Provider bodies and SSE
+events remain bounded untrusted input. There is no ambient discovery,
+automatic retry/replay, tool execution, live-provider call, or reliable memory-
+zeroization claim in Phase 17A. Phase 17B accepts [ADR 0172](docs/adr/0172-deterministic-openai-responses-offline-protocol-mapping.md).
+Its offline mapping validates duplicate-free bounded JSON and rejects
+unsupported nested shapes. Diagnostics exclude raw bodies, messages,
+identifiers, model names, endpoints, headers, native messages, and secret-like
+values. Storage is only a provider request preference; decoded claims grant no
+credential, network, tool, or application-effect authority. See the [adapter guide](docs/architecture/openai-responses-provider-adapter.md)
+and [roadmap](docs/architecture/phase-17-roadmap.md).
+
+Phase 17C and Phase 17D retain one-attempt governed transport, bounded body or
+SSE parsing, preserved uncertainty, and deterministic cleanup without retry or
+replay. Phase 17E accepts [ADR
+0175](docs/adr/0175-strict-structured-output-and-inert-openai-function-call-mapping.md).
+Its Version 2 schemas are explicit, bounded, duplicate-safe, closed provider-
+profile inputs. Structured values are locally validated without coercion but
+remain untrusted evidence. Function-call names and arguments become one inert
+neutral suggestion only: no callable, tool, proposal, capability, approval,
+policy, queue, or application effect is discovered or invoked, and no second
+provider operation is created. Version 2 streaming fails before external-
+service application creation. Version 1 text and text streaming remain
+accepted. Phase 17F binds the exact-current application profile and explicit
+single-use workflow. Phase 17G's optional inspection leaf revalidates supplied
+profile evidence and optional matching detached completed runtime evidence
+without accessing provider or transport bodies, credential material, endpoints,
+networking, provider state, or authority. Its digests, tokens, aggregates,
+Graph projections, observations, audits, and role-addressed views remain
+bounded evidence rather than truth, authorization, certification, or proof of
+delivery. Phase 17H accepts the root-owned loopback proof in [ADR
+0178](docs/adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md).
+It uses no public endpoint or real credential and adds no compatibility,
+certification, deployment, production-readiness, or Stable/1.0 claim. Phase
+17A-H are Accepted and Phase 17 is closed; Phase 18 remains unauthorized.

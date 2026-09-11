@@ -177,3 +177,13 @@ Phase 5 was not begun.
 Phase 12G may address a detached Safe extension aggregate view to Chie. This
 does not enlarge Chie's tools or authority and provides no currentness, raw
 declaration, generated code, host state, execution, trust, or mutation access.
+
+Phase 17A permits Chie to explain the accepted [OpenAI Responses adapter
+architecture](openai-responses-provider-adapter.md) from accepted sources only.
+Phase 17B adds an accepted offline mapping source and [ADR 0172](../adr/0172-deterministic-openai-responses-offline-protocol-mapping.md),
+but no Chie connection or generated knowledge.
+It does not connect Chie to a live model or let Chie discover credentials,
+authorize network access, choose a provider/model, send a request, execute a
+tool, elevate provider output, or repair adapter state. Any future Chie
+application integration requires separate architecture after a concrete
+adapter is accepted. Phase 17C-H remain Planned.
