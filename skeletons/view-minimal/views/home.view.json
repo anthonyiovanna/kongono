@@ -1,0 +1,1 @@
+{"schema":"kongono.view-source-set","version":1,"views":[{"id":"page.home","context":{"kind":"record","fields":[{"name":"message","required":true,"schema":{"kind":"string","max_bytes":64}}]},"body":[{"kind":"value","path":"$.message"},{"kind":"text","text":"\n"}]}]}

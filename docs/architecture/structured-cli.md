@@ -38,7 +38,7 @@ the [`kongono/console` guide](../../packages/console/README.md), and the
 [Phase 8 roadmap](phase-8-roadmap.md). They accept doctrine, lifecycle,
 security, automation, dependency direction, and the exact neutral values.
 
-The current application implements the closed six-command `kongo` help and
+The current application implements the closed ten-command `kongo` help and
 grammar. `application:build` retains `--plan` as its honest non-mutating dry
 run and `--apply` as explicit
 mutation authority, and `--no-interaction` is automation-safe because no prompt
@@ -264,10 +264,22 @@ credential, provider, or exception message.
 
 ## Phase 11F Application Graph inspection command
 
-The current official supported family is exactly six commands in Console's
+At Phase 11F the official supported family was exactly six commands in Console's
 accepted ordinal case-sensitive identifier order: `application-graph:inspect`,
 `application:build`, `observability:check`, `observability:inspect`,
 `security:check`, and `security:inspect`. The Graph command requires exactly
 one ordinary `artifact-path`, disables interaction, declares `ReadOnly`, and
 returns only the bounded structural evidence described by ADR 0128. It does
 not expose individual Graph facts or make an external-currentness claim.
+
+## Phase 18F compiled-view commands
+
+The current official family is exactly ten commands. Phase 18F adds
+`view:build`, `view:check`, and `view:inspect` after the seven previously
+accepted identifiers. Each takes exactly the ordinary `application-root`,
+`output-directory`, and `source-file` inputs. Build retains write-free plan and
+explicit apply semantics; check and inspect are read-only and observe-only.
+Results use one neutral bounded Safe record and disclose no supplied path,
+source byte, generated PHP, rendered byte, header, reason, foreign message,
+trace, environment, or timestamp. See [ADR 0185](../adr/0185-supported-compiled-view-application-workflow.md)
+and the [compiled-view application guide](compiled-view-application-workflow.md).

@@ -1,5 +1,66 @@
 # Kongono Architecture
 
+## Phase 18A-H server-rendered presentation boundary
+
+Phase 18A accepts the optional compiled-view architecture in
+[ADR 0179](docs/adr/0179-server-rendered-presentation-and-compiled-view-boundary.md)
+and [ADR 0180](docs/adr/0180-context-aware-output-safety-and-presentation-lifecycle.md),
+the [presentation guide](docs/architecture/server-rendered-presentation.md),
+the [authoring guide](docs/engineering/view-authoring.md), and the
+[fixed Phase 18 roadmap](docs/architecture/phase-18-roadmap.md). Phase 18B
+accepts [ADR 0181](docs/adr/0181-neutral-view-contract-and-closed-presentation-values.md)
+and the optional Experimental `kongono/view-contract` neutral leaf. Phase 18C
+accepts [ADR 0182](docs/adr/0182-deterministic-structured-view-source-and-compiled-artifact.md)
+and the optional Experimental `kongono/view-build` leaf. Phase 18D accepts [ADR 0183](docs/adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+and the optional Experimental `kongono/view-runtime` leaf documented in the
+[runtime guide](docs/architecture/compiled-view-runtime.md). Phase 18E accepts
+[ADR 0184](docs/adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+and the optional Experimental `kongono/view-http` leaf documented in the
+[HTTP adapter guide](docs/architecture/compiled-view-http.md). Phase 18F accepts
+[ADR 0185](docs/adr/0185-supported-compiled-view-application-workflow.md), the
+optional Experimental `kongono/view-application` upper composition leaf, three
+explicit commands, and the copy-once example documented in the
+[application workflow guide](docs/architecture/compiled-view-application-workflow.md).
+Phase 18G accepts [ADR 0186](docs/adr/0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+and the optional Experimental `kongono/view-inspection` upper evidence leaf
+documented in the [inspection guide](docs/architecture/compiled-view-inspection-and-intelligence.md).
+Phase 18H accepts [ADR 0187](docs/adr/0187-phase-18-server-rendered-presentation-acceptance-and-checkpoint.md),
+the root-owned [local acceptance](docs/architecture/phase-18-server-rendered-presentation-acceptance.md),
+and the exact checkpoint. Phase 18 is closed.
+
+The dependency direction is application-selected handler and immutable
+presentation data, implemented neutral view contracts and deterministic
+compiled source evidence, exact-current synchronous rendering, one completed neutral result,
+and optional explicit PSR-7 adaptation. Routing does not select templates;
+neutral view contracts do not depend on HTTP; lower packages do not depend
+outward on presentation.
+
+Source sets, logical identities, schemas, contexts, artifacts, generated PHP,
+bounds, and lifecycle are explicit and fail closed. Runtime parsing,
+compilation, discovery, scanning, Reflection discovery, `eval`, service
+location, ambient data, globals, and mutable registries are prohibited. Plain
+strings are data and contextual escaping is compile-time declared. Rendering
+is operation-scoped, bounded, stateless, and rejects partial output.
+
+Phase 18C implements the closed structured source grammar, canonical build model
+and source map, generated ordinary PHP evidence, strict structural/current
+validation, and explicit content-addressed publication. Generated PHP remains
+unexecuted during build. Phase 18D loads only the caller-selected fixed two-file
+artifact, authenticates and executes its generated class, and returns a bounded
+neutral outcome with contextual HTML escaping and no partial failure bytes. No
+source is parsed or compiled during rendering. Generated code and the deployment
+filesystem are trusted inputs. Phase 18E adapts only completed neutral results
+through caller-selected PSR factories and explicit caller-owned response policy.
+Phase 18F supplies the explicit application workflow and commands. Phase 18G
+structurally revalidates one supplied exact-current artifact in memory and emits
+only bounded Safe/Protected developer evidence without filesystem access,
+generated-code execution, rendering, recording, or role execution. Its Graph
+relationship is always `not-established`, and neutral projections remain
+`constructed-not-recorded`. Phase 18H adds only root-owned local acceptance
+and checkpoint evidence. The graph is
+95 packages / 402 local production edges / acyclic, with PHP inventories
+1,861 / 962 / 96.
+
 Phase 14B implements the neutral contract foundation accepted by
 [ADR 0148](docs/adr/0148-neutral-versioned-model-invocation-contract-foundation.md)
 and [ADR 0149](docs/adr/0149-deterministic-model-invocation-plan-artifact.md),
@@ -1398,4 +1459,5 @@ authority, replay, repair, record, export, certify, or execute a role. The graph
 is 89 packages / 375 local production edges / acyclic; PHP inventories are
 1,726 / 894 / 92. Phase 17H accepts [ADR 0178](docs/adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md)
 and the root-owned local acceptance proof. Phase 17A-H are Accepted and Phase
-17 is closed at the exact local checkpoint. Phase 18 remains unauthorized.
+17 is closed at the exact local checkpoint. Phase 18A-H are Accepted and Phase
+18 is closed.

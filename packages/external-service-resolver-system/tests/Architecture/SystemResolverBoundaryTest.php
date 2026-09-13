@@ -69,7 +69,7 @@ final class SystemResolverBoundaryTest extends TestCase
         $root = dirname(__DIR__, 4);
         $paths = glob($root . '/packages/*/composer.json');
         self::assertIsArray($paths);
-        self::assertCount(89, $paths);
+        self::assertCount(95, $paths);
         $edges = 0;
         foreach ($paths as $path) {
             $manifest = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
@@ -87,7 +87,7 @@ final class SystemResolverBoundaryTest extends TestCase
                 self::assertArrayNotHasKey('kongono/external-service-resolver-system', $manifest['require']);
             }
         }
-        self::assertSame(375, $edges);
+        self::assertSame(402, $edges);
     }
 
     public function testSourceContainsOnlyTheAuthorizedNativeLookupBoundary(): void

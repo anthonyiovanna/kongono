@@ -1,5 +1,35 @@
 # Routing Model
 
+## Phase 18 presentation separation
+
+Phase 18A accepts [ADR 0179](../adr/0179-server-rendered-presentation-and-compiled-view-boundary.md)
+and the [presentation guide](server-rendered-presentation.md) as documentation
+architecture only. The current Routing package and route contract are
+unchanged.
+
+Phase 18D accepts the optional exact-current
+[compiled-view runtime](compiled-view-runtime.md) under
+[ADR 0183](../adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+without changing Routing.
+
+Phase 18E accepts the separate [compiled-view HTTP adapter](compiled-view-http.md)
+under [ADR 0184](../adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+without changing Routing.
+
+Phase 18F accepts the separate [compiled-view application workflow](compiled-view-application-workflow.md)
+under [ADR 0185](../adr/0185-supported-compiled-view-application-workflow.md).
+The copy-once example composes an application-selected handler with existing
+Routing; no Routing production declaration changes.
+
+Routing selects one handler according to the existing deterministic match
+rules. It does not select a template, construct view data, render output, adapt
+a render result to PSR-7, or grant presentation authority. An application handler may
+explicitly choose a logical view and immutable data, or may produce JSON, a
+direct response, CLI work, or no presentation at all. Phase 18A-F are Accepted;
+Phase 18G-H are Planned. No view route convention, controller discovery,
+middleware magic, or Routing integration exists. The runtime parses or compiles
+no source while rendering; generated code and deployment files are trusted.
+
 ## Purpose and boundary
 
 `kongono/routing` is the implemented Phase 2D boundary for deterministic declaration and selection of a route from an explicit PSR-7 server request. It is the tenth package and depends only on API Metadata, Diagnostics, PHP 8.5, and `psr/http-message`.

@@ -1,5 +1,52 @@
 # API Status
 
+## Phase 18A-G presentation status
+
+Phase 18A accepts [ADR 0179](../adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),
+[ADR 0180](../adr/0180-context-aware-output-safety-and-presentation-lifecycle.md),
+the [presentation guide](../architecture/server-rendered-presentation.md), the
+[authoring guide](view-authoring.md), and the
+[fixed roadmap](../architecture/phase-18-roadmap.md) as documentation doctrine.
+Phase 18B accepts [ADR 0181](../adr/0181-neutral-view-contract-and-closed-presentation-values.md)
+and the optional `kongono/view-contract` API. Phase 18C accepts
+[ADR 0182](../adr/0182-deterministic-structured-view-source-and-compiled-artifact.md)
+and the optional Experimental `kongono/view-build` API. Phase 18D accepts
+[ADR 0183](../adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md),
+the [runtime guide](../architecture/compiled-view-runtime.md), and the optional
+Experimental `kongono/view-runtime` API. Phase 18E accepts
+[ADR 0184](../adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md),
+the [HTTP adapter guide](../architecture/compiled-view-http.md), and the
+optional Experimental `kongono/view-http` API.
+
+Phase 18F accepts [ADR 0185](../adr/0185-supported-compiled-view-application-workflow.md)
+and the optional Experimental `kongono/view-application` API. It adds 20
+declarations: ten Experimental workflow/profile/application/summary values,
+one Public exception marker, and nine Internal diagnostic/exception/helper
+declarations.
+
+Phase 18G accepts [ADR 0186](../adr/0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+and the optional Experimental `kongono/view-inspection` API. It adds 22
+declarations: 20 Experimental inspection, derivation, Graph, projection,
+exception, role, and verification declarations, plus the Internal diagnostic
+enum and canonical JSON helper. Nothing in Phase 18 is Stable, 1.0,
+production-observing, browser-certified, or a compatibility promise. Phase 18H
+adds root-test evidence only, no production declaration or status change.
+
+View Contract contains exactly 30 production declarations: 26 Experimental
+consumer-facing values/enums and the concrete validation exception, one Public
+exception marker, and three Internal diagnostic/base/guard declarations.
+View Build adds 30 declarations: 18 Experimental source/grammar/artifact/
+concrete-exception declarations, one Public exception marker, and 11 Internal
+model/emitter/sink/diagnostic/base/helper declarations. View Runtime adds 19
+declarations: 10 Experimental loader/loaded-handle/renderer/specific-exception
+declarations, one Public exception marker, and eight Internal diagnostic/base/
+loader/escaper/sink/operation/guard/reader declarations. Nothing in Phase 18 is Stable, 1.0,
+production-certified, browser-certified, or a compatibility promise.
+
+View HTTP adds 11 declarations: six Experimental adapter/policy/concrete-
+exception declarations, one Public exception marker, and four Internal
+diagnostic/base/guard/assembler declarations.
+
 Phase 17A-H are Accepted. [ADRs 0172 through
 0177](../architecture/phase-17-roadmap.md) add 77 production declarations
 across the optional OpenAI Responses provider and inspection packages: 47 are
@@ -8,8 +55,8 @@ Experimental and 30 are Internal. Phase 17H accepts [ADR
 adds no production declaration, and closes Phase 17 with root-owned local
 acceptance. No Phase 17 declaration is Public, Stable, or Deprecated, and no
 provider-certified, compatible, or production-ready claim exists. The graph
-is 89 packages / 375 local production edges / acyclic; PHP inventories are
-1,726 / 894 / 92. Phase 18 remains separately unauthorized.
+is 95 packages / 402 local production edges / acyclic; PHP inventories are
+1,861 / 962 / 96. Phase 18A-H are Accepted and Phase 18 is closed.
 
 Phase 16H adds no production declaration and changes no API status. It accepts
 the root-owned local external-service acceptance harness and closes Phase 16 at

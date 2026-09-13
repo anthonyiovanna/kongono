@@ -18,4 +18,7 @@ enum KongoCommand: string
     case ObservabilityInspect = 'observability:inspect';
     case SecurityCheck = 'security:check';
     case SecurityInspect = 'security:inspect';
+    case ViewBuild = 'view:build';
+    case ViewCheck = 'view:check';
+    case ViewInspect = 'view:inspect';
 }

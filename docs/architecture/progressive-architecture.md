@@ -1,5 +1,35 @@
 # Progressive Architecture
 
+## Phase 18 optional presentation progression
+
+Phase 18A accepts [ADR 0179](../adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),
+[ADR 0180](../adr/0180-context-aware-output-safety-and-presentation-lifecycle.md),
+and the [fixed Phase 18 roadmap](phase-18-roadmap.md) as documentation only.
+The linked [presentation guide](server-rendered-presentation.md) preserves the
+progressive path: applications opt into neutral view contracts, then an
+explicit deterministic build boundary, then exact-current rendering, then a
+separate HTTP adapter, supported workflow, visibility-safe inspection, and
+finally external acceptance. Each step requires its own authority.
+
+API-only, CLI, worker, agent, and headless applications remain complete without
+views. Routing remains handler selection. Presentation remains an upper leaf;
+lower packages do not depend outward on it. Phase 18A adds no package, PHP,
+grammar, compiler, renderer, adapter, command, or runtime. Phase 18B-C accept
+the optional contract/build leaves; Phase 18D accepts the optional exact-current
+[compiled-view runtime](compiled-view-runtime.md) under
+[ADR 0183](../adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md).
+It performs no source parsing or compilation during rendering, and treats
+generated code and the deployment filesystem as trusted inputs. Phase 18E
+accepts [ADR 0184](../adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+and the optional [compiled-view HTTP adapter](compiled-view-http.md). Phase 18F
+accepts [ADR 0185](../adr/0185-supported-compiled-view-application-workflow.md)
+and the optional [compiled-view application workflow](compiled-view-application-workflow.md).
+Phase 18G accepts [ADR 0186](../adr/0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+and the optional offline, read-only, stateless
+[inspection leaf](compiled-view-inspection-and-intelligence.md). It revalidates
+one supplied profile in memory and emits only bounded Safe/Protected evidence.
+Phase 18H remains Planned.
+
 > **Current through Phase 14G:** exact-current plan evidence may be executed by
 > one directly supplied adapter through the optional bounded runtime. This adds
 > no provider SDK, registry, workflow, or authority. The optional inert bridge

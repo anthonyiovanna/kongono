@@ -19,6 +19,9 @@ use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityInspectCommandHandler;
+use Kongono\ConsoleApplication\Handler\ViewBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\ViewCheckCommandHandler;
+use Kongono\ConsoleApplication\Handler\ViewInspectCommandHandler;
 use Kongono\ConsoleApplication\KongoCommand;
 use Kongono\ConsoleRuntime\CommandHandlerSet;
 
@@ -30,7 +33,7 @@ final class KongoCommandValidator
     {
         $commands = $specifications->commands();
         $bindings = $handlers->bindings();
-        if (7 !== count($commands) || 7 !== count($bindings)) {
+        if (10 !== count($commands) || 10 !== count($bindings)) {
             throw InvalidConsoleApplicationValueException::invalidCommandFamily();
         }
 
@@ -78,6 +81,9 @@ final class KongoCommandValidator
             'Inspect planned security policy evidence',
             CommandMutationPolicy::ReadOnly,
         );
+        $this->validateSpecification($commands[7], KongoCommand::ViewBuild, 'Build exact current compiled-view application artifact', CommandMutationPolicy::MutationCapable, ['application-root', 'output-directory', 'source-file']);
+        $this->validateSpecification($commands[8], KongoCommand::ViewCheck, 'Check exact current compiled-view application artifact', CommandMutationPolicy::ReadOnly, ['application-root', 'output-directory', 'source-file']);
+        $this->validateSpecification($commands[9], KongoCommand::ViewInspect, 'Inspect planned compiled-view application evidence', CommandMutationPolicy::ReadOnly, ['application-root', 'output-directory', 'source-file']);
         if (
             KongoCommand::ApplicationGraphInspect->value !== $bindings[0]->identifier()->value()
             || !$bindings[0]->handler() instanceof ApplicationGraphInspectCommandHandler
@@ -93,6 +99,12 @@ final class KongoCommandValidator
             || !$bindings[5]->handler() instanceof SecurityCheckCommandHandler
             || KongoCommand::SecurityInspect->value !== $bindings[6]->identifier()->value()
             || !$bindings[6]->handler() instanceof SecurityInspectCommandHandler
+            || KongoCommand::ViewBuild->value !== $bindings[7]->identifier()->value()
+            || !$bindings[7]->handler() instanceof ViewBuildCommandHandler
+            || KongoCommand::ViewCheck->value !== $bindings[8]->identifier()->value()
+            || !$bindings[8]->handler() instanceof ViewCheckCommandHandler
+            || KongoCommand::ViewInspect->value !== $bindings[9]->identifier()->value()
+            || !$bindings[9]->handler() instanceof ViewInspectCommandHandler
         ) {
             throw InvalidConsoleApplicationValueException::invalidCommandFamily();
         }

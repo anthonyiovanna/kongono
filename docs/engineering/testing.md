@@ -1,5 +1,84 @@
 # Testing
 
+Phase 18H adds four root-test PHP files and the explicit
+`composer acceptance:phase18` fresh-process proof. It exercises the accepted
+build, runtime, HTTP, application, copied-skeleton, CGI, and inspection stack
+with deterministic sequential and concurrent children, bounded failure,
+nondisclosure, fingerprint, and cleanup evidence. Phase 18A-H are Accepted and
+Phase 18 is closed.
+
+Phase 18G adds exactly 22 production and six package-test PHP files in View
+Inspection. Focused proof covers deterministic canonical identity, in-memory
+structural artifact revalidation, corrupt and mixed binding rejection, generated
+PHP inertness, closed Safe/Protected disclosure, exact role mapping, Graph
+absence/match/mismatch/tamper behavior with `not-established`,
+constructed-not-recorded projections, independent verification and tamper
+failure, sequential/interleaved/independent/Fiber isolation, diagnostics,
+dependency direction, tooling, and prohibited surfaces. The current topology is
+95 packages / 402 local production edges / acyclic, with PHP inventories
+1,861 / 962 / 96 and 95 validation commands. These tests do not prove live
+filesystem, deployment, rendering, production observation, security,
+performance, browser certification, Stable/1.0, or production readiness.
+
+Phase 18F adds 20 production and five package-test PHP files in View
+Application plus three console handlers and one console test file. Focused
+proof covers write-free plan/check, explicit build, idempotence, exact
+currentness, no-clobber conflict, unsafe-source rejection, authenticated load,
+response-policy composition, exact lower failure return, identity mismatch,
+sequential isolation, command plan/apply/check/inspect parity, nondisclosure,
+and the fresh-copy `view-minimal` install/build/rebuild/check/run path.
+
+Phase 18E adds exactly 11 production and 10 package-test PHP files. Its focused
+suite proves completed-result evidence checks, exact body bytes and derived
+content length, explicit status/reason/content type/caller headers, all policy
+bounds, case-insensitive reserved and duplicate names, CR/LF/NUL/obs-fold and
+non-ASCII rejection, factory-adversary failure, nondisclosure, sequential reuse,
+and interleaved isolation. All four view-package trees remain regression scope.
+The Phase 18F topology was 94 packages / 394 local production edges / acyclic,
+with PHP inventories 1,839 / 956 / 92 and 94 validation commands. See
+[ADR 0184](../adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+and the [HTTP adapter guide](../architecture/compiled-view-http.md). Phase 18A-H
+are Accepted and Phase 18 is closed.
+
+Phase 18D adds exactly 11 package-test PHP files covering its 19-production-file
+View Runtime boundary: explicit canonical contained loading; fixed-name bounded
+stable reads; exact metadata/generated/class/source/model identity; first load,
+immutable class reuse, and collision rejection; HTML text and quoted-attribute
+escaping; byte/step boundaries; partial-output rejection; neutral failure
+mapping; sequential and cooperatively Fiber-overlapped isolation; retirement;
+nondisclosure; exact API/dependency inventory; and forbidden-surface absence.
+Architecture proof uses the exact 92-package / 384-edge acyclic graph and
+1,805/938/92 PHP inventories. Accepted View Contract and View Build suites remain
+regressions. No source is parsed or compiled during rendering. Generated code
+and the deployment filesystem are trusted inputs. Passing tests makes no HTTP,
+browser, compatibility, performance, security-certification, Stable/1.0, or
+production-readiness claim. See [ADR 0183](../adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+and the [runtime guide](../architecture/compiled-view-runtime.md). Phase 18A-H
+are Accepted and Phase 18 is closed.
+
+Phase 18C adds exactly 16 package-test PHP files covering its 30-production-file
+View Build boundary: duplicate-aware framed parsing; all six schema and four
+node kinds; schema-resolved references and bounded loops; deterministic static
+encoding, canonical model and complete source maps; four identities; generated
+PHP syntax, forbidden surfaces, direct sink protocol and fresh-child
+determinism; structural/current validation; tamper and stale rejection;
+contained atomic two-file no-clobber publication; diagnostics, nondisclosure,
+API inventory, dependency direction, and generated-PHP inertness. Architecture
+proof uses the exact 91-package / 380-edge acyclic graph and 1,786/927/92 PHP
+inventories. Passing these tests does not prove runtime loading, rendering,
+dynamic escaping, HTTP delivery, browser safety, or production readiness.
+
+Phase 18B adds exactly 17 package-test PHP files covering its 30-production-file
+neutral contract boundary: identity and byte grammars; closed scalar/list/
+record values; depth and aggregate-node limits; recursive schema shape and
+matching; two output contexts; request construction validation; completed
+output and derived metadata; result/failure/lifecycle relations; nine
+nondisclosing diagnostics; exact API/dependency inventory; zero reverse
+production dependencies; and forbidden ambient/effect surfaces. Architecture
+proof uses the exact 90-package / 377-edge acyclic graph and 1,756/911/92 PHP
+inventories. Passing these tests does not prove compilation, rendering,
+escaping, HTTP delivery, authority, browser safety, or production readiness.
+
 Phase 14G adds exactly six package-test PHP files covering its 22-file
 production boundary: exact profile/wiring rebinding without generated-PHP
 loading, optional completed detached runtime summaries without replay, bounded
@@ -1087,4 +1166,5 @@ requests, responses, timeouts, repository fingerprints, and temporary cleanup
 are bounded; public output is canonical and nondisclosing. No real credential,
 account, public OpenAI endpoint, provider certification, live compatibility,
 production-readiness, or Phase 18 claim follows from the local evidence. Phase
-17A-H are Accepted and Phase 17 is closed; Phase 18 remains unauthorized.
+17A-H are Accepted and Phase 17 is closed; Phase 18A-H are Accepted and Phase
+18 is closed.

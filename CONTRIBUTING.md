@@ -1,5 +1,45 @@
 # Contributing to Kongono
 
+## Phase 18A-G compiled presentation changes
+
+Phase 18A accepts only the documentation architecture in
+[ADR 0179](docs/adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),
+[ADR 0180](docs/adr/0180-context-aware-output-safety-and-presentation-lifecycle.md),
+the [presentation guide](docs/architecture/server-rendered-presentation.md),
+the [view-authoring guide](docs/engineering/view-authoring.md), and the
+[fixed roadmap](docs/architecture/phase-18-roadmap.md). Phase 18B-C accept the
+neutral contract and deterministic build packages. Phase 18D accepts
+[ADR 0183](docs/adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+and the [compiled-view runtime](docs/architecture/compiled-view-runtime.md).
+Phase 18E accepts [ADR 0184](docs/adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+and the [compiled-view HTTP adapter](docs/architecture/compiled-view-http.md).
+Phase 18F accepts [ADR 0185](docs/adr/0185-supported-compiled-view-application-workflow.md),
+the exact-current application workflow, three view commands, and copy-once
+example. Phase 18G accepts [ADR 0186](docs/adr/0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+and the offline, read-only, stateless
+[compiled-view inspection boundary](docs/architecture/compiled-view-inspection-and-intelligence.md).
+Do not implement or prototype Phase 18H without a separately authenticated
+directive.
+
+Review presentation proposals for optionality, application-owned view
+selection, routing/HTTP separation, closed bounded inputs, compile-time known
+output contexts, deterministic content-addressed build evidence, exact-current
+contained loading, operation isolation, partial-output rejection, cleanup
+truth, and nondisclosing diagnostics. Reject runtime parsing or compilation,
+scanning, Reflection discovery, `eval`, service location, ambient state,
+untyped raw markup, generic escaping promises, hidden build behavior, or a
+mandatory view dependency.
+
+Phase 18D runtime examples use the accepted exact-current loader and stateless
+bounded renderer; Phase 18E uses only the accepted completed-result PSR-7
+adapter; and Phase 18G inspection must keep supplied evidence distinct from live
+filesystem truth, execute no generated code, and disclose only the closed
+Safe/Protected schema. Phase 18H examples remain planned pseudocode. No source is
+parsed or compiled during rendering. Generated code and the deployment
+filesystem are trusted inputs. The accepted application workflow and copy-once
+skeleton add no cache, watcher, daemon, installer, deployment manager,
+automatic migration, or asset system.
+
 Kongono is pre-alpha. Contributions must preserve the authorized architecture and must not turn planned or experimental concepts into accidental public APIs.
 
 ## Before changing the repository

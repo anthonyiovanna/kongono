@@ -183,6 +183,18 @@ parameters:
         - packages/security-runtime/tests
         - packages/tracing/src
         - packages/tracing/tests
+        - packages/view-application/src
+        - packages/view-application/tests
+        - packages/view-build/src
+        - packages/view-build/tests
+        - packages/view-contract/src
+        - packages/view-contract/tests
+        - packages/view-http/src
+        - packages/view-http/tests
+        - packages/view-inspection/src
+        - packages/view-inspection/tests
+        - packages/view-runtime/src
+        - packages/view-runtime/tests
         - packages/web-application/src
         - packages/web-application/tests
         - packages/web-runtime/src
@@ -195,6 +207,9 @@ parameters:
         - skeletons/minimal/bin
         - skeletons/minimal/public
         - skeletons/minimal/src
+        - skeletons/view-minimal/bin
+        - skeletons/view-minimal/public
+        - skeletons/view-minimal/src
         - tests/External
         - tests/Architecture
         - tests/BlackBox

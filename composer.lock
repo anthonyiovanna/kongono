@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ed02c0af228fc2a31395de12e19349ef",
+    "content-hash": "eaee939d4ce8c5ce466c5f744f29cf83",
     "packages": [
         {
             "name": "google/protobuf",
@@ -644,7 +644,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/console-application",
-                "reference": "0d92b3f5a8f41f036097380478e31c29da409458"
+                "reference": "fdd63d8c9e6fd6224528a8c675fe78adf292e262"
             },
             "require": {
                 "kongono/api-metadata": "*",
@@ -657,6 +657,7 @@
                 "kongono/extension-inspection": "*",
                 "kongono/observability-build": "*",
                 "kongono/security-policy-build": "*",
+                "kongono/view-application": "*",
                 "php": ">=8.5.0 <8.6.0"
             },
             "require-dev": {
@@ -2903,6 +2904,218 @@
                 }
             },
             "description": "Explicit operation-scoped tracing lifecycle for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/view-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/view-application",
+                "reference": "0d900e378135096e043d48c329536ab2c7f063c4"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/view-build": "*",
+                "kongono/view-contract": "*",
+                "kongono/view-http": "*",
+                "kongono/view-runtime": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-factory": "^1.1",
+                "psr/http-message": "^2.0"
+            },
+            "require-dev": {
+                "kongono/http-message": "*",
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ViewApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ViewApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Exact-current compiled-view application workflow and response composition for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/view-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/view-build",
+                "reference": "6f7ef049d0884745c0faaacdb8717f29b8440fb8"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/view-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ViewBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ViewBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic structured view-source compilation and content-addressed artifact publication for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/view-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/view-contract",
+                "reference": "53e8beab192f0108cebd92d94c49e48956555f96"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ViewContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ViewContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral compiled-view identities, closed presentation values, schemas, and render evidence for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/view-http",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/view-http",
+                "reference": "e16f2a887138e9fada288569202823b64d303cbd"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/view-contract": "*",
+                "php": ">=8.5.0 <8.6.0",
+                "psr/http-factory": "^1.1",
+                "psr/http-message": "^2.0"
+            },
+            "require-dev": {
+                "kongono/http-message": "*",
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ViewHttp\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ViewHttp\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit completed-view to PSR-7 response adaptation for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/view-inspection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/view-inspection",
+                "reference": "99efa19abb83ba580f6c7da33313c482eff7c496"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-intelligence": "*",
+                "kongono/diagnostics": "*",
+                "kongono/observability": "*",
+                "kongono/security-audit": "*",
+                "kongono/view-application": "*",
+                "kongono/view-build": "*",
+                "kongono/view-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ViewInspection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ViewInspection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Visibility-safe compiled-view inspection and bounded developer intelligence for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/view-runtime",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/view-runtime",
+                "reference": "c24ae10dcfe81fa873a8a61b23dcec21bf06e70d"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/view-build": "*",
+                "kongono/view-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\ViewRuntime\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\ViewRuntime\\Tests\\": "tests/"
+                }
+            },
+            "description": "Exact-current compiled view loading and synchronous bounded rendering for Kongono Framework.",
             "transport-options": {
                 "relative": true
             }
@@ -8207,6 +8420,12 @@
         "kongono/security-policy-build": 20,
         "kongono/security-runtime": 20,
         "kongono/tracing": 20,
+        "kongono/view-application": 20,
+        "kongono/view-build": 20,
+        "kongono/view-contract": 20,
+        "kongono/view-http": 20,
+        "kongono/view-inspection": 20,
+        "kongono/view-runtime": 20,
         "kongono/web-application": 20,
         "kongono/web-runtime": 20
     },

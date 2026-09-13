@@ -19,6 +19,9 @@ final class KongoCommandTest extends TestCase
             'observability:inspect',
             'security:check',
             'security:inspect',
+            'view:build',
+            'view:check',
+            'view:inspect',
         ], array_column(KongoCommand::cases(), 'value'));
         self::assertSame(KongoCommand::ApplicationBuild, KongoCommand::from('application:build'));
         self::assertSame(KongoCommand::ApplicationGraphInspect, KongoCommand::from('application-graph:inspect'));
@@ -27,5 +30,8 @@ final class KongoCommandTest extends TestCase
         self::assertSame(KongoCommand::ObservabilityInspect, KongoCommand::from('observability:inspect'));
         self::assertSame(KongoCommand::SecurityCheck, KongoCommand::from('security:check'));
         self::assertSame(KongoCommand::SecurityInspect, KongoCommand::from('security:inspect'));
+        self::assertSame(KongoCommand::ViewBuild, KongoCommand::from('view:build'));
+        self::assertSame(KongoCommand::ViewCheck, KongoCommand::from('view:check'));
+        self::assertSame(KongoCommand::ViewInspect, KongoCommand::from('view:inspect'));
     }
 }

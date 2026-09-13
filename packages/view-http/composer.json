@@ -1,0 +1,27 @@
+{
+    "name": "kongono/view-http",
+    "description": "Explicit completed-view to PSR-7 response adaptation for Kongono Framework.",
+    "type": "library",
+    "require": {
+        "php": ">=8.5.0 <8.6.0",
+        "kongono/api-metadata": "*",
+        "kongono/diagnostics": "*",
+        "kongono/view-contract": "*",
+        "psr/http-factory": "^1.1",
+        "psr/http-message": "^2.0"
+    },
+    "require-dev": {
+        "kongono/http-message": "*",
+        "phpunit/phpunit": "^13.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kongono\\ViewHttp\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Kongono\\ViewHttp\\Tests\\": "tests/"
+        }
+    }
+}

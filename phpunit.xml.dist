@@ -97,6 +97,12 @@
             <directory>packages/security-policy-build/tests</directory>
             <directory>packages/security-runtime/tests</directory>
             <directory>packages/tracing/tests</directory>
+            <directory>packages/view-application/tests</directory>
+            <directory>packages/view-build/tests</directory>
+            <directory>packages/view-contract/tests</directory>
+            <directory>packages/view-http/tests</directory>
+            <directory>packages/view-inspection/tests</directory>
+            <directory>packages/view-runtime/tests</directory>
             <directory>packages/web-application/tests</directory>
             <directory>packages/web-runtime/tests</directory>
             <directory>tests</directory>
@@ -187,12 +193,19 @@
             <directory>packages/security-policy-build/src</directory>
             <directory>packages/security-runtime/src</directory>
             <directory>packages/tracing/src</directory>
+            <directory>packages/view-application/src</directory>
+            <directory>packages/view-build/src</directory>
+            <directory>packages/view-contract/src</directory>
+            <directory>packages/view-http/src</directory>
+            <directory>packages/view-inspection/src</directory>
+            <directory>packages/view-runtime/src</directory>
             <directory>packages/web-application/src</directory>
             <directory>packages/web-runtime/src</directory>
             <directory>skeletons/data-minimal/src</directory>
             <directory>skeletons/minimal/src</directory>
             <directory>skeletons/persistence-minimal/src</directory>
             <directory>skeletons/security-minimal/src</directory>
+            <directory>skeletons/view-minimal/src</directory>
         </include>
     </source>
 </phpunit>

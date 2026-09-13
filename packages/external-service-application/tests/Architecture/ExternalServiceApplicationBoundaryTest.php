@@ -65,7 +65,7 @@ final class ExternalServiceApplicationBoundaryTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(89, $manifests);
+        self::assertCount(95, $manifests);
         $names = [];
         foreach ($manifests as $path) {
             $candidate = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
@@ -87,7 +87,7 @@ final class ExternalServiceApplicationBoundaryTest extends TestCase
                 self::assertArrayNotHasKey('kongono/external-service-application', $candidate['require']);
             }
         }
-        self::assertSame(375, $edges);
+        self::assertSame(402, $edges);
 
         $rootManifest = json_decode((string) file_get_contents($root . '/composer.json'), true, flags: JSON_THROW_ON_ERROR);
         self::assertIsArray($rootManifest);
@@ -100,7 +100,7 @@ final class ExternalServiceApplicationBoundaryTest extends TestCase
         self::assertSame('packages/external-service-application/tests/', $rootManifest['autoload-dev']['psr-4']['Kongono\\ExternalServiceApplication\\Tests\\'] ?? null);
         $validation = 'composer --working-dir=packages/external-service-application validate --no-check-publish';
         self::assertSame(1, count(array_keys($rootManifest['scripts']['validate:packages'], $validation, true)));
-        self::assertCount(89, $rootManifest['scripts']['validate:packages']);
+        self::assertCount(95, $rootManifest['scripts']['validate:packages']);
     }
 
     public function testProductionContainsNoAmbientProviderDiscoveryOrSecretSurface(): void

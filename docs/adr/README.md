@@ -1,13 +1,24 @@
 # Architecture Decision Records
 
-> **Current through Phase 17H:** Phase 17A-G accept the optional Experimental
+> **Current through Phase 18H:** Phase 17A-G accept the optional Experimental
 > OpenAI Responses mapping, one-shot and pull-streaming adapters, strict
 > structured and inert action-suggestion profiles, exact-current application,
 > and visibility-safe inspection. Phase 17H accepts ADR 0178, adds the
 > root-owned local provider-protocol acceptance proof, creates the exact local
-> checkpoint, and closes Phase 17. The graph is 89 packages / 375 local edges /
-> acyclic; PHP inventories are 1,726 / 894 / 92. Phase 18 is not begun and
-> remains separately unauthorized.
+> checkpoint, and closes Phase 17. Phase 18A accepts ADRs 0179 and 0180 plus
+> the fixed roadmap as documentation architecture. Phase 18B accepts ADR 0181
+> and the optional Experimental `kongono/view-contract` neutral leaf. Phase 18C
+> accepts ADR 0182 and the optional Experimental deterministic `kongono/view-build`
+> leaf. Phase 18D accepts ADR 0183 and the optional Experimental exact-current
+> `kongono/view-runtime` leaf. Phase 18E accepts ADR 0184 and the optional
+> Experimental `kongono/view-http` completed-result adapter. Phase 18F accepts
+> ADR 0185, the optional Experimental `kongono/view-application` workflow,
+> three view commands, and the copy-once example. Phase 18G accepts ADR 0186
+> and the optional Experimental `kongono/view-inspection` offline evidence leaf.
+> Phase 18H accepts ADR 0187, the root-owned local acceptance proof, and the
+> exact checkpoint; Phase 18 is closed.
+> The graph is 95 packages / 402 local edges / acyclic; PHP inventories are
+> 1,861 / 962 / 96.
 
 > **Current through Phase 16H:** Phase 16A accepts ADR 0163 as documentation
 > architecture. Phase 16B accepts ADR 0164 and the optional Experimental
@@ -1056,7 +1067,8 @@ and offline inspection evidence. It adds no production declaration, package,
 dependency, provider adapter, production credential source, authority, public
 network destination, compatibility, deployment, release, Stable/1.0, or
 production-readiness claim. Phase 16A-H are Accepted, Phase 16 is closed, and
-Phase 17A-H are Accepted and Phase 17 is closed. Phase 18 remains unauthorized.
+Phase 17A-H are Accepted and Phase 17 is closed. Phase 18A-F are Accepted;
+Phase 18G-H remain Planned.
 
 ## [ADR 0171: First-Party OpenAI Responses Adapter Boundary](0171-first-party-openai-responses-adapter-boundary.md)
 
@@ -1068,8 +1080,8 @@ default provider or a generic compatibility promise. Provider material remains
 bounded untrusted evidence, action suggestions execute nothing, and credential,
 network, tool, and effect authority remain independently application-owned.
 Phase 17A adds no PHP, package, API, codec, SDK, credential, network call,
-command, Chie integration, or runtime behavior. Phase 17B-H remain Planned and
-separately authorized; Phase 18 does not begin automatically.
+command, Chie integration, or runtime behavior. Phase 17B-H later became
+Accepted. Phase 18A-F are Accepted; Phase 18G-H remain Planned.
 
 ## [ADR 0172: Deterministic OpenAI Responses Offline Protocol Mapping](0172-deterministic-openai-responses-offline-protocol-mapping.md)
 
@@ -1081,7 +1093,7 @@ typed untrusted provider evidence, synthetic fixtures, and nondisclosing
 diagnostics. It adds no SDK, credential, endpoint, HTTP transport, network
 call, runtime adapter session, streaming, tools, application workflow, Chie
 connection, or live support claim. Phase 17A-H are Accepted and Phase 17 is
-closed; Phase 18 remains unauthorized.
+closed. Phase 18A-F are Accepted; Phase 18G-H remain Planned.
 
 ## [ADR 0173: One-Shot OpenAI Responses Invocation Adapter](0173-one-shot-openai-responses-invocation-adapter.md)
 
@@ -1108,8 +1120,8 @@ closed schemas and returned values are bounded, duplicate-safe, and locally
 validated without coercion. Function calls remain evidence and are never
 resolved, invoked, authorized, returned to the provider, or converted into a
 second operation or application effect. Version 1 text and streaming remain
-accepted. Phase 17A-H are Accepted and Phase 17 is closed; Phase 18 remains
-unauthorized.
+accepted. Phase 17A-H are Accepted and Phase 17 is closed. Phase 18A-F are
+Accepted; Phase 18G-H remain Planned.
 
 ## [ADR 0176: Exact-current OpenAI Responses application profile and supported workflow](0176-exact-current-openai-responses-application-workflow.md)
 
@@ -1121,7 +1133,8 @@ one single-use application-owned run composition over explicit collaborators.
 It adds no registry, defaults, discovery, SDK, alternate networking stack,
 retry, replay, tool execution, Chie application, live compatibility,
 certification, or production-readiness claim. Phase 17F and Phase 17H are
-Accepted; Phase 17 is closed and Phase 18 remains unauthorized.
+Accepted; Phase 17 is closed. Phase 18A-F are Accepted; Phase 18G-H remain
+Planned.
 
 ## [ADR 0177: Visibility-safe OpenAI Responses inspection and bounded evidence](0177-visibility-safe-openai-responses-inspection-and-bounded-evidence.md)
 
@@ -1135,7 +1148,7 @@ aggregates. The package is offline, read-only, stateless, and visibility-safe;
 it performs no payload access, credential access, networking, provider
 observation, authority evaluation, replay, repair, recording, exporting,
 certification, or role execution. Phase 17A-H are Accepted and Phase 17 is
-closed; Phase 18 remains unauthorized.
+closed. Phase 18A-F are Accepted; Phase 18G-H remain Planned.
 
 ## [ADR 0178: Phase 17 OpenAI Responses local acceptance and checkpoint](0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md)
 
@@ -1148,4 +1161,110 @@ leases, real cURL HTTP/1.1 transport, bounded processes and streams,
 nondisclosure, inspection, concurrency, and cleanup. It contacts no public
 endpoint, validates no real account or credential, and makes no compatibility,
 certification, deployment, production-readiness, or Stable/1.0 claim. Phase
-17A-H are Accepted and Phase 17 is closed; Phase 18 remains unauthorized.
+17A-H are Accepted and Phase 17 is closed. Phase 18A-F are Accepted; Phase
+18G-H remain Planned.
+
+## [ADR 0179: Server-rendered presentation and compiled view boundary](0179-server-rendered-presentation-and-compiled-view-boundary.md)
+
+Accepted 2026-09-12 for Phase 18A documentation architecture only. It selects
+an optional application-owned view boundary, deterministic build-time
+compilation to content-addressed ordinary PHP, exact-current contained loading,
+closed bounded presentation data, separate neutral rendering and PSR-7
+adaptation, operation isolation, and explicit package/API direction. Routing
+continues to select handlers, not templates. It adds no package, PHP, grammar,
+compiler, renderer, loader, command, HTTP adapter, workflow, or runtime.
+
+## [ADR 0180: Context-aware output safety and presentation lifecycle](0180-context-aware-output-safety-and-presentation-lifecycle.md)
+
+Accepted 2026-09-12 for Phase 18A documentation architecture only. It requires
+compile-time known output contexts, safe-by-default contextual escaping,
+ordinary strings as data, denial of unsupported URL/JavaScript/CSS/raw/event
+contexts, bounded non-disclosing diagnostics, synchronous operation-scoped
+rendering, partial-output rejection, deterministic cleanup, and sequential and
+overlapping isolation. Phase 18B accepts only the separate neutral contract
+boundary below; Phase 18A-F are Accepted and Phase 18G-H remain Planned.
+
+## [ADR 0181: Neutral view contract and closed presentation values](0181-neutral-view-contract-and-closed-presentation-values.md)
+
+Accepted 2026-09-12 for Phase 18B. It adds only the optional Experimental
+`kongono/view-contract` leaf: canonical identities, six closed bounded value
+kinds, recursive schemas, two inert output-context tokens, explicit render
+limits and lifecycle vocabulary, validated requests, completed output and
+derived metadata, failed-state evidence, and nine nondisclosing diagnostics.
+It adds no source syntax, parser, compiler, generated PHP, loader, escaper,
+renderer, filesystem or network access, HTTP dependency, command, application
+workflow, inspection, acceptance harness, deployment, or Stable API. Phase
+18C is accepted separately by ADR 0182; Phase 18A-F are Accepted and Phase
+18G-H remain Planned.
+
+## [ADR 0182: Deterministic structured view source and compiled artifact](0182-deterministic-structured-view-source-and-compiled-artifact.md)
+
+Accepted 2026-09-12 for Phase 18C. It adds only the optional Experimental
+`kongono/view-build` leaf for one explicit closed duplicate-aware JSON source
+language, schema-resolved references, canonical model and complete source map,
+four distinct content identities, syntax-validated inert ordinary PHP, exact
+structural/current validation, and atomic content-addressed two-file no-clobber
+publication. Generated PHP is never loaded or executed. It adds no renderer,
+dynamic escaper, HTTP adapter, application workflow, command, discovery, cache,
+watcher, inspection, external acceptance, or Stable/1.0 API. Phase 18A-F are
+Accepted; Phase 18G-H remain Planned.
+
+## [ADR 0183: Exact-current compiled view runtime and bounded rendering](0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+
+Accepted 2026-09-12 for Phase 18D. It adds only the optional Experimental
+`kongono/view-runtime` leaf. One caller-selected exact identity authenticates a
+fixed contained `artifact.json` and `compiled.php`; one generated class is
+loaded or exactly reused, and each synchronous render owns bounded operation-
+local state, contextual HTML escaping, retirement, and partial-output rejection.
+No source is parsed or compiled during rendering. Generated code and the
+deployment filesystem are trusted inputs. It adds no HTTP adapter, application
+workflow, command, discovery, mutable cache, watcher, inspection, external
+acceptance, Stable/1.0 API, compatibility, or production-readiness claim. See
+the [compiled-view runtime guide](../architecture/compiled-view-runtime.md).
+Phase 18A-F are Accepted; Phase 18G-H remain Planned.
+
+## [ADR 0184: Explicit completed-view PSR-7 response adaptation](0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+
+Accepted 2026-09-12 for Phase 18E. It adds only the optional Experimental
+`kongono/view-http` leaf for exact adaptation of one completed neutral render
+result to PSR-7 under explicit caller-owned policy and caller-selected PSR-17
+factories. It derives only content length, verifies exact final state, and
+exposes no partial response on failure. It adds no routing, controller,
+middleware, security defaults, cookies, redirects, caching, server, emitter,
+workflow, command, or production-readiness claim. See the
+[compiled-view HTTP guide](../architecture/compiled-view-http.md). Phase 18A-F
+are Accepted; Phase 18G-H remain Planned.
+
+## [ADR 0185: Supported compiled-view application workflow](0185-supported-compiled-view-application-workflow.md)
+
+Accepted 2026-09-13 for Phase 18F. It adds the optional Experimental
+`kongono/view-application` upper composition leaf, exact explicit plan/build/
+check/load/run boundaries, three supported view commands, and one copy-once
+minimal rendered application example. Run checks currentness and never
+compiles; check and inspect are write-free; application code retains routing,
+response, browser-security, and failure-presentation policy. It adds no
+discovery, mutable current pointer, watcher, daemon, installer, cache, asset
+pipeline, deployment manager, automatic migration, Stable/1.0 API, or
+production-readiness claim. See the [compiled-view application guide](../architecture/compiled-view-application-workflow.md).
+Phase 18A-F are Accepted; Phase 18G-H remain Planned.
+
+## [ADR 0186: Visibility-safe compiled-view inspection and developer intelligence](0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+
+Accepted 2026-09-13 for Phase 18G. It adds the optional Experimental
+`kongono/view-inspection` upper evidence leaf over one supplied exact-current
+application profile. It structurally revalidates in-memory artifact evidence
+without I/O or execution and emits only bounded Safe/Protected developer
+evidence. Graph remains `not-established`, neutral projections are
+`constructed-not-recorded`, role identifiers select purposes without role
+execution, and verification is independent and repair-free. See the
+[compiled-view inspection guide](../architecture/compiled-view-inspection-and-intelligence.md).
+Phase 18A-H are Accepted and Phase 18 is closed.
+
+## [ADR 0187: Phase 18 server-rendered presentation acceptance and checkpoint](0187-phase-18-server-rendered-presentation-acceptance-and-checkpoint.md)
+
+Accepted 2026-09-13 for Phase 18H. It adds only the root-owned bounded local
+external-process proof and the exact Phase 18 checkpoint. The proof composes
+the real build, runtime, HTTP, application, copied-skeleton, CGI, and inspection
+boundaries without public networking, ambient DNS, live services, or new
+production API. See the [Phase 18 acceptance guide](../architecture/phase-18-server-rendered-presentation-acceptance.md).
+Phase 18A-H are Accepted and Phase 18 is closed.

@@ -1,5 +1,88 @@
 # Kongono AI-Agent Operating Policy
 
+## Phase 18 optional compiled server-rendered presentation policy
+
+Phase 18A accepts [ADR 0179](docs/adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),
+[ADR 0180](docs/adr/0180-context-aware-output-safety-and-presentation-lifecycle.md),
+the [server-rendered presentation guide](docs/architecture/server-rendered-presentation.md),
+the [view-authoring guide](docs/engineering/view-authoring.md), and the fixed
+[Phase 18 roadmap](docs/architecture/phase-18-roadmap.md) as documentation
+architecture only. Phase 18B accepts [ADR 0181](docs/adr/0181-neutral-view-contract-and-closed-presentation-values.md)
+and adds only the optional Experimental `kongono/view-contract` neutral leaf.
+Phase 18C accepts [ADR 0182](docs/adr/0182-deterministic-structured-view-source-and-compiled-artifact.md)
+and adds only the optional Experimental `kongono/view-build` deterministic
+structured-source, canonical-model, generated-PHP-evidence validation, and
+content-addressed no-clobber publication leaf. Generated PHP remains inert and
+unexecuted during build. Phase 18D accepts [ADR 0183](docs/adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+and adds only the optional Experimental `kongono/view-runtime` exact-current
+loader and operation-local bounded renderer described by the
+[compiled-view runtime guide](docs/architecture/compiled-view-runtime.md).
+Phase 18E accepts [ADR 0184](docs/adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+and adds only the optional Experimental `kongono/view-http` completed-result
+adapter described by the [compiled-view HTTP guide](docs/architecture/compiled-view-http.md).
+Phase 18F accepts [ADR 0185](docs/adr/0185-supported-compiled-view-application-workflow.md)
+and adds only the optional Experimental `kongono/view-application` exact-current
+workflow, three explicit `kongo` commands, and the copy-once `view-minimal`
+example described by the [compiled-view application guide](docs/architecture/compiled-view-application-workflow.md).
+Phase 18G accepts [ADR 0186](docs/adr/0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+and adds only the optional Experimental `kongono/view-inspection` offline,
+read-only, stateless evidence leaf described by the
+[compiled-view inspection guide](docs/architecture/compiled-view-inspection-and-intelligence.md).
+It structurally revalidates one supplied exact-current profile in memory without
+I/O or execution and emits only bounded Safe/Protected evidence. Graph
+relationships remain `not-established`; projections are
+`constructed-not-recorded`; and role identifiers select purposes without role
+execution. Phase 18H accepts [ADR 0187](docs/adr/0187-phase-18-server-rendered-presentation-acceptance-and-checkpoint.md),
+the root-owned [local acceptance](docs/architecture/phase-18-server-rendered-presentation-acceptance.md),
+and the exact Phase 18 checkpoint. Phase 18A-H are Accepted and Phase 18 is
+closed. No cache, watcher, daemon, installer, deployment manager,
+automatic migration, or asset pipeline is implemented.
+
+Server-rendered presentation is an optional upper capability. API-only, CLI,
+worker, agent, and headless applications remain first-class and install no view
+package unless they use the optional contract. Application code selects a logical view, supplies explicit bounded
+presentation data, and decides to render; routing selects a handler and does not
+select a template. The neutral view contracts remain independent of PSR-7,
+and HTTP response adaptation belongs to a separate upper package under explicit
+application-owned status, header, and browser-security policy. Templates,
+artifacts, results, and rendered bytes are evidence only and grant no identity,
+authentication, authorization, capability, policy, Graph, or effect authority.
+
+The accepted path compiles one explicit application-owned
+source set during an explicit build/check step into deterministic,
+content-addressed ordinary PHP and immutable metadata. The runtime may load
+only one explicit caller-selected contained exact-current artifact. Generated
+code and the deployment filesystem are trusted inputs. Runtime discovery,
+directory scanning, newest-file selection, Reflection discovery, parsing,
+interpretation, compilation, `eval`, remote templates, network loading,
+service location, globals, environment access, request singletons, sessions,
+credentials, filesystem state, and clocks are prohibited. Development
+convenience must use the same explicit deterministic pipeline rather than a
+second permissive runtime.
+
+Phase 18B inputs are closed, schema-declared, bounded presentation values. Missing,
+extra, duplicate, unsupported, stale, mixed-version, and type-invalid input
+fails before rendering. Templates receive no arbitrary object graph, domain
+entity, repository, service, container, request, or capability port. Plain
+strings are data and contextual escaping is safe by default. The compiler must
+know context; Phase 18B defines HTML text and quoted HTML attributes as inert
+compiler metadata vocabulary without implementing escaping.
+URL, JavaScript, CSS, raw markup, and event-handler contexts remain denied until
+separately specified and tested. Runtime guessing, regex sanitization, and one
+generic `escape()` promise are insufficient.
+
+Rendering remains synchronous, operation-scoped, deterministic, bounded, and
+stateless across sequential and overlapping calls. No template globals,
+mutable singleton registry, implicit output buffer, shutdown hook, destructor
+cleanup, background worker, or retained request state is permitted. Partial
+output is not success; output, depth, iteration, component, and temporary-state
+bounds are explicit; primary and cleanup failure truth is preserved.
+Diagnostics remain bounded and non-disclosing under existing trusted activation
+rules. CSP, nonces, asset integrity, URL policy, security headers, sessions,
+CSRF, authentication, authorization, assets, deployment, frontend/mobile
+integration, Stable/1.0, certification, and production readiness remain
+separate or unauthorized.
+
 ## Phase 17 optional first-party OpenAI Responses adapter policy
 
 Phase 17A accepts ADR 0171 and the fixed documentation architecture for one
@@ -74,7 +157,11 @@ graph is exactly 89 acyclic production packages and 375 local production edges;
 PHP inventories are 1,726 production, 894 package-test, and 92 root-test files.
 Phase 17H accepts ADR 0178, adds only the root-owned deterministic local
 OpenAI Responses acceptance harness and exact Phase 17 checkpoint, and closes
-Phase 17. Phase 17A-H are Accepted. Phase 18 remains separately unauthorized.
+Phase 17. Phase 17A-H are Accepted. Phase 18A-H are Accepted at the separate
+boundaries above; Phase 18H accepts the root-owned local proof and closes Phase
+18. The graph is exactly 95 acyclic
+production packages and 402 local production edges; PHP inventories are 1,861
+production, 962 package-test, and 96 root-test files.
 See [ADR 0171](docs/adr/0171-first-party-openai-responses-adapter-boundary.md),
 the [Phase 17B decision](docs/adr/0172-deterministic-openai-responses-offline-protocol-mapping.md),
 the [Phase 17C decision](docs/adr/0173-one-shot-openai-responses-invocation-adapter.md),

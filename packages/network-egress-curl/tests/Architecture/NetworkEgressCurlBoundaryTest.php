@@ -76,7 +76,7 @@ final class NetworkEgressCurlBoundaryTest extends TestCase
         $root = dirname(__DIR__, 4);
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(89, $manifests);
+        self::assertCount(95, $manifests);
         foreach ($manifests as $path) {
             $manifest = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
             self::assertIsArray($manifest);

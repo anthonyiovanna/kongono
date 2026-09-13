@@ -13,6 +13,9 @@ use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityInspectCommandHandler;
+use Kongono\ConsoleApplication\Handler\ViewBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\ViewCheckCommandHandler;
+use Kongono\ConsoleApplication\Handler\ViewInspectCommandHandler;
 use Kongono\ConsoleApplication\Internal\KongoCommandValidator;
 use Kongono\ConsoleApplication\KongoCommand;
 use Kongono\ConsoleBuild\Build\ConsoleArtifactBuilder;
@@ -21,6 +24,7 @@ use Kongono\ConsoleRuntime\CommandHandlerSet;
 use Kongono\ExtensionInspection\Loading\ExtensionInspectionLoader;
 use Kongono\ObservabilityBuild\Workflow\ObservabilityBuildWorkflow;
 use Kongono\SecurityPolicyBuild\Workflow\SecurityPolicyBuildWorkflow;
+use Kongono\ViewApplication\Workflow\ViewApplicationBuildWorkflow;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -47,12 +51,13 @@ final class ConsoleApplicationBoundaryTest extends TestCase
             'kongono/extension-inspection' => '*',
             'kongono/observability-build' => '*',
             'kongono/security-policy-build' => '*',
+            'kongono/view-application' => '*',
             'php' => '>=8.5.0 <8.6.0',
         ], $manifest['require']);
         self::assertSame(['kongono/console-build' => '*'], $manifest['require-dev']);
         self::assertSame(['bin/kongo'], $manifest['bin']);
-        self::assertCount(19, self::phpFiles($root . '/src'));
-        self::assertCount(14, self::phpFiles($root . '/tests'));
+        self::assertCount(22, self::phpFiles($root . '/src'));
+        self::assertCount(17, self::phpFiles($root . '/tests'));
         self::assertSame(['kongo'], array_map('basename', self::ordinaryFiles($root . '/bin')));
     }
 
@@ -99,13 +104,25 @@ final class ConsoleApplicationBoundaryTest extends TestCase
                 new \Kongono\Console\CommandIdentifier(KongoCommand::SecurityInspect->value),
                 new SecurityInspectCommandHandler(new SecurityPolicyBuildWorkflow()),
             ),
+            new CommandHandlerBinding(
+                new \Kongono\Console\CommandIdentifier(KongoCommand::ViewBuild->value),
+                new ViewBuildCommandHandler(new ViewApplicationBuildWorkflow()),
+            ),
+            new CommandHandlerBinding(
+                new \Kongono\Console\CommandIdentifier(KongoCommand::ViewCheck->value),
+                new ViewCheckCommandHandler(new ViewApplicationBuildWorkflow()),
+            ),
+            new CommandHandlerBinding(
+                new \Kongono\Console\CommandIdentifier(KongoCommand::ViewInspect->value),
+                new ViewInspectCommandHandler(new ViewApplicationBuildWorkflow()),
+            ),
         ]);
         (new KongoCommandValidator())->validate($specifications, $handlers);
 
         $commands = $specifications->commands();
-        self::assertCount(7, $commands);
+        self::assertCount(10, $commands);
         self::assertSame(
-            ['application-graph:inspect', 'application:build', 'extension:inspect', 'observability:check', 'observability:inspect', 'security:check', 'security:inspect'],
+            ['application-graph:inspect', 'application:build', 'extension:inspect', 'observability:check', 'observability:inspect', 'security:check', 'security:inspect', 'view:build', 'view:check', 'view:inspect'],
             array_map(static fn($command): string => $command->definition()->identifier()->value(), $commands),
         );
         self::assertSame(
@@ -117,6 +134,9 @@ final class ConsoleApplicationBoundaryTest extends TestCase
                 'Inspect planned observability configuration evidence',
                 'Check exact current security policy evidence',
                 'Inspect planned security policy evidence',
+                'Build exact current compiled-view application artifact',
+                'Check exact current compiled-view application artifact',
+                'Inspect planned compiled-view application evidence',
             ],
             array_map(static fn($command): string => $command->definition()->summary()->value(), $commands),
         );
@@ -124,6 +144,7 @@ final class ConsoleApplicationBoundaryTest extends TestCase
             $expectedInputs = match ($position) {
                 0 => ['artifact-path'],
                 2 => ['declaration-artifact-path', 'generated-wiring-path'],
+                7, 8, 9 => ['application-root', 'output-directory', 'source-file'],
                 default => ['application-root', 'output-directory'],
             };
             self::assertSame($expectedInputs, array_map(

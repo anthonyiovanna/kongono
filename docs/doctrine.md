@@ -1,5 +1,55 @@
 # Kongono Architectural Doctrine
 
+## Compiled server-rendered presentation doctrine
+
+Phase 18A accepts [ADR 0179](adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),
+[ADR 0180](adr/0180-context-aware-output-safety-and-presentation-lifecycle.md),
+the [presentation guide](architecture/server-rendered-presentation.md), and the
+[fixed roadmap](architecture/phase-18-roadmap.md) as documentation architecture.
+Phase 18B accepts [ADR 0181](adr/0181-neutral-view-contract-and-closed-presentation-values.md)
+and only the optional Experimental neutral view-contract leaf. Phase 18C
+accepts [ADR 0182](adr/0182-deterministic-structured-view-source-and-compiled-artifact.md)
+and the optional Experimental deterministic View Build leaf. Phase 18D accepts
+[ADR 0183](adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+and the optional exact-current [View Runtime](architecture/compiled-view-runtime.md).
+Phase 18E accepts [ADR 0184](adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+and the optional explicit [View HTTP adapter](architecture/compiled-view-http.md).
+Phase 18F accepts [ADR 0185](adr/0185-supported-compiled-view-application-workflow.md),
+the optional exact-current [View Application workflow](architecture/compiled-view-application-workflow.md),
+three explicit commands, and one copy-once example.
+Phase 18G accepts [ADR 0186](adr/0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+and the optional [View Inspection](architecture/compiled-view-inspection-and-intelligence.md)
+leaf. It validates one supplied profile in memory and derives only bounded
+Safe/Protected evidence without I/O, generated-code execution, rendering,
+recording, Graph establishment, or role execution. Phase 18H accepts the
+root-owned local proof and exact checkpoint under [ADR 0187](adr/0187-phase-18-server-rendered-presentation-acceptance-and-checkpoint.md).
+Phase 18A-H are Accepted and Phase 18 is closed.
+
+Presentation is an optional application-selected upper capability. Routing
+selects a handler, not a template. Neutral render contracts remain independent
+of PSR-7, and HTTP adaptation is an explicit separate upper package over
+completed results only.
+Templates and rendered bytes are evidence, not authority.
+
+Compile before runtime. Use one explicit bounded source set, deterministic
+content-addressed ordinary PHP, immutable metadata, and exact-current contained
+loading. Do not discover, scan, parse, interpret, compile, reflect, `eval`, or
+locate services at request time. Development convenience uses the same
+deterministic pipeline.
+
+Data is closed, schema-declared, bounded, and presentation-specific. Plain
+strings are data; context is known at compile time; unsupported contexts fail
+closed. Rendering is synchronous, operation-scoped, bounded, stateless, and
+isolated across sequential and overlapping calls. Partial output is failure,
+temporary state is retired on every path, and primary plus cleanup truth is
+preserved. Phase 18B adds inert closed contract evidence and diagnostics. Phase
+18C adds the closed build-time source/compiler/artifact boundary but never loads
+or executes generated PHP. Phase 18D authenticates one explicit contained
+artifact and executes its generated class synchronously with contextual escaping,
+exact limits, operation isolation, and partial-output rejection. No source is
+parsed or compiled during rendering. Generated code and the deployment
+filesystem are trusted inputs.
+
 > **Current through Phase 14G:** the optional bounded model-invocation runtime
 > validates one exact-current plan and runs one directly supplied adapter once.
 > The optional inert bridge validates one eligible action suggestion and maps
@@ -1224,7 +1274,8 @@ network request, runtime adapter, tool effect, or live connection. Phase 17C-G
 are separately accepted, culminating in the optional offline visibility-safe
 inspection leaf. Phase 17H accepts the root-owned local proof without promoting
 provider evidence to authority or compatibility truth. Phase 17A-H are
-Accepted and Phase 17 is closed; Phase 18 requires separate authority. See the
+Accepted and Phase 17 is closed. Phase 18A-H are Accepted and Phase 18 is
+closed. See the
 [adapter guide](architecture/openai-responses-provider-adapter.md) and
 [inspection guide](architecture/openai-responses-inspection-and-evidence.md),
 plus [ADR 0178](adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md).

@@ -27,6 +27,9 @@ use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityInspectCommandHandler;
+use Kongono\ConsoleApplication\Handler\ViewBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\ViewCheckCommandHandler;
+use Kongono\ConsoleApplication\Handler\ViewInspectCommandHandler;
 use Kongono\ConsoleApplication\Internal\KongoCommandValidator;
 use Kongono\ConsolePresentation\CommandPresentationAdapter;
 use Kongono\ConsolePresentation\HumanCommandPresenter;
@@ -37,6 +40,7 @@ use Kongono\ConsoleRuntime\CommandHandlerSet;
 use Kongono\ExtensionInspection\Loading\ExtensionInspectionLoader;
 use Kongono\ObservabilityBuild\Workflow\ObservabilityBuildWorkflow;
 use Kongono\SecurityPolicyBuild\Workflow\SecurityPolicyBuildWorkflow;
+use Kongono\ViewApplication\Workflow\ViewApplicationBuildWorkflow;
 
 /** Constructs the closed supported application without discovery or service location. */
 #[Api(ApiStatus::Experimental)]
@@ -51,6 +55,9 @@ final class KongoApplicationFactory
         $observabilityInspect = new CommandIdentifier(KongoCommand::ObservabilityInspect->value);
         $securityCheck = new CommandIdentifier(KongoCommand::SecurityCheck->value);
         $securityInspect = new CommandIdentifier(KongoCommand::SecurityInspect->value);
+        $viewBuild = new CommandIdentifier(KongoCommand::ViewBuild->value);
+        $viewCheck = new CommandIdentifier(KongoCommand::ViewCheck->value);
+        $viewInspect = new CommandIdentifier(KongoCommand::ViewInspect->value);
         $specifications = new CommandSpecificationSet([
             new CommandSpecification(
                 new CommandDefinition(
@@ -91,9 +98,13 @@ final class KongoApplicationFactory
             $this->readOnlySpecification($observabilityInspect, 'Inspect planned observability configuration evidence'),
             $this->readOnlySpecification($securityCheck, 'Check exact current security policy evidence'),
             $this->readOnlySpecification($securityInspect, 'Inspect planned security policy evidence'),
+            $this->viewSpecification($viewBuild, 'Build exact current compiled-view application artifact', CommandMutationPolicy::MutationCapable),
+            $this->viewSpecification($viewCheck, 'Check exact current compiled-view application artifact', CommandMutationPolicy::ReadOnly),
+            $this->viewSpecification($viewInspect, 'Inspect planned compiled-view application evidence', CommandMutationPolicy::ReadOnly),
         ]);
         $observabilityWorkflow = new ObservabilityBuildWorkflow();
         $policyWorkflow = new SecurityPolicyBuildWorkflow();
+        $viewWorkflow = new ViewApplicationBuildWorkflow();
         $handlers = new CommandHandlerSet([
             new CommandHandlerBinding($applicationGraphInspect, new ApplicationGraphInspectCommandHandler(new ApplicationGraphArtifactLoader())),
             new CommandHandlerBinding($applicationBuild, new ApplicationBuildCommandHandler(new ApplicationBuildWorkflow())),
@@ -102,6 +113,9 @@ final class KongoApplicationFactory
             new CommandHandlerBinding($observabilityInspect, new ObservabilityInspectCommandHandler($observabilityWorkflow)),
             new CommandHandlerBinding($securityCheck, new SecurityCheckCommandHandler($policyWorkflow)),
             new CommandHandlerBinding($securityInspect, new SecurityInspectCommandHandler($policyWorkflow)),
+            new CommandHandlerBinding($viewBuild, new ViewBuildCommandHandler($viewWorkflow)),
+            new CommandHandlerBinding($viewCheck, new ViewCheckCommandHandler($viewWorkflow)),
+            new CommandHandlerBinding($viewInspect, new ViewInspectCommandHandler($viewWorkflow)),
         ]);
         (new KongoCommandValidator())->validate($specifications, $handlers);
 
@@ -127,6 +141,18 @@ final class KongoApplicationFactory
             [
                 new CommandInputDefinition(new CommandInputName('application-root'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
                 new CommandInputDefinition(new CommandInputName('output-directory'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+            ],
+        );
+    }
+
+    private function viewSpecification(CommandIdentifier $identifier, string $summary, CommandMutationPolicy $mutation): CommandSpecification
+    {
+        return new CommandSpecification(
+            new CommandDefinition($identifier, new CommandSummary($summary), CommandInteractionPolicy::None, $mutation),
+            [
+                new CommandInputDefinition(new CommandInputName('application-root'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                new CommandInputDefinition(new CommandInputName('output-directory'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                new CommandInputDefinition(new CommandInputName('source-file'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
             ],
         );
     }

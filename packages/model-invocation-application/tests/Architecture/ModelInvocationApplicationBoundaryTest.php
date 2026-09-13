@@ -31,7 +31,7 @@ final class ModelInvocationApplicationBoundaryTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(89, $manifests);
+        self::assertCount(95, $manifests);
         $edges = 0;
         foreach ($manifests as $path) {
             $candidate = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
@@ -46,7 +46,7 @@ final class ModelInvocationApplicationBoundaryTest extends TestCase
                 self::assertArrayNotHasKey('kongono/model-invocation-application', $candidate['require']);
             }
         }
-        self::assertSame(375, $edges);
+        self::assertSame(402, $edges);
 
         foreach (self::phpFiles($package . '/src') as $path) {
             $source = (string) file_get_contents($path);

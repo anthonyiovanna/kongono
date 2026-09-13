@@ -1,5 +1,32 @@
 # Runtime Model
 
+## Phase 18 presentation lifecycle direction
+
+Phase 18A accepts the future lifecycle boundary in
+[ADR 0180](../adr/0180-context-aware-output-safety-and-presentation-lifecycle.md)
+and the [presentation guide](server-rendered-presentation.md) as documentation
+only. Phase 18D accepts [ADR 0183](../adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+and the optional exact-current [compiled-view runtime](compiled-view-runtime.md).
+Phase 18E accepts the separate stateless [compiled-view HTTP adapter](compiled-view-http.md),
+which retains only its two caller-selected PSR factories.
+Phase 18F accepts the reusable stateless [compiled-view application workflow](compiled-view-application-workflow.md),
+whose run boundary checks and loads exact-current evidence before each
+application instance is constructed and never compiles implicitly.
+
+Accepted rendering is synchronous, operation-scoped, deterministic, bounded,
+and stateless across calls. Immutable exact-current compiled evidence may be
+shared, but input values, traversal state, temporary output, failures, and
+cleanup belong to one operation. Sequential and overlapping renders must not
+leak state. Template globals, mutable singletons, implicit output buffers,
+shutdown hooks, destructor cleanup, background workers, retained request state,
+runtime parsing/compilation, and hot reload are prohibited.
+
+Partial output is not success. The runtime releases temporary state on every
+path and preserves primary plus cleanup failure truth. It parses or compiles no
+source during rendering. Generated code and the deployment filesystem are
+trusted inputs. Phase 18A-F are Accepted; Phase 18G-H remain Planned and
+separately unauthorized.
+
 ## Purpose
 
 Kongono is persistent-runtime-first. Its core lifecycle must be safe when a process handles multiple requests, jobs, commands, messages, workflow steps, or other operations.

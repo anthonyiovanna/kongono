@@ -1,5 +1,71 @@
 # Package Layout
 
+Phase 18B adds the optional Experimental `packages/view-contract` neutral leaf
+with 30 production and 17 package-test PHP files. Phase 18C adds exactly the
+optional Experimental `packages/view-build` leaf with 30 production and 16
+package-test PHP files, plus its manifest and README. View Build depends only
+on PHP, API Metadata, Diagnostics, and View Contract; no existing production
+package depends on it. The graph is 91 packages / 380 local edges / acyclic,
+with inventories 1,786 production, 927 package-test, and 92 root-test PHP files.
+View Build contains the closed source/compiler/artifact/publisher boundary but
+no loader, renderer, runtime escaper, network/HTTP behavior, command, workflow,
+inspection, or runtime. See [ADR 0181](../adr/0181-neutral-view-contract-and-closed-presentation-values.md)
+and [ADR 0182](../adr/0182-deterministic-structured-view-source-and-compiled-artifact.md).
+
+Phase 18D adds exactly the optional Experimental `packages/view-runtime` leaf
+with 19 production and 11 package-test PHP files, plus its manifest and README.
+It depends only on PHP, API Metadata, Diagnostics, View Build, and View Contract;
+no lower production package depends on it. The graph is 92 packages / 384 local
+edges / acyclic, with inventories 1,805 production, 938 package-test, and 92
+root-test PHP files. It authenticates only one explicit fixed two-file artifact
+and renders synchronously with contextual escaping and operation-local bounds.
+It parses or compiles no source while rendering. Generated code and the
+deployment filesystem are trusted inputs. HTTP, commands, application workflow,
+inspection, and acceptance remain outside the package. See [ADR 0183](../adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+and the [runtime guide](../architecture/compiled-view-runtime.md). Phase 18A-F
+are Accepted at that boundary; Phase 18G-H are now Accepted and Phase 18 is
+closed.
+
+Phase 18E adds exactly the optional Experimental `packages/view-http` leaf with
+11 production and 10 package-test PHP files, plus its manifest and README. It
+depends only on PHP, API Metadata, Diagnostics, View Contract, and PSR HTTP
+factory/message interfaces; `kongono/http-message` is development-only. The
+graph is 93 packages / 387 local production edges / acyclic, with inventories
+1,816 production, 948 package-test, and 92 root-test PHP files. Only completed
+neutral results enter the adapter. Application code owns all response and
+browser-security policy. See [ADR 0184](../adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+and the [HTTP adapter guide](../architecture/compiled-view-http.md). Phase 18A-F
+are Accepted at that boundary; Phase 18G-H are now Accepted and Phase 18 is
+closed.
+
+Phase 18F adds exactly the optional Experimental `packages/view-application`
+upper leaf with 20 production and five package-test PHP files, plus its manifest
+and README. It depends only on PHP, API Metadata, Diagnostics, View Contract,
+View Build, View Runtime, View HTTP, and PSR HTTP factory/message interfaces;
+`kongono/http-message` remains development-only. At the Phase 18F boundary the
+console application adds the sole production reverse edge. That graph is 94 packages / 394
+local production edges / acyclic, with inventories 1,839 production, 956
+package-test, and 92 root-test PHP files. See [ADR 0185](../adr/0185-supported-compiled-view-application-workflow.md)
+and the [application workflow guide](../architecture/compiled-view-application-workflow.md).
+
+Phase 18G adds exactly the optional Experimental `packages/view-inspection`
+upper evidence leaf with 22 production and six package-test PHP files, plus its
+manifest and README. Its eight local production dependencies are API Metadata,
+Application Graph Intelligence, Diagnostics, Observability, Security Audit,
+View Application, View Build, and View Contract. No production package depends
+on it. The graph is 95 packages / 402 local production edges / acyclic, with
+inventories 1,861 production, 962 package-test, and 92 root-test PHP files. It
+contains no command, loader, renderer, generated-code execution, filesystem
+inspection, recorder, exporter, repair, role implementation, or certification
+surface. See [ADR 0186](../adr/0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+and the [inspection guide](../architecture/compiled-view-inspection-and-intelligence.md).
+
+Phase 18H adds no production package or package-test PHP. It adds four
+root-test PHP files under `tests/External/View`, so current inventories are
+1,861 production, 962 package-test, and 96 root-test PHP files. The graph
+remains 95 packages / 402 local production edges / acyclic. See
+[ADR 0187](../adr/0187-phase-18-server-rendered-presentation-acceptance-and-checkpoint.md).
+
 Phase 14G adds exactly the optional Experimental
 `packages/model-invocation-inspection` upper evidence leaf with 22 production
 and six package-test PHP files. It depends only on PHP, API Metadata,

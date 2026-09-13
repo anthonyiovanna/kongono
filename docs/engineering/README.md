@@ -1,5 +1,49 @@
 # Kongono Engineering Foundation
 
+## Phase 18A-G compiled-view engineering boundary
+
+Phase 18A accepts [ADR 0179](../adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),
+[ADR 0180](../adr/0180-context-aware-output-safety-and-presentation-lifecycle.md),
+the [presentation architecture](../architecture/server-rendered-presentation.md),
+the [view-authoring guide](view-authoring.md), and the
+[fixed roadmap](../architecture/phase-18-roadmap.md) as documentation. Phase
+18B accepts [ADR 0181](../adr/0181-neutral-view-contract-and-closed-presentation-values.md)
+and the optional Experimental `kongono/view-contract` leaf. Phase 18C accepts
+[ADR 0182](../adr/0182-deterministic-structured-view-source-and-compiled-artifact.md),
+the [compiled-view build guide](../architecture/compiled-view-build.md), and the
+optional Experimental `kongono/view-build` leaf. Phase 18D accepts
+[ADR 0183](../adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md),
+the [compiled-view runtime guide](../architecture/compiled-view-runtime.md), and
+the optional Experimental `kongono/view-runtime` leaf. Phase 18E accepts
+[ADR 0184](../adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md),
+the [compiled-view HTTP guide](../architecture/compiled-view-http.md), and the
+optional Experimental `kongono/view-http` leaf.
+Phase 18F accepts [ADR 0185](../adr/0185-supported-compiled-view-application-workflow.md)
+and the exact-current application workflow. Phase 18G accepts
+[ADR 0186](../adr/0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+and the optional Experimental `kongono/view-inspection` evidence leaf documented
+in the [inspection guide](../architecture/compiled-view-inspection-and-intelligence.md).
+
+View contracts remain optional and HTTP-neutral. Phase 18C makes source sets
+and schemas explicit, compiles deterministically before runtime, and validates
+exact-current contained artifacts, use compile-time known output contexts,
+bound every traversal and output, isolate operations, reject partial output,
+preserve cleanup truth, and emit nondisclosing actionable diagnostics.
+Routing does not choose templates and templates receive no ambient data,
+service, or authority.
+
+Phase 18A-H are Accepted and Phase 18 is closed by the root-owned
+[local acceptance](../architecture/phase-18-server-rendered-presentation-acceptance.md).
+The authoring guide uses
+callable Phase 18B contracts, the exact Phase 18C source/build APIs, and the
+Phase 18D loader/renderer APIs. Rendering parses or compiles no source, keeps
+operation-local state, and exposes no partial failure bytes. Generated code and
+the deployment filesystem are trusted inputs. HTTP adaptation uses only
+completed results and explicit caller policy. The accepted application workflow
+and inspection leaf add no hidden build, I/O-based inspection, generated-code
+execution, rendering, Graph relationship, role execution, recording, cache, or
+watcher. Acceptance and deployment remain absent.
+
 Phase 14B implements the optional Experimental
 `kongono/model-invocation-contract` package accepted by [ADR
 0148](../adr/0148-neutral-versioned-model-invocation-contract-foundation.md)
@@ -637,6 +681,7 @@ access, networking, provider observation, authority evaluation, replay, repair,
 recording, exporting, certification, or role execution. Phase 17H accepts [ADR
 0178](../adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md)
 and `composer acceptance:phase17` as root-owned local evidence. Phase 17A-H are
-Accepted and Phase 17 is closed at its exact local checkpoint. Topology remains
-89 / 375 / acyclic and PHP inventories are 1,726 / 894 / 92. Phase 18 does not
-begin automatically and remains separately unauthorized.
+Accepted and Phase 17 is closed at its exact local checkpoint. At that closure,
+topology was 89 / 375 / acyclic and PHP inventories were 1,726 / 894 / 92. Phase 18A-G are
+Accepted; the current Phase 18 totals are 95 / 402 / acyclic and 1,861 / 962 /
+96. Phase 18 is closed.

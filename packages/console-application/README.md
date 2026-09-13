@@ -2,9 +2,10 @@
 
 `kongono/console-application` is the Experimental upper application
 and native-process boundary for the official `kongo` executable. It exposes
-exactly six supported commands: `application-graph:inspect`,
-`application:build`, `observability:check`, `observability:inspect`,
-`security:check`, and `security:inspect`.
+exactly ten supported commands: `application-graph:inspect`,
+`application:build`, `extension:inspect`, `observability:check`,
+`observability:inspect`, `security:check`, `security:inspect`, `view:build`,
+`view:check`, and `view:inspect`.
 
 Use it for a one-shot Composition build when the caller supplies an explicit
 application root and output directory. `--plan` is a non-mutating dry run: it
@@ -25,6 +26,14 @@ current artifact and return only bounded artifact/source identities, the fixed
 profile identifier, and a publication/currentness fact. They do not build,
 publish, repair, scan, access a network, or disclose configuration/resource
 values, batch values, payloads, providers, endpoints, credentials, or paths.
+
+The three view commands require exactly ordinary `application-root`,
+`output-directory`, and `source-file` inputs. `view:build --plan` is write-free;
+only explicit `--apply` publishes and then checks exact currentness.
+`view:check` requires current output, while `view:inspect` performs a write-free
+plan and target assessment without loading or rendering. Their shared result
+contains only bounded Safe identity, basename, count, currentness/publication,
+and applicable execution-intent evidence.
 
 `application-graph:inspect` accepts exactly one required ordinary
 `artifact-path`. It loads that explicit canonical artifact once and returns

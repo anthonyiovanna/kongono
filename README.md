@@ -1,5 +1,67 @@
 # Kongono
 
+## Accepted Phase 18A-H compiled presentation boundary
+
+Phase 18A accepts [ADR 0179](docs/adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),
+[ADR 0180](docs/adr/0180-context-aware-output-safety-and-presentation-lifecycle.md),
+the [server-rendered presentation guide](docs/architecture/server-rendered-presentation.md),
+the [view-authoring guide](docs/engineering/view-authoring.md), and the
+[fixed roadmap](docs/architecture/phase-18-roadmap.md) as documentation. Phase
+18B accepts [ADR 0181](docs/adr/0181-neutral-view-contract-and-closed-presentation-values.md)
+and implements only the optional Experimental `kongono/view-contract` leaf.
+Phase 18C accepts [ADR 0182](docs/adr/0182-deterministic-structured-view-source-and-compiled-artifact.md)
+and the optional Experimental [`kongono/view-build`](packages/view-build/README.md)
+leaf described by the [compiled-view build guide](docs/architecture/compiled-view-build.md).
+Phase 18D accepts [ADR 0183](docs/adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+and the optional Experimental [`kongono/view-runtime`](packages/view-runtime/README.md)
+leaf described by the [compiled-view runtime guide](docs/architecture/compiled-view-runtime.md).
+Phase 18E accepts [ADR 0184](docs/adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+and the optional Experimental [`kongono/view-http`](packages/view-http/README.md)
+leaf described by the [compiled-view HTTP guide](docs/architecture/compiled-view-http.md).
+Phase 18F accepts [ADR 0185](docs/adr/0185-supported-compiled-view-application-workflow.md),
+the optional Experimental [`kongono/view-application`](packages/view-application/README.md)
+workflow, three explicit view commands, and the copy-once
+[`view-minimal`](skeletons/view-minimal/README.md) example described by the
+[application workflow guide](docs/architecture/compiled-view-application-workflow.md).
+Phase 18G accepts [ADR 0186](docs/adr/0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+and the optional Experimental [`kongono/view-inspection`](packages/view-inspection/README.md)
+offline evidence leaf described by the
+[inspection guide](docs/architecture/compiled-view-inspection-and-intelligence.md).
+Phase 18H accepts [ADR 0187](docs/adr/0187-phase-18-server-rendered-presentation-acceptance-and-checkpoint.md),
+the root-owned [local acceptance](docs/architecture/phase-18-server-rendered-presentation-acceptance.md),
+and the exact checkpoint. Phase 18 is closed.
+
+The accepted direction is an optional upper compiled-view capability:
+applications select logical views and explicit bounded presentation data,
+while routing continues to select handlers only. Neutral view contracts
+remain independent of PSR-7; response adaptation is a separate explicit upper
+boundary. Production direction is deterministic content-addressed ordinary PHP
+created by an explicit build/check path and loaded only as exact-current
+contained evidence. Plain strings remain data, output context is known at
+compile time, and unsupported contexts fail closed.
+
+Phase 18B supplies closed bounded presentation contracts. Phase 18C adds one
+explicit bounded duplicate-aware JSON source language, schema-resolved text and
+quoted-attribute contexts, a canonical model and complete source map, four
+distinct content identities, syntax-validated deterministic ordinary PHP, exact
+structural/current validation, and atomic two-file content-addressed no-clobber
+publication. Generated PHP is never loaded or executed by the build. Phase 18D
+loads only an explicit caller-selected exact-current two-file artifact and
+renders synchronously with contextual HTML escaping, explicit bounds,
+operation-local state, retirement, and partial-output rejection. No source is
+parsed or compiled during rendering. Generated code and the deployment
+filesystem are trusted inputs. Phase 18E maps only completed neutral results to
+PSR-7 under explicit caller-owned policy and interchangeable PSR factories.
+Phase 18F adds the exact-current application workflow, three explicit commands,
+and copy-once minimal example. Phase 18G revalidates one supplied exact-current
+artifact structurally in memory and emits only bounded Safe/Protected evidence;
+it performs no I/O, generated-code execution, rendering, recording, or role
+execution. Graph remains `not-established`, and projections are
+`constructed-not-recorded`. No cache, watcher, daemon, installer, deployment
+manager, automatic migration, assets, or frontend/mobile behavior exists.
+Current topology is 95 packages / 402 local production edges / acyclic, with
+PHP inventories 1,861 / 962 / 96.
+
 Phase 14B implements the optional Experimental
 `kongono/model-invocation-contract` neutral value package and the deterministic
 `kongono/model-invocation-build` plan-evidence package and bounded
@@ -951,7 +1013,7 @@ events, security audit, and the selected OpenTelemetry bridge without globals,
 environment discovery, or hidden defaults. The copy-once
 `observability-minimal` skeleton uses a zero-network example transport.
 
-The official `kongo` family contains exactly six commands:
+The official `kongo` family contains exactly ten commands:
 `application-graph:inspect`, `application:build`, `observability:check`,
 `observability:inspect`, `security:check`, and `security:inspect`. The graph contains 56 acyclic
 production packages and 182 local edges.
@@ -1211,6 +1273,6 @@ credentials, networking, provider observation, hidden payload access, replay,
 repair, recording, exporting, certification, or role execution. Phase 17H
 accepts [ADR 0178](docs/adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md)
 and the explicit `composer acceptance:phase17` local proof. Phase 17A-H are
-Accepted and Phase 17 is closed. Current topology is 89 packages / 375 local
-production edges / acyclic, with PHP inventories 1,726 / 894 / 92. Phase 18
-does not begin automatically and remains separately unauthorized.
+Accepted and Phase 17 is closed. At Phase 17 closure topology was 89 packages /
+375 local production edges / acyclic, with PHP inventories 1,726 / 894 / 92.
+Phase 18A-H are Accepted and Phase 18 is closed.

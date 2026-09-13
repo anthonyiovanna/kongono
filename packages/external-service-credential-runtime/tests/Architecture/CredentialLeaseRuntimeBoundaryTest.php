@@ -74,11 +74,11 @@ final class CredentialLeaseRuntimeBoundaryTest extends TestCase
         self::assertSame('packages/external-service-credential-runtime/tests/', $rootAutoloadDevPsr4['Kongono\\ExternalServiceCredentialRuntime\\Tests\\'] ?? null);
         $validation = 'composer --working-dir=packages/external-service-credential-runtime validate --no-check-publish';
         self::assertSame(1, count(array_keys($validatePackages, $validation, true)));
-        self::assertCount(89, $validatePackages);
+        self::assertCount(95, $validatePackages);
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(89, $manifests);
+        self::assertCount(95, $manifests);
         $names = [];
         foreach ($manifests as $path) {
             $candidate = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
@@ -100,7 +100,7 @@ final class CredentialLeaseRuntimeBoundaryTest extends TestCase
                 self::assertArrayNotHasKey('kongono/external-service-credential-runtime', $candidate['require']);
             }
         }
-        self::assertSame(375, $edges);
+        self::assertSame(402, $edges);
         self::assertSame(['kongono/api-metadata', 'kongono/diagnostics', 'kongono/external-service-contract'], array_values(array_filter(array_keys($manifest['require']), static fn(string $name): bool => str_starts_with($name, 'kongono/'))));
 
         foreach ([

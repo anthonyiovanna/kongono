@@ -1,5 +1,65 @@
 # Security Policy
 
+## Phase 18A-H presentation and output-safety boundary
+
+Phase 18A accepts the security doctrine in [ADR 0179](docs/adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),
+[ADR 0180](docs/adr/0180-context-aware-output-safety-and-presentation-lifecycle.md),
+and the [presentation guide](docs/architecture/server-rendered-presentation.md)
+as documentation. Phase 18B accepts [ADR 0181](docs/adr/0181-neutral-view-contract-and-closed-presentation-values.md)
+and adds closed bounded input/schema and render-evidence values with
+nondisclosing diagnostics. Phase 18C accepts [ADR 0182](docs/adr/0182-deterministic-structured-view-source-and-compiled-artifact.md)
+and the closed duplicate-aware structured source compiler. It resolves all
+references against required schema fields, encodes static HTML text and quoted
+attributes, and rejects unsupported contexts before emitting inert ordinary PHP.
+Phase 18D accepts [ADR 0183](docs/adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+and the [compiled-view runtime](docs/architecture/compiled-view-runtime.md). It
+authenticates one explicit fixed two-file exact-current artifact and renders
+synchronously with operation-local bounded output and contextual escaping. No
+trusted-markup type or browser-security policy exists. Phase 18E accepts
+[ADR 0184](docs/adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+and the explicit [compiled-view HTTP adapter](docs/architecture/compiled-view-http.md),
+which derives only content length and leaves status, reason, content type,
+caller headers, cookies, caching, redirects, and browser-security policy to the application.
+Phase 18F accepts [ADR 0185](docs/adr/0185-supported-compiled-view-application-workflow.md)
+and the [compiled-view application workflow](docs/architecture/compiled-view-application-workflow.md).
+It authenticates one explicit contained source and exact-current artifact,
+returns lower render failure unchanged, and leaves route, 404, browser-security,
+and failure-presentation policy application-owned.
+Phase 18G accepts [ADR 0186](docs/adr/0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+and the [compiled-view inspection guide](docs/architecture/compiled-view-inspection-and-intelligence.md).
+It structurally validates supplied artifact bytes in memory without executing
+them and returns only closed Safe/Protected evidence. Paths, templates,
+presentation values, artifact bytes, rendered bytes, HTTP material, foreign
+failures, and traces remain undisclosed. The evidence establishes no live
+filesystem, deployment, Graph, authorization, security, or production truth.
+Phase 18H accepts the root-owned local proof under
+[ADR 0187](docs/adr/0187-phase-18-server-rendered-presentation-acceptance-and-checkpoint.md).
+It adds no public network, ambient DNS, live server, browser, provider,
+database, credential, deployment, certification, or production authority.
+
+Plain strings are data, never markup. The Phase 18C compiler knows output
+context at build time; unsupported or ambiguous context fails closed. The
+initial direction is HTML text and quoted HTML attributes. URL, JavaScript,
+CSS, raw markup, and event-handler contexts remain denied until separately
+specified and independently tested. Runtime guessing, regex sanitization,
+post-render cleaning, raw flags, and one generic `escape()` promise are not
+accepted security mechanisms.
+
+Templates receive closed bounded presentation values, not services,
+repositories, requests, sessions, security contexts, credentials, capability
+ports, or arbitrary objects. Template names, source locations, values,
+fragments, rendered bytes, private paths, stacks, secrets, session/CSRF
+material, and provider payloads are Protected or denied by default. Existing
+trusted diagnostic activation may disclose only bounded authorized context;
+production presentation stays generic.
+
+Rendering does not create identity, authentication, authorization, capability,
+policy, CSP, nonce, asset-integrity, URL-policy, session, CSRF, header, or
+application-effect authority. Generated PHP remains trusted in-process code,
+not a sandbox; the deployment filesystem is also trusted. No source is parsed
+or compiled during rendering. Phase 18D makes no browser-security, accessibility, compliance,
+production-readiness, or certification claim.
+
 Phase 14B implements only the inert neutral values in
 [ADR 0148](docs/adr/0148-neutral-versioned-model-invocation-contract-foundation.md)
 and the [contract guide](docs/architecture/model-invocation-contract-foundation.md).
@@ -850,4 +910,5 @@ delivery. Phase 17H accepts the root-owned loopback proof in [ADR
 0178](docs/adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md).
 It uses no public endpoint or real credential and adds no compatibility,
 certification, deployment, production-readiness, or Stable/1.0 claim. Phase
-17A-H are Accepted and Phase 17 is closed; Phase 18 remains unauthorized.
+17A-H are Accepted and Phase 17 is closed. Phase 18A-H are Accepted and Phase
+18 is closed.

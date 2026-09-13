@@ -1116,4 +1116,26 @@ payload access, networking, provider observation, authority evaluation, replay,
 repair, recording, exporting, certification, or role execution. Phase 17H
 accepts [ADR 0178](../adr/0178-phase-17-openai-responses-local-acceptance-and-checkpoint.md)
 and the explicit root-owned local proof. Phase 17A-H are Accepted and Phase 17
-is closed; Phase 18 remains separately unauthorized.
+is closed. Phase 18A accepts the compiled-presentation documentation
+architecture; Phase 18B accepts [ADR 0181](../adr/0181-neutral-view-contract-and-closed-presentation-values.md)
+and only the optional Experimental `kongono/view-contract` neutral leaf. Phase
+18C accepts [ADR 0182](../adr/0182-deterministic-structured-view-source-and-compiled-artifact.md)
+and only the optional Experimental `kongono/view-build` deterministic source,
+model, generated-evidence, validator, and publisher leaf. Generated PHP remains
+unexecuted during build. Phase 18D accepts [ADR 0183](../adr/0183-exact-current-compiled-view-runtime-and-bounded-rendering.md)
+and the optional Experimental [compiled-view runtime](compiled-view-runtime.md).
+It authenticates one caller-selected fixed two-file artifact and renders one
+operation synchronously with contextual escaping, explicit bounds, retirement,
+and no partial failure bytes. No source is parsed or compiled during rendering;
+generated code and the deployment filesystem are trusted inputs. Phase 18E
+accepts [ADR 0184](../adr/0184-explicit-completed-view-to-psr-7-response-adaptation.md)
+and the optional Experimental [compiled-view HTTP adapter](compiled-view-http.md)
+over completed neutral results and explicit caller policy. Phase 18F accepts
+[ADR 0185](../adr/0185-supported-compiled-view-application-workflow.md) and the
+optional [compiled-view application workflow](compiled-view-application-workflow.md),
+three view commands, and copy-once example. Phase 18G accepts [ADR
+0186](../adr/0186-visibility-safe-compiled-view-inspection-and-developer-intelligence.md)
+and the optional offline [compiled-view inspection leaf](compiled-view-inspection-and-intelligence.md).
+Phase 18H accepts [ADR 0187](../adr/0187-phase-18-server-rendered-presentation-acceptance-and-checkpoint.md)
+and the root-owned [local acceptance](phase-18-server-rendered-presentation-acceptance.md).
+Phase 18A-H are Accepted and Phase 18 is closed.
