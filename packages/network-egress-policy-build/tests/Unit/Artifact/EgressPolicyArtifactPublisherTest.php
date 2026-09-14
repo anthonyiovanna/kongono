@@ -40,13 +40,12 @@ final class EgressPolicyArtifactPublisherTest extends TestCase
     {
         $artifact = (new EgressPolicyArtifactBuilder())->build(EgressPolicySourceFactory::create());
         $publisher = new EgressPolicyArtifactPublisher();
-        $parentBefore = glob(dirname($this->directory) . '/*');
         $path = $publisher->publish($artifact, $this->directory);
         self::assertSame($this->directory . '/kongono-network-egress-policy-v1-' . $artifact->artifactSha256() . '.json', $path);
         self::assertSame($artifact->canonicalBytes(), file_get_contents($path));
         self::assertSame($path, $publisher->publish($artifact, $this->directory));
         self::assertSame([$path], glob($this->directory . '/*'));
-        self::assertSame($parentBefore, glob(dirname($this->directory) . '/*'));
+        self::assertSame([], glob($this->directory . '/.kongono-network-egress-policy-*'));
     }
 
     public function testConflictingAndUnsafeTargetsFailWithoutClobberOrResidue(): void
