@@ -1,5 +1,111 @@
 # Kongono AI-Agent Operating Policy
 
+## Phase 19 optional deterministic Asset Platform policy
+
+Phase 19A accepts [ADR 0188](docs/adr/0188-optional-asset-platform-and-deterministic-build-boundary.md),
+[ADR 0189](docs/adr/0189-exact-current-asset-resolution-and-browser-delivery-policy.md),
+the [Asset Platform guide](docs/architecture/asset-platform.md), the
+[asset-authoring guide](docs/engineering/asset-authoring.md), and the fixed
+[Phase 19 roadmap](docs/architecture/phase-19-roadmap.md) as documentation
+architecture. Phase 19B accepts [ADR 0190](docs/adr/0190-neutral-asset-contract-and-bounded-declaration-vocabulary.md)
+and adds only the optional Experimental `kongono/asset-contract` neutral leaf.
+Phase 19C accepts [ADR 0191](docs/adr/0191-deterministic-native-asset-graph-and-build-artifact.md)
+and adds only the optional Experimental `kongono/asset-build` deterministic
+source-set, complete graph, fixed native-copy artifact/currentness, and
+contained content-addressed publication leaf described by the
+[deterministic asset-build guide](docs/architecture/deterministic-asset-build.md).
+Phase 19D accepts [ADR 0192](docs/adr/0192-replaceable-asset-build-adapter-and-bounded-vite-integration.md)
+and adds only the optional Experimental `kongono/asset-adapter-contract`
+neutral boundary plus the separately optional Experimental
+`kongono/asset-adapter-vite` first-party adapter described by the
+[replaceable asset-build adapter guide](docs/architecture/replaceable-asset-build-adapters.md).
+Phase 19E accepts [ADR 0193](docs/adr/0193-exact-current-asset-resolution-and-explicit-browser-http-policy.md)
+and adds only the optional Experimental `kongono/asset-resolution` pure
+in-memory leaf described by the
+[exact-current resolution guide](docs/architecture/exact-current-asset-resolution.md).
+It revalidates complete native or adapter evidence, normalizes immutable
+content-addressed metadata, and resolves only under an explicit expected
+artifact identity and caller-owned URL/cache/integrity/preload policy. Phase
+19F accepts [ADR 0194](docs/adr/0194-supported-asset-application-workflow-and-explicit-view-integration.md),
+the optional Experimental `kongono/asset-application` workflow, three explicit
+commands, copy-once `asset-minimal`, and application-owned Phase 18 value
+mapping. Phase 19G accepts [ADR 0195](docs/adr/0195-visibility-safe-asset-inspection-and-developer-intelligence.md)
+and the optional Experimental `kongono/asset-inspection` offline evidence leaf.
+Phase 19H accepts [ADR 0196](docs/adr/0196-phase-19-external-asset-acceptance-and-checkpoint.md),
+the root-owned [external acceptance](docs/architecture/phase-19-external-asset-acceptance.md),
+and the exact checkpoint. Phase 19A-H are Accepted and Phase 19 is closed by
+subject `Complete Kongono Phase 19 asset platform milestone` with parent
+`a04b1ae491cb9c52eb5bd32c37f8524fcd683c74`. The graph remains 102 packages /
+435 local production edges / acyclic, with 2,026 production, 1,055 package-test,
+and 100 root-test PHP files.
+
+The Asset Platform is an optional upper application capability. API-only, CLI,
+worker, agent, headless, and mobile backends install none of it. Kongono owns a
+framework-neutral asset contract, not a bundler. Native or no-bundler assets are
+first-class, and Vite is the first optional replaceable adapter,
+not a core dependency, runtime authority, or permanent model.
+
+Future declarations and artifacts must be explicit, bounded, deterministic,
+content-addressed, contained, no-clobber, and exact-current. Logical identity,
+source path, output path, public URL, content identity, build identity, and
+integrity metadata remain distinct. Build tools are untrusted producers until
+their complete output is validated. Browser-executable output is trusted
+application code or content, not a Kongono sandbox. Application and deployment
+layers own origin, CDN, CSP, nonces, headers, cache, credentials, and external
+effects. Development may not weaken these rules or use hidden builds, scans,
+ambient manifests, newest-file selection, request-time processes, or stale
+fallback.
+
+Phase 19B defines only bounded immutable Version 1 logical/content identities,
+closed asset/content/dependency vocabularies, declarations, entry points,
+integrity and delivery metadata, deterministic ordering, and nondisclosing
+diagnostics. An empty declaration set is the first-class no-asset contract.
+Values grant no filesystem, build, URL, HTTP, credential, or effect authority.
+No schema, manifest, parser, graph traversal, build, adapter, subprocess,
+resolver, command, HTTP behavior, view integration, frontend integration,
+checkpoint, or runtime behavior is added. No Node, npm, pnpm, Bun, Deno, Vite,
+or other dependency is installed.
+
+Phase 19C accepts one explicit complete bounded in-memory source set, validates
+all dependency kinds for reachability, cycles, and depth, copies exact bytes
+under `native-copy/1`, emits duplicate-safe canonical metadata without source
+paths or bytes, validates exact currentness against one complete supplied set,
+and publishes only contained content-addressed no-clobber directories. It adds
+no filesystem source discovery, import parsing, transformation, adapter
+protocol, subprocess, network, URL/HTTP/view/runtime integration, watcher,
+cache, command, Vite, or Node dependency.
+
+Phase 19D accepts one tool-neutral adapter request/result boundary and one
+fixed-profile Vite implementation. The Vite adapter accepts only an explicit
+application-provided executable and authenticated complete inputs, creates one
+contained operation workspace, invokes one bounded subprocess without a shell
+or ambient environment, strictly translates one bounded manifest and complete
+ordinary-file output tree, validates the neutral artifact, and attempts cleanup
+exactly once. Empty requests perform no workspace or process activity. Exit
+zero, a manifest, and output bytes remain untrusted evidence until complete
+validation succeeds. The packages install no Node-family or Vite dependency,
+perform no package installation or network access, and add no watcher, HMR,
+development server, runtime resolver, URL/HTTP/view integration, cache,
+credential access, plugin discovery, arbitrary configuration, or frontend
+framework behavior.
+
+Phase 19E accepts one normalized immutable resolution artifact derived only
+from fully revalidated native or adapter results. Its stateless resolver checks
+one explicit expected identity before lookup and returns only typed URL,
+content, cache, ETag, optional SHA-384 integrity, and inert preload metadata.
+It performs no build, scan, discovery, publication, byte read, response or
+header emission, CSP/nonce/crossorigin decision, network, storage, cache,
+credential, view, or frontend behavior.
+
+Phase 19F composes only explicit stable source reads, write-free plan/check,
+explicit native publication or direct neutral adapter injection, exact-current
+resolution, three commands, and application-owned Phase 18 value mapping.
+Phase 19G inspects only one supplied current result in memory and emits bounded
+Safe/Protected evidence without role execution, Graph authority, recording,
+repair, or export. Phase 19H adds only root-test external acceptance and the
+checkpoint; it adds no production or package-test PHP and grants no Phase 20
+authority.
+
 ## Phase 18 optional compiled server-rendered presentation policy
 
 Phase 18A accepts [ADR 0179](docs/adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),

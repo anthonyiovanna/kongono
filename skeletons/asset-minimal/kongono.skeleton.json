@@ -1,0 +1,21 @@
+{
+  "schema": "kongono.application-skeleton",
+  "version": 1,
+  "template_paths": [
+    "README.md",
+    "assets/app.css",
+    "bin/asset.php",
+    "composer.json",
+    "composer.lock",
+    "kongono.assets.json",
+    "kongono.skeleton.json",
+    "src/AssetWorkflow.php",
+    "src/ViewAssetContext.php",
+    "tests/AssetMinimalApplicationTest.php",
+    "var/assets/.gitignore"
+  ],
+  "derived_output_patterns": [
+    "var/assets/kongono-assets-v1-*/**",
+    "vendor/**"
+  ]
+}

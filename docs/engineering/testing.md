@@ -1,5 +1,18 @@
 # Testing
 
+Phase 19H adds four root-test PHP files and the explicit
+`composer acceptance:phase19` fresh-process proof above the Phase 19B-G package
+and application tests. It exercises native determinism/currentness/integrity,
+protocol-emulated Vite-adapter process and cleanup bounds, direct/Composer
+application parity, explicit Phase 18 value mapping, Phase 19G inspection,
+sequential/concurrent isolation, fixed nondisclosing failure, repository
+fingerprints, and temporary residue. This does not certify a real Vite/Node
+version, browser, deployment, performance, security, Stable/1.0, or production
+readiness. Phase 19A-H are Accepted and Phase 19 is closed.
+The final topology is 102 packages / 435 local production edges / acyclic,
+with PHP inventories 2,026 / 1,055 / 100, 102 package validation commands,
+seven skeleton validations, and 13 supported `kongo` commands.
+
 Phase 18H adds four root-test PHP files and the explicit
 `composer acceptance:phase18` fresh-process proof. It exercises the accepted
 build, runtime, HTTP, application, copied-skeleton, CGI, and inspection stack

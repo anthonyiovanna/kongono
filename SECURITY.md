@@ -1,5 +1,72 @@
 # Security Policy
 
+## Phase 19A-H Asset Platform security boundary
+
+Phase 19A accepts architecture, Phase 19B accepts the neutral asset contract,
+and Phase 19C accepts only the optional deterministic native asset-build leaf.
+Phase 19D accepts only the optional neutral adapter boundary and separately
+optional fixed-profile Vite adapter. Phase 19E accepts only the optional
+stateless resolution leaf: complete build evidence is revalidated, expected
+artifact identity must match before lookup, and public URL/cache/integrity/
+preload policy is explicit and application-owned. Phase 19F accepts only the
+optional application workflow over explicit canonical paths and stable reads,
+the closed command edge, and application-owned View value construction. It
+adds no ambient manifest, service locator, hidden build, tag emission, HTTP
+delivery, or View-package dependency. Phase 19G accepts only an offline
+inspection leaf over one supplied current result. Its Safe/Protected evidence
+omits logical identities, paths, URLs, bytes, individual content and integrity
+values, process data, environment, messages, and traces; it performs no role,
+Graph, observation, audit, recorder, exporter, repair, or certification effect.
+Phase 19H accepts only the root-owned local external proof and exact checkpoint
+under [ADR 0196](docs/adr/0196-phase-19-external-asset-acceptance-and-checkpoint.md).
+The harness uses explicit local inputs and bounded children, performs no public
+network or ambient DNS, and treats its Vite protocol emulator as test evidence,
+not real-tool certification. Phase 19A-H are Accepted and Phase 19 is closed.
+Phase 19C discovers no
+source, parses or transforms no content, invokes no subprocess or network,
+selects no URL or HTTP policy, and adds no Vite or frontend behavior.
+
+Future source declarations, source bytes, package contents, build executables,
+plugins, tool manifests, generated output, content-type claims, URLs, source
+maps, and integrity claims are hostile at their input boundaries. Validation
+must reject traversal, collisions, ambiguity, outside-root state, symlinks,
+junctions, reparse points, alternate streams, remote inputs, stale or mixed
+evidence, unsupported values, tampering, and exceeded bounds before publication
+or resolution.
+
+Build tools are untrusted producers until complete output is validated against
+the neutral contract. Browser-executable JavaScript, CSS, WebAssembly, markup,
+and related output is trusted application code or content, not a Kongono
+sandbox or security certification. Content addressing and Subresource Integrity
+metadata do not grant authorization and do not replace CSP, origin policy,
+transport security, content-type enforcement, or supply-chain review.
+
+Application and deployment layers own origin and public base URL, CDN and
+storage selection, cache policy, CSP and nonce creation, security headers,
+authentication, authorization, cookies, sessions, credentials, network access,
+and byte delivery. Diagnostics must omit source and output bytes, private paths,
+raw tool manifests, environment values, secrets, credentials, nonces, headers,
+cookies, and provider payloads. See [ADR 0188](docs/adr/0188-optional-asset-platform-and-deterministic-build-boundary.md),
+[ADR 0189](docs/adr/0189-exact-current-asset-resolution-and-browser-delivery-policy.md),
+the [Asset Platform guide](docs/architecture/asset-platform.md), and the
+[exact-current resolution guide](docs/architecture/exact-current-asset-resolution.md),
+the [asset-application workflow](docs/architecture/asset-application-workflow.md),
+and the [external acceptance](docs/architecture/phase-19-external-asset-acceptance.md).
+
+Phase 19E returns metadata only. It never returns source/output bytes or
+private paths, emits no response/header/markup, creates no CSP, nonce, or
+crossorigin decision, and performs no filesystem, network, storage,
+authentication, authorization, credential, or deployment effect. Diagnostics
+are bounded and nondisclosing; retained previous throwables are not claimed to
+have sanitized traces.
+
+Phase 19C canonical artifacts omit source/output bytes, protected source paths,
+absolute paths, URLs, ambient policy, credentials, environment, and time. The
+publisher writes only one validated contained operation-owned temporary tree,
+accepts existing output only when its complete ordinary inventory and bytes
+are exact, never clobbers or repairs, and preserves primary plus cleanup truth.
+See [ADR 0191](docs/adr/0191-deterministic-native-asset-graph-and-build-artifact.md).
+
 ## Phase 18A-H presentation and output-safety boundary
 
 Phase 18A accepts the security doctrine in [ADR 0179](docs/adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),

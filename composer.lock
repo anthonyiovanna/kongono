@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "eaee939d4ce8c5ce466c5f744f29cf83",
+    "content-hash": "87667dd9be2d11f4f051dacb694e5f43",
     "packages": [
         {
             "name": "google/protobuf",
@@ -484,6 +484,248 @@
             }
         },
         {
+            "name": "kongono/asset-adapter-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/asset-adapter-contract",
+                "reference": "feae31ed0ffa6d6230de4cffca66601925e5f39d"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/asset-build": "*",
+                "kongono/asset-contract": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AssetAdapterContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AssetAdapterContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Replaceable deterministic asset-build adapter contracts and validated adapter artifacts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/asset-adapter-vite",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/asset-adapter-vite",
+                "reference": "3ae0a8b9868eac1984ace35349a71f905acb6ff0"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/asset-adapter-contract": "*",
+                "kongono/asset-build": "*",
+                "kongono/asset-contract": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AssetAdapterVite\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AssetAdapterVite\\Tests\\": "tests/"
+                }
+            },
+            "description": "Bounded first-party Vite asset-build adapter for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/asset-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/asset-application",
+                "reference": "83c3bcfdbca0b001d0fd9951fe4b5978666bb210"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/asset-adapter-contract": "*",
+                "kongono/asset-build": "*",
+                "kongono/asset-contract": "*",
+                "kongono/asset-resolution": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AssetApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AssetApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit exact-current application workflow for Kongono assets.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/asset-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/asset-build",
+                "reference": "f686b5ecb1a239feacd0ac624ed338ba2c5e46a6"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/asset-contract": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AssetBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AssetBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic native asset graph, build artifact, currentness, and content-addressed publication for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/asset-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/asset-contract",
+                "reference": "3c1e59b54e348929a7a793e5b83e7a6321f14d97"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AssetContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AssetContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral bounded asset declarations and delivery metadata for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/asset-inspection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/asset-inspection",
+                "reference": "6d07354d690a66d66ea08a26ddc7f6ccc9b6a1ca"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-intelligence": "*",
+                "kongono/asset-application": "*",
+                "kongono/asset-resolution": "*",
+                "kongono/diagnostics": "*",
+                "kongono/observability": "*",
+                "kongono/security-audit": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AssetInspection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AssetInspection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Visibility-safe asset inspection and bounded developer intelligence for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/asset-resolution",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/asset-resolution",
+                "reference": "083ad76df35441511a5b02b24b347f442ccbffd4"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/asset-adapter-contract": "*",
+                "kongono/asset-build": "*",
+                "kongono/asset-contract": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\AssetResolution\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\AssetResolution\\Tests\\": "tests/"
+                }
+            },
+            "description": "Exact-current asset resolution and explicit browser and HTTP metadata policy for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "kongono/authentication",
             "version": "dev-main",
             "dist": {
@@ -644,11 +886,12 @@
             "dist": {
                 "type": "path",
                 "url": "packages/console-application",
-                "reference": "fdd63d8c9e6fd6224528a8c675fe78adf292e262"
+                "reference": "96b3adb1096f01c5053cf7d47c642dd7fda7cf24"
             },
             "require": {
                 "kongono/api-metadata": "*",
                 "kongono/application-graph-artifact": "*",
+                "kongono/asset-application": "*",
                 "kongono/composition": "*",
                 "kongono/console": "*",
                 "kongono/console-presentation": "*",
@@ -8346,6 +8589,13 @@
         "kongono/application-graph-composition": 20,
         "kongono/application-graph-contract": 20,
         "kongono/application-graph-intelligence": 20,
+        "kongono/asset-adapter-contract": 20,
+        "kongono/asset-adapter-vite": 20,
+        "kongono/asset-application": 20,
+        "kongono/asset-build": 20,
+        "kongono/asset-contract": 20,
+        "kongono/asset-inspection": 20,
+        "kongono/asset-resolution": 20,
         "kongono/authentication": 20,
         "kongono/authorization": 20,
         "kongono/chie": 20,

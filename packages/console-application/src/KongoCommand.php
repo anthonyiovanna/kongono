@@ -13,6 +13,9 @@ enum KongoCommand: string
 {
     case ApplicationGraphInspect = 'application-graph:inspect';
     case ApplicationBuild = 'application:build';
+    case AssetBuild = 'asset:build';
+    case AssetCheck = 'asset:check';
+    case AssetResolve = 'asset:resolve';
     case ExtensionInspect = 'extension:inspect';
     case ObservabilityCheck = 'observability:check';
     case ObservabilityInspect = 'observability:inspect';

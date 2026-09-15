@@ -14,7 +14,7 @@ final class ExtensionInspectCommandHandlerTest extends TestCase
         self::assertIsArray($source);
         $commands = $source['commands'] ?? null;
         self::assertIsArray($commands);
-        $command = $commands[2] ?? null;
+        $command = $commands[5] ?? null;
         self::assertIsArray($command);
         $inputs = $command['inputs'] ?? null;
         self::assertIsArray($inputs);

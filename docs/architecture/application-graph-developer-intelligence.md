@@ -1,5 +1,12 @@
 # Application Graph Developer-Intelligence Evidence
 
+Phase 19G's optional [asset-inspection leaf](asset-inspection-and-intelligence.md)
+may accept one explicitly supplied same-role Graph intelligence view. It copies
+only bounded Safe aggregate counts and fixed tokens, omits Graph identities and
+facts, and always reports the asset-to-Graph relationship as
+`not-established`. The Graph package has no reverse dependency on Asset
+Inspection.
+
 > **Current boundary:** Phase 11G implements the optional Experimental
 > `kongono/application-graph-intelligence` package. It derives and independently
 > verifies only bounded Safe aggregate evidence from a Phase 11F inspection.

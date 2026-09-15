@@ -1,5 +1,58 @@
 # API Status
 
+## Phase 19 Asset Platform status
+
+Phase 19A is Accepted documentation architecture. Phase 19B accepts the
+optional Experimental `kongono/asset-contract` API through
+[ADR 0190](../adr/0190-neutral-asset-contract-and-bounded-declaration-vocabulary.md).
+It has exactly 19 production declarations: 15 Experimental values, enums, and
+the concrete validation exception; one Public exception-family interface; and
+three Internal diagnostic/exception/guard declarations. No declaration is
+Stable.
+
+Logical/content identities, declarations, dependency and entry-point relations,
+integrity evidence, preload hints, and delivery metadata are inert and bounded.
+An empty declaration set is valid. There is no path, URL, filesystem, schema,
+manifest, graph traversal, build, resolver, adapter, HTTP, view, command,
+runtime, Vite, or frontend integration. Future surfaces begin Experimental,
+and Stable or 1.0 requires separate authority.
+
+Phase 19C accepts the optional `kongono/asset-build` API through
+[ADR 0191](../adr/0191-deterministic-native-asset-graph-and-build-artifact.md).
+It has exactly 30 production declarations: 22 Experimental source, graph,
+build, artifact, publication, identity, enum, and concrete exception
+declarations; one Public package exception-family interface; and seven Internal
+graph-node, diagnostic, abstract exception, and guard declarations. No
+declaration is Stable. The leaf performs only explicit in-memory native-copy
+build evidence and contained publication; it adds no adapter, network, URL,
+HTTP, view, command, or runtime surface.
+
+Phase 19D accepts [ADR 0192](../adr/0192-replaceable-asset-build-adapter-and-bounded-vite-integration.md),
+the optional `kongono/asset-adapter-contract`, and the separately optional
+`kongono/asset-adapter-vite`. They add exactly 49 production declarations: 33
+Experimental values, enums, exceptions, and boundaries; two Public
+exception-family interfaces; and 14 Internal diagnostics, exceptions,
+workspace values, and implementation declarations. No declaration is Stable.
+The fixed Vite implementation accepts one explicit application-provided
+executable and performs at most one bounded no-shell subprocess in a contained
+workspace. It strictly translates and validates complete output, then attempts
+cleanup. It adds no Node/Vite package, installation, network, watcher/HMR,
+development server, runtime resolver, URL/HTTP/view, command, or frontend
+surface. Phase 19E-G add the accepted resolver, application, and inspection
+Experimental APIs without promoting any declaration. Phase 19H adds root-test
+evidence only and no production declaration or status change. Phase 19A-H are
+Accepted and Phase 19 is closed.
+
+Vite is the first optional replaceable adapter and never a core
+dependency or the neutral conceptual model. Native or no-bundler and no-asset
+applications remain first-class. PHP 8.5 is the current baseline; PHP 8.6 or 9
+readiness means explicit contracts and replaceable adapters, not unverified
+future syntax or behavior. See [Asset Platform](../architecture/asset-platform.md),
+[asset authoring](asset-authoring.md), the
+[replaceable adapter guide](../architecture/replaceable-asset-build-adapters.md),
+the [Phase 19 roadmap](../architecture/phase-19-roadmap.md), and
+[ADR 0196](../adr/0196-phase-19-external-asset-acceptance-and-checkpoint.md).
+
 ## Phase 18A-G presentation status
 
 Phase 18A accepts [ADR 0179](../adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),

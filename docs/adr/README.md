@@ -1,5 +1,78 @@
 # Architecture Decision Records
 
+## Phase 19A-H Asset Platform decisions
+
+### [ADR 0188: Optional Asset Platform and deterministic build boundary](0188-optional-asset-platform-and-deterministic-build-boundary.md)
+
+Accepted for Phase 19A. Defines the optional language-neutral Asset Platform,
+explicit declarations, distinct identities, deterministic build evidence,
+contained content-addressed publication, native or no-bundler flow, and
+replaceable-adapter direction. It creates no schema, package, adapter, build, or
+runtime.
+
+### [ADR 0189: Exact-current asset resolution and browser delivery policy](0189-exact-current-asset-resolution-and-browser-delivery-policy.md)
+
+Accepted for Phase 19A. Separates exact-current resolution evidence from URLs,
+storage paths, content metadata, browser policy, HTTP delivery, CDN selection,
+security policy, and external effects. It creates no resolver, URL policy,
+browser integration, HTTP adapter, or delivery behavior.
+
+### [ADR 0190: Neutral asset contract and bounded declaration vocabulary](0190-neutral-asset-contract-and-bounded-declaration-vocabulary.md)
+
+Accepted for Phase 19B. Adds only the optional Experimental
+`kongono/asset-contract` leaf: bounded immutable identities, closed asset and
+content vocabularies, canonical declarations and relations, integrity evidence,
+inert preload hints, delivery metadata, and nondisclosing diagnostics. It adds
+no path, URL, filesystem, build, adapter, HTTP, view, or runtime API.
+
+### [ADR 0191: Deterministic native asset graph and build artifact](0191-deterministic-native-asset-graph-and-build-artifact.md)
+
+Accepted for Phase 19C. Adds only the optional Experimental
+`kongono/asset-build` leaf: explicit complete bounded in-memory sources,
+deterministic graph validation, fixed byte-identical native copying, canonical
+artifact and exact-currentness validation, and contained content-addressed
+no-clobber publication. It adds no adapter, subprocess, network, URL/HTTP/view
+integration, runtime resolver, watcher, cache, command, Vite, or Node
+dependency.
+
+### [ADR 0192: Replaceable asset-build adapter and bounded Vite integration](0192-replaceable-asset-build-adapter-and-bounded-vite-integration.md)
+
+Accepted for Phase 19D. Adds only the optional Experimental
+`kongono/asset-adapter-contract` neutral boundary and separately optional
+Experimental `kongono/asset-adapter-vite` fixed-profile implementation. One
+explicit application-provided executable may run once without a shell in a
+contained workspace; strict manifest translation, complete ordinary-file
+output validation, neutral artifact validation, and cleanup keep tool output
+untrusted. It installs no Node/Vite dependency and adds no network, package
+installation, watcher/HMR, development server, runtime resolution, URL/HTTP/view
+integration, or frontend behavior.
+
+### [ADR 0193: Exact-current asset resolution and explicit browser/HTTP policy](0193-exact-current-asset-resolution-and-explicit-browser-http-policy.md)
+
+Accepted for Phase 19E. Adds the optional Experimental effect-free resolver
+over fully revalidated native or adapter evidence and explicit caller-owned
+URL, cache, integrity, and preload policy.
+
+### [ADR 0194: Supported asset application workflow and explicit View integration](0194-supported-asset-application-workflow-and-explicit-view-integration.md)
+
+Accepted for Phase 19F. Adds the optional Experimental application workflow,
+three explicit commands, copy-once native slice, and application-owned Phase
+18 value mapping.
+
+### [ADR 0195: Visibility-safe asset inspection and developer intelligence](0195-visibility-safe-asset-inspection-and-developer-intelligence.md)
+
+Accepted for Phase 19G. Adds the optional Experimental offline evidence leaf
+over one supplied current result, with bounded Safe/Protected projections and
+no role execution or inspection effect.
+
+### [ADR 0196: Phase 19 external asset acceptance and checkpoint](0196-phase-19-external-asset-acceptance-and-checkpoint.md)
+
+Accepted for Phase 19H. Adds only root-owned deterministic fresh-process
+acceptance, including native and protocol-emulated Vite-adapter evidence, and
+the exact local checkpoint. Phase 19A-H are Accepted and Phase 19 is closed.
+See the [external acceptance guide](../architecture/phase-19-external-asset-acceptance.md)
+and [fixed roadmap](../architecture/phase-19-roadmap.md).
+
 > **Current through Phase 18H:** Phase 17A-G accept the optional Experimental
 > OpenAI Responses mapping, one-shot and pull-streaming adapters, strict
 > structured and inert action-suggestion profiles, exact-current application,

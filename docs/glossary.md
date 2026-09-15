@@ -1,5 +1,106 @@
 # Kongono Glossary
 
+## Phase 19 Asset Platform vocabulary
+
+Phase 19A accepts the architecture and Phase 19B accepts the optional
+Experimental `kongono/asset-contract` vocabulary. Phase 19C accepts the
+optional Experimental `kongono/asset-build` native build leaf. Phase 19D
+accepts the optional Experimental neutral adapter contract and separately
+optional Experimental bounded Vite adapter. Phase 19E accepts the optional
+Experimental exact-current resolution leaf. Phase 19F accepts the optional
+Experimental Asset Application workflow, its three supported commands, and a
+copy-once native slice. Phase 19G accepts the optional Experimental Asset
+Inspection upper leaf over one supplied current result, with bounded
+Safe/Protected evidence and no inspection effects. Phase 19H accepts the
+root-owned local external proof and exact checkpoint. Phase 19A-H are Accepted
+and Phase 19 is closed.
+The Phase 19B values are inert and create no filesystem, path, URL, manifest,
+adapter, build, resolver, HTTP, view, or runtime authority.
+
+### Asset Platform
+
+The optional language-neutral Kongono abstraction for explicit bounded asset
+declarations, deterministic build evidence, exact-current resolution evidence,
+and strict application-owned delivery policy. It is not a bundler.
+
+### Asset Application Workflow
+
+The implemented optional composition of one explicit contained source
+document, stable named source reads, deterministic native or directly injected
+neutral-adapter evidence, content-addressed publication, exact-current check,
+and policy-owned resolution. It is not discovery, a service locator, an HTTP
+server, a View integration package, or a hidden build.
+
+### Logical Asset Identity
+
+The implemented bounded application-facing identity used to select one
+declared asset meaning. It
+is distinct from source and output paths, public URLs, content identities, build
+identities, and integrity metadata.
+
+### Asset Source Set
+
+One implemented explicit complete bounded application-owned set of asset
+sources paired with closed declarations, entry points, and dependency relations.
+It is not discovered by scanning a directory or reading an ambient manifest.
+
+### Asset Build Artifact
+
+Implemented immutable canonical evidence of one validated complete native asset build. It
+does not grant publication, URL, HTTP, CDN, storage, credential, network, or
+deployment authority.
+
+### Asset Content Identity
+
+The implemented lower-case SHA-256 identity constructed from an exact digest or
+at most 67,108,864 caller-supplied bytes. It is not logical application
+identity, a mutable filename, cache policy, or authorization.
+
+### Asset Declaration Set
+
+The implemented bounded, detached, ordinally canonical Version 1 set of logical
+declarations, dependency relations, and entry points. An empty declaration set
+is the first-class no-asset contract. It validates relation membership and
+uniqueness but deliberately performs no graph traversal or cycle analysis.
+
+### Asset Integrity
+
+An implemented structured SHA-256, SHA-384, or SHA-512 digest claim. It is not
+browser SRI text, currentness, authentication, authorization, or delivery
+permission.
+
+### Asset Preload Hint
+
+Implemented inert metadata with the closed values none, preload, and module
+preload. It is not an instruction to emit HTML or HTTP headers.
+
+### Asset Delivery Metadata
+
+Implemented bounded evidence that keeps logical identity, kind, content type,
+content identity, byte count, optional integrity, and preload hint distinct.
+It contains no path, URL, origin, CDN, storage, HTTP, CSP, nonce, credential,
+cache, or executable bytes and grants no authority.
+
+### Asset Resolution
+
+The implemented effect-free mapping from one logical asset identity and one
+explicitly supplied exact-current artifact to bounded validated delivery
+metadata under explicit public URL, cache, integrity, and preload policy. It
+performs no build, scan, network lookup, response emission, or byte delivery.
+
+### Asset Adapter
+
+A replaceable translator between an explicit build tool profile and the
+neutral Asset Platform contract. Vite is the first accepted optional adapter,
+but no adapter defines the neutral model or receives ambient authority.
+
+### Native Asset Flow
+
+The implemented first-class no-bundler path for explicitly declared copied or
+prebuilt application assets under the same validation, currentness,
+containment, content-addressing, and no-clobber rules as adapter output. It
+requires no Node process.
+
 ## Phase 18 compiled-presentation vocabulary
 
 Phase 18A-H accept the following architecture, contract, build, runtime, HTTP adaptation, inspection, and acceptance terms through

@@ -1,5 +1,50 @@
 # Architecture Overview
 
+## Phase 19A-H optional Asset Platform map
+
+Phase 0-18 behavior remains implemented and Accepted at its separately governed
+boundaries. Phase 19A accepts the documentation architecture and Phase 19B
+accepts the optional Experimental `kongono/asset-contract` neutral leaf;
+Phase 19C accepts the optional Experimental `kongono/asset-build` deterministic
+native build leaf. Phase 19D accepts the optional Experimental neutral adapter
+contract and separately optional Experimental bounded Vite adapter. Phase 19E
+accepts the optional Experimental `kongono/asset-resolution` leaf. It
+revalidates complete native or adapter build evidence into one immutable
+artifact and performs exact-current lookup under explicit application-owned
+URL, cache, integrity, and preload policy. Phase 19F accepts the explicit
+application workflow and Phase 18 value mapping; Phase 19G accepts the offline
+inspection leaf. Phase 19H accepts the root-owned
+[external acceptance](phase-19-external-asset-acceptance.md) and exact local
+checkpoint. Phase 19A-H are Accepted and Phase 19 is closed.
+
+The intended upper-layer direction is application-owned explicit source
+declaration, future neutral asset contracts, deterministic graph and build
+evidence, contained content-addressed no-clobber publication, exact-current
+resolution, and explicit application-owned browser, HTTP, CDN, cache, CSP,
+header, credential, and deployment policy. Lower Kernel, routing, HTTP,
+security, Graph, extension, observability, and view packages do not depend on
+this optional capability.
+
+Kongono owns the abstraction, not a bundler. Native or no-bundler and no-asset
+applications are first-class; Vite is the first optional replaceable adapter.
+No Node/Vite dependency, package installation, network, watcher/HMR,
+development server, automatic delivery, or frontend integration exists. The implemented
+contract contains only bounded immutable identities, declarations, relations,
+integrity evidence, and inert delivery metadata. Empty declaration sets are
+valid; no value grants authority. The build leaf adds one explicit source set,
+complete graph validation, exact byte copying, canonical exact-current
+artifact evidence, and contained no-clobber publication without an adapter or
+runtime resolver. The Vite adapter accepts one explicit application-provided
+executable, one contained workspace, at most one bounded no-shell subprocess,
+strict manifest translation, complete ordinary-file output validation, neutral
+artifact validation, and cleanup. The resolution leaf reads no bytes and emits
+no response, header, markup, CSP, or nonce. See
+[ADR 0192](../adr/0192-replaceable-asset-build-adapter-and-bounded-vite-integration.md),
+[Asset Platform](asset-platform.md), [deterministic asset build](deterministic-asset-build.md),
+[replaceable asset-build adapters](replaceable-asset-build-adapters.md), and
+[exact-current asset resolution](exact-current-asset-resolution.md), and
+[ADR 0196](../adr/0196-phase-19-external-asset-acceptance-and-checkpoint.md).
+
 > **Current through Phase 14G:** ADR 0153 adds only the optional Experimental
 > visibility-safe inspection leaf above the exact-current application workflow.
 > It revalidates supplied profile/wiring evidence without loading generated PHP

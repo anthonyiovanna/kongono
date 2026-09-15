@@ -34,6 +34,20 @@ parameters:
         - packages/application-graph-contract/tests
         - packages/application-graph-intelligence/src
         - packages/application-graph-intelligence/tests
+        - packages/asset-adapter-contract/src
+        - packages/asset-adapter-contract/tests
+        - packages/asset-adapter-vite/src
+        - packages/asset-adapter-vite/tests
+        - packages/asset-application/src
+        - packages/asset-application/tests
+        - packages/asset-inspection/src
+        - packages/asset-inspection/tests
+        - packages/asset-resolution/src
+        - packages/asset-resolution/tests
+        - packages/asset-build/src
+        - packages/asset-build/tests
+        - packages/asset-contract/src
+        - packages/asset-contract/tests
         - packages/authentication/src
         - packages/authentication/tests
         - packages/authorization/src
@@ -207,6 +221,9 @@ parameters:
         - skeletons/minimal/bin
         - skeletons/minimal/public
         - skeletons/minimal/src
+        - skeletons/asset-minimal/bin
+        - skeletons/asset-minimal/src
+        - skeletons/asset-minimal/tests
         - skeletons/view-minimal/bin
         - skeletons/view-minimal/public
         - skeletons/view-minimal/src

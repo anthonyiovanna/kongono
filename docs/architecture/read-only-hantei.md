@@ -1,5 +1,10 @@
 # Read-Only Kongono Hantei
 
+Phase 19G's optional [asset-inspection evidence](asset-inspection-and-intelligence.md)
+uses `hantei` only as the fixed `verify` audience label. Its independent
+verifier is package-owned comparison code, not a Hantei invocation, quality
+run, repair action, or certification.
+
 Phase 12H externally proves Hantei's independent extension-view verification
 and registers `acceptance:phase12` in the fixed root-script inventory. The
 profile remains exactly eight checks; the script is not a ninth check and

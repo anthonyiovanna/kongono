@@ -1,5 +1,15 @@
 # Observability and Operational Evidence
 
+## Phase 19G asset-inspection relationship
+
+The optional [asset-inspection leaf](asset-inspection-and-intelligence.md)
+constructs one neutral Observation and one fixed Security Audit evidence value
+from a validated supplied-current inspection and explicit
+`ObservabilityContext`. Both contain only closed Safe counts, booleans, and
+tokens and say `constructed-not-recorded`. No recorder, exporter, provider,
+transport, tracer, live audit, policy effect, filesystem access, network
+access, production observation, or certification occurs.
+
 ## Phase 14G model-invocation relationship
 
 The implemented [neutral contract foundation](model-invocation-contract-foundation.md)

@@ -1,0 +1,26 @@
+{
+  "name": "kongono/asset-resolution",
+  "description": "Exact-current asset resolution and explicit browser and HTTP metadata policy for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "kongono/asset-contract": "*",
+    "kongono/asset-build": "*",
+    "kongono/asset-adapter-contract": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\AssetResolution\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\AssetResolution\\Tests\\": "tests/"
+    }
+  }
+}

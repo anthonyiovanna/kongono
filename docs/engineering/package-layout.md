@@ -1,5 +1,41 @@
 # Package Layout
 
+Phase 19B adds exactly the optional Experimental `packages/asset-contract`
+neutral leaf with 19 production and 11 package-test PHP files, plus its manifest
+and README. Its two local production edges point only to API Metadata and
+Diagnostics; no existing production package depends on it. The graph is 96
+packages / 404 local production edges / acyclic, with inventories 1,880
+production, 973 package-test, and 96 root-test PHP files. It defines only
+bounded immutable logical/content identities, closed declarations and
+relations, integrity evidence, inert preload hints, delivery metadata, and six
+nondisclosing diagnostics. Empty declaration sets are valid. It has no path,
+URL, filesystem, graph traversal, build, adapter, HTTP, view, or runtime API.
+See [ADR 0190](../adr/0190-neutral-asset-contract-and-bounded-declaration-vocabulary.md)
+and the [Asset Platform guide](../architecture/asset-platform.md). Phase 19A-B
+are Accepted.
+
+Phase 19C adds exactly the optional Experimental `packages/asset-build` leaf
+with 30 production and 17 package-test PHP files, plus its manifest and README.
+Its three local production edges point only to API Metadata, Diagnostics, and
+Asset Contract; no existing production package depends on it. Phase 19D adds
+the neutral Asset Adapter Contract and the separately optional bounded Vite
+adapter. The graph is 99 packages / 416 local production edges / acyclic, with
+inventories 1,959 production, 1,025 package-test, and 96 root-test PHP files.
+Asset Build accepts
+only explicit in-memory source bytes, validates one complete graph, copies bytes
+under the fixed native profile, validates canonical exact-current artifact
+evidence, and publishes contained content-addressed no-clobber output. It adds
+no adapter, subprocess, network, URL/HTTP/view integration, command, runtime,
+Vite, or Node dependency. See [ADR 0191](../adr/0191-deterministic-native-asset-graph-and-build-artifact.md)
+and [deterministic asset build](../architecture/deterministic-asset-build.md).
+Phase 19A-H are Accepted and Phase 19 is closed. Phase 19E-G add the resolver,
+application, and inspection packages without changing the native build
+boundary. Phase 19H adds no production package or package-test PHP; it adds
+four root-test PHP files under `tests/External/Asset`. Final topology is 102
+packages / 435 local production edges / acyclic, with inventories 2,026
+production / 1,055 package-test / 100 root-test PHP files. See the
+[external acceptance guide](../architecture/phase-19-external-asset-acceptance.md).
+
 Phase 18B adds the optional Experimental `packages/view-contract` neutral leaf
 with 30 production and 17 package-test PHP files. Phase 18C adds exactly the
 optional Experimental `packages/view-build` leaf with 30 production and 16

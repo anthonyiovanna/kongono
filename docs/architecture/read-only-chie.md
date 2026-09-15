@@ -1,5 +1,10 @@
 # Read-Only Kongono Chie
 
+Phase 19G's optional [asset-inspection evidence](asset-inspection-and-intelligence.md)
+uses `chie` only as the fixed `explain` audience label. It does not call Chie,
+read assets, expose hidden evidence, repair, build, resolve, or establish live
+state.
+
 Phase 12H externally proves Chie's Phase 12G extension view as deterministic
 Safe aggregate evidence. It does not let Chie load, execute, grant, authorize,
 repair, or certify an extension. See

@@ -1,5 +1,45 @@
 # Progressive Architecture
 
+## Phase 19 optional asset progression
+
+Progressive adoption does not force an asset stack. API-only, CLI, worker,
+agent, headless, and mobile backends select none. A server-rendered application
+may retain application-owned static files, adopt the accepted native no-bundler
+path, or select a separately optional accepted replaceable adapter.
+
+Each step preserves the same future neutral contract: explicit bounded
+declarations, distinct logical/path/URL/content/build/integrity identities,
+deterministic evidence, contained content-addressed no-clobber publication, and
+exact-current resolution under application-owned delivery policy. Moving from
+native assets to Vite or another adapter must not change those meanings.
+
+Vite is the first optional adapter and never requires Node in
+core. Development does not gain directory scans, hidden request-time builds,
+ambient manifests, newest-file selection, global mutable state, or stale
+fallback. Phase 19B now supplies only the optional Experimental
+`kongono/asset-contract` neutral vocabulary: bounded immutable identities,
+closed declarations and relations, integrity evidence, and inert delivery
+metadata. Empty declaration sets keep the no-asset path first-class. No path,
+URL, filesystem, build, adapter, HTTP, view, or runtime API is introduced.
+Phase 19C now supplies the optional deterministic native build step: one
+complete explicit source set, complete graph validation, byte-identical
+`native-copy/1` output, canonical exact-current artifact evidence, and
+contained content-addressed publication. It adds no adapter or runtime
+resolution. Phase 19D supplies a neutral adapter contract and a separately
+optional fixed Vite profile over one application-provided executable,
+contained workspace, bounded no-shell subprocess, strict complete-output
+translation and validation, and cleanup. Phase 19E supplies the optional
+stateless resolution leaf over complete revalidated native or adapter evidence,
+with an explicit expected identity and caller-owned URL/cache/integrity/preload
+policy. It emits neither bytes nor responses. Phase 19A-E are Accepted; 19F-H
+remain Planned. See
+[ADR 0192](../adr/0192-replaceable-asset-build-adapter-and-bounded-vite-integration.md),
+[ADR 0191](../adr/0191-deterministic-native-asset-graph-and-build-artifact.md),
+[deterministic asset build](deterministic-asset-build.md), the
+[replaceable adapter guide](replaceable-asset-build-adapters.md), the
+[exact-current resolution guide](exact-current-asset-resolution.md), and the
+[Phase 19 roadmap](phase-19-roadmap.md).
+
 ## Phase 18 optional presentation progression
 
 Phase 18A accepts [ADR 0179](../adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),

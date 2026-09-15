@@ -5,6 +5,7 @@
     "require": {
         "kongono/api-metadata": "*",
         "kongono/application-graph-artifact": "*",
+        "kongono/asset-application": "*",
         "kongono/composition": "*",
         "kongono/console": "*",
         "kongono/console-presentation": "*",

@@ -1,5 +1,73 @@
 # Kongono
 
+## Accepted Phase 19A-H Asset Platform boundary
+
+Phase 19A accepts documentation architecture for an optional deterministic
+Asset Platform. Kongono owns a framework-neutral asset abstraction, not a
+bundler. Native or no-bundler use and no-asset headless applications remain
+first-class; Vite is the first optional replaceable adapter.
+
+Phase 19B accepts [ADR 0190](docs/adr/0190-neutral-asset-contract-and-bounded-declaration-vocabulary.md)
+and the optional Experimental [`kongono/asset-contract`](packages/asset-contract/README.md)
+leaf. It defines only bounded immutable logical/content identities, closed
+asset declarations and relations, integrity evidence, and inert delivery
+metadata. An empty declaration set is the first-class no-asset contract. It
+contains no path, URL, filesystem, build, adapter, HTTP, view, or runtime API,
+and its evidence grants no authority.
+
+Phase 19C accepts [ADR 0191](docs/adr/0191-deterministic-native-asset-graph-and-build-artifact.md)
+and the optional Experimental [`kongono/asset-build`](packages/asset-build/README.md)
+leaf. It accepts one complete explicit bounded source set, validates a complete
+deterministic graph, copies bytes exactly under `native-copy/1`, validates one
+canonical exact-current artifact, and publishes contained content-addressed
+no-clobber output. It adds no adapter, subprocess, network, URL/HTTP/view
+integration, runtime resolver, watcher, cache, command, Vite, or Node
+dependency.
+
+Phase 19D accepts [ADR 0192](docs/adr/0192-replaceable-asset-build-adapter-and-bounded-vite-integration.md),
+the optional Experimental [`kongono/asset-adapter-contract`](packages/asset-adapter-contract/README.md)
+neutral boundary, and the separately optional Experimental
+[`kongono/asset-adapter-vite`](packages/asset-adapter-vite/README.md) first-party
+adapter. The fixed Vite profile uses one explicit application-provided
+executable, contained workspace, bounded no-shell subprocess, strict manifest
+translation, complete ordinary-file validation, neutral artifact validation,
+and cleanup. It installs no Node/Vite dependency and adds no package install,
+network, watcher/HMR, development server, runtime resolver, URL/HTTP/view, or
+frontend integration.
+
+Phase 19E accepts [ADR 0193](docs/adr/0193-exact-current-asset-resolution-and-explicit-browser-http-policy.md)
+and the optional Experimental
+[`kongono/asset-resolution`](packages/asset-resolution/README.md) leaf. It
+normalizes fully revalidated native or adapter results, requires an explicit
+expected artifact identity, and resolves immutable typed public URL,
+cache/ETag, optional SHA-384 integrity, and inert preload metadata under
+caller-owned policy. It does not read or serve bytes, discover an origin/CDN,
+emit responses or headers, or create CSP/nonces.
+
+Phase 19F accepts [ADR 0194](docs/adr/0194-supported-asset-application-workflow-and-explicit-view-integration.md),
+the optional Experimental [`kongono/asset-application`](packages/asset-application/README.md),
+exactly three supported `kongo` asset commands, and the copy-once
+[`asset-minimal`](skeletons/asset-minimal/README.md) native slice. Explicit
+application code may map already resolved metadata into ordinary Phase 18
+presentation values without coupling either lower package. Phase 19G accepts
+[ADR 0195](docs/adr/0195-visibility-safe-asset-inspection-and-developer-intelligence.md),
+the optional Experimental [`kongono/asset-inspection`](packages/asset-inspection/README.md)
+offline evidence leaf, and its [inspection guide](docs/architecture/asset-inspection-and-intelligence.md).
+It reconstructs one supplied current result in memory and emits only bounded
+Safe aggregates and Protected digests; it performs no asset I/O, build,
+resolution, role execution, recording, export, repair, production observation,
+or certification. Phase 19H accepts
+[ADR 0196](docs/adr/0196-phase-19-external-asset-acceptance-and-checkpoint.md),
+the root-owned [external acceptance](docs/architecture/phase-19-external-asset-acceptance.md),
+and the exact local checkpoint. Phase 19A-H are Accepted and Phase 19 is closed. See the
+[deterministic asset-build guide](docs/architecture/deterministic-asset-build.md),
+[replaceable adapter guide](docs/architecture/replaceable-asset-build-adapters.md),
+[exact-current resolution guide](docs/architecture/exact-current-asset-resolution.md),
+[asset-application workflow](docs/architecture/asset-application-workflow.md),
+[asset-authoring guide](docs/engineering/asset-authoring.md), [ADR 0188](docs/adr/0188-optional-asset-platform-and-deterministic-build-boundary.md),
+[ADR 0189](docs/adr/0189-exact-current-asset-resolution-and-browser-delivery-policy.md),
+and [fixed roadmap](docs/architecture/phase-19-roadmap.md).
+
 ## Accepted Phase 18A-H compiled presentation boundary
 
 Phase 18A accepts [ADR 0179](docs/adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),
@@ -1013,7 +1081,7 @@ events, security audit, and the selected OpenTelemetry bridge without globals,
 environment discovery, or hidden defaults. The copy-once
 `observability-minimal` skeleton uses a zero-network example transport.
 
-The official `kongo` family contains exactly ten commands:
+At the Phase 10 checkpoint, the official `kongo` family contained exactly six commands:
 `application-graph:inspect`, `application:build`, `observability:check`,
 `observability:inspect`, `security:check`, and `security:inspect`. The graph contains 56 acyclic
 production packages and 182 local edges.

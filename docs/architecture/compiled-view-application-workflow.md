@@ -9,6 +9,9 @@ the optional Experimental `kongono/view-application` package, three supported
 and the optional [inspection leaf](compiled-view-inspection-and-intelligence.md).
 Phase 18A-H are Accepted and Phase 18 is closed by the separate
 [local acceptance](phase-18-server-rendered-presentation-acceptance.md).
+Phase 19F does not change this package: application code may explicitly map an
+already resolved asset URL and integrity value into ordinary `StringValue`
+fields under its own `ViewContextSchema`. No View package depends on assets.
 
 ## Boundary
 

@@ -1,5 +1,47 @@
 # Kongono Architectural Doctrine
 
+## Optional deterministic Asset Platform doctrine
+
+Phase 19A accepts documentation architecture. Phase 19B accepts the optional
+Experimental `kongono/asset-contract` neutral leaf. Kongono owns an optional,
+language-neutral Asset Platform abstraction, not a JavaScript bundler. Headless
+and no-asset applications install none of it. Native or no-bundler assets are a
+first-class path, while Vite is the first optional replaceable
+adapter and never a core dependency or conceptual authority.
+
+Future asset declarations and artifacts are explicit, complete, bounded,
+deterministic, content-addressed, contained, no-clobber, and exact-current.
+Logical identity, source path, output path, public URL, content identity, build
+identity, and integrity metadata are separate evidence. Build tools remain
+untrusted producers until complete output is validated against the neutral
+contract. Development uses the same contract as production and receives no
+hidden build, directory scan, ambient manifest, newest-file selection,
+request-time process, or stale fallback.
+
+Browser-executable output is trusted application code or content, not a
+Kongono sandbox. Application and deployment layers own origin, CDN, CSP,
+nonces, headers, cache, credentials, byte delivery, and every external effect.
+Modern tools may evolve behind versioned adapters without forcing core
+compatibility with obsolete tool generations. PHP 8.5 remains the baseline;
+future readiness means explicit contracts and replaceable adapters, not claims
+about unverified PHP 8.6 or 9 behavior.
+
+Phase 19B values are bounded, immutable, deterministic, and inert. Logical
+identity, content identity, integrity, preload hints, and delivery metadata
+remain distinct and grant no authority. An empty declaration set is the
+first-class no-asset contract. Phase 19C adds only one optional explicit
+source-set, complete deterministic graph, byte-identical native build,
+canonical exact-current artifact, and contained no-clobber publication leaf.
+Phase 19D accepts the optional neutral adapter contract and separately optional
+bounded fixed-profile Vite adapter. Phase 19E accepts exact-current effect-free
+resolution, Phase 19F the explicit application workflow, and Phase 19G the
+offline inspection leaf. Phase 19H accepts root-owned external acceptance and
+the exact checkpoint. Phase 19A-H are Accepted and Phase 19 is closed. No
+network, automatic browser delivery, watcher/HMR, development server, frontend
+integration, real Vite certification, Stable status, 1.0 status, or Phase 20
+authority is added. See [ADR 0196](adr/0196-phase-19-external-asset-acceptance-and-checkpoint.md)
+and [external acceptance](architecture/phase-19-external-asset-acceptance.md).
+
 ## Compiled server-rendered presentation doctrine
 
 Phase 18A accepts [ADR 0179](adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),

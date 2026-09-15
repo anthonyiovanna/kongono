@@ -1,5 +1,20 @@
 # PHP Engineering Toolchain
 
+Phase 19H adds `composer acceptance:phase19` and mirrors that exact command in
+Hantei's Composer-script map without adding it to `composer quality` or the
+eight canonical Hantei checks. The root-owned harness is local/offline and adds
+no production package, dependency, quality stage, Node/Vite installation, or
+network step. Phase 19G adds `kongono/asset-inspection` to the root path repository,
+development requirement, lock, test autoload, package validation, PHPUnit,
+PHPStan, CS Fixer, and Hantei mirrored quality-profile surfaces. The package
+adds only local upper-leaf dependencies and no third-party package. Phase 19F
+adds `kongono/asset-application` to the existing root path,
+requirement, lock, validation, autoload, PHPUnit, PHPStan, and style surfaces;
+adds `asset-minimal` to skeleton validation; and adds only the local
+asset-application dependency to `kongono/console-application`. The canonical
+gate remains `composer quality`; no Node-family tool, Vite installation,
+network stage, suppression, or new quality stage is introduced.
+
 Phase 14B adds the exact `kongono/model-invocation-contract` root requirement,
 test namespace, sorted package validator, PHPStan source/test paths, matching
 Hantei fixed-profile entry, and Composer-generated lock record. It adds no new

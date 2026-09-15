@@ -1,5 +1,10 @@
 # Minimal application workflow
 
+The separate copy-once [`asset-minimal`](../../skeletons/asset-minimal/README.md)
+slice demonstrates the optional Phase 19F native asset workflow. It is not
+installed or discovered by this minimal application and does not alter its
+runtime boundary.
+
 ## Purpose and status
 
 Phase 5G implements one supported copy-once minimal application skeleton and one Experimental reusable Composition build/check workflow. It connects the already implemented Phase 5D-5F boundaries; it does not add runtime dependency discovery, a new transport, or deployment behavior.

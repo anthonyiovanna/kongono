@@ -1,5 +1,35 @@
 # Kongono Engineering Foundation
 
+## Phase 19A-H asset engineering direction
+
+Phase 19A accepts documentation architecture. Phase 19B accepts the optional
+Experimental `kongono/asset-contract` neutral leaf. The
+[asset-authoring guide](asset-authoring.md) explains when to install no asset
+capability, the native or no-bundler and optional adapter workflows,
+explicit declarations, distinct identities, deterministic currentness,
+content-addressed publication, security boundaries, diagnostics, CI parity,
+and persistent-runtime cleanup.
+
+The contract provides only bounded immutable identities, closed asset/content
+vocabularies, declaration/dependency/entry-point values, integrity evidence,
+inert preload hints, delivery metadata, and safe diagnostics. Empty declaration
+sets are valid. Phase 19C adds the optional deterministic `kongono/asset-build`
+leaf for explicit source bytes, complete graph validation, native copying,
+canonical exact-current evidence, and contained publication.
+Phase 19D adds the neutral adapter contract and separately optional fixed Vite
+profile over an explicit executable, contained workspace, bounded no-shell
+subprocess, strict complete-output translation and validation, and cleanup. No
+Node/Vite dependency, package installation, network, URL/HTTP/view integration,
+runtime resolver, command, watcher/HMR, development server, or frontend
+integration exists. Phases 19E-G add the exact-current resolver, explicit
+application workflow, and offline inspection leaf. Phase 19H adds four
+root-test PHP files, the root-owned external acceptance command, and the exact
+checkpoint. Phase 19A-H are Accepted and Phase 19 is closed. Use
+[ADR 0196](../adr/0196-phase-19-external-asset-acceptance-and-checkpoint.md),
+the [Asset Platform guide](../architecture/asset-platform.md), and the
+[external acceptance guide](../architecture/phase-19-external-asset-acceptance.md)
+as the governing map.
+
 ## Phase 18A-G compiled-view engineering boundary
 
 Phase 18A accepts [ADR 0179](../adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),

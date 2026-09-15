@@ -1,5 +1,42 @@
 # Contributing to Kongono
 
+## Phase 19 asset changes
+
+Phase 19A-H are Accepted and Phase 19 is closed. Phase 19B supplies the neutral contract, Phase 19C
+supplies the optional deterministic native `kongono/asset-build` leaf, and
+Phase 19D supplies the optional neutral adapter contract plus separately
+optional bounded Vite adapter. Phases 19E-G supply the exact-current resolver,
+explicit application workflow, and offline inspection leaf. Phase 19H adds
+only root-owned external acceptance and the exact checkpoint. Do not add wider
+build, delivery, frontend, release, or Phase 20 behavior without separately
+authenticated authority.
+
+Later authorized asset changes must use one explicit bounded application-owned
+source declaration and deterministic fixtures. Keep logical identity, source
+path, output path, URL, content identity, build identity, and integrity metadata
+separate. Validate complete adapter output against the neutral contract, treat
+build tools as untrusted producers, and preserve a first-class native flow that
+does not require Node.
+
+Keep tool-specific behavior in replaceable adapter packages. No contribution
+may add hidden directory scans, request-time builds, implicit or mutable
+manifests, newest-file selection, stale development fallback, ambient service
+location, undeclared subprocesses, package installation, or network access.
+Fixtures and human or machine workflows must prove canonical order,
+currentness, containment, no-clobber publication, finite bounds, disclosure
+limits, operation-scoped cleanup, and persistent-runtime isolation.
+
+Phase 19C contributions must preserve exact source bytes, validate every
+dependency kind for complete reachability and cycles, retain distinct
+source-set/graph/content/build/path identities, and keep canonical artifacts
+free of raw bytes, private source paths, URLs, ambient policy, and time or
+environment input. See [ADR 0191](docs/adr/0191-deterministic-native-asset-graph-and-build-artifact.md).
+
+Application and deployment layers retain origin, CDN, CSP, headers, cache,
+credentials, and external-effect policy. Browser-executable output remains
+trusted application code, not sandboxed by Kongono. See [asset authoring](docs/engineering/asset-authoring.md)
+and the [fixed roadmap](docs/architecture/phase-19-roadmap.md).
+
 ## Phase 18A-G compiled presentation changes
 
 Phase 18A accepts only the documentation architecture in

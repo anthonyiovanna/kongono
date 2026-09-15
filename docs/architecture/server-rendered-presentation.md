@@ -1,5 +1,22 @@
 # Server-Rendered Presentation
 
+## Separate Phase 19 Asset Platform direction
+
+Phase 18A-H remain Accepted and contain no asset pipeline. Phase 19A separately
+accepts documentation architecture for an optional Asset Platform; Phase 19B-H
+remain Planned. The Phase 18 view contract, build, runtime, HTTP adapter,
+application workflow, and inspection leaf do not discover, build, resolve,
+serve, or authorize assets.
+
+Any future integration must be an explicit upper application or adapter
+boundary that supplies typed asset delivery values to a view. Templates receive
+no ambient asset helper, global manifest, filesystem access, URL policy, build
+authority, CDN choice, CSP or nonce authority, or stale development fallback.
+Applications with no assets or with application-owned native assets remain
+first-class. See the [Asset Platform](asset-platform.md), [ADR 0188](../adr/0188-optional-asset-platform-and-deterministic-build-boundary.md),
+[ADR 0189](../adr/0189-exact-current-asset-resolution-and-browser-delivery-policy.md),
+and the [Phase 19 roadmap](phase-19-roadmap.md).
+
 ## Status
 
 Phase 18A accepts this document, [ADR 0179](../adr/0179-server-rendered-presentation-and-compiled-view-boundary.md),

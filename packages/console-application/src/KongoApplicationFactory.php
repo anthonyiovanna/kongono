@@ -7,6 +7,7 @@ namespace Kongono\ConsoleApplication;
 use Kongono\ApiMetadata\Api;
 use Kongono\ApiMetadata\ApiStatus;
 use Kongono\ApplicationGraphArtifact\Artifact\ApplicationGraphArtifactLoader;
+use Kongono\AssetApplication\Workflow\AssetApplicationWorkflow;
 use Kongono\Composition\Workflow\ApplicationBuildWorkflow;
 use Kongono\Console\CommandDefinition;
 use Kongono\Console\CommandIdentifier;
@@ -22,6 +23,9 @@ use Kongono\Console\CommandSummary;
 use Kongono\Console\CommandTokenParser;
 use Kongono\ConsoleApplication\Handler\ApplicationBuildCommandHandler;
 use Kongono\ConsoleApplication\Handler\ApplicationGraphInspectCommandHandler;
+use Kongono\ConsoleApplication\Handler\AssetBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\AssetCheckCommandHandler;
+use Kongono\ConsoleApplication\Handler\AssetResolveCommandHandler;
 use Kongono\ConsoleApplication\Handler\ExtensionInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
@@ -50,6 +54,9 @@ final class KongoApplicationFactory
     {
         $applicationGraphInspect = new CommandIdentifier(KongoCommand::ApplicationGraphInspect->value);
         $applicationBuild = new CommandIdentifier(KongoCommand::ApplicationBuild->value);
+        $assetBuild = new CommandIdentifier(KongoCommand::AssetBuild->value);
+        $assetCheck = new CommandIdentifier(KongoCommand::AssetCheck->value);
+        $assetResolve = new CommandIdentifier(KongoCommand::AssetResolve->value);
         $extensionInspect = new CommandIdentifier(KongoCommand::ExtensionInspect->value);
         $observabilityCheck = new CommandIdentifier(KongoCommand::ObservabilityCheck->value);
         $observabilityInspect = new CommandIdentifier(KongoCommand::ObservabilityInspect->value);
@@ -82,6 +89,9 @@ final class KongoApplicationFactory
                     new CommandInputDefinition(new CommandInputName('output-directory'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
                 ],
             ),
+            $this->assetSpecification($assetBuild, 'Build exact current deterministic native assets', CommandMutationPolicy::MutationCapable),
+            $this->assetSpecification($assetCheck, 'Check exact current deterministic native assets', CommandMutationPolicy::ReadOnly),
+            $this->assetResolveSpecification($assetResolve),
             new CommandSpecification(
                 new CommandDefinition(
                     $extensionInspect,
@@ -104,10 +114,14 @@ final class KongoApplicationFactory
         ]);
         $observabilityWorkflow = new ObservabilityBuildWorkflow();
         $policyWorkflow = new SecurityPolicyBuildWorkflow();
+        $assetWorkflow = new AssetApplicationWorkflow();
         $viewWorkflow = new ViewApplicationBuildWorkflow();
         $handlers = new CommandHandlerSet([
             new CommandHandlerBinding($applicationGraphInspect, new ApplicationGraphInspectCommandHandler(new ApplicationGraphArtifactLoader())),
             new CommandHandlerBinding($applicationBuild, new ApplicationBuildCommandHandler(new ApplicationBuildWorkflow())),
+            new CommandHandlerBinding($assetBuild, new AssetBuildCommandHandler($assetWorkflow)),
+            new CommandHandlerBinding($assetCheck, new AssetCheckCommandHandler($assetWorkflow)),
+            new CommandHandlerBinding($assetResolve, new AssetResolveCommandHandler($assetWorkflow)),
             new CommandHandlerBinding($extensionInspect, new ExtensionInspectCommandHandler(new ExtensionInspectionLoader())),
             new CommandHandlerBinding($observabilityCheck, new ObservabilityCheckCommandHandler($observabilityWorkflow)),
             new CommandHandlerBinding($observabilityInspect, new ObservabilityInspectCommandHandler($observabilityWorkflow)),
@@ -154,6 +168,31 @@ final class KongoApplicationFactory
                 new CommandInputDefinition(new CommandInputName('output-directory'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
                 new CommandInputDefinition(new CommandInputName('source-file'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
             ],
+        );
+    }
+
+    private function assetSpecification(CommandIdentifier $identifier, string $summary, CommandMutationPolicy $mutation): CommandSpecification
+    {
+        return new CommandSpecification(
+            new CommandDefinition($identifier, new CommandSummary($summary), CommandInteractionPolicy::None, $mutation),
+            [
+                new CommandInputDefinition(new CommandInputName('application-root'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                new CommandInputDefinition(new CommandInputName('output-directory'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                new CommandInputDefinition(new CommandInputName('source-file'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+            ],
+        );
+    }
+
+    private function assetResolveSpecification(CommandIdentifier $identifier): CommandSpecification
+    {
+        $inputs = [];
+        foreach (['application-root', 'output-directory', 'source-file', 'logical-identity', 'public-base-url', 'cache-policy', 'integrity-policy', 'preload-policy'] as $name) {
+            $inputs[] = new CommandInputDefinition(new CommandInputName($name), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary);
+        }
+
+        return new CommandSpecification(
+            new CommandDefinition($identifier, new CommandSummary('Resolve one exact current asset under explicit browser policy'), CommandInteractionPolicy::None, CommandMutationPolicy::ReadOnly),
+            $inputs,
         );
     }
 }

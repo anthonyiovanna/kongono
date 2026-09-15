@@ -14,6 +14,9 @@ final class KongoCommandTest extends TestCase
         self::assertSame([
             'application-graph:inspect',
             'application:build',
+            'asset:build',
+            'asset:check',
+            'asset:resolve',
             'extension:inspect',
             'observability:check',
             'observability:inspect',
@@ -25,6 +28,9 @@ final class KongoCommandTest extends TestCase
         ], array_column(KongoCommand::cases(), 'value'));
         self::assertSame(KongoCommand::ApplicationBuild, KongoCommand::from('application:build'));
         self::assertSame(KongoCommand::ApplicationGraphInspect, KongoCommand::from('application-graph:inspect'));
+        self::assertSame(KongoCommand::AssetBuild, KongoCommand::from('asset:build'));
+        self::assertSame(KongoCommand::AssetCheck, KongoCommand::from('asset:check'));
+        self::assertSame(KongoCommand::AssetResolve, KongoCommand::from('asset:resolve'));
         self::assertSame(KongoCommand::ExtensionInspect, KongoCommand::from('extension:inspect'));
         self::assertSame(KongoCommand::ObservabilityCheck, KongoCommand::from('observability:check'));
         self::assertSame(KongoCommand::ObservabilityInspect, KongoCommand::from('observability:inspect'));

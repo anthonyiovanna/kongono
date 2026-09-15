@@ -1,0 +1,28 @@
+{
+  "name": "kongono/asset-inspection",
+  "description": "Visibility-safe asset inspection and bounded developer intelligence for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/api-metadata": "*",
+    "kongono/application-graph-intelligence": "*",
+    "kongono/asset-application": "*",
+    "kongono/asset-resolution": "*",
+    "kongono/diagnostics": "*",
+    "kongono/observability": "*",
+    "kongono/security-audit": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\AssetInspection\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\AssetInspection\\Tests\\": "tests/"
+    }
+  }
+}

@@ -1,5 +1,13 @@
 # Developer Intelligence
 
+> **Phase 19G separation:** the optional
+> [`kongono/asset-inspection`](asset-inspection-and-intelligence.md) leaf maps
+> Chie to `explain`, Hantei to `verify`, and Oshie to `teach` only as closed
+> evidence-purpose labels. It does not depend on, invoke, impersonate,
+> configure, authorize, or observe those agents. Its supplied-current asset
+> evidence grants no repair, build, resolution, filesystem, network,
+> recording, export, production-observation, or certification authority.
+
 > **Phase 14G separation:** the model-invocation runtime and application workflow emit only bounded
 > package diagnostics. Chie, Hantei, and Oshie do not select adapters, supply
 > credentials, inspect live providers, repair sessions, map model results,

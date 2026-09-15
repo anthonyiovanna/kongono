@@ -1,5 +1,10 @@
 # Read-only Oshie
 
+Phase 19G's optional [asset-inspection evidence](asset-inspection-and-intelligence.md)
+uses `oshie` only as the fixed `teach` audience label. It does not call Oshie,
+load source/output content, execute examples, reveal hidden evidence, or grant
+teaching or application authority.
+
 Phase 12H externally proves Oshie's Phase 12G extension view as deterministic
 Safe aggregate evidence. It does not let Oshie load, execute, teach from raw
 private contribution material, or grant extension authority. See

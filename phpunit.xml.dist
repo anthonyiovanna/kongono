@@ -26,6 +26,14 @@
             <directory>packages/application-graph-composition/tests</directory>
             <directory>packages/application-graph-contract/tests</directory>
             <directory>packages/application-graph-intelligence/tests</directory>
+            <directory>packages/asset-adapter-contract/tests</directory>
+            <directory>packages/asset-adapter-vite/tests</directory>
+            <directory>packages/asset-application/tests</directory>
+            <directory>packages/asset-inspection/tests</directory>
+            <directory>skeletons/asset-minimal/tests</directory>
+            <directory>packages/asset-resolution/tests</directory>
+            <directory>packages/asset-build/tests</directory>
+            <directory>packages/asset-contract/tests</directory>
             <directory>packages/authentication/tests</directory>
             <directory>packages/authorization/tests</directory>
             <directory>packages/chie/tests</directory>
@@ -122,6 +130,13 @@
             <directory>packages/application-graph-composition/src</directory>
             <directory>packages/application-graph-contract/src</directory>
             <directory>packages/application-graph-intelligence/src</directory>
+            <directory>packages/asset-adapter-contract/src</directory>
+            <directory>packages/asset-adapter-vite/src</directory>
+            <directory>packages/asset-application/src</directory>
+            <directory>packages/asset-inspection/src</directory>
+            <directory>packages/asset-resolution/src</directory>
+            <directory>packages/asset-build/src</directory>
+            <directory>packages/asset-contract/src</directory>
             <directory>packages/authentication/src</directory>
             <directory>packages/authorization/src</directory>
             <directory>packages/chie/src</directory>
@@ -205,6 +220,7 @@
             <directory>skeletons/minimal/src</directory>
             <directory>skeletons/persistence-minimal/src</directory>
             <directory>skeletons/security-minimal/src</directory>
+            <directory>skeletons/asset-minimal/src</directory>
             <directory>skeletons/view-minimal/src</directory>
         </include>
     </source>
