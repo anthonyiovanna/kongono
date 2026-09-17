@@ -1,5 +1,40 @@
 # Progressive Architecture
 
+## Phase 20 optional cache progression
+
+The Cache Platform is an optional layer above explicit application
+composition. Applications may omit it, and lower Kernel, routing, HTTP,
+database, persistence, security, Graph, agent, view, and asset packages do not
+depend outward on caching. Application values pass through an explicit
+application-owned codec into bounded opaque bytes before any future neutral
+cache operation; decoding returns to the application layer.
+
+Phase 20A accepts documentation architecture and a fixed roadmap. Phase 20B
+accepts only the optional Experimental `kongono/cache-contract` neutral leaf;
+its immutable values and closed vocabulary perform no cache behavior. Phase
+20C accepts the optional Experimental `kongono/cache-build` deterministic
+profile/artifact/currentness/publication leaf. Phase 20D accepts the optional
+Experimental neutral adapter contract and separately optional Experimental
+bounded memory implementation. Phase 20E accepts the exact-current runtime.
+Phase 20F accepts the supported application workflow, explicit codec mapping,
+profile-evidence commands, and copy-once slice. Phase 20G accepts the optional
+offline, read-only, stateless, visibility-safe cache-inspection and
+developer-intelligence leaf over supplied exact-current build evidence and
+optional detached aggregate runtime evidence. Phase 20H adds only root-owned
+fresh-process local acceptance and the exact checkpoint. Phases 20A-H are
+Accepted and Phase 20 is closed.
+
+Progression never turns cache evidence into truth or authority. Namespace,
+key, codec, bytes, content identity, version, supplied time, freshness,
+provider, operation, and outcome stay explicit. Every stage preserves
+correctness without cache availability, replaceable adapters, finite bounds,
+typed outcomes, atomic visibility, operation isolation, deterministic cleanup,
+and nondisclosure. No facade, global registry, implicit clock, magic
+serialization, stale fallback, read-through callback, implicit retry, or
+coordination primitive is introduced. See the
+[Phase 20 roadmap](phase-20-roadmap.md), [Cache Platform](cache-platform.md),
+and [Cache Application workflow](cache-application-workflow.md).
+
 ## Phase 19 optional asset progression
 
 Progressive adoption does not force an asset stack. API-only, CLI, worker,

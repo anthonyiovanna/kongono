@@ -1,5 +1,15 @@
 # Observability and Operational Evidence
 
+## Phase 20G cache-inspection relationship
+
+The optional [cache-inspection leaf](cache-inspection-and-intelligence.md)
+constructs one neutral Observation and one fixed Security Audit evidence value
+from a validated supplied-current inspection and explicit
+`ObservabilityContext`. Both contain only closed Safe counts, booleans, and
+tokens and say `constructed-not-recorded`. No recorder, exporter, provider,
+transport, tracer, backend/runtime/key/value access, clock, cache operation,
+policy effect, production observation, or certification occurs.
+
 ## Phase 19G asset-inspection relationship
 
 The optional [asset-inspection leaf](asset-inspection-and-intelligence.md)

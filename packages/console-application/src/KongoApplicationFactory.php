@@ -8,6 +8,7 @@ use Kongono\ApiMetadata\Api;
 use Kongono\ApiMetadata\ApiStatus;
 use Kongono\ApplicationGraphArtifact\Artifact\ApplicationGraphArtifactLoader;
 use Kongono\AssetApplication\Workflow\AssetApplicationWorkflow;
+use Kongono\CacheApplication\Workflow\CacheApplicationWorkflow;
 use Kongono\Composition\Workflow\ApplicationBuildWorkflow;
 use Kongono\Console\CommandDefinition;
 use Kongono\Console\CommandIdentifier;
@@ -26,6 +27,9 @@ use Kongono\ConsoleApplication\Handler\ApplicationGraphInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\AssetBuildCommandHandler;
 use Kongono\ConsoleApplication\Handler\AssetCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\AssetResolveCommandHandler;
+use Kongono\ConsoleApplication\Handler\CacheBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\CacheCheckCommandHandler;
+use Kongono\ConsoleApplication\Handler\CachePlanCommandHandler;
 use Kongono\ConsoleApplication\Handler\ExtensionInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
@@ -57,6 +61,9 @@ final class KongoApplicationFactory
         $assetBuild = new CommandIdentifier(KongoCommand::AssetBuild->value);
         $assetCheck = new CommandIdentifier(KongoCommand::AssetCheck->value);
         $assetResolve = new CommandIdentifier(KongoCommand::AssetResolve->value);
+        $cacheBuild = new CommandIdentifier(KongoCommand::CacheBuild->value);
+        $cacheCheck = new CommandIdentifier(KongoCommand::CacheCheck->value);
+        $cachePlan = new CommandIdentifier(KongoCommand::CachePlan->value);
         $extensionInspect = new CommandIdentifier(KongoCommand::ExtensionInspect->value);
         $observabilityCheck = new CommandIdentifier(KongoCommand::ObservabilityCheck->value);
         $observabilityInspect = new CommandIdentifier(KongoCommand::ObservabilityInspect->value);
@@ -111,10 +118,14 @@ final class KongoApplicationFactory
             $this->viewSpecification($viewBuild, 'Build exact current compiled-view application artifact', CommandMutationPolicy::MutationCapable),
             $this->viewSpecification($viewCheck, 'Check exact current compiled-view application artifact', CommandMutationPolicy::ReadOnly),
             $this->viewSpecification($viewInspect, 'Inspect planned compiled-view application evidence', CommandMutationPolicy::ReadOnly),
+            $this->cacheSpecification($cacheBuild, 'Build exact current deterministic cache profiles', CommandMutationPolicy::MutationCapable),
+            $this->cacheSpecification($cacheCheck, 'Check exact current deterministic cache profiles', CommandMutationPolicy::ReadOnly),
+            $this->cacheSpecification($cachePlan, 'Plan deterministic cache profiles without mutation', CommandMutationPolicy::ReadOnly),
         ]);
         $observabilityWorkflow = new ObservabilityBuildWorkflow();
         $policyWorkflow = new SecurityPolicyBuildWorkflow();
         $assetWorkflow = new AssetApplicationWorkflow();
+        $cacheWorkflow = new CacheApplicationWorkflow();
         $viewWorkflow = new ViewApplicationBuildWorkflow();
         $handlers = new CommandHandlerSet([
             new CommandHandlerBinding($applicationGraphInspect, new ApplicationGraphInspectCommandHandler(new ApplicationGraphArtifactLoader())),
@@ -130,6 +141,9 @@ final class KongoApplicationFactory
             new CommandHandlerBinding($viewBuild, new ViewBuildCommandHandler($viewWorkflow)),
             new CommandHandlerBinding($viewCheck, new ViewCheckCommandHandler($viewWorkflow)),
             new CommandHandlerBinding($viewInspect, new ViewInspectCommandHandler($viewWorkflow)),
+            new CommandHandlerBinding($cacheBuild, new CacheBuildCommandHandler($cacheWorkflow)),
+            new CommandHandlerBinding($cacheCheck, new CacheCheckCommandHandler($cacheWorkflow)),
+            new CommandHandlerBinding($cachePlan, new CachePlanCommandHandler($cacheWorkflow)),
         ]);
         (new KongoCommandValidator())->validate($specifications, $handlers);
 
@@ -193,6 +207,18 @@ final class KongoApplicationFactory
         return new CommandSpecification(
             new CommandDefinition($identifier, new CommandSummary('Resolve one exact current asset under explicit browser policy'), CommandInteractionPolicy::None, CommandMutationPolicy::ReadOnly),
             $inputs,
+        );
+    }
+
+    private function cacheSpecification(CommandIdentifier $identifier, string $summary, CommandMutationPolicy $mutation): CommandSpecification
+    {
+        return new CommandSpecification(
+            new CommandDefinition($identifier, new CommandSummary($summary), CommandInteractionPolicy::None, $mutation),
+            [
+                new CommandInputDefinition(new CommandInputName('application-root'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                new CommandInputDefinition(new CommandInputName('output-directory'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                new CommandInputDefinition(new CommandInputName('source-file'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+            ],
         );
     }
 }

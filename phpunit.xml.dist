@@ -31,11 +31,19 @@
             <directory>packages/asset-application/tests</directory>
             <directory>packages/asset-inspection/tests</directory>
             <directory>skeletons/asset-minimal/tests</directory>
+            <directory>skeletons/cache-minimal/tests</directory>
             <directory>packages/asset-resolution/tests</directory>
             <directory>packages/asset-build/tests</directory>
             <directory>packages/asset-contract/tests</directory>
             <directory>packages/authentication/tests</directory>
             <directory>packages/authorization/tests</directory>
+            <directory>packages/cache-adapter-contract/tests</directory>
+            <directory>packages/cache-adapter-memory/tests</directory>
+            <directory>packages/cache-application/tests</directory>
+            <directory>packages/cache-inspection/tests</directory>
+            <directory>packages/cache-build/tests</directory>
+            <directory>packages/cache-contract/tests</directory>
+            <directory>packages/cache-runtime/tests</directory>
             <directory>packages/chie/tests</directory>
             <directory>packages/composition/tests</directory>
             <directory>packages/console/tests</directory>
@@ -139,6 +147,13 @@
             <directory>packages/asset-contract/src</directory>
             <directory>packages/authentication/src</directory>
             <directory>packages/authorization/src</directory>
+            <directory>packages/cache-adapter-contract/src</directory>
+            <directory>packages/cache-adapter-memory/src</directory>
+            <directory>packages/cache-application/src</directory>
+            <directory>packages/cache-inspection/src</directory>
+            <directory>packages/cache-build/src</directory>
+            <directory>packages/cache-contract/src</directory>
+            <directory>packages/cache-runtime/src</directory>
             <directory>packages/chie/src</directory>
             <directory>packages/composition/src</directory>
             <directory>packages/console/src</directory>
@@ -221,6 +236,7 @@
             <directory>skeletons/persistence-minimal/src</directory>
             <directory>skeletons/security-minimal/src</directory>
             <directory>skeletons/asset-minimal/src</directory>
+            <directory>skeletons/cache-minimal/src</directory>
             <directory>skeletons/view-minimal/src</directory>
         </include>
     </source>

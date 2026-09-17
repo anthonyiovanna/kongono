@@ -108,7 +108,7 @@ final class ModelProviderOpenAiResponsesBoundaryTest extends TestCase
         self::assertSame('@dev', $rootRequire['kongono/model-provider-openai-responses'] ?? null);
         self::assertSame('packages/model-provider-openai-responses/tests/', $rootPsr4['Kongono\\ModelProviderOpenAiResponses\\Tests\\'] ?? null);
         self::assertSame(1, count(array_keys($validations, 'composer --working-dir=packages/model-provider-openai-responses validate --no-check-publish', true)));
-        self::assertCount(102, $validations);
+        self::assertCount(109, $validations);
         foreach (['phpstan.neon.dist', '.php-cs-fixer.dist.php', 'phpunit.xml.dist'] as $configuration) {
             $contents = (string) file_get_contents($root . '/' . $configuration);
             self::assertStringContainsString('packages/model-provider-openai-responses/src', $contents);

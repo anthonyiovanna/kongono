@@ -1,5 +1,109 @@
 # Kongono Glossary
 
+## Phase 20 Derived-Data Cache vocabulary
+
+Phase 20A accepts the architecture and Phase 20B accepts the bounded immutable
+terms implemented by the optional Experimental `kongono/cache-contract` leaf.
+Phase 20C accepts the optional Experimental `kongono/cache-build` profile,
+canonical artifact, exact-current validation, and contained publication terms.
+Phase 20D accepts the optional Experimental neutral adapter protocol and
+separately optional Experimental bounded memory implementation. Phase 20E
+accepts exact-current runtime operations, Phase 20F accepts explicit
+application composition and profile-evidence commands, and Phase 20G accepts
+offline supplied-evidence inspection. Phase 20H accepts the root-owned local
+external proof and exact checkpoint. Phases 20A-H are Accepted and Phase 20 is
+closed. The packages define no framework serialization, external provider
+behavior, or production-availability claim.
+
+### Protocol Found
+
+A neutral adapter outcome returning detached, structurally valid entry
+evidence. It does not evaluate freshness and is therefore distinct from a
+runtime fresh hit.
+
+### Adapter Entry Version
+
+Deterministic conditional-mutation evidence scoped to one adapter instance. It
+is not a timestamp, durable revision, global order, credential, or authority.
+
+### Cache Profile
+
+One bounded application-owned declaration binding a distinct profile name,
+cache namespace, inert codec identity, finite lifetime, and maximum accepted
+value size. It is build evidence, not provider configuration or cache authority.
+
+### Cache Profile Artifact
+
+Canonical inert JSON derived from one complete explicit profile set. Its
+source, build, and exact-byte identities remain separate. Exact-current
+validation requires a fresh deterministic rebuild from the caller-supplied
+current set.
+
+### Derived-Data Cache
+
+An optional bounded store of recomputable, disposable, non-authoritative
+evidence. Application correctness, authority, and security do not depend on
+its availability, retention, or contents.
+
+### Cache Namespace
+
+An explicit application-owned identity that bounds one semantic cache domain.
+It is not a provider address, credential scope, authorization boundary, or
+global registry.
+
+### Logical Cache Key
+
+An explicit bounded application identity selecting one derived entry within a
+namespace. It is distinct from its protected key identity, backend address,
+content identity, entry version, and any raw application value.
+
+### Cache Content Identity
+
+A deterministic identity derived from the exact bounded opaque value bytes. It
+does not identify the logical key, select a provider, grant authorization, or
+prove that the authoritative source remains current.
+
+### Fresh Hit
+
+A typed expected outcome showing that one fully validated entry satisfies the
+explicit freshness policy at the caller-supplied time. It is not source truth,
+authorization, or permission to skip application validation.
+
+### Expired Outcome
+
+A typed expected outcome showing that an entry does not satisfy the explicit
+finite freshness boundary. It is distinct from miss, rejection,
+unavailability, and failure and never becomes an implicit stale hit.
+
+### Conditional Conflict
+
+A typed outcome showing that explicit entry-version evidence no longer matches
+the entry selected for conditional replace or remove. It prevents a silent
+overwrite or removal of newer evidence and grants no coordination semantics.
+
+### Cache Adapter
+
+A replaceable provider translation behind the planned neutral cache contract.
+It receives only explicit bounded inputs and returns complete untrusted
+evidence. It owns no application truth and receives no ambient credential,
+clock, environment, filesystem, network, discovery, or configuration
+authority.
+
+### Detached Cache Runtime Evidence
+
+An optional caller-constructed bounded aggregate record containing only exact
+profile-set/build/artifact SHA-256 bindings, the eleven closed outcome counts,
+their total, fixed omission/detachment flags, and its canonical identity. It is
+not a runtime observer and does not prove operations occurred.
+
+### Cache Inspection
+
+The optional Experimental Phase 20G offline, read-only, stateless
+reconstruction of one supplied exact-current cache application build and
+optional detached runtime evidence. It emits only bounded Safe aggregates and
+Protected digests, permanently omits keys and values, and grants no backend,
+runtime, Graph, agent, recording, repair, production, or certification claim.
+
 ## Phase 19 Asset Platform vocabulary
 
 Phase 19A accepts the architecture and Phase 19B accepts the optional

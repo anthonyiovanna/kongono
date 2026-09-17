@@ -1,5 +1,31 @@
 # Testing
 
+Phase 20B adds 14 package-test PHP files for `kongono/cache-contract`. Phase
+20C adds 15 package-test PHP files for `kongono/cache-build`. Phase 20D adds 13
+package-test PHP files for `kongono/cache-adapter-contract` and 12 for
+`kongono/cache-adapter-memory`. Phase 20E adds exact-current runtime tests.
+Phase 20F adds cache-application, command-parity, and copy-once skeleton tests.
+Phase 20G adds six cache-inspection package-test PHP files and no root-test PHP
+file. Phase 20H adds four root-test PHP files and the explicit
+`composer acceptance:phase20` fresh-process proof. Focused coverage proves the Cache Contract 21-declaration
+17 Experimental / 1 Public / 3 Internal split and Cache Build 24-declaration
+17 Experimental / 1 Public / 6 Internal split,
+all identity/byte/time/lifetime bounds and plus-one failures, exact expiry,
+domain separation, closed operations and outcomes, detached entry evidence,
+nondisclosure, canonical/duplicate-safe artifacts, exact currentness,
+content-addressed no-clobber publication, protocol substitutability, detached
+evidence, exact-version conditional mutation, equality/plus-one capacity,
+oldest-insertion eviction, atomic state visibility, and instance isolation. The
+topology is 109 packages / 467 local production edges / acyclic, with PHP
+inventories 2,161 / 1,138 / 104 and 109 package validation commands. Phase 20G
+tests cover exact-current reconstruction, absent/supplied detached runtime
+evidence, all closed outcomes, nondisclosure, roles, Graph aggregates, neutral
+projections, deterministic verification, tamper rejection, and repeated
+operation isolation. These
+tests do not claim framework serialization, provider compatibility,
+performance, production readiness, or Stable/1.0. Phase 20H proves the bounded
+local stack, nondisclosure, fingerprint preservation, and cleanup; Phase 20 is closed.
+
 Phase 19H adds four root-test PHP files and the explicit
 `composer acceptance:phase19` fresh-process proof above the Phase 19B-G package
 and application tests. It exercises native determinism/currentness/integrity,

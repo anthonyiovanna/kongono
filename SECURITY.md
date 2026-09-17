@@ -1,5 +1,53 @@
 # Security Policy
 
+## Phase 20A-H Derived-Data Cache security boundary
+
+Phase 20A accepts documentation architecture. Phase 20B accepts only the
+effect-free Experimental `kongono/cache-contract` values and diagnostics.
+Phase 20C accepts the Experimental `kongono/cache-build` build-time evidence
+leaf. Profiles and artifacts grant no cache, filesystem, credential, network,
+provider, runtime, or application-effect authority; publication is limited to
+one explicit caller-selected root and exact content-addressed artifact. Phase
+20D accepts the neutral adapter protocol and one bounded memory implementation.
+Its detached results, exact-version conditional mutations, fixed capacity, and
+atomic candidate-state swap grant no authority or production guarantee.
+Cache entries and outcomes
+are derived, disposable evidence and grant no identity, authentication,
+authorization, capability, credential, policy, storage, network, process,
+Graph, or application-effect authority. A cache hit is not source currentness,
+permission, or proof that an external effect occurred.
+
+Credentials, secrets, bearer tokens, capability grants, authorization
+decisions, sessions, CSRF tokens, unredacted sensitive data, migration state,
+durable events, audit records, receipts, locks, leases, queues, rate-limit
+state, counters, and authoritative records must not be cached. Applications
+remain secure and correct after miss, expiry, eviction, rejection, backend
+loss, or complete flush.
+
+Future namespaces, keys, values, metadata, lifetimes, operation counts,
+provider results, durations, and diagnostics require finite bounds before an
+effect. Diagnostics may include bounded Safe counts, closed reasons, and
+Protected digests, but must not expose raw keys, cached or encoded values,
+credentials, tokens, backend addresses, connection data, application paths,
+arbitrary provider output, or unbounded payloads.
+
+Adapters receive no ambient credentials, environment, filesystem,
+network, DNS, process, discovery, or configuration authority. Explicit time,
+typed outcomes, atomic visibility, version-bound conditional mutation,
+uncertain-effect preservation, detached results, and deterministic cleanup are
+security requirements. A facade, global registry, magic serialization, hidden
+clock, stale fallback, implicit retry, read-through callback, or cache-based
+coordination primitive is prohibited.
+
+Phases 20A-H are Accepted and Phase 20 is closed. Phase 20E performs only exact-current bounded operations through one directly supplied adapter. Phase 20F reads one explicit contained profile source and composes one runtime only after exact profile, artifact, codec, and adapter validation. Phase 20G inspects only supplied typed evidence in memory and emits bounded Safe aggregates and Protected digests; it never accesses keys, values, a backend, runtime state, a clock, or a cache operation. Phase 20H adds only local root-test acceptance and the exact checkpoint. No provider compatibility, production availability, or security certification exists. See
+[ADR 0197](docs/adr/0197-explicit-derived-data-cache-and-non-authority-boundary.md),
+[ADR 0199](docs/adr/0199-neutral-cache-contract-and-bounded-evidence-vocabulary.md),
+[ADR 0198](docs/adr/0198-deterministic-cache-freshness-atomicity-and-lifecycle.md),
+[ADR 0201](docs/adr/0201-neutral-cache-adapter-and-bounded-memory-implementation.md),
+[ADR 0204](docs/adr/0204-visibility-safe-cache-inspection-and-developer-intelligence.md),
+ [ADR 0205](docs/adr/0205-phase-20-external-cache-acceptance-and-checkpoint.md),
+and the [Cache Platform guide](docs/architecture/cache-platform.md).
+
 ## Phase 19A-H Asset Platform security boundary
 
 Phase 19A accepts architecture, Phase 19B accepts the neutral asset contract,

@@ -52,6 +52,20 @@ parameters:
         - packages/authentication/tests
         - packages/authorization/src
         - packages/authorization/tests
+        - packages/cache-adapter-contract/src
+        - packages/cache-adapter-contract/tests
+        - packages/cache-adapter-memory/src
+        - packages/cache-adapter-memory/tests
+        - packages/cache-application/src
+        - packages/cache-application/tests
+        - packages/cache-inspection/src
+        - packages/cache-inspection/tests
+        - packages/cache-build/src
+        - packages/cache-build/tests
+        - packages/cache-contract/src
+        - packages/cache-contract/tests
+        - packages/cache-runtime/src
+        - packages/cache-runtime/tests
         - packages/chie/src
         - packages/chie/tests
         - packages/chie/bin/kongono-chie
@@ -224,6 +238,9 @@ parameters:
         - skeletons/asset-minimal/bin
         - skeletons/asset-minimal/src
         - skeletons/asset-minimal/tests
+        - skeletons/cache-minimal/bin
+        - skeletons/cache-minimal/src
+        - skeletons/cache-minimal/tests
         - skeletons/view-minimal/bin
         - skeletons/view-minimal/public
         - skeletons/view-minimal/src

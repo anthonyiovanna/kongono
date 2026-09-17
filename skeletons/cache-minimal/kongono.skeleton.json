@@ -1,0 +1,22 @@
+{
+  "schema": "kongono.application-skeleton",
+  "version": 1,
+  "template_paths": [
+    "README.md",
+    "bin/cache.php",
+    "bin/demo.php",
+    "composer.json",
+    "composer.lock",
+    "kongono.cache.json",
+    "kongono.skeleton.json",
+    "src/ApplicationJsonCodec.php",
+    "src/CacheDemo.php",
+    "src/CacheWorkflow.php",
+    "tests/CacheMinimalApplicationTest.php",
+    "var/cache/.gitignore"
+  ],
+  "derived_output_patterns": [
+    "var/cache/objects/**",
+    "vendor/**"
+  ]
+}

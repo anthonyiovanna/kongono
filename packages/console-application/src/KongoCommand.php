@@ -24,4 +24,7 @@ enum KongoCommand: string
     case ViewBuild = 'view:build';
     case ViewCheck = 'view:check';
     case ViewInspect = 'view:inspect';
+    case CacheBuild = 'cache:build';
+    case CacheCheck = 'cache:check';
+    case CachePlan = 'cache:plan';
 }

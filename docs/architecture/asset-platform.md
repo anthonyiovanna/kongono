@@ -1,5 +1,23 @@
 # Asset Platform
 
+## Relationship to the Phase 20 cache capability
+
+Phase 19 delivery metadata may carry an explicit application-owned browser or
+HTTP cache policy. That metadata describes how validated content-addressed
+asset output may be delivered to a browser or intermediary; it is not a
+server-side derived-data cache entry, adapter, backend, operation, or grant of
+Phase 20 authority.
+
+Conversely, the Phase 20 Derived-Data Cache Platform is Accepted only as
+documentation architecture in Phase 20A; Phases 20B-H remain Planned. It does
+not select asset URLs,
+origins, CDN behavior, cache-control headers, integrity, preload, storage, or
+delivery. Neither capability implies, installs, configures, or depends on the
+other. Views and asset resolution receive no ambient cache helper, facade,
+registry, clock, or stale fallback. See the
+[Cache Platform guide](cache-platform.md) and
+[Phase 20 roadmap](phase-20-roadmap.md).
+
 ## Status
 
 Phase 19A is Accepted documentation architecture. It defines the optional

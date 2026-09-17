@@ -1,5 +1,12 @@
 # Developer Intelligence
 
+> **Phase 20G separation:** the optional
+> [`kongono/cache-inspection`](cache-inspection-and-intelligence.md) leaf maps
+> Chie to `explain`, Hantei to `verify`, and Oshie to `teach` only as closed
+> evidence-purpose labels. It does not depend on, invoke, impersonate,
+> configure, authorize, or observe those agents. Supplied cache evidence grants
+> no backend/runtime/key/value/clock/operation/repair/record/export authority.
+
 > **Phase 19G separation:** the optional
 > [`kongono/asset-inspection`](asset-inspection-and-intelligence.md) leaf maps
 > Chie to `explain`, Hantei to `verify`, and Oshie to `teach` only as closed

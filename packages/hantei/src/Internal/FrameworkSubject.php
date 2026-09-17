@@ -14,7 +14,7 @@ use Kongono\Hantei\HanteiCheckEvidence;
 #[Api(ApiStatus::Internal)]
 final readonly class FrameworkSubject
 {
-    public const MAX_FILES = 4096;
+    public const MAX_FILES = 8192;
     public const MAX_FILE_BYTES = 4_194_304;
     public const MAX_TOTAL_BYTES = 67_108_864;
 

@@ -1,5 +1,49 @@
 # Kongono Architectural Doctrine
 
+## Optional Derived-Data Cache Platform doctrine
+
+Phase 20A accepts documentation architecture for an optional Derived-Data
+Cache Platform. Phase 20B accepts only the optional Experimental
+`kongono/cache-contract` neutral leaf of bounded immutable values, closed
+evidence vocabulary, and nondisclosing diagnostics. Phase 20C accepts the
+optional Experimental `kongono/cache-build` deterministic profile, canonical
+artifact, exact-current validation, and contained publication leaf. Phase 20D
+accepts the optional Experimental neutral adapter
+protocol and separately optional Experimental bounded memory implementation.
+Phase 20E accepts exact-current operations with explicit caller time and one supplied adapter. Phase 20F accepts explicit application plan/build/check, inert codec mapping, and direct runtime composition. Phase 20G accepts offline supplied-evidence inspection. Phase 20H adds only root-owned local external acceptance and the exact checkpoint. Phases 20A-H are Accepted and Phase 20 is closed. No framework serialization, external provider integration, or production-availability claim exists.
+
+Cached data is bounded, derived, disposable, and non-authoritative.
+Applications remain correct when it is absent, expired, evicted, rejected,
+unavailable, or flushed. Cache evidence never replaces persistence,
+exact-current validation, security decisions, credentials, sessions, grants,
+durable records, audit evidence, coordination, or proof of an effect.
+
+Application values, namespace, logical key, key identity, codec/schema,
+bounded opaque bytes, content identity, entry version, finite freshness,
+caller-supplied time, provider identity, operation, and typed outcome remain
+explicit and separate. The contract has no ambient clock, hidden default,
+facade, global registry, service location, magic serialization, implicit stale
+path, read-through callback, provider discovery, or implicit retry.
+
+Adapters are directly supplied and replaceable behind the neutral contract.
+The first in-memory adapter is Accepted and carries no durability,
+distribution, shared-host, multi-process, performance, or production claim.
+Atomic entry visibility and version-bound conditional mutation do not grant
+lock, lease, queue, scheduler, rate-limit, counter, or exactly-once semantics.
+Mutable state is operation-local, results are detached, and retirement is
+deterministic on every path.
+
+Lower packages do not depend outward on caching. Provider and PSR
+interoperability may be future optional adapters but cannot redefine the
+internal correctness model. See [ADR 0197](adr/0197-explicit-derived-data-cache-and-non-authority-boundary.md),
+[ADR 0198](adr/0198-deterministic-cache-freshness-atomicity-and-lifecycle.md),
+[ADR 0201](adr/0201-neutral-cache-adapter-and-bounded-memory-implementation.md),
+[ADR 0205](adr/0205-phase-20-external-cache-acceptance-and-checkpoint.md),
+the [Cache Platform guide](architecture/cache-platform.md), and the
+[Cache Application workflow](architecture/cache-application-workflow.md), the
+[Phase 20 external acceptance guide](architecture/phase-20-external-cache-acceptance.md), and the
+[Phase 20 roadmap](architecture/phase-20-roadmap.md).
+
 ## Optional deterministic Asset Platform doctrine
 
 Phase 19A accepts documentation architecture. Phase 19B accepts the optional

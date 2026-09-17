@@ -1,5 +1,39 @@
 # API Status
 
+## Phase 20 Derived-Data Cache status
+
+Phase 20A accepts [ADR 0197](../adr/0197-explicit-derived-data-cache-and-non-authority-boundary.md),
+[ADR 0198](../adr/0198-deterministic-cache-freshness-atomicity-and-lifecycle.md),
+the [Cache Platform guide](../architecture/cache-platform.md), the
+[cache-authoring guide](cache-authoring.md), and the fixed
+[Phase 20 roadmap](../architecture/phase-20-roadmap.md) as documentation.
+
+Phase 20B accepts [ADR 0199](../adr/0199-neutral-cache-contract-and-bounded-evidence-vocabulary.md)
+and the optional `kongono/cache-contract` leaf. It has exactly 21 production
+declarations: 17 Experimental values, enums, and the concrete validation
+exception; one Public exception-family interface; and three Internal
+diagnostic/exception/guard declarations. No declaration is Stable.
+
+Phase 20C accepts [ADR 0200](../adr/0200-deterministic-cache-profile-artifact-and-publication.md)
+and the optional `kongono/cache-build` leaf. It has exactly 24 production
+declarations: 17 Experimental profile/build/artifact values and operations,
+one Public exception-family interface, and six Internal diagnostic/exception/
+canonical/path declarations. No declaration is Stable.
+
+Phase 20D accepts [ADR 0201](../adr/0201-neutral-cache-adapter-and-bounded-memory-implementation.md),
+the optional `kongono/cache-adapter-contract` leaf with 18 production
+declarations (14 Experimental and four Internal), and the separately optional
+`kongono/cache-adapter-memory` leaf with 10 production declarations (six
+Experimental and four Internal). No declaration is Public or Stable.
+
+Phases 20A-H are Accepted and Phase 20 is closed. The accepted packages remain
+Experimental and supply no framework serialization, external backend, or
+provider integration. Phase 20H adds no production declaration or status
+change. Future PSR-6,
+PSR-16, Redis, Memcached,
+filesystem, database, cloud, and vendor interoperability cannot define
+Kongono's internal correctness model.
+
 ## Phase 19 Asset Platform status
 
 Phase 19A is Accepted documentation architecture. Phase 19B accepts the

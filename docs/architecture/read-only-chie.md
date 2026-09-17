@@ -1,5 +1,10 @@
 # Read-Only Kongono Chie
 
+Phase 20G's optional [cache-inspection evidence](cache-inspection-and-intelligence.md)
+uses `chie` only as the fixed `explain` audience label. It does not call Chie,
+read keys or values, access a backend/runtime/clock, perform a cache operation,
+repair evidence, or establish live state.
+
 Phase 19G's optional [asset-inspection evidence](asset-inspection-and-intelligence.md)
 uses `chie` only as the fixed `explain` audience label. It does not call Chie,
 read assets, expose hidden evidence, repair, build, resolve, or establish live

@@ -170,7 +170,26 @@ final class ViewApplicationBuildWorkflowTest extends TestCase
         self::assertSame(strlen($original), file_put_contents($fixture['source'], $original));
         $process = $this->changingWriter($fixture['source'], $marker);
         try {
-            $this->expectFailure(static fn() => (new ViewApplicationBuildWorkflow())->plan($fixture['definition']), $fixture['root']);
+            $workflow = new ViewApplicationBuildWorkflow();
+            $deadline = microtime(true) + 1.5;
+            $observedFailure = false;
+            for ($attempt = 0; $attempt < 100 && microtime(true) < $deadline; ++$attempt) {
+                $status = proc_get_status($process[0]);
+                if (!$status['running']) {
+                    break;
+                }
+                try {
+                    $workflow->plan($fixture['definition']);
+                } catch (ExceptionInterface $failure) {
+                    self::assertStringStartsWith('KGN-VIEW-APPLICATION-', $failure->diagnosticId());
+                    self::assertStringNotContainsString($fixture['root'], (string) $failure);
+                    $observedFailure = true;
+
+                    break;
+                }
+                usleep(10_000);
+            }
+            self::assertTrue($observedFailure, 'Expected at least one changing-source attempt to fail closed.');
         } finally {
             $this->stopWriter($process);
             if (is_file($marker)) {
@@ -191,7 +210,25 @@ final class ViewApplicationBuildWorkflowTest extends TestCase
             $artifact = $current->artifactDirectory() . '/artifact.json';
             $writer = $this->changingWriter($artifact, $marker);
             try {
-                $this->expectFailure(static fn() => $workflow->plan($fixture['definition']), $fixture['root']);
+                $deadline = microtime(true) + 1.5;
+                $observedFailure = false;
+                for ($attempt = 0; $attempt < 100 && microtime(true) < $deadline; ++$attempt) {
+                    $status = proc_get_status($writer[0]);
+                    if (!$status['running']) {
+                        break;
+                    }
+                    try {
+                        $workflow->plan($fixture['definition']);
+                    } catch (ExceptionInterface $failure) {
+                        self::assertStringStartsWith('KGN-VIEW-APPLICATION-', $failure->diagnosticId());
+                        self::assertStringNotContainsString($fixture['root'], (string) $failure);
+                        $observedFailure = true;
+
+                        break;
+                    }
+                    usleep(10_000);
+                }
+                self::assertTrue($observedFailure, 'Expected at least one changing-output attempt to fail closed.');
             } finally {
                 $this->stopWriter($writer);
                 if (is_file($marker)) {

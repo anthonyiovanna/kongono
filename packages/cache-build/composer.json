@@ -1,0 +1,24 @@
+{
+  "name": "kongono/cache-build",
+  "description": "Deterministic cache-profile artifact construction, currentness validation, and contained publication for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "kongono/cache-contract": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\CacheBuild\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\CacheBuild\\Tests\\": "tests/"
+    }
+  }
+}

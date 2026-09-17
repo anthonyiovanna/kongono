@@ -1,5 +1,83 @@
 # Architecture Decision Records
 
+## Phase 20A-H Derived-Data Cache decisions
+
+### [ADR 0197: Explicit Derived-Data Cache and Non-Authority Boundary](0197-explicit-derived-data-cache-and-non-authority-boundary.md)
+
+Accepted for Phase 20A as documentation architecture. Defines an optional
+provider-neutral cache of bounded derived disposable evidence, explicit
+identity domains, application correctness without cache availability,
+replaceable adapters, non-authority rules, standards direction, and deferred
+scope. It adds no callable API or implementation.
+
+### [ADR 0198: Deterministic Cache Freshness, Atomicity, and Lifecycle](0198-deterministic-cache-freshness-atomicity-and-lifecycle.md)
+
+Accepted for Phase 20A as documentation architecture. Defines caller-supplied
+time, finite freshness, typed outcomes, no implicit stale path, atomic entry
+visibility, version-bound conditional mutation, operation isolation,
+uncertainty, cleanup, bounds, and nondisclosing diagnostics. It adds no
+callable API or implementation.
+
+### [ADR 0199: Neutral Cache Contract and Bounded Evidence Vocabulary](0199-neutral-cache-contract-and-bounded-evidence-vocabulary.md)
+
+Accepted for Phase 20B. Adds only the optional Experimental
+`kongono/cache-contract` leaf: bounded immutable identity, codec, opaque-byte,
+content, caller-time, finite-freshness, entry-version, operation/outcome,
+detached entry-evidence, and nondisclosing diagnostic vocabulary. It performs
+no serialization, lookup, mutation, adapter, backend, runtime, profile,
+artifact, command, application workflow, provider integration, or external
+effect.
+
+### [ADR 0200: Deterministic Cache Profile Artifact and Publication](0200-deterministic-cache-profile-artifact-and-publication.md)
+
+Accepted for Phase 20C. Adds only the optional Experimental
+`kongono/cache-build` leaf: explicit bounded profile declarations, deterministic
+source/build/artifact identities, canonical duplicate-safe JSON, strict
+structural and exact-current validation, contained content-addressed
+publication, and nondisclosing diagnostics. It performs no cache operation,
+serialization, adapter, backend, runtime, provider, command, or workflow work.
+
+### [ADR 0201: Neutral Cache Adapter and Bounded Memory Implementation](0201-neutral-cache-adapter-and-bounded-memory-implementation.md)
+
+Accepted for Phase 20D. Adds the optional Experimental
+`kongono/cache-adapter-contract` protocol and separately optional Experimental
+`kongono/cache-adapter-memory` bounded process-local implementation. It keeps
+protocol found distinct from runtime freshness, uses fixed oldest-insertion
+eviction and instance-local conditional versions, and adds no exact-current
+runtime, workflow, provider integration, production claim, or checkpoint.
+
+### [ADR 0202: Exact-Current Cache Runtime and Explicit Operation Lifecycle](0202-exact-current-cache-runtime-and-operation-lifecycle.md)
+
+Accepted for Phase 20E. Adds the optional Experimental `kongono/cache-runtime`
+leaf with explicit caller time, exact-current binding, typed lookup/mutation
+outcomes, and one directly supplied adapter.
+
+### [ADR 0203: Supported Cache Application Workflow and Explicit Codec/Policy Mapping](0203-supported-cache-application-workflow-and-explicit-codec-policy-mapping.md)
+
+Accepted for Phase 20F. Adds the optional Experimental
+`kongono/cache-application` workflow, inert profile/codec mapping, exact-current
+runtime composition, three profile-evidence commands, and the copy-once
+`cache-minimal` slice.
+
+### [ADR 0204: Visibility-safe cache inspection and developer intelligence](0204-visibility-safe-cache-inspection-and-developer-intelligence.md)
+
+Accepted for Phase 20G. Adds the optional Experimental
+`kongono/cache-inspection` offline upper evidence leaf. It independently
+reconstructs one supplied exact-current build and optional detached aggregate
+runtime evidence, then emits only bounded Safe aggregates and Protected
+digests without key/value/backend/runtime/clock/effect access.
+
+### [ADR 0205: Phase 20 external cache acceptance and checkpoint](0205-phase-20-external-cache-acceptance-and-checkpoint.md)
+
+Accepted for Phase 20H. Adds only the root-owned fresh-process local acceptance
+proof and exact Phase 20 checkpoint. Phase 20A-H are Accepted and Phase 20 is
+closed. See the
+[Cache Platform guide](../architecture/cache-platform.md),
+[cache-authoring guide](../engineering/cache-authoring.md), and fixed
+[Cache Application workflow](../architecture/cache-application-workflow.md),
+[cache inspection guide](../architecture/cache-inspection-and-intelligence.md), and fixed
+[Phase 20 roadmap](../architecture/phase-20-roadmap.md).
+
 ## Phase 19A-H Asset Platform decisions
 
 ### [ADR 0188: Optional Asset Platform and deterministic build boundary](0188-optional-asset-platform-and-deterministic-build-boundary.md)

@@ -1,5 +1,10 @@
 # Kongono Console Application
 
+The closed supported command family includes `cache:plan`, `cache:build`, and
+`cache:check`. These noninteractive commands operate only on bounded
+cache-profile evidence through `kongono/cache-application`; they never read or
+mutate cache entries.
+
 `kongono/console-application` is the Experimental upper application
 and native-process boundary for the official `kongo` executable. It exposes
 exactly thirteen supported commands: `application-graph:inspect`,

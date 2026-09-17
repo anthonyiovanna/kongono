@@ -1,5 +1,10 @@
 # Read-Only Kongono Hantei
 
+Phase 20G's optional [cache-inspection evidence](cache-inspection-and-intelligence.md)
+uses `hantei` only as the fixed `verify` audience label. Its independent
+verifier is package-owned comparison code, not a Hantei invocation, cache
+operation, repair action, quality run, or certification.
+
 Phase 19G's optional [asset-inspection evidence](asset-inspection-and-intelligence.md)
 uses `hantei` only as the fixed `verify` audience label. Its independent
 verifier is package-owned comparison code, not a Hantei invocation, quality

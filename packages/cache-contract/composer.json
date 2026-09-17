@@ -1,0 +1,23 @@
+{
+  "name": "kongono/cache-contract",
+  "description": "Neutral bounded derived-data cache values and evidence vocabulary for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\CacheContract\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\CacheContract\\Tests\\": "tests/"
+    }
+  }
+}

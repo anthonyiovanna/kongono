@@ -5,6 +5,12 @@ slice demonstrates the optional Phase 19F native asset workflow. It is not
 installed or discovered by this minimal application and does not alter its
 runtime boundary.
 
+The separate copy-once [`cache-minimal`](../../skeletons/cache-minimal/README.md)
+slice demonstrates the optional Phase 20F cache profile workflow and explicit
+runtime composition. It owns its codec and supplied memory adapter, publishes
+only beneath its ignored application directory, and leaves application truth
+correct after miss, expiry, eviction, rejection, or complete cache loss.
+
 ## Purpose and status
 
 Phase 5G implements one supported copy-once minimal application skeleton and one Experimental reusable Composition build/check workflow. It connects the already implemented Phase 5D-5F boundaries; it does not add runtime dependency discovery, a new transport, or deployment behavior.

@@ -1,5 +1,51 @@
 # Kongono
 
+## Accepted Phase 20A-H Derived-Data Cache boundary
+
+Phase 20A accepts documentation architecture for an optional Derived-Data
+Cache Platform. Cached data is bounded, derived, disposable evidence rather
+than application truth or authority, and applications must remain correct when
+the cache misses, expires, is evicted, is rejected, becomes unavailable, or is
+flushed. The planned design keeps namespaces, keys, codecs, opaque bytes,
+content identities, versions, explicit time, freshness, providers, operations,
+and typed outcomes separate.
+
+Phase 20B accepts the optional Experimental
+[`kongono/cache-contract`](packages/cache-contract/README.md) leaf. It defines
+only immutable bounded namespace/key identities, inert codec identity, opaque
+bytes and content identity, caller-supplied microsecond time, finite freshness,
+entry versions, closed operation/outcome vocabulary, detached entry evidence,
+and nondisclosing diagnostics. It has no serialization, adapter, backend,
+runtime, command, application workflow, provider compatibility, or authority.
+Phase 20C accepts [ADR 0200](docs/adr/0200-deterministic-cache-profile-artifact-and-publication.md)
+and the optional Experimental [`kongono/cache-build`](packages/cache-build/README.md)
+leaf for explicit bounded profiles, canonical inert artifacts, exact-current
+validation, and contained content-addressed publication. It performs no cache
+operation, serialization, adapter/backend/runtime behavior, or provider work.
+Phase 20D accepts [ADR 0201](docs/adr/0201-neutral-cache-adapter-and-bounded-memory-implementation.md),
+the optional Experimental [`kongono/cache-adapter-contract`](packages/cache-adapter-contract/README.md)
+protocol, and the separately optional Experimental
+[`kongono/cache-adapter-memory`](packages/cache-adapter-memory/README.md)
+deterministic bounded process-local implementation. A protocol found result is
+not a runtime fresh hit. No exact-current runtime, workflow, command,
+inspection, provider integration, or production availability is
+added. Phase 20E accepts the exact-current `kongono/cache-runtime` leaf. Phase 20F accepts [ADR 0203](docs/adr/0203-supported-cache-application-workflow-and-explicit-codec-policy-mapping.md), the optional `kongono/cache-application` workflow, three profile-evidence commands, and the copy-once `cache-minimal` slice. Phase 20G accepts [ADR 0204](docs/adr/0204-visibility-safe-cache-inspection-and-developer-intelligence.md), the optional Experimental [`kongono/cache-inspection`](packages/cache-inspection/README.md) offline evidence leaf, and its [inspection guide](docs/architecture/cache-inspection-and-intelligence.md). It reconstructs one supplied exact-current build and optional detached runtime aggregates while omitting keys, values, profile/codec/provider identities, live backend state, and effects. Phase 20H accepts the root-owned local external proof and exact checkpoint. Phase 20A-H are Accepted and Phase 20 is closed. See
+[ADR 0197](docs/adr/0197-explicit-derived-data-cache-and-non-authority-boundary.md),
+[ADR 0198](docs/adr/0198-deterministic-cache-freshness-atomicity-and-lifecycle.md),
+[ADR 0199](docs/adr/0199-neutral-cache-contract-and-bounded-evidence-vocabulary.md),
+[ADR 0200](docs/adr/0200-deterministic-cache-profile-artifact-and-publication.md),
+[ADR 0201](docs/adr/0201-neutral-cache-adapter-and-bounded-memory-implementation.md),
+[ADR 0204](docs/adr/0204-visibility-safe-cache-inspection-and-developer-intelligence.md),
+[ADR 0205](docs/adr/0205-phase-20-external-cache-acceptance-and-checkpoint.md),
+the [Cache Platform guide](docs/architecture/cache-platform.md), the
+[Cache Application workflow guide](docs/architecture/cache-application-workflow.md), the
+[cache inspection guide](docs/architecture/cache-inspection-and-intelligence.md), the
+[Phase 20 external acceptance guide](docs/architecture/phase-20-external-cache-acceptance.md), the
+[deterministic cache-profile build guide](docs/architecture/deterministic-cache-profile-build.md), the
+[bounded memory adapter guide](docs/architecture/bounded-memory-cache-adapter.md), the
+[cache-authoring guide](docs/engineering/cache-authoring.md), and the
+[Phase 20 roadmap](docs/architecture/phase-20-roadmap.md).
+
 ## Accepted Phase 19A-H Asset Platform boundary
 
 Phase 19A accepts documentation architecture for an optional deterministic

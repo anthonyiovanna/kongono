@@ -1,5 +1,45 @@
 # Kongono Architecture
 
+## Phase 20A-H optional Derived-Data Cache Platform boundary
+
+Phase 20A accepts documentation architecture only for an optional,
+provider-neutral Derived-Data Cache Platform. Cached bytes are bounded,
+derived, disposable, and non-authoritative; applications remain correct after
+miss, expiry, eviction, rejection, backend loss, or flush. Namespace, logical
+key, codec, bytes, content identity, entry version, supplied time, freshness,
+provider, operation, and outcome remain explicit and separate.
+
+The boundary has no facade, global registry, service location, magic
+serialization, ambient clock, implicit TTL, stale fallback, read-through
+callback, implicit retry, or coordination role. Future adapters are directly
+supplied and replaceable; the first bounded in-memory adapter is accepted and
+makes no durability, distribution, or production claim. Lower packages do not
+depend outward on caching.
+
+Phase 20B accepts the optional Experimental `kongono/cache-contract` leaf with
+immutable bounded values and closed evidence vocabulary only. It reads no
+clock, serializes nothing, performs no cache operation, and supplies no
+adapter, backend, runtime, command, application workflow, or provider
+compatibility. Phase 20C accepts the optional Experimental
+`kongono/cache-build` leaf for explicit bounded profiles, canonical inert JSON,
+strict structural/exact-current validation, and contained content-addressed
+publication. Phase 20D accepts the optional Experimental
+`kongono/cache-adapter-contract` protocol and separately optional Experimental
+`kongono/cache-adapter-memory` deterministic process-local implementation.
+Protocol `found` is not runtime freshness, and the implementation supplies no
+clock, durability, distribution, or production claim. Phase 20E accepts an exact-current runtime over one supplied adapter and explicit caller time. Phase 20F accepts the optional application workflow, explicit profile/codec mapping, three profile-evidence commands, and the copy-once cache slice. Phase 20G accepts the optional Experimental [`kongono/cache-inspection`](packages/cache-inspection/README.md) upper evidence leaf, which revalidates one supplied current build and optional detached runtime aggregates without backend/runtime access. Phase 20H accepts the root-owned fresh-process external proof and exact checkpoint. Phase 20A-H are Accepted and Phase 20 is closed. See [ADR 0197](docs/adr/0197-explicit-derived-data-cache-and-non-authority-boundary.md),
+[ADR 0198](docs/adr/0198-deterministic-cache-freshness-atomicity-and-lifecycle.md),
+[ADR 0199](docs/adr/0199-neutral-cache-contract-and-bounded-evidence-vocabulary.md),
+[ADR 0200](docs/adr/0200-deterministic-cache-profile-artifact-and-publication.md),
+[ADR 0201](docs/adr/0201-neutral-cache-adapter-and-bounded-memory-implementation.md),
+[ADR 0204](docs/adr/0204-visibility-safe-cache-inspection-and-developer-intelligence.md),
+[ADR 0205](docs/adr/0205-phase-20-external-cache-acceptance-and-checkpoint.md),
+the [Cache Platform](docs/architecture/cache-platform.md), and the
+[Cache Application workflow](docs/architecture/cache-application-workflow.md), the
+[cache inspection guide](docs/architecture/cache-inspection-and-intelligence.md), the
+[external acceptance guide](docs/architecture/phase-20-external-cache-acceptance.md), and the
+[Phase 20 roadmap](docs/architecture/phase-20-roadmap.md).
+
 ## Phase 19A-H optional Asset Platform boundary
 
 Phase 19A accepts documentation architecture only for an optional,

@@ -1,5 +1,10 @@
 # Read-only Oshie
 
+Phase 20G's optional [cache-inspection evidence](cache-inspection-and-intelligence.md)
+uses `oshie` only as the fixed `teach` audience label. It does not call Oshie,
+read keys or values, inspect a backend/runtime, execute examples, reveal hidden
+evidence, or grant teaching or cache authority.
+
 Phase 19G's optional [asset-inspection evidence](asset-inspection-and-intelligence.md)
 uses `oshie` only as the fixed `teach` audience label. It does not call Oshie,
 load source/output content, execute examples, reveal hidden evidence, or grant

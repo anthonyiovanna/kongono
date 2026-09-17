@@ -1,5 +1,49 @@
 # Architecture Overview
 
+## Phase 20A-H optional Derived-Data Cache map
+
+Phase 20A accepts documentation architecture for an optional upper
+Derived-Data Cache Platform. Cached bytes remain derived, disposable,
+non-authoritative evidence, and applications remain correct without them.
+Explicit namespace, logical key, codec, bounded bytes, content identity,
+version, supplied time, finite freshness, provider, operation, and typed
+outcome stay separate.
+
+Future cache dependencies point inward; Kernel, routing, HTTP, database,
+persistence, security, Graph, agents, views, assets, and other lower packages
+do not depend outward on caching. There is no ambient facade, registry, clock,
+serialization, stale path, callback, retry, or coordination behavior.
+
+Phase 20B accepts the optional Experimental `kongono/cache-contract` leaf of
+bounded immutable values and closed evidence vocabulary. Entry evidence is not
+source currentness or proof of an effect, and time is caller supplied. There is
+no serialization, profile, artifact, adapter, backend, runtime operation,
+command, application workflow, or provider compatibility. Phase 20C accepts
+the optional Experimental `kongono/cache-build` deterministic profile/artifact
+leaf without adding cache operations, adapters, backends, or runtime behavior.
+Phase 20D accepts the optional Experimental neutral adapter protocol and
+separately optional Experimental bounded process-local memory implementation.
+Its protocol found result does not evaluate freshness. Phase 20E accepts the
+exact-current runtime and Phase 20F accepts the explicit application workflow,
+profile/codec mapping, three profile-evidence commands, and copy-once slice.
+Phase 20G accepts the optional Experimental `kongono/cache-inspection` offline,
+read-only, stateless, visibility-safe inspection and developer-intelligence
+leaf over supplied exact-current build evidence and optional detached aggregate
+runtime evidence. Phase 20H adds only root-owned fresh-process local acceptance
+and the exact checkpoint. Phases 20A-H are Accepted and Phase 20 is closed. See the
+[Cache Platform](cache-platform.md), [Cache Application workflow](cache-application-workflow.md), [Phase 20 roadmap](phase-20-roadmap.md),
+[Cache Inspection guide](cache-inspection-and-intelligence.md),
+[ADR 0197](../adr/0197-explicit-derived-data-cache-and-non-authority-boundary.md),
+[ADR 0198](../adr/0198-deterministic-cache-freshness-atomicity-and-lifecycle.md),
+and [ADR 0199](../adr/0199-neutral-cache-contract-and-bounded-evidence-vocabulary.md).
+See also [ADR 0200](../adr/0200-deterministic-cache-profile-artifact-and-publication.md),
+[ADR 0201](../adr/0201-neutral-cache-adapter-and-bounded-memory-implementation.md),
+[ADR 0204](../adr/0204-visibility-safe-cache-inspection-and-developer-intelligence.md),
+[ADR 0205](../adr/0205-phase-20-external-cache-acceptance-and-checkpoint.md),
+the [deterministic cache-profile build guide](deterministic-cache-profile-build.md),
+the [bounded memory adapter guide](bounded-memory-cache-adapter.md), and the
+[external acceptance guide](phase-20-external-cache-acceptance.md).
+
 ## Phase 19A-H optional Asset Platform map
 
 Phase 0-18 behavior remains implemented and Accepted at its separately governed

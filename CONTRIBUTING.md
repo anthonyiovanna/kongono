@@ -1,5 +1,41 @@
 # Contributing to Kongono
 
+## Phase 20 cache changes
+
+Phases 20A-H are Accepted and Phase 20 is closed. Phase 20B adds only
+the optional Experimental `kongono/cache-contract` leaf of bounded immutable
+values, closed vocabulary, and nondisclosing diagnostics. Phase 20C adds only
+the optional Experimental `kongono/cache-build` explicit profile, canonical
+artifact, exact-current validation, and contained publication boundary. Phase
+20D adds the separately optional Experimental neutral adapter contract and
+bounded memory implementation. Do not add another adapter, backend,
+exact-current runtime, serialization behavior,
+command, application workflow, provider integration, or later-phase dependency
+without separately authenticated authority. Redis, Memcached, cloud,
+filesystem, database, PSR-6, and PSR-16 adapters remain future optional work.
+
+Cache contributions must keep application values, application-owned
+namespace, logical key, key identity, explicit codec/schema, bounded opaque
+bytes, content identity, entry version, freshness policy, supplied time,
+provider identity, operation, and outcome separate. Applications must remain
+correct after miss, expiry, conflict, rejection, eviction, backend loss, and
+flush. Fresh hit, miss, expired, conditional conflict, rejected, and
+unavailable must remain typed and visible.
+
+Do not introduce a facade, singleton, global registry, service locator, magic
+serialization, native `serialize()`/`unserialize()`, hidden clock, default
+forever entry, implicit TTL, stale fallback, read-through callback, implicit
+retry, or provider discovery. Entry visibility must be atomic, conditional
+mutation must bind explicit version evidence, results must be detached, and
+mutable state and cleanup must remain operation-local and deterministic.
+
+Never use cache evidence as persistence, authentication, authorization,
+credential, session, grant, policy, audit, lock, lease, queue, rate limiter,
+counter, durable record, or proof of an effect. Bounds and nondisclosure apply
+before any future adapter effect. See [Cache authoring](docs/engineering/cache-authoring.md)
+the [Phase 20 roadmap](docs/architecture/phase-20-roadmap.md), and the
+[Phase 20 external acceptance guide](docs/architecture/phase-20-external-cache-acceptance.md).
+
 ## Phase 19 asset changes
 
 Phase 19A-H are Accepted and Phase 19 is closed. Phase 19B supplies the neutral contract, Phase 19C

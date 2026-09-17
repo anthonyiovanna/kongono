@@ -1,5 +1,41 @@
 # Package Layout
 
+Phase 20B adds exactly the optional Experimental `packages/cache-contract`
+neutral leaf with 21 production and 14 package-test PHP files, plus its manifest
+and README. Phase 20C adds exactly the optional Experimental
+`packages/cache-build` leaf with 24 production and 15 package-test PHP files,
+plus its manifest and README. Phase 20D adds exactly the optional Experimental
+`packages/cache-adapter-contract` leaf with 18 production and 13 package-test
+PHP files and the separately optional Experimental
+`packages/cache-adapter-memory` leaf with 10 production and 12 package-test PHP
+files, plus their manifests and READMEs. The contract's three local production
+edges point to API Metadata, Diagnostics, and Cache Contract. The memory
+implementation adds those three plus Cache Adapter Contract. No existing
+production package depends on either new leaf. The graph is 109 packages / 467 local production edges /
+acyclic, with inventories 2,161 production, 1,138 package-test, and 104
+root-test PHP files. The accepted cache packages define only
+bounded immutable namespace/key, identity, codec, opaque-byte, caller-time,
+finite-freshness, entry-version, operation/outcome, detached entry-evidence,
+and nondisclosing diagnostic vocabulary plus explicit profiles, canonical
+artifacts, exact-current validation, contained publication, a neutral adapter
+protocol, and one bounded process-local implementation. They have no
+serialization or external backend/provider compatibility. Phase 20E adds the
+exact-current `packages/cache-runtime` leaf. Phase 20F adds
+`packages/cache-application` and `skeletons/cache-minimal`. Phase 20G adds the
+optional Experimental `packages/cache-inspection` upper evidence leaf with 23
+production and six package-test PHP files. Its eight local production
+dependencies are API Metadata, Application Graph Intelligence, Cache
+Application, Cache Build, Cache Contract, Diagnostics, Observability, and
+Security Audit. Phase 20H adds four root-test PHP files and no package or
+production declaration. Phases 20A-H are Accepted and Phase 20 is closed. See [ADR 0199](../adr/0199-neutral-cache-contract-and-bounded-evidence-vocabulary.md).
+See also [ADR 0200](../adr/0200-deterministic-cache-profile-artifact-and-publication.md).
+See also [ADR 0201](../adr/0201-neutral-cache-adapter-and-bounded-memory-implementation.md).
+See also [ADR 0203](../adr/0203-supported-cache-application-workflow-and-explicit-codec-policy-mapping.md).
+See also [ADR 0204](../adr/0204-visibility-safe-cache-inspection-and-developer-intelligence.md)
+and the [cache inspection guide](../architecture/cache-inspection-and-intelligence.md).
+See also [ADR 0205](../adr/0205-phase-20-external-cache-acceptance-and-checkpoint.md)
+and the [external acceptance guide](../architecture/phase-20-external-cache-acceptance.md).
+
 Phase 19B adds exactly the optional Experimental `packages/asset-contract`
 neutral leaf with 19 production and 11 package-test PHP files, plus its manifest
 and README. Its two local production edges point only to API Metadata and

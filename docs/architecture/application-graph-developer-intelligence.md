@@ -1,5 +1,12 @@
 # Application Graph Developer-Intelligence Evidence
 
+Phase 20G's optional [cache-inspection leaf](cache-inspection-and-intelligence.md)
+may accept one explicitly supplied same-role Graph intelligence view. It copies
+only bounded Safe aggregate counts and fixed tokens, omits Graph identities and
+facts, and always reports the cache-to-Graph relationship as
+`not-established`. The Graph package has no reverse dependency on Cache
+Inspection.
+
 Phase 19G's optional [asset-inspection leaf](asset-inspection-and-intelligence.md)
 may accept one explicitly supplied same-role Graph intelligence view. It copies
 only bounded Safe aggregate counts and fixed tokens, omits Graph identities and

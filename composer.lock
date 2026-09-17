@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "87667dd9be2d11f4f051dacb694e5f43",
+    "content-hash": "bf4df122bed51f2ab842fa11e07692fa",
     "packages": [
         {
             "name": "google/protobuf",
@@ -786,6 +786,248 @@
             }
         },
         {
+            "name": "kongono/cache-adapter-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/cache-adapter-contract",
+                "reference": "abba5b1605640ab8d8595fc1440799d98ac23db4"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/cache-contract": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\CacheAdapterContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\CacheAdapterContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral bounded cache-adapter protocol and validated operation evidence for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/cache-adapter-memory",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/cache-adapter-memory",
+                "reference": "c279304735d9a95afe58f40db562ad14ddbcaca9"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/cache-adapter-contract": "*",
+                "kongono/cache-contract": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\CacheAdapterMemory\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\CacheAdapterMemory\\Tests\\": "tests/"
+                }
+            },
+            "description": "Bounded deterministic process-local cache adapter for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/cache-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/cache-application",
+                "reference": "23a6f3b5dae7c07aadc21b9ea5e61d12f08035ac"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/cache-adapter-contract": "*",
+                "kongono/cache-build": "*",
+                "kongono/cache-contract": "*",
+                "kongono/cache-runtime": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "kongono/cache-adapter-memory": "*",
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\CacheApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\CacheApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit cache profile workflow and exact-current runtime composition for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/cache-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/cache-build",
+                "reference": "0a52aa01334ab7cc9bf79460a6bfb8ec43aecdc8"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/cache-contract": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\CacheBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\CacheBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic cache-profile artifact construction, currentness validation, and contained publication for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/cache-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/cache-contract",
+                "reference": "d833f978030f9f8b7339db0584f6402d0a2ed428"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\CacheContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\CacheContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral bounded derived-data cache values and evidence vocabulary for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/cache-inspection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/cache-inspection",
+                "reference": "79fafc5bc11856b95e0330966e3cdb86843d439f"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-intelligence": "*",
+                "kongono/cache-application": "*",
+                "kongono/cache-build": "*",
+                "kongono/cache-contract": "*",
+                "kongono/diagnostics": "*",
+                "kongono/observability": "*",
+                "kongono/security-audit": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\CacheInspection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\CacheInspection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Visibility-safe cache inspection and bounded developer intelligence for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/cache-runtime",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/cache-runtime",
+                "reference": "f15ae568ca5b325f53e2a4fc6f939a47fd52891e"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/cache-adapter-contract": "*",
+                "kongono/cache-build": "*",
+                "kongono/cache-contract": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\CacheRuntime\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\CacheRuntime\\Tests\\": "tests/"
+                }
+            },
+            "description": "Exact-current bounded cache runtime with explicit time and validated adapter evidence for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
             "name": "kongono/chie",
             "version": "dev-main",
             "dist": {
@@ -886,12 +1128,13 @@
             "dist": {
                 "type": "path",
                 "url": "packages/console-application",
-                "reference": "96b3adb1096f01c5053cf7d47c642dd7fda7cf24"
+                "reference": "2fb802c598ce14acfc5dbb2ef3c28cd74dc8eeb4"
             },
             "require": {
                 "kongono/api-metadata": "*",
                 "kongono/application-graph-artifact": "*",
                 "kongono/asset-application": "*",
+                "kongono/cache-application": "*",
                 "kongono/composition": "*",
                 "kongono/console": "*",
                 "kongono/console-presentation": "*",
@@ -8598,6 +8841,13 @@
         "kongono/asset-resolution": 20,
         "kongono/authentication": 20,
         "kongono/authorization": 20,
+        "kongono/cache-adapter-contract": 20,
+        "kongono/cache-adapter-memory": 20,
+        "kongono/cache-application": 20,
+        "kongono/cache-build": 20,
+        "kongono/cache-contract": 20,
+        "kongono/cache-inspection": 20,
+        "kongono/cache-runtime": 20,
         "kongono/chie": 20,
         "kongono/composition": 20,
         "kongono/console": 20,

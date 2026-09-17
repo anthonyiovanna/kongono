@@ -1,5 +1,33 @@
 # Kongono Engineering Foundation
 
+## Phase 20A-H cache engineering direction
+
+Phase 20A accepts documentation architecture for the optional Derived-Data
+Cache Platform. Phase 20B accepts the optional Experimental
+`kongono/cache-contract` bounded immutable neutral leaf. Phase 20C accepts the
+optional Experimental `kongono/cache-build` deterministic profile/artifact,
+exact-current validation, and contained publication leaf. Phase 20D accepts the
+optional Experimental `kongono/cache-adapter-contract` protocol and separately
+optional Experimental `kongono/cache-adapter-memory` bounded implementation.
+Phases 20A-H are Accepted and Phase 20 is closed. Future work must preserve
+non-authoritative derived evidence,
+correctness without cache availability, explicit identity domains, bounded
+opaque bytes, application-owned codecs, caller-supplied time, finite
+freshness, typed outcomes, atomic visibility, version-bound conditional
+mutation, operation isolation, cleanup, and nondisclosing diagnostics.
+
+The current platform adds no framework serialization, external provider
+compatibility, or production-availability claim. Phase 20H adds only the
+root-owned local proof and exact checkpoint.
+Use [ADR 0197](../adr/0197-explicit-derived-data-cache-and-non-authority-boundary.md),
+[ADR 0198](../adr/0198-deterministic-cache-freshness-atomicity-and-lifecycle.md),
+the [Cache Platform guide](../architecture/cache-platform.md), the
+[deterministic cache-profile build guide](../architecture/deterministic-cache-profile-build.md), the
+[bounded memory adapter guide](../architecture/bounded-memory-cache-adapter.md), the
+[cache-authoring guide](cache-authoring.md), and the fixed
+[Phase 20 roadmap](../architecture/phase-20-roadmap.md).
+See also the [Phase 20 external acceptance guide](../architecture/phase-20-external-cache-acceptance.md).
+
 ## Phase 19A-H asset engineering direction
 
 Phase 19A accepts documentation architecture. Phase 19B accepts the optional

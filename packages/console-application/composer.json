@@ -6,6 +6,7 @@
         "kongono/api-metadata": "*",
         "kongono/application-graph-artifact": "*",
         "kongono/asset-application": "*",
+        "kongono/cache-application": "*",
         "kongono/composition": "*",
         "kongono/console": "*",
         "kongono/console-presentation": "*",

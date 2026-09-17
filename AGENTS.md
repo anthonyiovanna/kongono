@@ -1,5 +1,112 @@
 # Kongono AI-Agent Operating Policy
 
+## Phase 20A-H optional Derived-Data Cache Platform policy
+
+Phase 20A accepts
+[ADR 0197](docs/adr/0197-explicit-derived-data-cache-and-non-authority-boundary.md),
+[ADR 0198](docs/adr/0198-deterministic-cache-freshness-atomicity-and-lifecycle.md),
+the [Cache Platform guide](docs/architecture/cache-platform.md), the
+[cache-authoring guide](docs/engineering/cache-authoring.md), and the fixed
+[Phase 20 roadmap](docs/architecture/phase-20-roadmap.md) as documentation
+architecture. Phase 20B accepts [ADR 0199](docs/adr/0199-neutral-cache-contract-and-bounded-evidence-vocabulary.md)
+and adds only the optional Experimental `kongono/cache-contract` neutral leaf.
+Phase 20C accepts [ADR 0200](docs/adr/0200-deterministic-cache-profile-artifact-and-publication.md)
+and adds only the optional Experimental `kongono/cache-build` deterministic
+profile/artifact/currentness/publication leaf described by the
+[deterministic cache-profile guide](docs/architecture/deterministic-cache-profile-build.md).
+Phase 20D accepts [ADR 0201](docs/adr/0201-neutral-cache-adapter-and-bounded-memory-implementation.md),
+the optional Experimental `kongono/cache-adapter-contract` protocol, and the
+separately optional Experimental `kongono/cache-adapter-memory` bounded
+process-local implementation described by the
+[bounded memory adapter guide](docs/architecture/bounded-memory-cache-adapter.md).
+Phase 20E accepts [ADR 0202](docs/adr/0202-exact-current-cache-runtime-and-operation-lifecycle.md)
+and the optional Experimental `kongono/cache-runtime` exact-current operation
+leaf. Phase 20F accepts [ADR 0203](docs/adr/0203-supported-cache-application-workflow-and-explicit-codec-policy-mapping.md),
+the optional Experimental `kongono/cache-application` workflow, the
+[Cache Application workflow guide](docs/architecture/cache-application-workflow.md),
+three profile-evidence commands, and the copy-once `cache-minimal` slice.
+Phase 20G accepts [ADR 0204](docs/adr/0204-visibility-safe-cache-inspection-and-developer-intelligence.md),
+the optional Experimental `kongono/cache-inspection` offline evidence leaf, and
+the [cache inspection guide](docs/architecture/cache-inspection-and-intelligence.md).
+Phase 20H accepts [ADR 0205](docs/adr/0205-phase-20-external-cache-acceptance-and-checkpoint.md),
+the root-owned [external acceptance](docs/architecture/phase-20-external-cache-acceptance.md),
+and the exact checkpoint. Phase 20A-H are Accepted and Phase 20 is closed by
+subject `Complete Kongono Phase 20 cache platform milestone` with parent
+`09da1b58859d394fd85474cde7669c638755cef4`. The graph remains 109 packages /
+467 local production edges / acyclic, with 2,161 production, 1,138 package-test,
+and 104 root-test PHP files. Phase 20B defines
+bounded immutable namespace, logical-key, key/content identity, inert codec,
+opaque-byte, caller-time, finite-freshness, entry-version, operation/outcome,
+detached entry-evidence, and nondisclosing diagnostic vocabulary. It adds no
+serialization, adapter, backend, runtime, command,
+application workflow, provider compatibility, cache operation, or authority.
+Phase 20C adds only
+explicit bounded profiles, canonical inert JSON, strict structural and
+exact-current validation, and contained content-addressed publication. It adds
+no cache entry, codec execution, adapter, backend, runtime, provider, command,
+application workflow, or authority. Phase 20D adds only an adapter protocol
+and bounded memory implementation. Phase 20E adds only exact-current operations
+with explicit time and a supplied adapter. Phase 20F adds only explicit profile
+workflow, inert codec mapping, direct composition, commands, and an example.
+Phase 20G adds only structural revalidation, optional caller-supplied detached
+aggregate runtime evidence, and bounded Safe/Protected projections; it adds no
+backend/runtime observation, cache operation, provider integration, production
+availability or authority to begin Phase 21.
+
+The Cache Platform is an optional upper application capability for bounded,
+derived, disposable evidence. Cached data is never application truth,
+persistence, authentication or authorization, a credential or session,
+capability or policy, a durable record or event, an audit receipt, a lock,
+lease, queue, rate limiter, counter, or proof of an external effect.
+Applications remain correct after miss, expiry, rejection, eviction, backend
+loss, or complete flush. Cache loss may reduce performance or availability;
+it may not change correctness, authority, or security.
+
+The Phase 20B contract keeps application values, application-owned cache namespace,
+logical key, bounded key identity, explicit codec/schema identity, opaque
+value bytes, content identity, accepted entry version, freshness policy,
+caller-supplied time, provider identity, operation identity, outcome, and
+diagnostic evidence distinct. No digest, key, codec, expiry, hit, or provider
+address silently grants meaning in another domain. The neutral contract does
+not serialize PHP objects, use `serialize()` or `unserialize()`, load classes,
+discover codecs, infer types, or execute read-through callbacks.
+
+Freshness is finite and closed. Future operations receive one explicit
+immutable `now` value rather than reading an ambient clock. Fresh hit, miss,
+expired, conditional conflict, rejected, and unavailable remain distinct typed
+outcomes. There is no default forever entry, implicit TTL, hidden sliding
+expiry, background refresh, stale fallback, newest-entry selection, implicit
+retry, or development-only permissive path.
+
+Adapters expose entries atomically or fail, return detached immutable
+results, bind conditional replace/remove to explicit version evidence, preserve
+uncertain mutation truth, and retire operation-local mutable state on every
+path. Cache atomicity grants no lock, lease, leader election, semaphore, queue,
+scheduler, durable job, rate-limit, counter, or exactly-once semantics. The
+first adapter is only an Accepted separately optional bounded in-memory profile;
+it makes no durability, distribution, shared-host, multi-process, performance,
+production availability, or provider-compatibility claim. Redis, Memcached,
+filesystem, database, cloud, vendor, PSR-6, and PSR-16 adapters are deferred.
+
+Every future namespace, key, value, metadata item, list, total byte count,
+lifetime, operation count, adapter result, duration, and diagnostic field must
+have a finite bound before an effect. Diagnostics may expose bounded Safe
+counts, closed reasons, or Protected digests, but never raw keys, cached values,
+encoded content, credentials, tokens, backend addresses, connection data,
+private application paths, arbitrary provider messages, or unbounded payloads.
+
+Phase 20 directive execution is locked. The Agent authenticates the architect
+directive, exact Phase 19 checkpoint, caller records, manifests, and report
+placeholder before mutation; preserves worktree, index, history, configuration,
+lockfile, and caller evidence; changes only literal authorized paths; keeps the
+report zero-byte until every non-report gate passes; never stages or commits;
+and stops with exact expected and observed evidence at any authority, identity,
+preservation, architecture, dependency, or scope mismatch. A Packagist-enabled
+Composer retry requires fresh command-specific user approval after disclosing
+that the locked audit may transmit or reveal the names and versions of all 175
+locked dependencies. Do not guess, repair caller records, expand scope, begin
+Phase 20B, or begin Phase 21.
+
 ## Phase 19 optional deterministic Asset Platform policy
 
 Phase 19A accepts [ADR 0188](docs/adr/0188-optional-asset-platform-and-deterministic-build-boundary.md),
