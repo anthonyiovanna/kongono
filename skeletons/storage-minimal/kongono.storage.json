@@ -1,0 +1,1 @@
+{"schema":"kongono/storage-application-profile-source/1","profiles":[{"name":"demo","contract_version":1,"namespace":"demo-objects","capabilities":["read","create","replace","delete","list","content_digest","conditional_mutation"],"digest_algorithm":"sha256","limits":{"max_chunk_bytes":1024,"max_object_bytes":4096,"max_list_page_size":10}}]}

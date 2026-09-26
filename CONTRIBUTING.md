@@ -1,5 +1,63 @@
 # Contributing to Kongono
 
+## Phase 21 storage changes
+
+Phases 21A-G are Current and Accepted. Phase 21B adds only the optional
+Experimental `kongono/storage-contract` leaf: 40 inert declarations for exact
+bounded identities, support capabilities, content evidence, conditional
+requests, typed results, and explicit source/sink lifecycle. Phase 21C adds
+only the optional Experimental `kongono/storage-build` leaf for explicit
+bounded profiles, canonical inert artifacts, strict structural and
+exact-current validation, and contained content-addressed publication. Phase
+21D adds the separately optional Experimental neutral adapter protocol and
+contained local-filesystem implementation. Do not add another adapter,
+provider, command, configuration key, credential source, or authorization
+mechanism beyond the accepted Phase 21F boundary without separate authority.
+
+Phase 21E adds only the separately optional Experimental
+`kongono/storage-runtime` exact-current operation leaf. It consumes one exact
+current profile and one directly supplied compatible neutral adapter, retains
+operation-local state only, and does not require `kongono/storage-adapter-local`.
+Phase 21F adds the separately optional Experimental
+`kongono/storage-application` profile workflow, three profile commands, and
+the copy-once `storage-minimal` example. Business authorization stays with
+the application-supplied collaborator.
+
+Future contributions must preserve install-none optionality and keep logical
+object identity, namespace, provider locator, content digest, metadata,
+version/concurrency evidence, operation lifecycle, authority, and authorization
+distinct. Storage is not cache, database persistence, asset build, HTTP
+delivery, upload handling, media processing, public-file serving, or backup.
+
+Do not introduce raw path/string authority, ambient roots, environment or
+current-working-directory discovery, a global facade, service location,
+runtime scanning, provider auto-selection, silent overwrite, hidden retries,
+universal whole-object buffering, directory discovery, automatic public URLs,
+or inflated provider guarantees. Future streaming, bounds, backpressure,
+cancellation, close, abort, uncertain mutation, and cleanup must be explicit
+and persistent-runtime safe.
+
+Review the [Storage Platform guide](docs/architecture/storage-platform.md),
+[storage-authoring guide](docs/engineering/storage-authoring.md),
+[ADR 0206](docs/adr/0206-optional-object-storage-platform-and-explicit-authority-boundary.md),
+[ADR 0207](docs/adr/0207-deterministic-storage-integrity-lifecycle-and-provider-separation.md),
+[ADR 0208](docs/adr/0208-neutral-storage-contract-and-bounded-evidence-vocabulary.md),
+[ADR 0209](docs/adr/0209-deterministic-storage-profile-artifact-and-contained-publication.md),
+[ADR 0210](docs/adr/0210-neutral-storage-adapter-and-contained-local-filesystem-implementation.md),
+[ADR 0211](docs/adr/0211-exact-current-storage-runtime-and-operation-scoped-lifecycle.md),
+[ADR 0212](docs/adr/0212-supported-storage-application-workflow-and-explicit-authorization.md),
+the [deterministic storage-profile build guide](docs/architecture/deterministic-storage-profile-build.md),
+[contained local adapter guide](docs/architecture/contained-local-storage-adapter.md),
+the [exact-current storage runtime guide](docs/architecture/exact-current-storage-runtime.md),
+the [storage application workflow guide](docs/architecture/storage-application-workflow.md),
+and [Phase 21 roadmap](docs/architecture/phase-21-roadmap.md) before proposing
+storage work. Phase 21G adds only optional offline
+[`kongono/storage-inspection`](packages/storage-inspection/README.md) evidence;
+see [ADR 0213](docs/adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
+and the [storage inspection guide](docs/architecture/storage-inspection-and-intelligence.md).
+Phase 21H adds the [root-owned local acceptance harness](docs/architecture/phase-21-external-storage-acceptance.md).
+Security audit, architect acceptance, and checkpoint remain separate gates.
+
 ## Phase 20 cache changes
 
 Phases 20A-H are Accepted and Phase 20 is closed. Phase 20B adds only

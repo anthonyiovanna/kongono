@@ -1,5 +1,132 @@
 # Kongono Glossary
 
+## Phase 21 Object Storage vocabulary
+
+Phase 21A accepts documentation architecture, Phase 21B accepts the optional
+Experimental inert `kongono/storage-contract` package, and Phase 21C accepts
+the optional Experimental `kongono/storage-build` deterministic evidence leaf.
+Phase 21D accepts the optional Experimental neutral adapter protocol and
+separately optional Experimental contained local-filesystem implementation.
+Phase 21E accepts the separately optional Experimental exact-current operation
+runtime. Phase 21F accepts the optional Experimental storage-application
+workflow, three profile commands, and a copy-once example. The bounded
+contract, explicit profile/artifact/currentness/publication vocabulary,
+adapter protocol, contained local adapter, exact-current runtime, and
+application workflow are Current. Phase 21G accepts optional offline
+storage inspection; it checks supplied
+profile/artifact coherence and optional detached bounded aggregate counts.
+Phase 21H adds root-owned local acceptance; other provider adapters remain
+Planned. See
+[ADR 0213](adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
+and the [storage inspection guide](architecture/storage-inspection-and-intelligence.md),
+plus [ADR 0214](adr/0214-phase-21-external-storage-acceptance-and-checkpoint.md)
+and the [Phase 21 acceptance guide](architecture/phase-21-external-storage-acceptance.md).
+
+### Object Storage Platform
+
+The optional provider-neutral upper application capability for
+application-owned objects and binary content whose persisted bytes may be
+authoritative. It is not cache, database persistence, asset build, upload,
+public delivery, media processing, backup, or a cloud SDK abstraction.
+
+### Logical Object Identity
+
+An opaque bounded application identity for one stored-object concept. It is
+not a filesystem path, URL, provider key, bucket, content digest, credential,
+authorization decision, or operation capability.
+
+### Logical Storage Namespace
+
+An application-owned bounded grouping for logical object identities. It does
+not select a provider root, bucket, container, endpoint, tenant, or credential.
+
+### Storage Operation Identity
+
+A bounded caller-supplied correlation token for one inert request. It grants no
+permission and is not proof that an effect occurred.
+
+### Storage Capability Set
+
+Ordered, deduplicated evidence drawn from the closed read, create, replace,
+delete, list, metadata, content-digest, and conditional-mutation vocabulary. It
+describes support only and is not authority or authorization.
+
+### Storage Mutation Condition
+
+Exactly `if_absent` for create-only intent or `if_version` with opaque accepted
+version evidence. There is no unconditional overwrite condition.
+
+### Provider Locator
+
+Adapter-owned evidence that maps a logical identity into a provider-specific
+root, bucket, container, endpoint, key, or equivalent location. It is not
+logical identity, authorization, or proof that an object exists.
+
+### Storage Adapter Descriptor
+
+Detached bounded evidence binding Adapter Contract Version 1, one adapter
+identity, one already validated storage-profile artifact, one exact profile,
+and closed guarantee and limitation sets. It does not prove exact currentness,
+grant authority, or discover an implementation.
+
+### Local Storage Root
+
+One explicitly supplied existing absolute ordinary directory accepted by the
+contained local adapter. It is private authority for that adapter instance,
+not a logical namespace, ambient filesystem API, provider credential, or Safe
+diagnostic value.
+
+### Exact-Current Storage Runtime
+
+The separately optional Phase 21E operation leaf that binds one exact current
+profile and one directly supplied compatible neutral adapter, enforces bounded
+requests before effect, validates adapter evidence, and retires operation-owned
+resources. It grants no authorization, credential, provider, network, or
+filesystem authority and does not require the contained local adapter.
+
+### Uncertain Storage Mutation
+
+A typed outcome stating that a filesystem or provider effect may have occurred
+but exact completion cannot be proved. It is neither success nor failure and
+grants no permission to retry.
+
+### Storage Profile Artifact
+
+A canonical versioned build-time description of explicit bounded
+storage declarations. It is derived evidence, not a credential, provider
+connection, authorization grant, object operation, or external truth.
+
+### Storage Profile Source Identity
+
+A lowercase SHA-256 identity over one complete canonical profile set under the
+`kongono/storage-profile-source/1` domain. It is not artifact identity,
+provider configuration, currentness, or operation authority.
+
+### Storage Profile Build Identity
+
+A lowercase SHA-256 identity over the fixed artifact schema and source identity
+under `kongono/storage-profile-build/1`. It includes no tool, host, clock,
+filesystem, environment, credential, or provider state.
+
+### Conditional Mutation
+
+A create, replace, or delete operation whose admissibility is bound to explicit
+absence, version, or concurrency evidence. It prevents silent overwrite but
+does not create a lock, lease, transaction, or exactly-once guarantee.
+
+### Uncertain Outcome
+
+A mutation result in which a provider may have accepted an effect but no
+conclusive acknowledgement was received. It is distinct from success, known
+failure, conflict, absence, and permission to retry.
+
+### Contained Storage Root
+
+One exact caller-supplied filesystem root that bounds the authority of the
+contained local adapter. Containment must be proven at read, mutation, and cleanup
+boundaries and cannot be inferred from current working directory, home,
+temporary directory, string prefix, or an unchecked joined path.
+
 ## Phase 20 Derived-Data Cache vocabulary
 
 Phase 20A accepts the architecture and Phase 20B accepts the bounded immutable

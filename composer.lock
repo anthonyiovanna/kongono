@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bf4df122bed51f2ab842fa11e07692fa",
+    "content-hash": "630d7649223990bc0df7cd623bc03ac2",
     "packages": [
         {
             "name": "google/protobuf",
@@ -1128,7 +1128,7 @@
             "dist": {
                 "type": "path",
                 "url": "packages/console-application",
-                "reference": "2fb802c598ce14acfc5dbb2ef3c28cd74dc8eeb4"
+                "reference": "8c1b64e167799cbe03fb018333038c4e6e47f625"
             },
             "require": {
                 "kongono/api-metadata": "*",
@@ -1143,6 +1143,7 @@
                 "kongono/extension-inspection": "*",
                 "kongono/observability-build": "*",
                 "kongono/security-policy-build": "*",
+                "kongono/storage-application": "*",
                 "kongono/view-application": "*",
                 "php": ">=8.5.0 <8.6.0"
             },
@@ -3360,6 +3361,250 @@
                 }
             },
             "description": "Operation-scoped Security Context construction and generated Composition integration for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/storage-adapter-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/storage-adapter-contract",
+                "reference": "1cca832f2ed4aeda908bd71fc661a3b8b678b5b8"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/storage-build": "*",
+                "kongono/storage-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\StorageAdapterContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\StorageAdapterContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Neutral bounded storage-adapter protocol and declared capability evidence for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/storage-adapter-local",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/storage-adapter-local",
+                "reference": "0686f40f8b19d303bf81d678f0c7a2461bb8e9d1"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/storage-adapter-contract": "*",
+                "kongono/storage-build": "*",
+                "kongono/storage-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\StorageAdapterLocal\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\StorageAdapterLocal\\Tests\\": "tests/"
+                }
+            },
+            "description": "Contained explicitly rooted local-filesystem storage adapter for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/storage-application",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/storage-application",
+                "reference": "5b47979bf8f8a29cd8753fabaa4737147c9fc355"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/storage-adapter-contract": "*",
+                "kongono/storage-build": "*",
+                "kongono/storage-contract": "*",
+                "kongono/storage-runtime": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "kongono/storage-adapter-local": "*",
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\StorageApplication\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\StorageApplication\\Tests\\": "tests/"
+                }
+            },
+            "description": "Explicit storage profile workflow and authorized exact-current runtime composition for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/storage-build",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/storage-build",
+                "reference": "cad93f62edd0bfe76f65b12d0c1d2dbd159681c3"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/storage-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\StorageBuild\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\StorageBuild\\Tests\\": "tests/"
+                }
+            },
+            "description": "Deterministic storage-profile artifact construction, currentness validation, and contained publication for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/storage-contract",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/storage-contract",
+                "reference": "0bc48b5a2b029165a412be308a50c15edda178c7"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\StorageContract\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\StorageContract\\Tests\\": "tests/"
+                }
+            },
+            "description": "Provider-neutral bounded storage identities, requests, results, and lifecycle contracts for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/storage-inspection",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/storage-inspection",
+                "reference": "411444c39438debf30f7f7845b0b0d5cb2b6bd8c"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/application-graph-intelligence": "*",
+                "kongono/diagnostics": "*",
+                "kongono/observability": "*",
+                "kongono/security-audit": "*",
+                "kongono/storage-application": "*",
+                "kongono/storage-build": "*",
+                "kongono/storage-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\StorageInspection\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\StorageInspection\\Tests\\": "tests/"
+                }
+            },
+            "description": "Visibility-safe storage inspection and bounded developer intelligence for Kongono Framework.",
+            "transport-options": {
+                "relative": true
+            }
+        },
+        {
+            "name": "kongono/storage-runtime",
+            "version": "dev-main",
+            "dist": {
+                "type": "path",
+                "url": "packages/storage-runtime",
+                "reference": "7e8c8b743112c2eb71e221c86c87efdbc5beaba0"
+            },
+            "require": {
+                "kongono/api-metadata": "*",
+                "kongono/diagnostics": "*",
+                "kongono/storage-adapter-contract": "*",
+                "kongono/storage-build": "*",
+                "kongono/storage-contract": "*",
+                "php": ">=8.5.0 <8.6.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Kongono\\StorageRuntime\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Kongono\\StorageRuntime\\Tests\\": "tests/"
+                }
+            },
+            "description": "Exact-current operation-scoped storage runtime with validated neutral adapter evidence for Kongono Framework.",
             "transport-options": {
                 "relative": true
             }
@@ -8919,6 +9164,13 @@
         "kongono/security-http": 20,
         "kongono/security-policy-build": 20,
         "kongono/security-runtime": 20,
+        "kongono/storage-adapter-contract": 20,
+        "kongono/storage-adapter-local": 20,
+        "kongono/storage-application": 20,
+        "kongono/storage-build": 20,
+        "kongono/storage-contract": 20,
+        "kongono/storage-inspection": 20,
+        "kongono/storage-runtime": 20,
         "kongono/tracing": 20,
         "kongono/view-application": 20,
         "kongono/view-build": 20,

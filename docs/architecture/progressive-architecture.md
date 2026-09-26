@@ -1,5 +1,47 @@
 # Progressive Architecture
 
+## Phase 21 optional storage progression
+
+Storage is an optional capability after Cache in the progressive architecture,
+not a dependency of it. Applications that do not own stored binary/object
+content install none of the optional Phase 21 packages. Lower Kernel, HTTP,
+database, persistence, security, Graph, agent, view, asset, and cache packages
+do not depend outward on Storage.
+
+Phases 21A-G are Current and Accepted. Phase 21B is the optional Experimental
+inert `kongono/storage-contract` neutral contract; 21C is the optional
+Experimental deterministic profile build, exact-current validation, and
+contained publication leaf; 21D is the optional Experimental accepted adapter
+protocol and separately optional contained local adapter; 21E the separately
+optional accepted Experimental exact-current runtime; 21F the accepted
+Experimental application workflow; 21G the optional Experimental offline
+inspection leaf; and 21H the implemented root-owned local acceptance harness
+with separate audit, architect acceptance, and checkpoint gates. The roadmap
+grants no implementation authority.
+
+The [storage inspection guide](storage-inspection-and-intelligence.md) and
+[ADR 0213](../adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
+define its in-memory evidence and nondisclosure boundary.
+
+Progression preserves explicit logical identity, provider location, content
+and concurrency evidence, authority, authorization, operation lifecycle,
+provider limitations, bounded streaming, cancellation, cleanup, containment,
+and nondisclosure. Moving from a local adapter to a future provider adapter may
+not change neutral meaning or inflate guarantees. Storage never becomes cache,
+an ambient filesystem, a provider facade, or automatic public delivery. See
+the [Storage Platform](storage-platform.md),
+[storage-authoring guide](../engineering/storage-authoring.md), and
+[ADR 0208](../adr/0208-neutral-storage-contract-and-bounded-evidence-vocabulary.md),
+[ADR 0209](../adr/0209-deterministic-storage-profile-artifact-and-contained-publication.md),
+[ADR 0210](../adr/0210-neutral-storage-adapter-and-contained-local-filesystem-implementation.md),
+[ADR 0211](../adr/0211-exact-current-storage-runtime-and-operation-scoped-lifecycle.md),
+[ADR 0212](../adr/0212-supported-storage-application-workflow-and-explicit-authorization.md),
+the [deterministic storage-profile build guide](deterministic-storage-profile-build.md),
+the [contained local adapter guide](contained-local-storage-adapter.md),
+the [exact-current storage runtime guide](exact-current-storage-runtime.md), and
+the [storage application workflow guide](storage-application-workflow.md), and
+[Phase 21 roadmap](phase-21-roadmap.md).
+
 ## Phase 20 optional cache progression
 
 The Cache Platform is an optional layer above explicit application

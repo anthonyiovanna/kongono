@@ -21,6 +21,9 @@ use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityInspectCommandHandler;
+use Kongono\ConsoleApplication\Handler\StorageBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\StorageCheckCommandHandler;
+use Kongono\ConsoleApplication\Handler\StoragePlanCommandHandler;
 use Kongono\ConsoleApplication\Handler\ViewBuildCommandHandler;
 use Kongono\ConsoleApplication\Handler\ViewCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ViewInspectCommandHandler;
@@ -32,6 +35,7 @@ use Kongono\ConsoleRuntime\CommandHandlerSet;
 use Kongono\ExtensionInspection\Loading\ExtensionInspectionLoader;
 use Kongono\ObservabilityBuild\Workflow\ObservabilityBuildWorkflow;
 use Kongono\SecurityPolicyBuild\Workflow\SecurityPolicyBuildWorkflow;
+use Kongono\StorageApplication\Workflow\StorageApplicationWorkflow;
 use Kongono\ViewApplication\Workflow\ViewApplicationBuildWorkflow;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
@@ -61,13 +65,14 @@ final class ConsoleApplicationBoundaryTest extends TestCase
             'kongono/extension-inspection' => '*',
             'kongono/observability-build' => '*',
             'kongono/security-policy-build' => '*',
+            'kongono/storage-application' => '*',
             'kongono/view-application' => '*',
             'php' => '>=8.5.0 <8.6.0',
         ], $manifest['require']);
         self::assertSame(['kongono/console-build' => '*'], $manifest['require-dev']);
         self::assertSame(['bin/kongo'], $manifest['bin']);
-        self::assertCount(28, self::phpFiles($root . '/src'));
-        self::assertCount(23, self::phpFiles($root . '/tests'));
+        self::assertCount(31, self::phpFiles($root . '/src'));
+        self::assertCount(25, self::phpFiles($root . '/tests'));
         self::assertSame(['kongo'], array_map('basename', self::ordinaryFiles($root . '/bin')));
     }
 
@@ -139,6 +144,18 @@ final class ConsoleApplicationBoundaryTest extends TestCase
                 new SecurityInspectCommandHandler(new SecurityPolicyBuildWorkflow()),
             ),
             new CommandHandlerBinding(
+                new \Kongono\Console\CommandIdentifier(KongoCommand::StorageBuild->value),
+                new StorageBuildCommandHandler(new StorageApplicationWorkflow()),
+            ),
+            new CommandHandlerBinding(
+                new \Kongono\Console\CommandIdentifier(KongoCommand::StorageCheck->value),
+                new StorageCheckCommandHandler(new StorageApplicationWorkflow()),
+            ),
+            new CommandHandlerBinding(
+                new \Kongono\Console\CommandIdentifier(KongoCommand::StoragePlan->value),
+                new StoragePlanCommandHandler(new StorageApplicationWorkflow()),
+            ),
+            new CommandHandlerBinding(
                 new \Kongono\Console\CommandIdentifier(KongoCommand::ViewBuild->value),
                 new ViewBuildCommandHandler(new ViewApplicationBuildWorkflow()),
             ),
@@ -154,9 +171,9 @@ final class ConsoleApplicationBoundaryTest extends TestCase
         (new KongoCommandValidator())->validate($specifications, $handlers);
 
         $commands = $specifications->commands();
-        self::assertCount(16, $commands);
+        self::assertCount(19, $commands);
         self::assertSame(
-            ['application-graph:inspect', 'application:build', 'asset:build', 'asset:check', 'asset:resolve', 'cache:build', 'cache:check', 'cache:plan', 'extension:inspect', 'observability:check', 'observability:inspect', 'security:check', 'security:inspect', 'view:build', 'view:check', 'view:inspect'],
+            ['application-graph:inspect', 'application:build', 'asset:build', 'asset:check', 'asset:resolve', 'cache:build', 'cache:check', 'cache:plan', 'extension:inspect', 'observability:check', 'observability:inspect', 'security:check', 'security:inspect', 'storage:build', 'storage:check', 'storage:plan', 'view:build', 'view:check', 'view:inspect'],
             array_map(static fn($command): string => $command->definition()->identifier()->value(), $commands),
         );
         self::assertSame(
@@ -174,6 +191,9 @@ final class ConsoleApplicationBoundaryTest extends TestCase
                 'Inspect planned observability configuration evidence',
                 'Check exact current security policy evidence',
                 'Inspect planned security policy evidence',
+                'Build exact current deterministic storage profiles',
+                'Check exact current deterministic storage profiles',
+                'Plan deterministic storage profiles without mutation',
                 'Build exact current compiled-view application artifact',
                 'Check exact current compiled-view application artifact',
                 'Inspect planned compiled-view application evidence',
@@ -183,7 +203,7 @@ final class ConsoleApplicationBoundaryTest extends TestCase
         foreach ($commands as $position => $command) {
             $expectedInputs = match ($position) {
                 0 => ['artifact-path'],
-                2, 3, 5, 6, 7, 13, 14, 15 => ['application-root', 'output-directory', 'source-file'],
+                2, 3, 5, 6, 7, 13, 14, 15, 16, 17, 18 => ['application-root', 'output-directory', 'source-file'],
                 4 => ['application-root', 'cache-policy', 'integrity-policy', 'logical-identity', 'output-directory', 'preload-policy', 'public-base-url', 'source-file'],
                 8 => ['declaration-artifact-path', 'generated-wiring-path'],
                 default => ['application-root', 'output-directory'],

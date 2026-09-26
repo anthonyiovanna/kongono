@@ -1,5 +1,183 @@
 # Kongono AI-Agent Operating Policy
 
+## Phase 21A-H optional Object Storage Platform policy
+
+Phase 21A accepts
+[ADR 0206](docs/adr/0206-optional-object-storage-platform-and-explicit-authority-boundary.md),
+[ADR 0207](docs/adr/0207-deterministic-storage-integrity-lifecycle-and-provider-separation.md),
+the [Storage Platform guide](docs/architecture/storage-platform.md), the
+[storage-authoring guide](docs/engineering/storage-authoring.md), and the fixed
+[Phase 21 roadmap](docs/architecture/phase-21-roadmap.md) as documentation
+architecture only. Phase 21B accepts
+[ADR 0208](docs/adr/0208-neutral-storage-contract-and-bounded-evidence-vocabulary.md)
+and adds only the optional Experimental `kongono/storage-contract` inert
+neutral leaf. Phase 21C accepts
+[ADR 0209](docs/adr/0209-deterministic-storage-profile-artifact-and-contained-publication.md),
+the [deterministic Storage Profile Build guide](docs/architecture/deterministic-storage-profile-build.md),
+and the optional Experimental `kongono/storage-build` deterministic evidence
+leaf. Phase 21D accepts
+[ADR 0210](docs/adr/0210-neutral-storage-adapter-and-contained-local-filesystem-implementation.md),
+the [contained local adapter guide](docs/architecture/contained-local-storage-adapter.md),
+the optional Experimental `kongono/storage-adapter-contract` protocol, and the
+separately optional Experimental `kongono/storage-adapter-local`
+implementation. Phase 21E accepts
+[ADR 0211](docs/adr/0211-exact-current-storage-runtime-and-operation-scoped-lifecycle.md),
+the [exact-current storage runtime guide](docs/architecture/exact-current-storage-runtime.md),
+and the separately optional Experimental `kongono/storage-runtime` operation
+leaf. Phase 21F accepts
+[ADR 0212](docs/adr/0212-supported-storage-application-workflow-and-explicit-authorization.md),
+the [storage application workflow guide](docs/architecture/storage-application-workflow.md),
+the separately optional Experimental `kongono/storage-application` package,
+three explicit profile commands, and the copy-once `storage-minimal` example.
+Phases 21A-G are Current and Accepted. Phase 21G accepts
+[ADR 0213](docs/adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md),
+the [storage inspection guide](docs/architecture/storage-inspection-and-intelligence.md),
+and the separately optional Experimental `kongono/storage-inspection` offline
+evidence leaf. It revalidates one supplied
+current build in memory and may summarize detached caller-supplied aggregates.
+It performs no object, provider, adapter, credential, authorization, runtime,
+role, recording, or export action. Phase 21H implements the root-owned local
+external acceptance harness under [ADR 0214](docs/adr/0214-phase-21-external-storage-acceptance-and-checkpoint.md)
+and the [acceptance guide](docs/architecture/phase-21-external-storage-acceptance.md).
+Its local validation, security audit, architect acceptance, and exact checkpoint
+are separate gates. Other provider adapters require separate authority.
+
+The Phase 21B contract defines Contract Version 1; bounded canonical namespace,
+logical-object and operation identities; closed capability, operation,
+condition, and outcome vocabularies; bounded bytes, media type, digest,
+metadata, version, and continuation evidence; exact read/write/delete/list
+request and result relations; and explicit source/sink lifecycle interfaces.
+Create requires `if_absent`; replace and delete require exact `if_version`
+evidence. Completed results require their matching detached evidence, while
+uncertain and other non-completed outcomes forbid success-evidence claims. The
+package performs no I/O and grants no provider, filesystem, network,
+credential, authorization, retry, or effect authority. Its 40 declarations
+are exactly 37 Experimental and three Internal, with none Public or Stable.
+
+The Phase 21C build package accepts only one explicit complete bounded profile
+set, produces canonical schema `kongono/storage-profile-artifact/1`, separates
+source, build, and exact-byte artifact identities, performs structural and
+exact-current validation, and publishes only beneath one explicit supplied
+root at a contained content-addressed no-clobber path. It has 24 declarations:
+17 Experimental, six Internal, one Public exception-family interface, and none
+Stable. It performs no object operation and grants no provider, credential,
+authorization, runtime, adapter, network, or filesystem authority beyond the
+explicit bounded publication operation.
+
+The Phase 21E runtime binds one exact current profile and one directly supplied
+compatible neutral adapter, enforces capability, namespace, condition, and
+finite bounds before effect, validates all adapter and stream evidence, and
+retires operation-owned state deterministically without hidden retry. It has 17
+declarations: eight Experimental, eight Internal, one Public exception-family
+interface, and none Stable. It depends only on accepted neutral layers and does
+not require the contained local adapter.
+
+The Phase 21F application leaf accepts one strict bounded complete source and
+offers explicit no-write plan/check and no-clobber build over exact-current
+profile artifacts. Guarded runtime composition requires one supplied current
+build, selected profile, compatible adapter, and application authorizer. The
+authorizer sees each unchanged request once; strict true delegates once;
+denial and collaborator failure are distinct. Its 21 declarations are 16
+Experimental, four Internal, and one Public exception-family interface. The
+three commands expose only bounded profile summaries and perform no object
+operation. The example authorizer is not production authorization.
+
+Kongono Storage is an optional provider-neutral upper application capability
+for application-owned objects and binary content whose persistence may be
+authoritative. It is not cache, database persistence, an asset build, upload
+controller, media processor, public-file server, backup system, or cloud SDK
+abstraction. The root framework remains fully usable without Storage. No
+provider, writable root, bucket, credential, facade, registry, service-locator
+entry, worker, or default repository is implied.
+
+Storage authority is explicitly supplied and capability-scoped. Logical object
+identity, namespace, provider locator, root/bucket/container/endpoint, content
+digest and algorithm, media type and metadata, version/concurrency token,
+operation lifecycle, and application authorization remain distinct. Paths,
+keys, URLs, environment variables, configuration records, digests, provider
+credentials, and possession of an identifier grant no operation authority.
+Tenant mapping, authorization, credentials, and egress policy remain
+application/composition-root responsibilities.
+
+Neutral contracts must not expose vendor types or option vocabularies.
+Adapters declare only guarantees they honestly support; unsupported capability
+is rejected rather than guessed, invisibly emulated, or inflated. The first
+accepted concrete adapter is the separately optional local-filesystem adapter
+under one exact caller-supplied root. It must reject traversal, absolute escape,
+ambiguous separators, device paths, reserved names, alternate data streams,
+link/reparse escape, and unprovable case ambiguity, and must prove final
+containment on read, mutation, and cleanup paths. It is not an ambient root
+filesystem API.
+
+The Phase 21D protocol binds one adapter descriptor to one already validated
+artifact and exact profile without rebuilding, discovery, or currentness
+authority. The contained local adapter supports only bounded read,
+create-if-absent, exact-version replace/delete, and ordinal paginated listing.
+Caller-owned write sources are never closed or retained; completed read
+sources are caller-owned and explicitly closed. Raw namespace and logical
+identity values never become path components. Known failure and uncertain
+mutation remain distinct, no retry is hidden, and all operation-owned handles
+and temporary files are retired without destructor dependence. Its declared
+limitations include local-filesystem and single-host scope, filesystem-
+dependent atomicity/durability, nonsnapshot listing, and no public URL,
+replication, encryption guarantee, cross-process transaction, or protection
+from arbitrary out-of-band writers.
+
+Silent overwrite and hidden retry are prohibited. Future semantics distinguish
+create-only, conditional replace, version-matched mutation, delete, absence,
+pre-existence, conflict, known completion, known failure, rejection,
+unavailability, and uncertain mutation. Checksums, lengths, tokens, versions,
+and acknowledgements are provenance-bound evidence and never claim more
+atomicity, durability, consistency, or ordering than the adapter can prove.
+Uncertain mutation is an integrity event, not success, failure, or permission
+to retry.
+
+Future operations use bounded streaming with explicit chunk/total limits,
+backpressure, cancellation, close, abort, ownership, and cleanup. Mutable state
+is operation-local and must not leak handles, sockets, temporary files,
+multipart state, buffers, locks, callbacks, credentials, or metadata into a
+later persistent-worker operation. Destructors, shutdown hooks, and garbage
+collection are not the primary lifecycle protocol. Listing is optional,
+bounded, paginated, deterministically ordered under a declared contract, and
+non-authoritative.
+
+Phase 21 follows deterministic build/runtime separation: explicit declarations
+produce a canonical versioned profile artifact; publication is explicit,
+contained, and copy-once; runtime later consumes only exact-current evidence;
+and no runtime scan, rebuild, stale reconciliation, newest selection, provider
+discovery, or fallback is permitted. Artifacts and inspection grant no
+filesystem, provider, credential, authorization, or effect authority.
+
+Diagnostics and future inspection are bounded and nondisclosing. Object bytes,
+raw identities, filesystem paths, provider locators, URLs, credentials, signing
+material, customer metadata, tenant identifiers, and provider response bodies
+are not Safe. Inspection remains offline, read-only, stateless, and cannot open
+or list objects, contact a provider, validate credentials, perform an
+operation, mutate state, rebuild artifacts, or reveal Protected/Forbidden data.
+
+The fixed roadmap is: 21A architecture/doctrine; 21B neutral contract; 21C
+accepted deterministic profile build; 21D neutral adapter plus contained local adapter;
+21E exact-current operation runtime; 21F supported application workflow; 21G
+visibility-safe inspection/intelligence; and 21H external acceptance/exact
+checkpoint. The roadmap is not implementation authority. All future public
+symbols begin Experimental unless separately promoted; Phase 21A creates none.
+PHP support remains `>=8.5.0 <8.6.0` with no PHP 8.6 or PHP 9 claim. Supported
+profile commands are accepted in Phase 21F through explicit application
+workflow inputs and do not perform object operations.
+
+Phase 21A directive execution is locked. The Agent authenticates the architect
+directive and corrections, exact Phase 20 checkpoint, caller records,
+manifests, and zero-byte active report before mutation; preserves worktree,
+semantic index, history, configuration, lockfile, and caller evidence; changes
+only the exact authorized documentation paths; keeps the report zero-byte until
+all non-report gates pass; and never stages or commits. A Packagist-enabled
+Composer retry requires fresh command-specific approval after disclosing that
+the names and versions of all 182 locked dependencies may be transmitted or
+revealed. At any authority, identity, preservation, architecture, dependency,
+or scope mismatch: stop, report exact expected and observed values, and do not
+guess, repair caller records, retry without authority, expand scope, or begin
+Phase 21B.
+
 ## Phase 20A-H optional Derived-Data Cache Platform policy
 
 Phase 20A accepts
@@ -103,7 +281,7 @@ report zero-byte until every non-report gate passes; never stages or commits;
 and stops with exact expected and observed evidence at any authority, identity,
 preservation, architecture, dependency, or scope mismatch. A Packagist-enabled
 Composer retry requires fresh command-specific user approval after disclosing
-that the locked audit may transmit or reveal the names and versions of all 175
+that the locked audit may transmit or reveal the names and versions of all 182
 locked dependencies. Do not guess, repair caller records, expand scope, begin
 Phase 20B, or begin Phase 21.
 

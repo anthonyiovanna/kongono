@@ -1,5 +1,78 @@
 # Package Layout
 
+Phase 21B adds exactly the optional Experimental
+`packages/storage-contract` neutral leaf with 40 production and 21
+package-test PHP files, plus its manifest and README. Its two local production
+edges point only to API Metadata and Diagnostics; no existing production
+package depends on it. The graph is 111 packages / 472 local production edges /
+acyclic, with inventories 2,201 production, 1,159 package-test, and 104
+root-test PHP files. The leaf contains only bounded inert identity,
+capability, content, digest, metadata, version, pagination, condition, request,
+outcome, result, stream-lifecycle, diagnostic, and exception vocabulary. It
+has no schema, artifact, path mapping, adapter, provider, runtime,
+authorization system, I/O, command, or external guarantee. See
+[ADR 0208](../adr/0208-neutral-storage-contract-and-bounded-evidence-vocabulary.md)
+and the [Storage Platform guide](../architecture/storage-platform.md).
+
+Phase 21C adds exactly the optional Experimental `packages/storage-build`
+leaf with 24 production and 15 package-test PHP files, plus its manifest and
+README. Its three local production edges point only to API Metadata,
+Diagnostics, and Storage Contract; no lower production package depends on it.
+The graph is now 111 packages / 472 local production edges / acyclic, with
+inventories 2,225 production, 1,174 package-test, and 104 root-test PHP files.
+The package contains only explicit profiles, canonical source/build/artifact
+identities, strict structural and exact-current validation, contained
+content-addressed no-clobber publication, and nondisclosing diagnostics. It
+adds no adapter, provider, credential, runtime, object operation, command, or
+application workflow. See [ADR 0209](../adr/0209-deterministic-storage-profile-artifact-and-contained-publication.md)
+and the [deterministic storage-profile build guide](../architecture/deterministic-storage-profile-build.md).
+
+Phase 21D adds exactly the optional Experimental
+`packages/storage-adapter-contract` leaf with 15 production and 12 package-test
+PHP files and the separately optional Experimental
+`packages/storage-adapter-local` leaf with 18 production and 12 package-test
+PHP files, plus their manifests and READMEs. The protocol's four local
+production edges point to API Metadata, Diagnostics, Storage Build, and
+Storage Contract. The local implementation adds those four domains through
+five edges including Storage Adapter Contract. No existing production package
+depends outward on either adapter package. The graph is now 113 packages / 481
+local production edges / acyclic, with inventories 2,258 production, 1,198
+package-test, and 104 root-test PHP files. See
+[ADR 0210](../adr/0210-neutral-storage-adapter-and-contained-local-filesystem-implementation.md)
+and the [contained local adapter guide](../architecture/contained-local-storage-adapter.md).
+
+Phase 21E adds exactly the separately optional Experimental
+`packages/storage-runtime` leaf with 17 production and 17 package-test PHP
+files, plus its manifest and README. Its five local production edges point only
+to API Metadata, Diagnostics, Storage Adapter Contract, Storage Build, and
+Storage Contract; it does not depend on Storage Adapter Local. The graph is now
+114 packages / 486 local production edges / acyclic, with inventories 2,275
+production, 1,215 package-test, and 104 root-test PHP files. See
+[ADR 0211](../adr/0211-exact-current-storage-runtime-and-operation-scoped-lifecycle.md)
+and the [exact-current storage runtime guide](../architecture/exact-current-storage-runtime.md).
+
+Phase 21F adds the separately optional Experimental
+`packages/storage-application` leaf with 21 production and five package-test
+PHP files, plus its manifest and README. Its six local production edges point
+to API Metadata, Diagnostics, Storage Contract, Storage Build, Storage Adapter
+Contract, and Storage Runtime. Console adds one dependency edge and three
+production handlers. The graph is now 115 packages / 493 local production
+edges / acyclic, with inventories 2,299 production, 1,222 package-test, and
+104 root-test PHP files. The copy-once `storage-minimal` example is separate.
+See [ADR 0212](../adr/0212-supported-storage-application-workflow-and-explicit-authorization.md)
+and the [storage application workflow guide](../architecture/storage-application-workflow.md).
+
+Phase 21G implements the separately optional Experimental
+`packages/storage-inspection` leaf with 23 production and six package-test PHP
+files, plus its manifest and README; architect acceptance is pending. Its
+eight local production edges point exactly to API Metadata, Application Graph
+Intelligence, Diagnostics, Storage Application, Storage Build, Storage
+Contract, Observability, and Security Audit. No lower production package
+depends on it. The measured graph is 116 packages / 501 local production
+edges / acyclic, with 2,322 production, 1,228 package-test, and 104 root-test
+PHP files. See [ADR 0213](../adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
+and the [storage inspection guide](../architecture/storage-inspection-and-intelligence.md).
+
 Phase 20B adds exactly the optional Experimental `packages/cache-contract`
 neutral leaf with 21 production and 14 package-test PHP files, plus its manifest
 and README. Phase 20C adds exactly the optional Experimental

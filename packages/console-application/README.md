@@ -7,11 +7,17 @@ mutate cache entries.
 
 `kongono/console-application` is the Experimental upper application
 and native-process boundary for the official `kongo` executable. It exposes
-exactly thirteen supported commands: `application-graph:inspect`,
+exactly nineteen supported commands: `application-graph:inspect`,
 `application:build`, `asset:build`, `asset:check`, `asset:resolve`,
-`extension:inspect`, `observability:check`,
-`observability:inspect`, `security:check`, `security:inspect`, `view:build`,
-`view:check`, and `view:inspect`.
+`cache:build`, `cache:check`, `cache:plan`, `extension:inspect`,
+`observability:check`, `observability:inspect`, `security:check`,
+`security:inspect`, `storage:build`, `storage:check`, `storage:plan`,
+`view:build`, `view:check`, and `view:inspect`.
+
+The storage profile commands require explicit ordinary `application-root`,
+`output-directory`, and `source-file` inputs. Plan and check are write-free;
+only `storage:build --apply` may publish an exact current profile artifact.
+They produce bounded nondisclosing summaries and perform no object operation.
 
 Use it for a one-shot Composition build when the caller supplies an explicit
 application root and output directory. `--plan` is a non-mutating dry run: it

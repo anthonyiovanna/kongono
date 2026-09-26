@@ -59,7 +59,7 @@ final class ViewRuntimeBoundaryTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(109, $manifests);
+        self::assertCount(116, $manifests);
         $edges = 0;
         foreach ($manifests as $path) {
             $candidate = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
@@ -73,7 +73,7 @@ final class ViewRuntimeBoundaryTest extends TestCase
                 self::assertArrayNotHasKey('kongono/view-runtime', $requirements);
             }
         }
-        self::assertSame(467, $edges);
+        self::assertSame(501, $edges);
     }
 
     public function testProductionSurfaceContainsNoProhibitedAuthority(): void

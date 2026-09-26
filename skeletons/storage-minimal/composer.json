@@ -1,0 +1,41 @@
+{
+  "name": "kongono/storage-minimal-application",
+  "description": "Minimal copy-once Kongono storage application skeleton.",
+  "type": "project",
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "repositories": [
+    {
+      "type": "path",
+      "url": "../../packages/*",
+      "options": {
+        "symlink": false
+      }
+    }
+  ],
+  "require": {
+    "kongono/storage-adapter-local": "@dev",
+    "kongono/storage-application": "@dev",
+    "php": ">=8.5.0 <8.6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "StorageMinimalApp\\": "src/"
+    }
+  },
+  "config": {
+    "allow-plugins": {},
+    "platform": {
+      "php": "8.5.0"
+    },
+    "preferred-install": "dist",
+    "secure-http": true,
+    "sort-packages": true
+  },
+  "scripts": {
+    "storage:plan": "@php bin/storage.php plan",
+    "storage:build": "@php bin/storage.php build",
+    "storage:check": "@php bin/storage.php check",
+    "demo": "@php bin/demo.php"
+  }
+}

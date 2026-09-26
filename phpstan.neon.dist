@@ -209,6 +209,20 @@ parameters:
         - packages/security-policy-build/tests
         - packages/security-runtime/src
         - packages/security-runtime/tests
+        - packages/storage-adapter-contract/src
+        - packages/storage-adapter-contract/tests
+        - packages/storage-adapter-local/src
+        - packages/storage-adapter-local/tests
+        - packages/storage-application/src
+        - packages/storage-application/tests
+        - packages/storage-build/src
+        - packages/storage-build/tests
+        - packages/storage-contract/src
+        - packages/storage-contract/tests
+        - packages/storage-inspection/src
+        - packages/storage-inspection/tests
+        - packages/storage-runtime/src
+        - packages/storage-runtime/tests
         - packages/tracing/src
         - packages/tracing/tests
         - packages/view-application/src
@@ -241,6 +255,9 @@ parameters:
         - skeletons/cache-minimal/bin
         - skeletons/cache-minimal/src
         - skeletons/cache-minimal/tests
+        - skeletons/storage-minimal/bin
+        - skeletons/storage-minimal/src
+        - skeletons/storage-minimal/tests
         - skeletons/view-minimal/bin
         - skeletons/view-minimal/public
         - skeletons/view-minimal/src

@@ -1,5 +1,67 @@
 # Kongono
 
+## Phase 21A-H Object Storage boundary
+
+Phase 21A accepts documentation architecture for an optional provider-neutral
+Storage Platform. It is intended for application-owned objects and binary
+content whose persisted bytes may be authoritative. It is not cache, database
+persistence, asset building, upload handling, public delivery, media
+processing, backup, or a cloud SDK abstraction.
+
+Phases 21A-G are Current and Accepted. The optional Experimental
+`kongono/storage-contract` package provides only bounded inert identities,
+capability evidence, content and metadata evidence, exact conditional requests,
+typed outcomes and results, and explicit stream lifecycle interfaces. Its 40
+declarations are 37 Experimental and three Internal. It performs no I/O and is
+not an adapter, provider, runtime, authorization system, or external guarantee.
+The optional Experimental [`kongono/storage-build`](packages/storage-build/README.md)
+package accepts explicit bounded profiles and produces canonical inert
+artifacts with strict structural and exact-current validation plus contained
+content-addressed no-clobber publication. It performs no object operation and
+adds no object adapter behavior. Phase 21D accepts the optional Experimental
+[`kongono/storage-adapter-contract`](packages/storage-adapter-contract/README.md)
+protocol and separately optional Experimental
+[`kongono/storage-adapter-local`](packages/storage-adapter-local/README.md)
+contained local-filesystem implementation. Phase 21D adds no exact-current runtime,
+command, application workflow, cloud provider, credential mechanism,
+authorization system, public delivery, or executable example. Phase 21E
+accepts the separately optional Experimental
+[`kongono/storage-runtime`](packages/storage-runtime/README.md) exact-current
+operation leaf over one exact profile and one directly supplied compatible
+neutral adapter. It does not require the contained local adapter. Phase 21F
+accepts the separately optional Experimental
+[`kongono/storage-application`](packages/storage-application/README.md)
+profile workflow, three explicit Console commands, guarded composition with
+an application-supplied authorizer, and a copy-once `storage-minimal` example.
+Phase 21G implements the optional Experimental
+[`kongono/storage-inspection`](packages/storage-inspection/README.md) offline
+evidence leaf under [ADR 0213](docs/adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
+and the [storage inspection guide](docs/architecture/storage-inspection-and-intelligence.md).
+It reconstructs supplied in-memory evidence without object, provider, or runtime
+access. Phase 21G is Current and Accepted. Phase 21H adds a
+[root-owned local acceptance harness](docs/architecture/phase-21-external-storage-acceptance.md);
+security audit, architect acceptance, and checkpoint remain separate gates.
+
+The architecture keeps logical identity, provider location, content evidence,
+concurrency evidence, authority, authorization, and operation lifecycle
+distinct. It requires honest provider capabilities, explicit conditional
+mutation and uncertain outcomes, bounded streaming, deterministic cleanup,
+contained local development, exact-current artifacts, and nondisclosing
+inspection. Start with [ADR 0206](docs/adr/0206-optional-object-storage-platform-and-explicit-authority-boundary.md),
+[ADR 0207](docs/adr/0207-deterministic-storage-integrity-lifecycle-and-provider-separation.md),
+[ADR 0208](docs/adr/0208-neutral-storage-contract-and-bounded-evidence-vocabulary.md),
+[ADR 0209](docs/adr/0209-deterministic-storage-profile-artifact-and-contained-publication.md),
+[ADR 0210](docs/adr/0210-neutral-storage-adapter-and-contained-local-filesystem-implementation.md),
+[ADR 0211](docs/adr/0211-exact-current-storage-runtime-and-operation-scoped-lifecycle.md),
+[ADR 0212](docs/adr/0212-supported-storage-application-workflow-and-explicit-authorization.md),
+the [Storage Platform guide](docs/architecture/storage-platform.md), the
+[deterministic storage-profile build guide](docs/architecture/deterministic-storage-profile-build.md), the
+[contained local adapter guide](docs/architecture/contained-local-storage-adapter.md), the
+[exact-current storage runtime guide](docs/architecture/exact-current-storage-runtime.md), the
+[storage application workflow guide](docs/architecture/storage-application-workflow.md), the
+[storage-authoring guide](docs/engineering/storage-authoring.md), and the fixed
+[Phase 21 roadmap](docs/architecture/phase-21-roadmap.md).
+
 ## Accepted Phase 20A-H Derived-Data Cache boundary
 
 Phase 20A accepts documentation architecture for an optional Derived-Data

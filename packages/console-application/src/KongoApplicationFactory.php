@@ -35,6 +35,9 @@ use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityInspectCommandHandler;
+use Kongono\ConsoleApplication\Handler\StorageBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\StorageCheckCommandHandler;
+use Kongono\ConsoleApplication\Handler\StoragePlanCommandHandler;
 use Kongono\ConsoleApplication\Handler\ViewBuildCommandHandler;
 use Kongono\ConsoleApplication\Handler\ViewCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ViewInspectCommandHandler;
@@ -48,6 +51,7 @@ use Kongono\ConsoleRuntime\CommandHandlerSet;
 use Kongono\ExtensionInspection\Loading\ExtensionInspectionLoader;
 use Kongono\ObservabilityBuild\Workflow\ObservabilityBuildWorkflow;
 use Kongono\SecurityPolicyBuild\Workflow\SecurityPolicyBuildWorkflow;
+use Kongono\StorageApplication\Workflow\StorageApplicationWorkflow;
 use Kongono\ViewApplication\Workflow\ViewApplicationBuildWorkflow;
 
 /** Constructs the closed supported application without discovery or service location. */
@@ -64,6 +68,9 @@ final class KongoApplicationFactory
         $cacheBuild = new CommandIdentifier(KongoCommand::CacheBuild->value);
         $cacheCheck = new CommandIdentifier(KongoCommand::CacheCheck->value);
         $cachePlan = new CommandIdentifier(KongoCommand::CachePlan->value);
+        $storageBuild = new CommandIdentifier(KongoCommand::StorageBuild->value);
+        $storageCheck = new CommandIdentifier(KongoCommand::StorageCheck->value);
+        $storagePlan = new CommandIdentifier(KongoCommand::StoragePlan->value);
         $extensionInspect = new CommandIdentifier(KongoCommand::ExtensionInspect->value);
         $observabilityCheck = new CommandIdentifier(KongoCommand::ObservabilityCheck->value);
         $observabilityInspect = new CommandIdentifier(KongoCommand::ObservabilityInspect->value);
@@ -121,11 +128,15 @@ final class KongoApplicationFactory
             $this->cacheSpecification($cacheBuild, 'Build exact current deterministic cache profiles', CommandMutationPolicy::MutationCapable),
             $this->cacheSpecification($cacheCheck, 'Check exact current deterministic cache profiles', CommandMutationPolicy::ReadOnly),
             $this->cacheSpecification($cachePlan, 'Plan deterministic cache profiles without mutation', CommandMutationPolicy::ReadOnly),
+            $this->storageSpecification($storageBuild, 'Build exact current deterministic storage profiles', CommandMutationPolicy::MutationCapable),
+            $this->storageSpecification($storageCheck, 'Check exact current deterministic storage profiles', CommandMutationPolicy::ReadOnly),
+            $this->storageSpecification($storagePlan, 'Plan deterministic storage profiles without mutation', CommandMutationPolicy::ReadOnly),
         ]);
         $observabilityWorkflow = new ObservabilityBuildWorkflow();
         $policyWorkflow = new SecurityPolicyBuildWorkflow();
         $assetWorkflow = new AssetApplicationWorkflow();
         $cacheWorkflow = new CacheApplicationWorkflow();
+        $storageWorkflow = new StorageApplicationWorkflow();
         $viewWorkflow = new ViewApplicationBuildWorkflow();
         $handlers = new CommandHandlerSet([
             new CommandHandlerBinding($applicationGraphInspect, new ApplicationGraphInspectCommandHandler(new ApplicationGraphArtifactLoader())),
@@ -144,6 +155,9 @@ final class KongoApplicationFactory
             new CommandHandlerBinding($cacheBuild, new CacheBuildCommandHandler($cacheWorkflow)),
             new CommandHandlerBinding($cacheCheck, new CacheCheckCommandHandler($cacheWorkflow)),
             new CommandHandlerBinding($cachePlan, new CachePlanCommandHandler($cacheWorkflow)),
+            new CommandHandlerBinding($storageBuild, new StorageBuildCommandHandler($storageWorkflow)),
+            new CommandHandlerBinding($storageCheck, new StorageCheckCommandHandler($storageWorkflow)),
+            new CommandHandlerBinding($storagePlan, new StoragePlanCommandHandler($storageWorkflow)),
         ]);
         (new KongoCommandValidator())->validate($specifications, $handlers);
 
@@ -211,6 +225,18 @@ final class KongoApplicationFactory
     }
 
     private function cacheSpecification(CommandIdentifier $identifier, string $summary, CommandMutationPolicy $mutation): CommandSpecification
+    {
+        return new CommandSpecification(
+            new CommandDefinition($identifier, new CommandSummary($summary), CommandInteractionPolicy::None, $mutation),
+            [
+                new CommandInputDefinition(new CommandInputName('application-root'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                new CommandInputDefinition(new CommandInputName('output-directory'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+                new CommandInputDefinition(new CommandInputName('source-file'), CommandInputRequirement::Required, CommandInputSensitivity::Ordinary),
+            ],
+        );
+    }
+
+    private function storageSpecification(CommandIdentifier $identifier, string $summary, CommandMutationPolicy $mutation): CommandSpecification
     {
         return new CommandSpecification(
             new CommandDefinition($identifier, new CommandSummary($summary), CommandInteractionPolicy::None, $mutation),

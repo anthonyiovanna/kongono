@@ -119,6 +119,77 @@ final class ConsoleAcceptance
             ],
             $expectedHelp,
             [
+                'identifier' => 'asset:build',
+                'summary' => 'Build exact current deterministic native assets',
+                'interaction' => 'none',
+                'mutation' => 'mutation_capable',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'asset:check',
+                'summary' => 'Check exact current deterministic native assets',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'asset:resolve',
+                'summary' => 'Resolve one exact current asset under explicit browser policy',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'cache-policy', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'integrity-policy', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'logical-identity', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'preload-policy', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'public-base-url', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'cache:build',
+                'summary' => 'Build exact current deterministic cache profiles',
+                'interaction' => 'none',
+                'mutation' => 'mutation_capable',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'cache:check',
+                'summary' => 'Check exact current deterministic cache profiles',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'cache:plan',
+                'summary' => 'Plan deterministic cache profiles without mutation',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
                 'identifier' => 'extension:inspect',
                 'summary' => 'Inspect detached extension platform evidence',
                 'interaction' => 'none',
@@ -168,6 +239,72 @@ final class ConsoleAcceptance
                     ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
                 ],
             ],
+            [
+                'identifier' => 'storage:build',
+                'summary' => 'Build exact current deterministic storage profiles',
+                'interaction' => 'none',
+                'mutation' => 'mutation_capable',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'storage:check',
+                'summary' => 'Check exact current deterministic storage profiles',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'storage:plan',
+                'summary' => 'Plan deterministic storage profiles without mutation',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'view:build',
+                'summary' => 'Build exact current compiled-view application artifact',
+                'interaction' => 'none',
+                'mutation' => 'mutation_capable',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'view:check',
+                'summary' => 'Check exact current compiled-view application artifact',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
+            [
+                'identifier' => 'view:inspect',
+                'summary' => 'Inspect planned compiled-view application evidence',
+                'interaction' => 'none',
+                'mutation' => 'read_only',
+                'inputs' => [
+                    ['name' => 'application-root', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'output-directory', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                    ['name' => 'source-file', 'requirement' => 'required', 'sensitivity' => 'ordinary'],
+                ],
+            ],
         ];
         $expectedHumanHelp = "Command: application:build\n"
             . "Summary: Build exact current application composition outputs\n"
@@ -181,6 +318,12 @@ final class ConsoleAcceptance
             . "Interaction: none\nMutation: read_only\nInputs:\n"
             . "  --artifact-path=<value> (required, ordinary)\n\n"
             . $expectedHumanHelp
+            . "\nCommand: asset:build\nSummary: Build exact current deterministic native assets\nUsage: kongo asset:build --application-root=<value> --output-directory=<value> --source-file=<value>\nInteraction: none\nMutation: mutation_capable\nInputs:\n  --application-root=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n"
+            . "\nCommand: asset:check\nSummary: Check exact current deterministic native assets\nUsage: kongo asset:check --application-root=<value> --output-directory=<value> --source-file=<value>\nInteraction: none\nMutation: read_only\nInputs:\n  --application-root=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n"
+            . "\nCommand: asset:resolve\nSummary: Resolve one exact current asset under explicit browser policy\nUsage: kongo asset:resolve --application-root=<value> --cache-policy=<value> --integrity-policy=<value> --logical-identity=<value> --output-directory=<value> --preload-policy=<value> --public-base-url=<value> --source-file=<value>\nInteraction: none\nMutation: read_only\nInputs:\n  --application-root=<value> (required, ordinary)\n  --cache-policy=<value> (required, ordinary)\n  --integrity-policy=<value> (required, ordinary)\n  --logical-identity=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --preload-policy=<value> (required, ordinary)\n  --public-base-url=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n"
+            . "\nCommand: cache:build\nSummary: Build exact current deterministic cache profiles\nUsage: kongo cache:build --application-root=<value> --output-directory=<value> --source-file=<value>\nInteraction: none\nMutation: mutation_capable\nInputs:\n  --application-root=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n"
+            . "\nCommand: cache:check\nSummary: Check exact current deterministic cache profiles\nUsage: kongo cache:check --application-root=<value> --output-directory=<value> --source-file=<value>\nInteraction: none\nMutation: read_only\nInputs:\n  --application-root=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n"
+            . "\nCommand: cache:plan\nSummary: Plan deterministic cache profiles without mutation\nUsage: kongo cache:plan --application-root=<value> --output-directory=<value> --source-file=<value>\nInteraction: none\nMutation: read_only\nInputs:\n  --application-root=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n"
             . "\nCommand: extension:inspect\n"
             . "Summary: Inspect detached extension platform evidence\n"
             . "Usage: kongo extension:inspect --declaration-artifact-path=<value> --generated-wiring-path=<value>\n"
@@ -210,7 +353,13 @@ final class ConsoleAcceptance
             . "Usage: kongo security:inspect --application-root=<value> --output-directory=<value>\n"
             . "Interaction: none\nMutation: read_only\nInputs:\n"
             . "  --application-root=<value> (required, ordinary)\n"
-            . "  --output-directory=<value> (required, ordinary)\n";
+            . "  --output-directory=<value> (required, ordinary)\n"
+            . "\nCommand: storage:build\nSummary: Build exact current deterministic storage profiles\nUsage: kongo storage:build --application-root=<value> --output-directory=<value> --source-file=<value>\nInteraction: none\nMutation: mutation_capable\nInputs:\n  --application-root=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n"
+            . "\nCommand: storage:check\nSummary: Check exact current deterministic storage profiles\nUsage: kongo storage:check --application-root=<value> --output-directory=<value> --source-file=<value>\nInteraction: none\nMutation: read_only\nInputs:\n  --application-root=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n"
+            . "\nCommand: storage:plan\nSummary: Plan deterministic storage profiles without mutation\nUsage: kongo storage:plan --application-root=<value> --output-directory=<value> --source-file=<value>\nInteraction: none\nMutation: read_only\nInputs:\n  --application-root=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n"
+            . "\nCommand: view:build\nSummary: Build exact current compiled-view application artifact\nUsage: kongo view:build --application-root=<value> --output-directory=<value> --source-file=<value>\nInteraction: none\nMutation: mutation_capable\nInputs:\n  --application-root=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n"
+            . "\nCommand: view:check\nSummary: Check exact current compiled-view application artifact\nUsage: kongo view:check --application-root=<value> --output-directory=<value> --source-file=<value>\nInteraction: none\nMutation: read_only\nInputs:\n  --application-root=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n"
+            . "\nCommand: view:inspect\nSummary: Inspect planned compiled-view application evidence\nUsage: kongo view:inspect --application-root=<value> --output-directory=<value> --source-file=<value>\nInteraction: none\nMutation: read_only\nInputs:\n  --application-root=<value> (required, ordinary)\n  --output-directory=<value> (required, ordinary)\n  --source-file=<value> (required, ordinary)\n";
 
         $directHumanHelp = $this->execute($application, $this->source, []);
         $this->expect($directHumanHelp, 0, $expectedGlobalHumanHelp, '');
@@ -222,6 +371,18 @@ final class ConsoleAcceptance
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: observability:inspect'), 'human_help_command_count');
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: security:check'), 'human_help_command_count');
         $this->require(1 === substr_count($directHumanHelp->stdout(), 'Command: security:inspect'), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: asset:build\n"), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: asset:check\n"), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: asset:resolve\n"), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: cache:build\n"), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: cache:check\n"), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: cache:plan\n"), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: storage:build\n"), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: storage:check\n"), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: storage:plan\n"), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: view:build\n"), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: view:check\n"), 'human_help_command_count');
+        $this->require(1 === substr_count($directHumanHelp->stdout(), "Command: view:inspect\n"), 'human_help_command_count');
         $this->caseCompleted();
 
         $directMachineHelp = $this->execute($application, $this->source, ['--json']);

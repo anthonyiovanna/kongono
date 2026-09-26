@@ -1,0 +1,26 @@
+{
+  "name": "kongono/storage-runtime",
+  "description": "Exact-current operation-scoped storage runtime with validated neutral adapter evidence for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "kongono/storage-adapter-contract": "*",
+    "kongono/storage-build": "*",
+    "kongono/storage-contract": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\StorageRuntime\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\StorageRuntime\\Tests\\": "tests/"
+    }
+  }
+}

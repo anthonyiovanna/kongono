@@ -37,6 +37,7 @@ use Kongono\Composition\Tests\Fixture\SecondaryOperationInput;
 use Kongono\Composition\Tests\Fixture\TrackedApplicationRoot;
 use Kongono\Composition\Tests\Fixture\TrackedOperationRoot;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\ExpectationFailedException;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use RuntimeException;
@@ -59,6 +60,9 @@ final class CompositionArtifactTest extends TestCase
 {
     private static string $applicationRoot;
     private static string $outputDirectory;
+    private static bool $unretiredValidatorProcess = false;
+    /** @var array<string, list<string>> */
+    private static array $retainedValidatorEvidence = [];
 
     public static function setUpBeforeClass(): void
     {
@@ -1267,6 +1271,115 @@ PHP
         }
     }
 
+    public function testProcessCaptureRetainsLargeOutputFromBothStreams(): void
+    {
+        $root = self::temporaryDirectory('capture success');
+        try {
+            $result = self::runProcess([
+                PHP_BINARY,
+                '-r',
+                'fwrite(STDOUT, str_repeat("o", 131072)); fwrite(STDERR, str_repeat("e", 131072));',
+            ], $root);
+            self::assertSame(0, $result['exit']);
+            self::assertSame(str_repeat('o', 131072), $result['stdout']);
+            self::assertSame(str_repeat('e', 131072), $result['stderr']);
+            self::assertSame([], self::matchedFiles($root . '/process-capture-*'));
+        } finally {
+            self::removeValidatorRootUnlessEvidenceRetained($root);
+        }
+        self::assertDirectoryDoesNotExist($root);
+    }
+
+    public function testProcessCaptureRetainsBothStreamsOnNonzeroExit(): void
+    {
+        $root = self::temporaryDirectory('capture nonzero');
+        try {
+            $result = self::runProcess([
+                PHP_BINARY,
+                '-r',
+                'fwrite(STDOUT, "stdout-nonzero\n"); fwrite(STDERR, "stderr-nonzero\n"); exit(23);',
+            ], $root);
+            self::assertSame(23, $result['exit']);
+            self::assertSame("stdout-nonzero\n", $result['stdout']);
+            self::assertSame("stderr-nonzero\n", $result['stderr']);
+            self::assertSame([], self::matchedFiles($root . '/process-capture-*'));
+            try {
+                self::assertExternalGateSucceeded('benign', $result, $root);
+                self::fail('The nonzero validator result must fail its gate.');
+            } catch (ExpectationFailedException $exception) {
+                self::assertStringContainsString('retained evidence:', $exception->getMessage());
+            }
+            $failureEvidence = $root . '/failed-gate-benign';
+            self::assertSame($result['stdout'], file_get_contents($failureEvidence . '/stdout.bin'));
+            self::assertSame($result['stderr'], file_get_contents($failureEvidence . '/stderr.bin'));
+            self::removeValidatorRootUnlessEvidenceRetained($root);
+            self::assertDirectoryExists($root);
+            self::removeTree($failureEvidence);
+            unset(self::$retainedValidatorEvidence[$root]);
+        } finally {
+            self::removeValidatorRootUnlessEvidenceRetained($root);
+        }
+        self::assertDirectoryDoesNotExist($root);
+    }
+
+    public function testProcessCaptureTimeoutRetiresOwnedChild(): void
+    {
+        $root = self::temporaryDirectory('capture timeout');
+        $lockPath = $root . '/child.lock';
+        $code = '$lock = fopen(' . var_export($lockPath, true) . ', "c");'
+            . ' if ($lock === false || !flock($lock, LOCK_EX)) { exit(77); }'
+            . ' fwrite($lock, (string) getmypid()); fflush($lock);'
+            . ' fwrite(STDOUT, "stdout-before-timeout\\n"); fflush(STDOUT);'
+            . ' fwrite(STDERR, "stderr-before-timeout\\n"); fflush(STDERR); sleep(30);';
+        try {
+            try {
+                self::runProcess([PHP_BINARY, '-r', $code], $root, 1_000);
+                self::fail('The sleeping child must time out.');
+            } catch (RuntimeException $exception) {
+                self::assertStringContainsString('timed out after 1000 ms', $exception->getMessage());
+                self::assertStringContainsString('retained capture directory:', $exception->getMessage());
+                self::assertStringContainsString('capture complete: no', $exception->getMessage());
+                self::assertStringContainsString('process retired: yes', $exception->getMessage());
+            }
+            self::assertFileExists($lockPath);
+            $pid = file_get_contents($lockPath);
+            self::assertIsString($pid);
+            self::assertMatchesRegularExpression('/^[0-9]+$/', $pid);
+            $lock = fopen($lockPath, 'c');
+            self::assertIsResource($lock);
+            try {
+                self::assertTrue(flock($lock, LOCK_EX | LOCK_NB), 'The timed-out child must release its lock.');
+                self::assertTrue(flock($lock, LOCK_UN));
+            } finally {
+                fclose($lock);
+            }
+            $captures = self::matchedFiles($root . '/process-capture-*');
+            self::assertCount(1, $captures);
+            self::assertSame("stdout-before-timeout\n", file_get_contents($captures[0] . '/stdout.bin'));
+            self::assertSame("stderr-before-timeout\n", file_get_contents($captures[0] . '/stderr.bin'));
+            self::removeValidatorRootUnlessEvidenceRetained($root);
+            self::assertDirectoryExists($root);
+
+            $otherRoot = self::temporaryDirectory('capture after timeout');
+            try {
+                $other = self::runProcess([PHP_BINARY, '-r', 'fwrite(STDOUT, "later-success");'], $otherRoot);
+                self::assertSame(0, $other['exit']);
+                self::assertSame('later-success', $other['stdout']);
+                self::assertSame('', $other['stderr']);
+            } finally {
+                self::removeValidatorRootUnlessEvidenceRetained($otherRoot);
+            }
+            self::assertDirectoryDoesNotExist($otherRoot);
+            self::assertDirectoryExists($root);
+
+            self::removeTree($captures[0]);
+            unset(self::$retainedValidatorEvidence[$root]);
+        } finally {
+            self::removeValidatorRootUnlessEvidenceRetained($root);
+        }
+        self::assertDirectoryDoesNotExist($root);
+    }
+
     private function assertSourceFailure(string $diagnosticId): void
     {
         try {
@@ -1479,11 +1592,20 @@ PHP
 
     private static function assertGeneratedPhpPassesExternalGates(GeneratedWiringArtifact $artifact): void
     {
-        $temporaryRoot = self::temporaryDirectory('generated-analysis');
+        $temporaryRoot = self::temporaryDirectory('generated analysis');
         $generatedPath = $temporaryRoot . '/kongono-wiring-v1-' . $artifact->wiringSha256() . '.php';
         self::writeFile($generatedPath, $artifact->canonicalBytes());
         $repository = str_replace('\\', '/', dirname(__DIR__, 4));
+        $cache = $temporaryRoot . '/phpstan-cache';
+        self::makeDirectory($cache);
+        $configuration = $temporaryRoot . '/phpstan-private.neon';
+        self::writeFile(
+            $configuration,
+            "includes:\n    - " . json_encode($repository . '/phpstan.neon.dist', JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)
+                . "\n\nparameters:\n    tmpDir: " . json_encode($cache, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES) . "\n",
+        );
 
+        $primary = null;
         try {
             foreach ([
                 'lint' => [PHP_BINARY, '-l', $generatedPath],
@@ -1491,7 +1613,7 @@ PHP
                     PHP_BINARY,
                     $repository . '/vendor/bin/phpstan',
                     'analyse',
-                    '--configuration=' . $repository . '/phpstan.neon.dist',
+                    '--configuration=' . $configuration,
                     '--level=max',
                     '--no-progress',
                     '--debug',
@@ -1510,11 +1632,55 @@ PHP
                 ],
             ] as $gate => $command) {
                 $result = self::runProcess($command, $temporaryRoot);
-                self::assertSame(0, $result['exit'], $gate . " failed:\n" . $result['stdout'] . $result['stderr']);
+                self::assertExternalGateSucceeded($gate, $result, $temporaryRoot);
             }
-        } finally {
-            self::removeTree($temporaryRoot);
+        } catch (Throwable $failure) {
+            $primary = $failure;
         }
+        try {
+            self::removeValidatorRootUnlessEvidenceRetained($temporaryRoot);
+        } catch (Throwable $cleanupFailure) {
+            if (null !== $primary) {
+                throw new RuntimeException($primary->getMessage() . '; cleanup failed: ' . $cleanupFailure->getMessage(), 0, $primary);
+            }
+            throw $cleanupFailure;
+        }
+        if (null !== $primary) {
+            throw $primary;
+        }
+    }
+
+    /** @param array{exit: int, stdout: string, stderr: string} $result */
+    private static function assertExternalGateSucceeded(string $gate, array $result, string $temporaryRoot): void
+    {
+        if (0 !== $result['exit']) {
+            $evidenceDirectory = $temporaryRoot . '/failed-gate-' . $gate;
+            self::retainValidatorEvidence($temporaryRoot, $evidenceDirectory);
+            self::makeDirectory($evidenceDirectory);
+            self::writeFile($evidenceDirectory . '/stdout.bin', $result['stdout']);
+            self::writeFile($evidenceDirectory . '/stderr.bin', $result['stderr']);
+            self::assertSame(
+                0,
+                $result['exit'],
+                $gate . ' failed; retained evidence: ' . $evidenceDirectory
+                    . "\nstdout:\n" . $result['stdout'] . "\nstderr:\n" . $result['stderr'],
+            );
+        }
+        self::assertSame(0, $result['exit']);
+    }
+
+    private static function retainValidatorEvidence(string $temporaryRoot, string $evidenceDirectory): void
+    {
+        self::$retainedValidatorEvidence[$temporaryRoot] ??= [];
+        self::$retainedValidatorEvidence[$temporaryRoot][] = $evidenceDirectory;
+    }
+
+    private static function removeValidatorRootUnlessEvidenceRetained(string $temporaryRoot): void
+    {
+        if (isset(self::$retainedValidatorEvidence[$temporaryRoot])) {
+            return;
+        }
+        self::removeTree($temporaryRoot);
         self::assertDirectoryDoesNotExist($temporaryRoot);
     }
 
@@ -1522,20 +1688,154 @@ PHP
      * @param list<string> $command
      * @return array{exit: int, stdout: string, stderr: string}
      */
-    private static function runProcess(array $command, string $workingDirectory): array
+    private static function runProcess(array $command, string $workingDirectory, int $timeoutMilliseconds = 600_000): array
     {
-        $pipes = [];
-        $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $workingDirectory);
-        if (!is_resource($process)) {
-            throw new RuntimeException('Generated-output validation process could not start.');
+        if ($timeoutMilliseconds < 1 || $timeoutMilliseconds > 600_000 || self::$unretiredValidatorProcess) {
+            throw new RuntimeException('Generated-output validation process has an invalid or unsafe timeout state.');
         }
-        $stdout = stream_get_contents($pipes[1]);
-        $stderr = stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        $exit = proc_close($process);
+        $captureDirectory = $workingDirectory . '/process-capture-' . bin2hex(random_bytes(12));
+        $stdoutPath = $captureDirectory . '/stdout.bin';
+        $stderrPath = $captureDirectory . '/stderr.bin';
+        $process = null;
+        $started = false;
+        $retired = false;
+        $captureComplete = false;
+        $exit = -1;
+        $stdout = null;
+        $stderr = null;
+        $primary = null;
+        try {
+            self::makeDirectory($captureDirectory);
+            $pipes = [];
+            $process = proc_open(
+                $command,
+                [1 => ['file', $stdoutPath, 'w'], 2 => ['file', $stderrPath, 'w']],
+                $pipes,
+                $workingDirectory,
+                null,
+                ['bypass_shell' => true],
+            );
+            if (!is_resource($process)) {
+                throw new RuntimeException('Generated-output validation process could not start.');
+            }
+            $started = true;
+            $deadline = hrtime(true) + $timeoutMilliseconds * 1_000_000;
+            while (true) {
+                $status = proc_get_status($process);
+                if (!$status['running']) {
+                    $retired = true;
+                    $exit = $status['exitcode'];
+                    break;
+                }
+                if (hrtime(true) >= $deadline) {
+                    throw new RuntimeException('Generated-output validation process timed out after ' . $timeoutMilliseconds . ' ms.');
+                }
+                usleep(10_000);
+            }
+        } catch (Throwable $failure) {
+            $primary = $failure;
+        }
+
+        if (is_resource($process)) {
+            try {
+                $status = proc_get_status($process);
+                if ($status['running']) {
+                    proc_terminate($process);
+                    $retirementDeadline = hrtime(true) + 30_000_000_000;
+                    while ($status['running'] && hrtime(true) < $retirementDeadline) {
+                        usleep(10_000);
+                        $status = proc_get_status($process);
+                    }
+                }
+                if ($status['running']) {
+                    self::$unretiredValidatorProcess = true;
+                    throw new RuntimeException('Generated-output validation process did not retire within 30 seconds.');
+                }
+                $retired = true;
+                if ($exit < 0) {
+                    $exit = $status['exitcode'];
+                }
+                $closedExit = proc_close($process);
+                if ($exit < 0) {
+                    $exit = $closedExit;
+                }
+            } catch (Throwable $retirementFailure) {
+                if (!$retired) {
+                    self::$unretiredValidatorProcess = true;
+                }
+                $primary = null === $primary
+                    ? $retirementFailure
+                    : new RuntimeException($primary->getMessage() . '; retirement failed: ' . $retirementFailure->getMessage(), 0, $primary);
+            }
+        }
+
+        try {
+            if (!is_file($stdoutPath) || !is_file($stderrPath)) {
+                throw new RuntimeException('Generated-output validation process output files were unavailable.');
+            }
+            $stdout = file_get_contents($stdoutPath);
+            $stderr = file_get_contents($stderrPath);
+            if (!is_string($stdout) || !is_string($stderr)) {
+                throw new RuntimeException('Generated-output validation process output was unavailable.');
+            }
+            $captureComplete = $retired && null === $primary;
+        } catch (Throwable $readFailure) {
+            $primary = null === $primary
+                ? $readFailure
+                : new RuntimeException($primary->getMessage() . '; capture failed: ' . $readFailure->getMessage(), 0, $primary);
+        }
+        if ($exit < 0 && null === $primary) {
+            $primary = new RuntimeException('Generated-output validation process did not yield a reliable completed exit code.');
+        }
+        if (null !== $primary) {
+            self::retainValidatorEvidence($workingDirectory, $captureDirectory);
+            $tail = is_string($stderr) && '' !== $stderr ? "\nstderr: " . substr($stderr, -2048) : '';
+            $retirement = $retired ? 'yes' : ($started ? 'no or unknown' : 'not started');
+            throw new RuntimeException(
+                $primary->getMessage() . '; retained capture directory: ' . $captureDirectory
+                    . '; capture complete: ' . ($captureComplete ? 'yes' : 'no')
+                    . '; process retired: ' . $retirement . $tail,
+                0,
+                $primary,
+            );
+        }
         if (!is_string($stdout) || !is_string($stderr)) {
-            throw new RuntimeException('Generated-output validation process output was unavailable.');
+            self::retainValidatorEvidence($workingDirectory, $captureDirectory);
+            throw new RuntimeException(
+                'Generated-output validation process output was unavailable; retained capture directory: '
+                    . $captureDirectory . '; capture complete: no; process retired: ' . ($retired ? 'yes' : 'no or unknown'),
+            );
+        }
+        try {
+            self::removeTree($captureDirectory);
+        } catch (Throwable $cleanupFailure) {
+            self::retainValidatorEvidence($workingDirectory, $captureDirectory);
+            try {
+                if (!is_dir($captureDirectory)) {
+                    self::makeDirectory($captureDirectory);
+                }
+                if (!is_file($stdoutPath) || $stdout !== file_get_contents($stdoutPath)) {
+                    self::writeFile($stdoutPath, $stdout);
+                }
+                if (!is_file($stderrPath) || $stderr !== file_get_contents($stderrPath)) {
+                    self::writeFile($stderrPath, $stderr);
+                }
+            } catch (Throwable $restoreFailure) {
+                $captureComplete = false;
+                $cleanupFailure = new RuntimeException(
+                    $cleanupFailure->getMessage() . '; evidence restoration failed: ' . $restoreFailure->getMessage(),
+                    0,
+                    $cleanupFailure,
+                );
+            }
+            throw new RuntimeException(
+                'Generated-output validation capture cleanup failed: ' . $cleanupFailure->getMessage()
+                    . '; retained capture directory: ' . $captureDirectory
+                    . '; capture complete: ' . ($captureComplete ? 'yes' : 'no')
+                    . '; process retired: yes',
+                0,
+                $cleanupFailure,
+            );
         }
 
         return ['exit' => $exit, 'stdout' => $stdout, 'stderr' => $stderr];

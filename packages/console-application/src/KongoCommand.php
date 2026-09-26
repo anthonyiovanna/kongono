@@ -27,4 +27,7 @@ enum KongoCommand: string
     case CacheBuild = 'cache:build';
     case CacheCheck = 'cache:check';
     case CachePlan = 'cache:plan';
+    case StorageBuild = 'storage:build';
+    case StorageCheck = 'storage:check';
+    case StoragePlan = 'storage:plan';
 }

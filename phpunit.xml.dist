@@ -112,6 +112,13 @@
             <directory>packages/security-http/tests</directory>
             <directory>packages/security-policy-build/tests</directory>
             <directory>packages/security-runtime/tests</directory>
+            <directory>packages/storage-adapter-contract/tests</directory>
+            <directory>packages/storage-adapter-local/tests</directory>
+            <directory>packages/storage-application/tests</directory>
+            <directory>packages/storage-build/tests</directory>
+            <directory>packages/storage-contract/tests</directory>
+            <directory>packages/storage-inspection/tests</directory>
+            <directory>packages/storage-runtime/tests</directory>
             <directory>packages/tracing/tests</directory>
             <directory>packages/view-application/tests</directory>
             <directory>packages/view-build/tests</directory>
@@ -222,6 +229,13 @@
             <directory>packages/security-http/src</directory>
             <directory>packages/security-policy-build/src</directory>
             <directory>packages/security-runtime/src</directory>
+            <directory>packages/storage-adapter-contract/src</directory>
+            <directory>packages/storage-adapter-local/src</directory>
+            <directory>packages/storage-application/src</directory>
+            <directory>packages/storage-build/src</directory>
+            <directory>packages/storage-contract/src</directory>
+            <directory>packages/storage-inspection/src</directory>
+            <directory>packages/storage-runtime/src</directory>
             <directory>packages/tracing/src</directory>
             <directory>packages/view-application/src</directory>
             <directory>packages/view-build/src</directory>
@@ -237,6 +251,7 @@
             <directory>skeletons/security-minimal/src</directory>
             <directory>skeletons/asset-minimal/src</directory>
             <directory>skeletons/cache-minimal/src</directory>
+            <directory>skeletons/storage-minimal/src</directory>
             <directory>skeletons/view-minimal/src</directory>
         </include>
     </source>

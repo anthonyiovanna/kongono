@@ -25,6 +25,9 @@ use Kongono\ConsoleApplication\Handler\ObservabilityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ObservabilityInspectCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\SecurityInspectCommandHandler;
+use Kongono\ConsoleApplication\Handler\StorageBuildCommandHandler;
+use Kongono\ConsoleApplication\Handler\StorageCheckCommandHandler;
+use Kongono\ConsoleApplication\Handler\StoragePlanCommandHandler;
 use Kongono\ConsoleApplication\Handler\ViewBuildCommandHandler;
 use Kongono\ConsoleApplication\Handler\ViewCheckCommandHandler;
 use Kongono\ConsoleApplication\Handler\ViewInspectCommandHandler;
@@ -39,7 +42,7 @@ final class KongoCommandValidator
     {
         $commands = $specifications->commands();
         $bindings = $handlers->bindings();
-        if (16 !== count($commands) || 16 !== count($bindings)) {
+        if (19 !== count($commands) || 19 !== count($bindings)) {
             throw InvalidConsoleApplicationValueException::invalidCommandFamily();
         }
 
@@ -129,9 +132,12 @@ final class KongoCommandValidator
             'Inspect planned security policy evidence',
             CommandMutationPolicy::ReadOnly,
         );
-        $this->validateSpecification($commands[13], KongoCommand::ViewBuild, 'Build exact current compiled-view application artifact', CommandMutationPolicy::MutationCapable, ['application-root', 'output-directory', 'source-file']);
-        $this->validateSpecification($commands[14], KongoCommand::ViewCheck, 'Check exact current compiled-view application artifact', CommandMutationPolicy::ReadOnly, ['application-root', 'output-directory', 'source-file']);
-        $this->validateSpecification($commands[15], KongoCommand::ViewInspect, 'Inspect planned compiled-view application evidence', CommandMutationPolicy::ReadOnly, ['application-root', 'output-directory', 'source-file']);
+        $this->validateSpecification($commands[13], KongoCommand::StorageBuild, 'Build exact current deterministic storage profiles', CommandMutationPolicy::MutationCapable, ['application-root', 'output-directory', 'source-file']);
+        $this->validateSpecification($commands[14], KongoCommand::StorageCheck, 'Check exact current deterministic storage profiles', CommandMutationPolicy::ReadOnly, ['application-root', 'output-directory', 'source-file']);
+        $this->validateSpecification($commands[15], KongoCommand::StoragePlan, 'Plan deterministic storage profiles without mutation', CommandMutationPolicy::ReadOnly, ['application-root', 'output-directory', 'source-file']);
+        $this->validateSpecification($commands[16], KongoCommand::ViewBuild, 'Build exact current compiled-view application artifact', CommandMutationPolicy::MutationCapable, ['application-root', 'output-directory', 'source-file']);
+        $this->validateSpecification($commands[17], KongoCommand::ViewCheck, 'Check exact current compiled-view application artifact', CommandMutationPolicy::ReadOnly, ['application-root', 'output-directory', 'source-file']);
+        $this->validateSpecification($commands[18], KongoCommand::ViewInspect, 'Inspect planned compiled-view application evidence', CommandMutationPolicy::ReadOnly, ['application-root', 'output-directory', 'source-file']);
         if (
             KongoCommand::ApplicationGraphInspect->value !== $bindings[0]->identifier()->value()
             || !$bindings[0]->handler() instanceof ApplicationGraphInspectCommandHandler
@@ -159,12 +165,18 @@ final class KongoCommandValidator
             || !$bindings[11]->handler() instanceof SecurityCheckCommandHandler
             || KongoCommand::SecurityInspect->value !== $bindings[12]->identifier()->value()
             || !$bindings[12]->handler() instanceof SecurityInspectCommandHandler
-            || KongoCommand::ViewBuild->value !== $bindings[13]->identifier()->value()
-            || !$bindings[13]->handler() instanceof ViewBuildCommandHandler
-            || KongoCommand::ViewCheck->value !== $bindings[14]->identifier()->value()
-            || !$bindings[14]->handler() instanceof ViewCheckCommandHandler
-            || KongoCommand::ViewInspect->value !== $bindings[15]->identifier()->value()
-            || !$bindings[15]->handler() instanceof ViewInspectCommandHandler
+            || KongoCommand::StorageBuild->value !== $bindings[13]->identifier()->value()
+            || !$bindings[13]->handler() instanceof StorageBuildCommandHandler
+            || KongoCommand::StorageCheck->value !== $bindings[14]->identifier()->value()
+            || !$bindings[14]->handler() instanceof StorageCheckCommandHandler
+            || KongoCommand::StoragePlan->value !== $bindings[15]->identifier()->value()
+            || !$bindings[15]->handler() instanceof StoragePlanCommandHandler
+            || KongoCommand::ViewBuild->value !== $bindings[16]->identifier()->value()
+            || !$bindings[16]->handler() instanceof ViewBuildCommandHandler
+            || KongoCommand::ViewCheck->value !== $bindings[17]->identifier()->value()
+            || !$bindings[17]->handler() instanceof ViewCheckCommandHandler
+            || KongoCommand::ViewInspect->value !== $bindings[18]->identifier()->value()
+            || !$bindings[18]->handler() instanceof ViewInspectCommandHandler
         ) {
             throw InvalidConsoleApplicationValueException::invalidCommandFamily();
         }

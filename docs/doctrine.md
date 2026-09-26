@@ -1,5 +1,64 @@
 # Kongono Architectural Doctrine
 
+## Optional Object Storage Platform doctrine
+
+Phase 21A accepts documentation architecture for an optional provider-neutral
+Storage Platform. Phase 21B accepts only the optional Experimental inert
+`kongono/storage-contract` package. Its bounded identities, declared support,
+content evidence, conditions, requests, outcomes, results, and stream
+lifecycle interfaces grant no authority and perform no I/O. Phase 21C accepts
+only the optional Experimental `kongono/storage-build` package for explicit
+profiles, canonical artifact evidence, strict exact-current validation, and
+contained no-clobber publication. Phases 21A-G are Current and Accepted;
+Phase 21D accepts the optional Experimental neutral adapter protocol and
+separately optional Experimental contained local-filesystem implementation.
+Phase 21E accepts the separately optional Experimental
+`kongono/storage-runtime` exact-current operation leaf over one exact profile
+and one directly supplied compatible neutral adapter; it does not require the
+local adapter. Phase 21F accepts the optional Experimental
+`kongono/storage-application` workflow, three profile commands, and the
+copy-once `storage-minimal` example with an application-supplied authorizer.
+Phase 21G accepts optional Experimental `kongono/storage-inspection`
+offline evidence. It checks supplied
+in-memory profile/artifact coherence and emits only bounded Safe aggregates
+and Protected digests. See [ADR 0213](adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
+and the [storage inspection guide](architecture/storage-inspection-and-intelligence.md).
+Phase 21H adds [root-owned local acceptance](architecture/phase-21-external-storage-acceptance.md)
+under [ADR 0214](adr/0214-phase-21-external-storage-acceptance-and-checkpoint.md).
+Security audit, architect acceptance, and checkpoint remain separate. No cloud provider, credential discovery,
+generated business authorization, or public delivery is implemented.
+
+Storage may retain authoritative and irreplaceable application-owned binary
+content. It therefore never inherits cache expiry, eviction, loss-tolerance,
+stale fallback, or best-effort mutation. Logical identity, namespace, provider
+location, content evidence, metadata, concurrency evidence, operation
+lifecycle, authority, authorization, credentials, and egress permission remain
+separate.
+
+The doctrine requires explicit capabilities, provider-neutral contracts,
+honest adapter limitations, create-only and conditional mutation, visible
+uncertain outcomes, bounded streaming, cancellation, close/abort, deterministic
+cleanup, persistent-runtime isolation, contained local mapping, deterministic
+profile artifacts, exact-current runtime consumption, and bounded
+nondisclosing diagnostics. It prohibits ambient roots, path/string authority,
+facades, service location, runtime scanning, provider auto-selection, silent
+overwrite, hidden retry, directory discovery, and automatic public URLs.
+
+See [ADR 0206](adr/0206-optional-object-storage-platform-and-explicit-authority-boundary.md),
+[ADR 0207](adr/0207-deterministic-storage-integrity-lifecycle-and-provider-separation.md),
+[ADR 0208](adr/0208-neutral-storage-contract-and-bounded-evidence-vocabulary.md),
+[ADR 0209](adr/0209-deterministic-storage-profile-artifact-and-contained-publication.md),
+[ADR 0210](adr/0210-neutral-storage-adapter-and-contained-local-filesystem-implementation.md),
+[ADR 0211](adr/0211-exact-current-storage-runtime-and-operation-scoped-lifecycle.md),
+[ADR 0212](adr/0212-supported-storage-application-workflow-and-explicit-authorization.md),
+the [Storage Platform guide](architecture/storage-platform.md), the
+[deterministic storage-profile build guide](architecture/deterministic-storage-profile-build.md), the
+[contained local adapter guide](architecture/contained-local-storage-adapter.md), the
+[exact-current storage runtime guide](architecture/exact-current-storage-runtime.md), the
+[storage application workflow guide](architecture/storage-application-workflow.md), the
+[storage-authoring guide](engineering/storage-authoring.md), and the fixed
+[Phase 21 roadmap](architecture/phase-21-roadmap.md).
+
 ## Optional Derived-Data Cache Platform doctrine
 
 Phase 20A accepts documentation architecture for an optional Derived-Data

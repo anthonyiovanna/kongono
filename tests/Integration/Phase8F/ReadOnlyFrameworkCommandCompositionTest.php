@@ -17,6 +17,7 @@ final class ReadOnlyFrameworkCommandCompositionTest extends TestCase
     {
         $repository = dirname(__DIR__, 3);
         $applicationRoot = self::temporaryDirectory();
+        $completed = false;
 
         try {
             self::makeDirectory($applicationRoot . '/resources');
@@ -52,9 +53,9 @@ final class ReadOnlyFrameworkCommandCompositionTest extends TestCase
             $scriptPath = $applicationRoot . '/phase8f-proof.php';
             self::writeFile($scriptPath, $script);
 
-            $lint = self::runProcess([PHP_BINARY, '-l', $scriptPath]);
+            $lint = self::runProcess([PHP_BINARY, '-l', $scriptPath], $applicationRoot, 'outer-lint', 120);
             self::assertSame(0, $lint['exit'], $lint['stderr'] . $lint['stdout']);
-            $proof = self::runProcess([PHP_BINARY, $scriptPath]);
+            $proof = self::runProcess([PHP_BINARY, $scriptPath], $applicationRoot, 'outer-proof', 240);
             self::assertSame(0, $proof['exit'], $proof['stderr'] . $proof['stdout']);
             $evidence = self::object(json_decode($proof['stdout'], true, flags: JSON_THROW_ON_ERROR));
             self::assertSame(['lint' => 0, 'phpstan' => 0, 'style' => 0], self::object($evidence['generated_gates'] ?? null));
@@ -96,8 +97,11 @@ final class ReadOnlyFrameworkCommandCompositionTest extends TestCase
             self::assertTrue($evidence['operation_closed']);
             self::assertTrue($evidence['application_retired']);
             self::assertTrue($evidence['generated_removed']);
+            $completed = true;
         } finally {
-            self::removeTree($applicationRoot);
+            if ($completed) {
+                self::removeTree($applicationRoot);
+            }
         }
 
         self::assertDirectoryDoesNotExist($applicationRoot);
@@ -137,19 +141,152 @@ function expect(bool $condition, string $message): void
 }
 
 /** @param list<string> $command @return array{exit: int, stdout: string, stderr: string} */
-function runCommand(array $command, ?string $workingDirectory = null): array
+function runCommand(array $command, string $stage, string $captureRoot, ?string $workingDirectory = null): array
 {
-    $pipes = [];
-    $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $workingDirectory);
-    if (!is_resource($process)) {
-        throw new RuntimeException('Process start failed.');
+    $capture = $captureRoot . '/capture-' . $stage . '-' . bin2hex(random_bytes(8));
+    if (!mkdir($capture, 0700)) {
+        throw new RuntimeException('Process capture directory could not be created.');
     }
-    $stdout = stream_get_contents($pipes[1]);
-    $stderr = stream_get_contents($pipes[2]);
-    fclose($pipes[1]);
-    fclose($pipes[2]);
-    $exit = proc_close($process);
+    $stdoutPath = $capture . '/stdout.bin';
+    $stderrPath = $capture . '/stderr.bin';
+    foreach ([$stdoutPath, $stderrPath] as $path) {
+        $handle = fopen($path, 'x');
+        if (false === $handle) {
+            throw new RuntimeException('Process capture file could not be created.');
+        }
+        fclose($handle);
+    }
+    $evidenceRoot = getenv('KONGONO_PHASE8F_EVIDENCE_DIR');
+    if (false === $evidenceRoot) {
+        $evidenceRoot = $captureRoot;
+    }
+    if (!is_dir($evidenceRoot) || is_link($evidenceRoot)) {
+        throw new RuntimeException('Process evidence root is invalid.');
+    }
+    $sidecarPath = $evidenceRoot . '/phase8f-' . $stage . '-' . bin2hex(random_bytes(12)) . '.json';
+    $started = gmdate('c');
+    $exit = null;
+    $timedOut = false;
+    $retired = false;
+    $failure = null;
+    $pipes = [];
+    try {
+        $process = proc_open($command, [1 => ['file', $stdoutPath, 'w'], 2 => ['file', $stderrPath, 'w']], $pipes, $workingDirectory);
+        if (!is_resource($process)) {
+            throw new RuntimeException('Process start failed.');
+        }
+        $deadline = microtime(true) + 120;
+        do {
+            $status = proc_get_status($process);
+            if (!$status['running']) {
+                break;
+            }
+            if (microtime(true) >= $deadline) {
+                $timedOut = true;
+                break;
+            }
+            usleep(100000);
+        } while (true);
+        if ($timedOut) {
+            if ('Windows' !== PHP_OS_FAMILY) {
+                if (!proc_terminate($process)) {
+                    throw new RuntimeException('Process child could not be terminated.');
+                }
+            } else {
+                $systemRoot = getenv('SystemRoot');
+                if (false === $systemRoot) {
+                    throw new RuntimeException('Process system root is unavailable.');
+                }
+                $killer = proc_open(
+                    [rtrim($systemRoot, '/\\') . '/System32/taskkill.exe', '/PID', (string) $status['pid'], '/T', '/F'],
+                    [1 => ['file', $capture . '/retire.stdout.bin', 'w'], 2 => ['file', $capture . '/retire.stderr.bin', 'w']],
+                    $killerPipes,
+                );
+                if (!is_resource($killer)) {
+                    throw new RuntimeException('Process tree retirement could not start.');
+                }
+                $killerDeadline = microtime(true) + 10;
+                do {
+                    $killerStatus = proc_get_status($killer);
+                    if (!$killerStatus['running']) {
+                        break;
+                    }
+                    if (microtime(true) >= $killerDeadline) {
+                        proc_terminate($killer);
+                        throw new RuntimeException('Process tree retirement timed out.');
+                    }
+                    usleep(100000);
+                } while (true);
+                $killerExit = proc_close($killer);
+                if (0 !== ($killerStatus['exitcode'] >= 0 ? $killerStatus['exitcode'] : $killerExit)) {
+                    throw new RuntimeException('Process tree retirement failed.');
+                }
+            }
+            $retireDeadline = microtime(true) + 10;
+            do {
+                $status = proc_get_status($process);
+                if (!$status['running']) {
+                    break;
+                }
+                if (microtime(true) >= $retireDeadline) {
+                    throw new RuntimeException('Process child retirement is uncertain.');
+                }
+                usleep(100000);
+            } while (true);
+        }
+        $retired = true;
+        $closedExit = proc_close($process);
+        $exit = $status['exitcode'] >= 0 ? $status['exitcode'] : $closedExit;
+        if ($exit < 0) {
+            throw new RuntimeException('Process child exit status is unavailable.');
+        }
+    } catch (\Throwable $caught) {
+        $failure = $caught;
+    }
+    clearstatcache(true, $stdoutPath);
+    clearstatcache(true, $stderrPath);
+    $stdoutBytes = filesize($stdoutPath);
+    $stderrBytes = filesize($stderrPath);
+    $record = [
+        'stage' => $stage,
+        'command' => $command,
+        'started_utc' => $started,
+        'ended_utc' => gmdate('c'),
+        'exit' => $exit,
+        'timed_out' => $timedOut,
+        'retired' => $retired,
+        'stdout_bytes' => $stdoutBytes,
+        'stderr_bytes' => $stderrBytes,
+        'failure' => $failure?->getMessage(),
+    ];
+    $sidecar = fopen($sidecarPath, 'x');
+    if (false === $sidecar) {
+        throw new RuntimeException('Process sidecar could not be created.');
+    }
+    $encoded = json_encode($record, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+    if (strlen($encoded) !== fwrite($sidecar, $encoded)) {
+        fclose($sidecar);
+        throw new RuntimeException('Process sidecar write failed.');
+    }
+    fclose($sidecar);
+    if (null !== $failure) {
+        throw $failure;
+    }
+    if ($timedOut) {
+        throw new RuntimeException('Process deadline exceeded after child retirement.');
+    }
+    if (!is_int($stdoutBytes) || !is_int($stderrBytes) || $stdoutBytes > 8388608 || $stderrBytes > 8388608) {
+        throw new RuntimeException('Process capture exceeded the 8 MiB stream bound.');
+    }
+    $stdout = file_get_contents($stdoutPath);
+    $stderr = file_get_contents($stderrPath);
     expect(is_string($stdout) && is_string($stderr), 'Process output was unavailable.');
+    if (0 === $exit) {
+        foreach ([$stdoutPath, $stderrPath] as $path) {
+            expect(unlink($path), 'Process capture cleanup failed.');
+        }
+        expect(rmdir($capture), 'Process capture directory cleanup failed.');
+    }
 
     return ['exit' => $exit, 'stdout' => $stdout, 'stderr' => $stderr];
 }
@@ -183,7 +320,7 @@ $generatedPath = $applicationRoot . '/kongono-wiring-v1-' . $wiring->wiringSha25
 expect(strlen($wiring->canonicalBytes()) === file_put_contents($generatedPath, $wiring->canonicalBytes()), 'Generated write failed.');
 
 $gates = [
-    'lint' => runCommand([PHP_BINARY, '-l', $generatedPath]),
+    'lint' => runCommand([PHP_BINARY, '-l', $generatedPath], 'nested-lint', $applicationRoot),
     'phpstan' => runCommand([
         PHP_BINARY,
         $repository . '/vendor/bin/phpstan',
@@ -194,7 +331,7 @@ $gates = [
         '--debug',
         '--autoload-file=' . $repository . '/vendor/autoload.php',
         $generatedPath,
-    ], $applicationRoot),
+    ], 'nested-phpstan', $applicationRoot, $applicationRoot),
     'style' => runCommand([
         PHP_BINARY,
         $repository . '/vendor/bin/php-cs-fixer',
@@ -204,7 +341,7 @@ $gates = [
         '--diff',
         '--using-cache=no',
         $generatedPath,
-    ]),
+    ], 'nested-style', $applicationRoot),
 ];
 foreach ($gates as $name => $gate) {
     expect(0 === $gate['exit'], $name . " failed:\n" . $gate['stdout'] . $gate['stderr']);
@@ -343,23 +480,170 @@ PHP;
      * @param list<string> $command
      * @return array{exit: int, stdout: string, stderr: string}
      */
-    private static function runProcess(array $command): array
+    private static function runProcess(array $command, string $root, string $stage, int $timeoutSeconds): array
     {
-        $pipes = [];
-        $process = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
-        if (!is_resource($process)) {
-            throw new RuntimeException('External Phase 8F proof could not start.');
+        $capture = $root . '/capture-' . $stage . '-' . bin2hex(random_bytes(8));
+        if (!mkdir($capture, 0700)) {
+            throw new RuntimeException('External Phase 8F capture directory could not be created.');
         }
-        $stdout = stream_get_contents($pipes[1]);
-        $stderr = stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        $exit = proc_close($process);
+        $stdoutPath = $capture . '/stdout.bin';
+        $stderrPath = $capture . '/stderr.bin';
+        foreach ([$stdoutPath, $stderrPath] as $path) {
+            $handle = fopen($path, 'x');
+            if (false === $handle) {
+                throw new RuntimeException('External Phase 8F capture file could not be created.');
+            }
+            fclose($handle);
+        }
+        $evidenceRoot = getenv('KONGONO_PHASE8F_EVIDENCE_DIR');
+        if (false === $evidenceRoot) {
+            $evidenceRoot = $root;
+        }
+        if (!is_dir($evidenceRoot) || is_link($evidenceRoot)) {
+            throw new RuntimeException('External Phase 8F evidence root is invalid.');
+        }
+        $sidecarPath = $evidenceRoot . '/phase8f-' . $stage . '-' . bin2hex(random_bytes(12)) . '.json';
+        $started = gmdate('c');
+        $exit = null;
+        $timedOut = false;
+        $retired = false;
+        $failure = null;
+        $pipes = [];
+        try {
+            $process = proc_open($command, [1 => ['file', $stdoutPath, 'w'], 2 => ['file', $stderrPath, 'w']], $pipes);
+            if (!is_resource($process)) {
+                throw new RuntimeException('External Phase 8F proof could not start.');
+            }
+            $deadline = microtime(true) + $timeoutSeconds;
+            do {
+                $status = proc_get_status($process);
+                if (!$status['running']) {
+                    break;
+                }
+                if (microtime(true) >= $deadline) {
+                    $timedOut = true;
+                    break;
+                }
+                usleep(100000);
+            } while (true);
+            if ($timedOut) {
+                self::retireProcessTree($process, $status['pid'], $capture);
+                $status = proc_get_status($process);
+                if ($status['running']) {
+                    throw new RuntimeException('External Phase 8F child retirement is uncertain.');
+                }
+            }
+            $retired = true;
+            $closedExit = proc_close($process);
+            $exit = $status['exitcode'] >= 0 ? $status['exitcode'] : $closedExit;
+            if ($exit < 0) {
+                throw new RuntimeException('External Phase 8F child exit status is unavailable.');
+            }
+        } catch (\Throwable $caught) {
+            $failure = $caught;
+        }
+        clearstatcache(true, $stdoutPath);
+        clearstatcache(true, $stderrPath);
+        $stdoutBytes = filesize($stdoutPath);
+        $stderrBytes = filesize($stderrPath);
+        $record = [
+            'stage' => $stage,
+            'command' => $command,
+            'started_utc' => $started,
+            'ended_utc' => gmdate('c'),
+            'exit' => $exit,
+            'timed_out' => $timedOut,
+            'retired' => $retired,
+            'stdout_bytes' => $stdoutBytes,
+            'stderr_bytes' => $stderrBytes,
+            'failure' => $failure?->getMessage(),
+        ];
+        $sidecar = fopen($sidecarPath, 'x');
+        if (false === $sidecar) {
+            throw new RuntimeException('External Phase 8F sidecar could not be created.');
+        }
+        $encoded = json_encode($record, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        if (strlen($encoded) !== fwrite($sidecar, $encoded)) {
+            fclose($sidecar);
+            throw new RuntimeException('External Phase 8F sidecar write failed.');
+        }
+        fclose($sidecar);
+        if (null !== $failure) {
+            throw $failure;
+        }
+        if ($timedOut) {
+            throw new RuntimeException('External Phase 8F deadline exceeded after child retirement.');
+        }
+        if (!is_int($stdoutBytes) || !is_int($stderrBytes) || $stdoutBytes > 8388608 || $stderrBytes > 8388608) {
+            throw new RuntimeException('External Phase 8F capture exceeded the 8 MiB stream bound.');
+        }
+        $stdout = file_get_contents($stdoutPath);
+        $stderr = file_get_contents($stderrPath);
         if (!is_string($stdout) || !is_string($stderr)) {
             throw new RuntimeException('External Phase 8F proof output was unavailable.');
         }
+        if (0 === $exit) {
+            foreach ([$stdoutPath, $stderrPath] as $path) {
+                if (!unlink($path)) {
+                    throw new RuntimeException('External Phase 8F capture cleanup failed.');
+                }
+            }
+            if (!rmdir($capture)) {
+                throw new RuntimeException('External Phase 8F capture directory cleanup failed.');
+            }
+        }
 
         return ['exit' => $exit, 'stdout' => $stdout, 'stderr' => $stderr];
+    }
+
+    /** @param resource $process */
+    private static function retireProcessTree($process, int $pid, string $capture): void
+    {
+        if ('Windows' !== PHP_OS_FAMILY) {
+            if (!proc_terminate($process)) {
+                throw new RuntimeException('External Phase 8F child could not be terminated.');
+            }
+        } else {
+            $systemRoot = getenv('SystemRoot');
+            if (false === $systemRoot) {
+                throw new RuntimeException('External Phase 8F system root is unavailable.');
+            }
+            $killer = proc_open(
+                [rtrim($systemRoot, '/\\') . '/System32/taskkill.exe', '/PID', (string) $pid, '/T', '/F'],
+                [1 => ['file', $capture . '/retire.stdout.bin', 'w'], 2 => ['file', $capture . '/retire.stderr.bin', 'w']],
+                $killerPipes,
+            );
+            if (!is_resource($killer)) {
+                throw new RuntimeException('External Phase 8F tree retirement could not start.');
+            }
+            $killerDeadline = microtime(true) + 10;
+            do {
+                $killerStatus = proc_get_status($killer);
+                if (!$killerStatus['running']) {
+                    break;
+                }
+                if (microtime(true) >= $killerDeadline) {
+                    proc_terminate($killer);
+                    throw new RuntimeException('External Phase 8F tree retirement timed out.');
+                }
+                usleep(100000);
+            } while (true);
+            $killerExit = proc_close($killer);
+            if (0 !== ($killerStatus['exitcode'] >= 0 ? $killerStatus['exitcode'] : $killerExit)) {
+                throw new RuntimeException('External Phase 8F tree retirement failed.');
+            }
+        }
+        $deadline = microtime(true) + 10;
+        do {
+            $status = proc_get_status($process);
+            if (!$status['running']) {
+                return;
+            }
+            if (microtime(true) >= $deadline) {
+                throw new RuntimeException('External Phase 8F child retirement is uncertain.');
+            }
+            usleep(100000);
+        } while (true);
     }
 
     /** @return array<string, mixed> */

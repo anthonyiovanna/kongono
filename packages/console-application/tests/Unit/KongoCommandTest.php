@@ -28,6 +28,9 @@ final class KongoCommandTest extends TestCase
             'cache:build',
             'cache:check',
             'cache:plan',
+            'storage:build',
+            'storage:check',
+            'storage:plan',
         ], array_column(KongoCommand::cases(), 'value'));
         self::assertSame(KongoCommand::ApplicationBuild, KongoCommand::from('application:build'));
         self::assertSame(KongoCommand::ApplicationGraphInspect, KongoCommand::from('application-graph:inspect'));
@@ -42,6 +45,9 @@ final class KongoCommandTest extends TestCase
         self::assertSame(KongoCommand::ObservabilityInspect, KongoCommand::from('observability:inspect'));
         self::assertSame(KongoCommand::SecurityCheck, KongoCommand::from('security:check'));
         self::assertSame(KongoCommand::SecurityInspect, KongoCommand::from('security:inspect'));
+        self::assertSame(KongoCommand::StorageBuild, KongoCommand::from('storage:build'));
+        self::assertSame(KongoCommand::StorageCheck, KongoCommand::from('storage:check'));
+        self::assertSame(KongoCommand::StoragePlan, KongoCommand::from('storage:plan'));
         self::assertSame(KongoCommand::ViewBuild, KongoCommand::from('view:build'));
         self::assertSame(KongoCommand::ViewCheck, KongoCommand::from('view:check'));
         self::assertSame(KongoCommand::ViewInspect, KongoCommand::from('view:inspect'));

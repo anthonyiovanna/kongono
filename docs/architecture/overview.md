@@ -1,5 +1,59 @@
 # Architecture Overview
 
+## Phase 21A-H optional Object Storage map
+
+Phase 21A accepts documentation architecture for an optional provider-neutral
+Storage Platform above explicit application composition. Phase 21B accepts the
+optional inert Experimental `kongono/storage-contract` leaf. Phase 21C accepts
+the optional Experimental `kongono/storage-build` deterministic profile,
+artifact, exact-current validation, and contained publication leaf. Phase 21D
+accepts the optional Experimental `kongono/storage-adapter-contract` protocol
+and separately optional Experimental `kongono/storage-adapter-local`
+contained implementation. Phase 21E accepts the separately optional
+Experimental `kongono/storage-runtime` exact-current operation leaf. Phase 21F
+accepts the optional Experimental `kongono/storage-application` workflow,
+three profile commands, and copy-once example.
+Phase 21G accepts the optional Experimental `kongono/storage-inspection`
+offline evidence leaf. It checks supplied
+current profiles and artifacts in memory, and may include caller-supplied
+detached aggregates; see [ADR 0213](../adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
+and the [storage inspection guide](storage-inspection-and-intelligence.md).
+Phase 21G is Current and Accepted. Phase 21H adds the
+[root-owned local acceptance harness](phase-21-external-storage-acceptance.md);
+security audit, architect acceptance, and checkpoint remain separate gates.
+
+```text
+application authorization and composition
+    -> Current application workflow
+        -> Current exact-current operation runtime
+            -> Current neutral adapter protocol
+                -> Current contained local adapter
+    -> Current deterministic profile build
+        -> Current neutral storage contract
+    -> Current visibility-safe inspection
+```
+
+Storage is optional and distinct from cache, database persistence, assets,
+HTTP delivery, uploads, media processing, public serving, and backup. Logical
+identity, provider location, content and concurrency evidence, operation
+lifecycle, authority, and authorization remain separate. Runtime operations
+make conditional mutation, uncertainty, streaming bounds, cancellation,
+close/abort, cleanup, containment, and provider limitations explicit. See the
+[Storage Platform](storage-platform.md),
+[storage-authoring guide](../engineering/storage-authoring.md),
+[ADR 0206](../adr/0206-optional-object-storage-platform-and-explicit-authority-boundary.md),
+[ADR 0207](../adr/0207-deterministic-storage-integrity-lifecycle-and-provider-separation.md),
+[ADR 0208](../adr/0208-neutral-storage-contract-and-bounded-evidence-vocabulary.md),
+the [deterministic storage-profile build guide](deterministic-storage-profile-build.md),
+[ADR 0209](../adr/0209-deterministic-storage-profile-artifact-and-contained-publication.md),
+[ADR 0210](../adr/0210-neutral-storage-adapter-and-contained-local-filesystem-implementation.md),
+[ADR 0211](../adr/0211-exact-current-storage-runtime-and-operation-scoped-lifecycle.md),
+[ADR 0212](../adr/0212-supported-storage-application-workflow-and-explicit-authorization.md),
+the [contained local adapter guide](contained-local-storage-adapter.md),
+the [exact-current storage runtime guide](exact-current-storage-runtime.md),
+the [storage application workflow guide](storage-application-workflow.md),
+and [Phase 21 roadmap](phase-21-roadmap.md).
+
 ## Phase 20A-H optional Derived-Data Cache map
 
 Phase 20A accepts documentation architecture for an optional upper

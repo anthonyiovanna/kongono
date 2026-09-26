@@ -53,7 +53,7 @@ final class NetworkEgressRuntimeBoundaryTest extends TestCase
         $root = dirname(__DIR__, 4);
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(109, $manifests);
+        self::assertCount(116, $manifests);
         $graph = [];
         $edges = 0;
         foreach ($manifests as $path) {
@@ -74,7 +74,7 @@ final class NetworkEgressRuntimeBoundaryTest extends TestCase
                 self::assertArrayNotHasKey('kongono/network-egress-runtime', $manifest['require']);
             }
         }
-        self::assertSame(467, $edges);
+        self::assertSame(501, $edges);
         $visit = static function (string $name, array $path = []) use (&$visit, $graph): void {
             self::assertArrayNotHasKey($name, $path);
             $path[$name] = true;

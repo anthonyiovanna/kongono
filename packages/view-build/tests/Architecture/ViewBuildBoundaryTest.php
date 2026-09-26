@@ -47,7 +47,7 @@ final class ViewBuildBoundaryTest extends TestCase
         self::assertCount(16, self::phpFiles($package . '/tests'));
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(109, $manifests);
+        self::assertCount(116, $manifests);
         foreach ($manifests as $path) {
             $candidate = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
             self::assertIsArray($candidate);

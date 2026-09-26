@@ -68,7 +68,7 @@ final class ExternalServiceBindingBuildBoundaryTest extends TestCase
         $root = dirname(__DIR__, 4);
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(109, $manifests);
+        self::assertCount(116, $manifests);
         $names = [];
         foreach ($manifests as $path) {
             $manifest = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
@@ -94,7 +94,7 @@ final class ExternalServiceBindingBuildBoundaryTest extends TestCase
                 self::assertArrayNotHasKey('kongono/external-service-binding-build', $manifest['require']);
             }
         }
-        self::assertSame(467, $edges);
+        self::assertSame(501, $edges);
         $visit = static function (string $name, array $path = []) use (&$visit, $graph): void {
             self::assertArrayNotHasKey($name, $path);
             $path[$name] = true;
@@ -105,9 +105,9 @@ final class ExternalServiceBindingBuildBoundaryTest extends TestCase
         foreach (array_keys($graph) as $name) {
             $visit($name);
         }
-        self::assertCount(2161, array_filter(self::allPhp($root . '/packages'), static fn(string $path): bool => str_contains(str_replace('\\', '/', $path), '/src/')));
-        self::assertCount(1138, array_filter(self::allPhp($root . '/packages'), static fn(string $path): bool => str_contains(str_replace('\\', '/', $path), '/tests/')));
-        self::assertCount(104, self::allPhp($root . '/tests'));
+        self::assertCount(2322, array_filter(self::allPhp($root . '/packages'), static fn(string $path): bool => str_contains(str_replace('\\', '/', $path), '/src/')));
+        self::assertCount(1228, array_filter(self::allPhp($root . '/packages'), static fn(string $path): bool => str_contains(str_replace('\\', '/', $path), '/tests/')));
+        self::assertCount(108, self::allPhp($root . '/tests'));
     }
 
     /** @return list<string> */

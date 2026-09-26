@@ -1,5 +1,80 @@
 # Testing
 
+Phase 21B adds 21 package-test PHP files for `kongono/storage-contract` and no
+root-test PHP files. Focused coverage proves the 40-declaration, 37
+Experimental / 3 Internal / 0 Public / 0 Stable split; every exact scalar and
+collection bound; canonical identity and metadata grammar; digest lengths;
+opaque token rules; capability order and deduplication; create/replace/delete
+conditions; request and result evidence relations; list ordering and
+continuation; exact stream interface signatures; immutability; dependency
+direction; nondisclosure; and absence of I/O, provider, runtime, and ambient
+authority. The topology is 111 packages / 472 local production edges /
+acyclic, with PHP inventories 2,201 / 1,159 / 104 and 110 package validation
+commands. These tests do not claim an adapter, provider compatibility,
+filesystem or network behavior, authorization, external guarantees,
+performance, production readiness, or Stable/1.0.
+
+Phase 21C adds 15 package-test PHP files for `kongono/storage-build` and no new
+root-test PHP file. Focused coverage proves the 24-declaration, 17
+Experimental / 6 Internal / 1 Public / 0 Stable split; name and limit
+boundaries; profile and namespace uniqueness; deterministic ordering and
+identities; exact canonical JSON, depth, size, and terminal-LF rules;
+duplicate/unknown/reordered/tampered rejection; structural versus exact-current
+validation; contained content-addressed no-clobber publication; exact-existing
+idempotence; adversarial root/path/link/reparse rejection; cleanup; and
+nondisclosure. The current topology is 111 packages / 472 local production
+edges / acyclic, with PHP inventories 2,225 / 1,174 / 104 and 111 package
+validation commands. These tests do not claim an adapter, provider, runtime,
+object operation, command, production availability, or Stable/1.0.
+
+Phase 21D adds 12 package-test PHP files for
+`kongono/storage-adapter-contract` and 12 for
+`kongono/storage-adapter-local`, with no root-test PHP file. Focused coverage
+proves protocol substitutability, exact artifact/profile binding, complete
+guarantee and limitation sets, source ownership, bounded streaming,
+create/read/replace/delete/list outcomes, exact-version conflicts, digest and
+size validation, continuation binding, final containment, cleanup,
+multi-instance and persistent-runtime isolation, and nondisclosure. The current
+topology is 113 packages / 481 local production edges / acyclic, with PHP
+inventories 2,258 / 1,198 / 104 and 113 package validation commands. These
+tests do not claim an exact-current runtime, cloud/provider compatibility,
+public delivery, universal filesystem behavior, production availability, or
+Stable/1.0.
+
+Phase 21E adds 17 package-test PHP files for the separately optional
+`kongono/storage-runtime` leaf and no root-test PHP file. Focused coverage proves
+exact-current binding, request enforcement before effect, adapter-evidence
+validation, bounded read/write lifecycle, honest uncertain mutation, listing,
+cleanup-failure composition, same-instance reentrancy rejection, overlapping
+instance isolation, and nondisclosure. The current topology is 114 packages /
+486 local production edges / acyclic, with PHP inventories 2,275 / 1,215 / 104
+and 114 package validation commands. These tests do not claim a command,
+application workflow, local-adapter requirement, cloud/provider compatibility,
+production availability, or Stable/1.0.
+
+Phase 21F adds five storage-application package-test PHP files, two Console
+test files, and one `storage-minimal` example test. Focused coverage checks
+strict source shapes, exact-current plan/build/check, closed Console
+registration, bounded output, explicit authorization and runtime delegation,
+and a private example root. The current topology is 115 packages / 493 local
+production edges / acyclic, with PHP inventories 2,299 / 1,222 / 104 and
+115 package plus nine skeleton validation commands at Phase 21F. Phase 21G
+adds six storage-inspection package-test PHP files, no root-test PHP file,
+and one package validation command. Its focused tests cover supplied-profile
+reconstruction, exact artifact binding, the ordered 17 outcome counters,
+finite totals, distinct uncertain and absent evidence, same-role Graph,
+independent verification, Safe/Protected projections, and nondisclosure.
+The measured current inventories are 116 packages, 501 local production
+edges, 2,322 production PHP, 1,228 package-test PHP, and 104 root-test PHP
+files. Phase 21G is Current and Accepted. Phase 21H adds four root-owned
+external harness PHP files, raising the root-test inventory to 108. Local
+validation, security audit, architect acceptance, and checkpoint are separate
+gates. See
+[ADR 0213](../adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
+and the [storage inspection guide](../architecture/storage-inspection-and-intelligence.md),
+plus [ADR 0214](../adr/0214-phase-21-external-storage-acceptance-and-checkpoint.md)
+and the [Phase 21 acceptance guide](../architecture/phase-21-external-storage-acceptance.md).
+
 Phase 20B adds 14 package-test PHP files for `kongono/cache-contract`. Phase
 20C adds 15 package-test PHP files for `kongono/cache-build`. Phase 20D adds 13
 package-test PHP files for `kongono/cache-adapter-contract` and 12 for

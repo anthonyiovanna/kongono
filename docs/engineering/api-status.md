@@ -1,5 +1,68 @@
 # API Status
 
+## Phase 21 Object Storage status
+
+Phase 21A accepts
+[ADR 0206](../adr/0206-optional-object-storage-platform-and-explicit-authority-boundary.md),
+[ADR 0207](../adr/0207-deterministic-storage-integrity-lifecycle-and-provider-separation.md),
+the [Storage Platform guide](../architecture/storage-platform.md), the
+[storage-authoring guide](storage-authoring.md), and the fixed
+[Phase 21 roadmap](../architecture/phase-21-roadmap.md). Phase 21B accepts
+[ADR 0208](../adr/0208-neutral-storage-contract-and-bounded-evidence-vocabulary.md),
+and Phase 21C accepts
+[ADR 0209](../adr/0209-deterministic-storage-profile-artifact-and-contained-publication.md)
+and the [deterministic storage-profile build guide](../architecture/deterministic-storage-profile-build.md).
+Phase 21D accepts
+[ADR 0210](../adr/0210-neutral-storage-adapter-and-contained-local-filesystem-implementation.md)
+and the [contained local adapter guide](../architecture/contained-local-storage-adapter.md).
+Phase 21E accepts
+[ADR 0211](../adr/0211-exact-current-storage-runtime-and-operation-scoped-lifecycle.md)
+and the [exact-current storage runtime guide](../architecture/exact-current-storage-runtime.md).
+Phase 21F accepts
+[ADR 0212](../adr/0212-supported-storage-application-workflow-and-explicit-authorization.md)
+and the [storage application workflow guide](../architecture/storage-application-workflow.md).
+Phase 21G accepts [ADR 0213](../adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
+and the [storage inspection guide](../architecture/storage-inspection-and-intelligence.md).
+Phase 21H adds a root-owned test harness under
+[ADR 0214](../adr/0214-phase-21-external-storage-acceptance-and-checkpoint.md),
+with no production API change.
+
+Phase 21A creates zero PHP declarations. Phase 21B accepts the optional
+`kongono/storage-contract` leaf with exactly 40 declarations: 37 Experimental
+values, enums, interfaces, and the concrete validation exception; and three
+Internal diagnostic, abstract-exception, and guard declarations. No Phase 21B
+declaration is Public or Stable.
+
+Phase 21C accepts the optional `kongono/storage-build` leaf with exactly 24
+declarations: 17 Experimental profile/build/artifact values and operations,
+one Public exception-family interface, and six Internal diagnostic/exception/
+canonical/path declarations. No declaration is Stable.
+
+Phase 21D accepts the optional `kongono/storage-adapter-contract` leaf with
+exactly 15 declarations: 11 Experimental protocol/descriptor/guarantee values,
+one Public exception-family interface, and three Internal diagnostic,
+exception, and guard declarations. It also accepts the separately optional
+`kongono/storage-adapter-local` leaf with exactly 18 declarations: five
+Experimental adapter/configuration/version and concrete exceptions, one Public
+exception-family interface, and 12 Internal diagnostic, exception, record,
+path, lock, source, and codec declarations. Neither package has a Stable
+declaration. No 1.0, provider-compatibility, production-availability, PHP 8.6,
+or PHP 9 claim is authorized.
+
+Phase 21E accepts the separately optional `kongono/storage-runtime` leaf with
+exactly 17 declarations: eight Experimental operation and concrete-exception
+declarations, eight Internal diagnostic, abstract-exception, validation, and
+lifecycle declarations, and one Public exception-family interface. No
+declaration is Stable. It depends only on accepted neutral layers and does not
+require the local adapter. Phase 21F accepts the separately optional
+`kongono/storage-application` leaf with exactly 21 declarations: 16
+Experimental, four Internal, and one Public exception-family interface.
+The three new Console handlers are Experimental. No new declaration is Stable.
+The optional `kongono/storage-inspection` leaf has 23 declarations: 20
+Experimental, two Internal, and one Public exception-family interface. None
+is Stable. Phase 21H external acceptance adds no production declarations;
+security audit, architect acceptance, and checkpoint remain separate gates.
+
 ## Phase 20 Derived-Data Cache status
 
 Phase 20A accepts [ADR 0197](../adr/0197-explicit-derived-data-cache-and-non-authority-boundary.md),

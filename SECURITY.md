@@ -1,5 +1,89 @@
 # Security Policy
 
+## Phase 21A-H Object Storage security boundary
+
+Phase 21A accepts documentation architecture; Phase 21B accepts only the inert
+Experimental `kongono/storage-contract` vocabulary and creates no storage
+runtime or authority. Phase 21C accepts only the Experimental
+`kongono/storage-build` deterministic evidence leaf. Its profiles, identities,
+canonical artifacts, validation results, and contained publication results are
+not provider, credential, authorization, runtime, or object-operation
+authority. Declared capabilities are support evidence, not authorization.
+Phase 21D accepts only a neutral adapter protocol and one explicitly rooted,
+contained local-filesystem implementation. Its descriptor, guarantees,
+limitations, path mapping, record evidence, versions, outcomes, and sources do
+not grant application authorization, provider credentials, exact-current
+runtime authority, or public delivery.
+Phase 21E accepts the separately optional Experimental `kongono/storage-runtime`
+leaf. It binds only one exact current profile and one directly supplied
+compatible neutral adapter, validates requests before effect and adapter
+evidence afterward, rejects same-instance reentrancy, preserves uncertain
+mutation without retry, and retires operation-owned resources deterministically.
+It grants no application authorization, credential, provider, network, public
+delivery, or local-filesystem authority and does not require the local adapter.
+Phase 21F adds explicit guarded composition through an application-supplied
+authorizer. Each operation is checked once before lower-runtime delegation;
+denial and collaborator failure are distinct and no decision is cached. The
+profile commands never perform object operations. The example authorizer is
+not authentication or a production policy.
+Phase 21G accepts optional offline `kongono/storage-inspection` evidence.
+It independently checks supplied profile
+and artifact coherence and accepts only detached bounded outcome counts. It
+does not inspect an object, contact a provider, validate credentials, execute
+authorization, observe a runtime, or certify storage security. Inspection
+digests are Protected; Safe projections omit raw identities and contents.
+See [ADR 0213](docs/adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
+and the [storage inspection guide](docs/architecture/storage-inspection-and-intelligence.md).
+Phase 21H adds [bounded root-owned local acceptance](docs/architecture/phase-21-external-storage-acceptance.md)
+without granting provider, credential, network, or application authority.
+Security audit, architect acceptance, and checkpoint remain separate gates.
+Contract requests contain no provider locator, path, URL, credential,
+authorization result, retry policy, or runtime object. Runtime storage access
+must be capability-scoped and explicitly composed. Logical object identifiers, namespaces, provider
+locators, roots, buckets, endpoints, content digests, metadata,
+version/concurrency tokens, credentials, authorization decisions, and
+operation evidence are distinct. Possessing any string or identifier grants no
+read, create, replace, delete, list, or inspect permission.
+
+The accepted local adapter operates beneath one exact caller-supplied root and
+proves containment on read, mutation, listing, and cleanup paths. Traversal, absolute
+escape, ambiguous separators, device paths, reserved names, alternate data
+streams, link/reparse escape, case-folding ambiguity, and mutation of path
+components are threats, not edge conveniences. Current working directory,
+home, and temporary directories are never implicit authority.
+
+Provider credentials and tenant mapping remain application-owned and separate
+from object identifiers and network-egress permission. Object contents, raw
+identifiers, private paths, provider locators, URLs, credentials, signing
+material, customer metadata, tenant identifiers, and provider response bodies
+must not enter Safe diagnostics, logs, artifacts, inspection, or developer
+intelligence merely because an adapter can observe them.
+
+Silent overwrite and hidden retry are prohibited. Create, conditional replace,
+version-matched mutation, delete, conflict, known completion, known failure,
+and uncertain outcome remain distinct. An uncertain mutation is an integrity
+event that may require application-owned reconciliation; it must not be
+reported as success or retried implicitly. Checksums, lengths, versions,
+tokens, and acknowledgements prove no stronger durability, atomicity,
+consistency, origin, or authorization than their provenance supports.
+
+Streaming is bounded and lifecycle-owned. Cancellation, close, abort, cleanup,
+temporary state, handles, sockets, buffers, credentials, and metadata must be
+retired deterministically on every path without leaking into a later
+persistent-worker operation. Phase 21B implements no operational behavior. See
+the [Storage Platform guide](docs/architecture/storage-platform.md),
+[deterministic storage-profile build guide](docs/architecture/deterministic-storage-profile-build.md),
+[storage-authoring guide](docs/engineering/storage-authoring.md),
+[ADR 0208](docs/adr/0208-neutral-storage-contract-and-bounded-evidence-vocabulary.md),
+[ADR 0209](docs/adr/0209-deterministic-storage-profile-artifact-and-contained-publication.md),
+[ADR 0210](docs/adr/0210-neutral-storage-adapter-and-contained-local-filesystem-implementation.md),
+[ADR 0211](docs/adr/0211-exact-current-storage-runtime-and-operation-scoped-lifecycle.md),
+[ADR 0212](docs/adr/0212-supported-storage-application-workflow-and-explicit-authorization.md),
+[contained local adapter guide](docs/architecture/contained-local-storage-adapter.md),
+[exact-current storage runtime guide](docs/architecture/exact-current-storage-runtime.md), and
+[storage application workflow guide](docs/architecture/storage-application-workflow.md), and
+[Phase 21 roadmap](docs/architecture/phase-21-roadmap.md).
+
 ## Phase 20A-H Derived-Data Cache security boundary
 
 Phase 20A accepts documentation architecture. Phase 20B accepts only the

@@ -30,6 +30,9 @@ final class KongoApplicationTest extends TestCase
         self::assertStringContainsString('Command: observability:inspect', $humanOut);
         self::assertStringContainsString('Command: security:check', $humanOut);
         self::assertStringContainsString('Command: security:inspect', $humanOut);
+        self::assertStringContainsString('Command: storage:build', $humanOut);
+        self::assertStringContainsString('Command: storage:check', $humanOut);
+        self::assertStringContainsString('Command: storage:plan', $humanOut);
         self::assertStringContainsString('Command: view:build', $humanOut);
         self::assertStringContainsString('Command: view:check', $humanOut);
         self::assertStringContainsString('Command: view:inspect', $humanOut);
@@ -64,11 +67,14 @@ final class KongoApplicationTest extends TestCase
             'observability:inspect',
             'security:check',
             'security:inspect',
+            'storage:build',
+            'storage:check',
+            'storage:plan',
             'view:build',
             'view:check',
             'view:inspect',
         ], array_column($commands, 'identifier'));
-        self::assertCount(16, $commands);
+        self::assertCount(19, $commands);
     }
 
     public function testInvalidRequestsHaveStableExitAndNoRawDisclosure(): void

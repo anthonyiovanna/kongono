@@ -168,6 +168,11 @@ unbounded data.
 
 ## Relationship to other capabilities
 
+- Storage may retain authoritative and irreplaceable objects; cache retains
+  derived disposable evidence. A storage miss, uncertain mutation, version,
+  durability claim, or provider acknowledgement cannot be interpreted through
+  cache expiry, eviction, stale fallback, or best-effort semantics. See the
+  [Storage Platform](storage-platform.md).
 - Database and persistence remain authoritative record boundaries; cached
   projections never replace their current reads or transactions.
 - HTTP cache-control and browser cache metadata are delivery policy, not this
