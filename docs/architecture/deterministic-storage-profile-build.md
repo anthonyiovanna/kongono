@@ -112,8 +112,9 @@ Phase 21D accepts the separately optional neutral adapter protocol and
 contained local-filesystem implementation described by
 [ADR 0210](../adr/0210-neutral-storage-adapter-and-contained-local-filesystem-implementation.md)
 and the [contained local adapter guide](contained-local-storage-adapter.md).
-Phases 21E-G are accepted; Phase 21H implements root-owned local acceptance with
-separate validation, audit and checkpoint gates. The exact-current
+Phases 21E-G are accepted; Phase 21H completed root-owned local acceptance,
+the separate time-bound audit, architect acceptance and exact checkpoint
+with their recorded limits. The exact-current
 runtime consumes only explicit current evidence and a directly supplied
 adapter; it does not scan, rebuild, discover, reconcile, or fall back. Phase
 21F adds `storage:plan`, `storage:build`, and `storage:check` through the

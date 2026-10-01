@@ -81,7 +81,16 @@ final class StorageProfileArtifactPublisherTest extends TestCase
                 self::assertFalse(is_link($link));
             }
         } finally {
+            if (is_link($link)) {
+                $removed = 'Windows' === PHP_OS_FAMILY ? rmdir($link) : unlink($link);
+                self::assertTrue($removed);
+            }
+            clearstatcache(true, $link);
+            self::assertFalse(is_link($link));
+            self::assertFalse(file_exists($link));
             self::remove($base);
+            clearstatcache(true, $base);
+            self::assertFalse(file_exists($base));
         }
     }
 

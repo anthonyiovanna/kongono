@@ -122,6 +122,10 @@ parameters:
         - packages/extension-host/tests
         - packages/extension-inspection/src
         - packages/extension-inspection/tests
+        - packages/event-contract/src
+        - packages/event-contract/tests
+        - packages/event-runtime/src
+        - packages/event-runtime/tests
         - packages/external-service-application/src
         - packages/external-service-application/tests
         - packages/external-service-binding-build/src
@@ -255,6 +259,9 @@ parameters:
         - skeletons/cache-minimal/bin
         - skeletons/cache-minimal/src
         - skeletons/cache-minimal/tests
+        - skeletons/event-minimal/bin
+        - skeletons/event-minimal/src
+        - skeletons/event-minimal/tests
         - skeletons/storage-minimal/bin
         - skeletons/storage-minimal/src
         - skeletons/storage-minimal/tests
@@ -263,6 +270,7 @@ parameters:
         - skeletons/view-minimal/src
         - tests/External
         - tests/Architecture
+        - tests/Integration/Phase22E
         - tests/BlackBox
         - tests/Tooling
     tmpDir: .cache/phpstan

@@ -1,5 +1,36 @@
 # Kongono Engineering Foundation
 
+## Phase 22A-E application-event engineering direction
+
+Phase 22A accepts [ADR 0215](../adr/0215-optional-application-events-and-explicit-synchronous-dispatch.md),
+the [Application Events guide](../architecture/application-events.md),
+[event authoring](event-authoring.md), and the
+[A-F roadmap](../architecture/phase-22-roadmap.md) as Phase 22A documentation
+architecture. Phase 22B implements the inert optional Experimental
+`kongono/event-contract` under
+[ADR 0216](../adr/0216-neutral-application-event-contract-and-bounded-registration.md).
+The separately optional Experimental `kongono/event-runtime` implements the
+synchronous dispatcher under
+[ADR 0217](../adr/0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md).
+Applications may keep direct calls. The accepted contract validates complete
+explicit registrations before effects. The runtime matches exact types in
+registration order, makes no-match a no-op, preserves the original first
+handler Throwable and earlier partial effects, and isolates same-instance
+dispatch state.
+Payload/business validation and authorization at effect boundaries remain
+application-owned. No automatic publisher, queue, retry, telemetry
+conversion, Graph authority, generated wiring, or mandatory lower-package
+dependency is selected. Phases 22A-C are architect-accepted within their
+recorded limits. The [event-minimal example](../../skeletons/event-minimal/README.md)
+demonstrates direct composition, current authorization before each effect and
+caller-owned closure lifetime. Phase 22D implementation and focused local
+validation are architect-accepted within their recorded limits. Phase 22E
+assembled-path and offline copied-consumer validation is locally complete,
+and architect-accepted within recorded limits. Phase 22F's offline own-autoload
+consumer and focused current-source validation passed; broad validation,
+advisory audit, architect milestone acceptance and exact checkpoint remain
+pending.
+
 ## Phase 21A-H storage engineering direction
 
 Phase 21A is Accepted documentation architecture for an optional
@@ -24,7 +55,8 @@ Experimental `kongono/storage-inspection` offline evidence leaf. It checks suppl
 artifact bytes and emits bounded Safe aggregates and Protected digests.
 Phase 21G is Current and Accepted. Phase 21H adds the
 [root-owned local acceptance harness](../architecture/phase-21-external-storage-acceptance.md)
-with separate security audit, architect acceptance, and checkpoint gates.
+whose separate time-bound audit, architect acceptance, and exact checkpoint
+gates completed with their recorded local-validation limits.
 
 Storage engineering must preserve explicit capability authority; distinct
 logical identity, provider locator, content/concurrency evidence, lifecycle,

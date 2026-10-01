@@ -5,7 +5,8 @@ may accept one explicitly supplied same-role Graph intelligence view. It copies
 only bounded aggregate counts and closed tokens, omits Graph identities and
 facts, and always reports the storage-to-Graph relationship as
 `not-established`. The Graph package has no reverse dependency on Storage
-Inspection. Phase 21G implementation awaits architect acceptance.
+Inspection. Phase 21G is architect-accepted as offline supplied-evidence
+inspection; it adds no role execution or Graph authority.
 
 Phase 20G's optional [cache-inspection leaf](cache-inspection-and-intelligence.md)
 may accept one explicitly supplied same-role Graph intelligence view. It copies

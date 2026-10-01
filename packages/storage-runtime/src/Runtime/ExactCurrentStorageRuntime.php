@@ -48,32 +48,61 @@ final class ExactCurrentStorageRuntime
     {
         $this->validateRead($request);
         $scope = $this->guard->enter($request->operationIdentity(), StorageOperation::Read);
+        $source = null;
+        $returned = null;
+        $primary = null;
+        $transferred = false;
         try {
             $read = $this->binding->adapter()->read($request);
+            $source = $read->source();
             $this->validateReadRequestEcho($request, $read);
             $result = AdapterResultValidator::read($this->profile(), $request, $read->result());
             if (StorageReadOutcome::Completed !== $result->outcome()) {
                 if (null !== $read->source()) {
                     throw InvalidStorageRuntimeException::evidence('read_source_relation', 'read', $result->outcome()->value);
                 }
-                $scope->retire();
+                $returned = new StorageRuntimeRead($result);
+            } else {
+                $evidence = $result->evidence();
+                if (!$source instanceof StorageByteSource || null === $evidence || $source->closed()) {
+                    throw InvalidStorageRuntimeException::evidence('read_source_relation', 'read', 'completed');
+                }
 
-                return new StorageRuntimeRead($result);
+                $returned = new StorageRuntimeRead($result, new ValidatedReadSource($source, $scope, $evidence->byteCount()->value(), $this->profile()->limits()->maxChunkBytes(), $evidence->contentDigest()));
+                $transferred = true;
             }
-            $source = $read->source();
-            $evidence = $result->evidence();
-            if (!$source instanceof StorageByteSource || null === $evidence || $source->closed()) {
-                throw InvalidStorageRuntimeException::evidence('read_source_relation', 'read', 'completed');
-            }
-
-            return new StorageRuntimeRead($result, new ValidatedReadSource($source, $scope, $evidence->byteCount()->value(), $this->profile()->limits()->maxChunkBytes(), $evidence->contentDigest()));
         } catch (Error $failure) {
-            $this->retireScope($scope, $failure);
+            $primary = $failure;
         } catch (InvalidStorageRuntimeException|StorageRuntimeOperationException $failure) {
-            $this->retireScope($scope, $failure);
+            $primary = $failure;
         } catch (Throwable $failure) {
-            $this->retireScope($scope, StorageRuntimeOperationException::adapterFailed('read', $failure));
+            $primary = StorageRuntimeOperationException::adapterFailed('read', $failure);
         }
+        if ($transferred && $returned instanceof StorageRuntimeRead) {
+            return $returned;
+        }
+        $cleanup = [];
+        if (null !== $source) {
+            try {
+                if (!$source->closed()) {
+                    $source->close();
+                }
+            } catch (Throwable $failure) {
+                $cleanup[] = $failure;
+            }
+        }
+        try {
+            if (!$scope->retired()) {
+                $scope->retire();
+            }
+        } catch (Throwable $failure) {
+            $cleanup[] = $failure;
+        }
+        LifecycleFailureComposer::finish('read', $primary, $cleanup);
+        if (!$returned instanceof StorageRuntimeRead) {
+            throw new \LogicException('Storage runtime read did not produce a result.');
+        }
+        return $returned;
     }
 
     public function create(StorageWriteRequest $request, StorageByteSource $source): StorageMutationResult

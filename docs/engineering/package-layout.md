@@ -1,5 +1,34 @@
 # Package Layout
 
+Phase 22A added no package or dependency. Phase 22B adds the optional
+Experimental `packages/event-contract` inert leaf under
+[ADR 0216](../adr/0216-neutral-application-event-contract-and-bounded-registration.md).
+It depends only on `kongono/api-metadata` and `kongono/diagnostics`, with
+eight production and 15 package-test PHP files. The graph is 117 packages /
+503 local production edges / acyclic, with 2,330 production, 1,243
+package-test, and 108 root-test PHP files. The separately optional Experimental
+`packages/event-runtime` leaf has
+four production and 12 package-test PHP files. Its three local production
+edges point only to API Metadata, Diagnostics and Event Contract. The graph
+is 118 packages / 506 local production edges / acyclic, with 2,334
+production, 1,255 package-test and 108 root-test PHP files. Lower packages
+acquire no mandatory event edge. Phases 22A-C are architect-accepted within
+their recorded limits. Phase 22D adds only the eight-file application-owned
+[event-minimal example](../../skeletons/event-minimal/README.md), with four
+PHP files and no package or production edge. Its focused local validation is
+architect-accepted within its recorded local validation limits. Phase 22E adds
+one root assembled-path test file, bringing the current root-test PHP inventory
+to 109 at Phase 22E, with no package or production edge. Its local validation
+is architect-accepted within recorded limits. Phase 22F adds four root-owned
+acceptance PHP files, bringing the current root-test PHP inventory to 113,
+without a package or production edge. Its local own-autoload consumer and
+focused current-source validation passed; broad validation, advisory audit,
+architect milestone acceptance and exact checkpoint remain pending. See
+[ADR 0217](../adr/0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md),
+the [Application Events guide](../architecture/application-events.md),
+[event-authoring guide](event-authoring.md), and
+[A-F roadmap](../architecture/phase-22-roadmap.md).
+
 Phase 21B adds exactly the optional Experimental
 `packages/storage-contract` neutral leaf with 40 production and 21
 package-test PHP files, plus its manifest and README. Its two local production
@@ -64,7 +93,7 @@ and the [storage application workflow guide](../architecture/storage-application
 
 Phase 21G implements the separately optional Experimental
 `packages/storage-inspection` leaf with 23 production and six package-test PHP
-files, plus its manifest and README; architect acceptance is pending. Its
+files, plus its manifest and README; Phase 21G is architect-accepted. Its
 eight local production edges point exactly to API Metadata, Application Graph
 Intelligence, Diagnostics, Storage Application, Storage Build, Storage
 Contract, Observability, and Security Audit. No lower production package

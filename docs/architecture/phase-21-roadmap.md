@@ -10,12 +10,13 @@ the [Storage Platform guide](storage-platform.md), and the
 [storage-authoring guide](../engineering/storage-authoring.md) as documentation
 architecture.
 
-Phases 21A-G are **Current** and Accepted. Row 21H has an implemented local
-acceptance harness; security audit, architect acceptance, and checkpoint remain
-pending. This
-fixed roadmap records sequence and boundaries; it grants no implementation
-authority. Each increment requires a separately authenticated architect
-directive.
+Phases 21A-H are **Current** and architect-accepted. Phase 21H completed its
+root-owned local acceptance harness, separate time-bound security audit,
+architect acceptance, and exact local checkpoint with subject
+`Complete Kongono Phase 21 storage platform milestone`. The local proof,
+audit and committed-content verification retain the limits summarized below.
+This fixed roadmap records sequence and boundaries; it grants no
+implementation authority for a later phase.
 
 ## Fixed A-through-H roadmap
 
@@ -28,7 +29,7 @@ directive.
 | **21E - Exact-current operation runtime** | **Current / Accepted** | Consume only one exact current profile and one directly supplied compatible adapter. Create one operation-scoped capability, enforce bounds and conditional semantics, validate adapter evidence, map uncertain outcomes honestly, and retire resources. | No service locator, scan, rebuild, heuristic provider selection, retry policy, background work, retained state, implicit credential, or ambient authorization. Acceptance proves lifecycle and persistent-worker isolation. |
 | **21F - Supported application workflow** | **Current / Accepted** | Compose profile build, exact-current runtime, explicit adapter and authorization collaborators, three profile commands, and a copy-once `storage-minimal` example. | No automatic provider installation, generated business authorization, hidden directory, upload controller, public serving, or cloud selection. Plan/build/check parity and explicit composition are required. |
 | **21G - Visibility-safe inspection and intelligence** | **Current / Accepted** | Inspect one supplied exact-current profile and optional detached aggregate evidence. Add bounded Safe/Protected projections and Chie/Oshie/Hantei evidence integration. | No object open, provider listing, credential validation, runtime observation, operation, mutation, repair, role execution, recording, export, disclosure, or certification. Acceptance must prove offline stateless nondisclosure. |
-| **21H - External acceptance and exact checkpoint** | **Implemented; local validation, audit and checkpoint separate** | Add root-owned deterministic adversarial acceptance under one explicitly bounded temporary root, regression gates, and one exact local checkpoint. | No cloud-provider certification, deployment, performance claim, Stable/1.0, push, tag, release, or later-phase authority. Acceptance must prove complete cleanup, containment, integrity, nondisclosure, and preservation. |
+| **21H - External acceptance and exact checkpoint** | **Accepted; exact checkpoint complete** | Root-owned deterministic adversarial acceptance under one explicitly bounded temporary root, regression gates, a separately approved audit, architect acceptance, and one exact local checkpoint. | No cloud-provider certification, deployment, performance claim, Stable/1.0, push, tag, release, or later-phase authority. Accepted proof is bounded by the limits below. |
 
 ## Dependency order
 
@@ -40,6 +41,17 @@ acceptance closes the milestone after all earlier boundaries are separately
 accepted.
 
 No later row may be pulled forward to make an earlier row convenient.
+
+The accepted H.11 whole-tree analysis/tests preceded H.14's one-file
+Console fixture correction. H.14 supplied focused correction and regression
+proof, not a fresh whole-tree post-commit run. H.11 PHPUnit selected 3,726
+tests, passed 3,725, and retained one directory-symlink capability skip,
+72 suppressed warnings and an unavailable assertion total. H.15's
+no-advisory audit concerned the then-current 189-entry lock at that time.
+H.17 independently verified committed bytes without rerunning functional
+gates. See the [Phase 21 acceptance guide](phase-21-external-storage-acceptance.md)
+and accepted caller reports. Closure does not certify cloud providers,
+deployment, performance, production readiness or Stable/1.0.
 
 ## Locked cross-cutting requirements
 

@@ -1,5 +1,30 @@
 # Progressive Architecture
 
+## Phase 22 optional application-event progression
+
+Phase 22A accepts only [optional Application Events architecture](application-events.md)
+and the [A-F roadmap](phase-22-roadmap.md). Direct calls and applications
+without an event package remain first-class. Phase 22B implements the inert
+optional Experimental `kongono/event-contract` under
+[ADR 0216](../adr/0216-neutral-application-event-contract-and-bounded-registration.md).
+It precedes the separately optional Experimental synchronous
+`kongono/event-runtime` implemented under
+[ADR 0217](../adr/0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md).
+Lower Kernel, HTTP, DI,
+database, Storage and Agent packages gain no dependency. Later rows require
+separate authority and cannot be pulled forward. Event occurrences remain
+distinct from telemetry, audit, Graph facts, commands and queues. See
+[ADR 0215](../adr/0215-optional-application-events-and-explicit-synchronous-dispatch.md)
+and [event authoring](../engineering/event-authoring.md). Phases 22A and 22B
+and 22C are architect-accepted within their recorded limits. Phase 22D adds
+only the [event-minimal copy-once example](../../skeletons/event-minimal/README.md)
+and application-owned composition; it is architect-accepted within its recorded
+local limits. Phase 22E local assembled-path and copied-example validation are
+complete and architect-accepted within recorded limits, including a narrow
+demo bootstrap warning correction. Phase 22F's offline own-autoload consumer
+and focused current-source validation passed; broad validation, advisory audit,
+architect milestone acceptance and exact checkpoint remain pending.
+
 ## Phase 21 optional storage progression
 
 Storage is an optional capability after Cache in the progressive architecture,
@@ -15,8 +40,9 @@ contained publication leaf; 21D is the optional Experimental accepted adapter
 protocol and separately optional contained local adapter; 21E the separately
 optional accepted Experimental exact-current runtime; 21F the accepted
 Experimental application workflow; 21G the optional Experimental offline
-inspection leaf; and 21H the implemented root-owned local acceptance harness
-with separate audit, architect acceptance, and checkpoint gates. The roadmap
+inspection leaf; and 21H the accepted root-owned local acceptance harness
+whose separate time-bound audit, architect acceptance, and exact checkpoint
+gates completed with their recorded limits. The roadmap
 grants no implementation authority.
 
 The [storage inspection guide](storage-inspection-and-intelligence.md) and

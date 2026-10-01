@@ -1,5 +1,38 @@
 # Kongono Architectural Doctrine
 
+## Optional Application Events doctrine
+
+Phase 22A accepts [ADR 0215](adr/0215-optional-application-events-and-explicit-synchronous-dispatch.md),
+the [Application Events guide](architecture/application-events.md),
+[event authoring](engineering/event-authoring.md), and the
+[six-row roadmap](architecture/phase-22-roadmap.md) as documentation
+architecture only in Phase 22A. Phase 22B implements the inert optional
+Experimental `kongono/event-contract` under
+[ADR 0216](adr/0216-neutral-application-event-contract-and-bounded-registration.md).
+Application-owned occurrences may be offered to directly supplied handlers
+through the separately optional Experimental `kongono/event-runtime` under
+[ADR 0217](adr/0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md).
+Direct calls remain valid. Complete
+registration validation precedes effects; exact matching and explicit order
+govern dispatch; no-match is a no-op; the first handler Throwable stops later
+handlers and reaches the caller unchanged while earlier effects remain
+possible. Same-instance reentrancy is rejected and per-dispatch state is
+released. Payload/business validation and effect authorization belong to
+applications. Events are not telemetry, audit, Graph facts, commands, queues,
+durable messages, or authority. The runtime retains the validated set and an
+instance-local busy flag, passes the same event object to exact matches,
+rejects same-instance overlap before matching and releases the guard in
+`finally`. Phases 22A-C are architect-accepted within their recorded limits.
+The [copy-once event-minimal example](../skeletons/event-minimal/README.md)
+shows caller-owned direct composition and authorization before each effect.
+Phase 22D is architect-accepted within its recorded local limits. Phase 22E
+assembled-path and local copied-example validation are complete, including a
+bounded demo bootstrap warning correction, and architect-accepted within their
+recorded limits. Phase 22F's offline own-autoload consumer and current-source
+focused validation have passed; broad validation, advisory audit, architect
+milestone acceptance and the exact checkpoint remain pending. There is no
+automatic publisher or completed Phase 22 checkpoint.
+
 ## Optional Object Storage Platform doctrine
 
 Phase 21A accepts documentation architecture for an optional provider-neutral
@@ -25,8 +58,10 @@ and Protected digests. See [ADR 0213](adr/0213-visibility-safe-storage-inspectio
 and the [storage inspection guide](architecture/storage-inspection-and-intelligence.md).
 Phase 21H adds [root-owned local acceptance](architecture/phase-21-external-storage-acceptance.md)
 under [ADR 0214](adr/0214-phase-21-external-storage-acceptance-and-checkpoint.md).
-Security audit, architect acceptance, and checkpoint remain separate. No cloud provider, credential discovery,
-generated business authorization, or public delivery is implemented.
+The separate time-bound audit, architect acceptance, and exact checkpoint
+completed for Phase 21 with their recorded local-validation limits. No cloud
+provider, credential discovery, generated business authorization, or public
+delivery is implemented.
 
 Storage may retain authoritative and irreplaceable application-owned binary
 content. It therefore never inherits cache expiry, eviction, loss-tolerance,

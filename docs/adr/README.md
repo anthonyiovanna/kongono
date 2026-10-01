@@ -1,5 +1,33 @@
 # Architecture Decision Records
 
+## Phase 22A-D Application Events decisions
+
+### [ADR 0217: Optional Synchronous Application-Event Dispatcher and Instance Lifecycle](0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md)
+
+Architect-accepted for Phase 22C within its recorded local validation and
+time-bound audit limits. Adds the separately optional
+Experimental `kongono/event-runtime` exact synchronous dispatcher and fixed
+Safe reentrancy diagnostic. See the
+[Application Events guide](../architecture/application-events.md). Phase 22D's
+[application-owned example](../../skeletons/event-minimal/README.md) is
+architect-accepted within its recorded Phase 22D local limits. Phase 22E
+local validation is architect-accepted within recorded limits. Phase 22F's
+offline own-autoload consumer and focused current-source validation passed;
+broad validation, advisory audit, architect milestone acceptance and exact
+checkpoint remain pending.
+
+### [ADR 0216: Neutral Application-Event Contract and Bounded Registration](0216-neutral-application-event-contract-and-bounded-registration.md)
+
+Architect-accepted for Phase 22B. Defines the optional inert Experimental
+`kongono/event-contract` marker, handler, canonical registration, bounded
+ordered set and four Safe diagnostics. It invokes no handler.
+
+### [ADR 0215: Optional Application Events and Explicit Synchronous Dispatch](0215-optional-application-events-and-explicit-synchronous-dispatch.md)
+
+Architect-accepted Phase 22A architecture for optional application-owned
+occurrences, direct calls, explicit synchronous selection, ownership and
+effect boundaries. Phase 22A added no package or PHP API.
+
 ## Phase 21A-H Object Storage decisions
 
 ### [ADR 0214: Phase 21 External Storage Acceptance and Checkpoint](0214-phase-21-external-storage-acceptance-and-checkpoint.md)

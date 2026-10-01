@@ -1,5 +1,73 @@
 # Kongono AI-Agent Operating Policy
 
+## Phase 22A-E optional Application Events policy
+
+Phase 22A accepts [ADR 0215](docs/adr/0215-optional-application-events-and-explicit-synchronous-dispatch.md),
+the [Application Events guide](docs/architecture/application-events.md),
+the [event-authoring guide](docs/engineering/event-authoring.md), and the
+[six-row Phase 22 roadmap](docs/architecture/phase-22-roadmap.md) as
+documentation architecture only. Phase 21A-H are architect-accepted and
+closed at the exact local checkpoint, subject to their recorded validation
+limits. Phase 22A added no PHP API or package. Phase 22B implements
+[ADR 0216](docs/adr/0216-neutral-application-event-contract-and-bounded-registration.md)
+and the optional Experimental `kongono/event-contract` inert leaf. Phases 22A
+and 22B are architect-accepted. Phase 22C implements
+[ADR 0217](docs/adr/0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md)
+and the separately optional Experimental `kongono/event-runtime` synchronous
+dispatcher. Phase 22C is architect-accepted within its recorded local
+validation and time-bound audit limits. Phase 22D adds the application-owned
+copy-once [event-minimal example](skeletons/event-minimal/README.md), direct
+composition and focused local validation; Phase 22D is architect-accepted
+within its recorded limits. Phase 22E adds root-owned assembled-path and local
+copied-example evidence, including a bounded correction to the example's
+missing-autoloader warning presentation; local validation is complete and
+architect acceptance was granted within its recorded limits. Phase 22F's
+root-owned eight-group offline acceptance and same-checkout, own-autoload
+copied-consumer proof are retained for unchanged executable inputs. Broad
+separated static validation and both owner-context full-suite profiles passed
+within recorded limits, including 314 suppressed PHP warnings per profile.
+The September 30, 2026 locked audit passed for the unchanged lock. Fresh
+documentation/Knowledge reconciliation is recorded in the final Phase 22F
+report after successful validation. Architect milestone review and the exact
+checkpoint remain pending; Phase 22 is not closed.
+
+Application events are optional application-owned occurrences supplied to
+explicitly registered application handlers. The first implementation target
+now has a neutral `kongono/event-contract` and a separately optional
+`kongono/event-runtime` synchronous dispatcher. Exact
+type matching and registration order, complete validation before handler
+effect, duplicate binding rejection, successful empty/no-match dispatch,
+fail-fast preservation of the first original handler Throwable, truthful
+earlier partial effects, same-instance reentrancy rejection and finally-based
+guard release are implemented by the optional runtime under ADR 0217. Exact
+signatures, duplicate identity representation and finite bounds for the inert
+contract are fixed by ADR 0216:
+one loaded canonical event class per registration, a directly supplied handler,
+at most 64 ordered registrations, and duplicate rejection by exact event type
+and handler object identity. No handler is invoked by the contract. The runtime
+retains only that validated set and an instance-local busy flag, admits any
+native `ApplicationEvent`, matches its canonical concrete class exactly, and
+passes the same object to each matching handler. Empty, unmatched and
+unregistrable marker events are idle no-ops; native wrong types raise native
+type errors. The first handler Throwable escapes unchanged after any earlier
+effects. A nested or overlapping call on the same instance rejects before
+matching with Safe diagnostic `KGN-EVENT-RUNTIME-2221`; `finally` releases the
+guard after the outer attempt. Caller handlers, resources and safe presentation
+remain caller-owned.
+
+Payload construction and business validation, handler effects and
+authorization remain application-owned. PHP readonly is not deep
+immutability, and trusted handlers are not sandboxed. Dispatch grants no
+authorization, transaction, durability, delivery or exactly-once claim.
+Application events do not convert to operational telemetry, security audit,
+Graph facts, commands, queues or durable messages. No automatic publication,
+discovery, service location, hidden retry, rollback, worker, transport,
+generated wiring, or mandatory lower-package dependency is accepted.
+Framework diagnostics must remain bounded and nondisclosing. Future public
+symbols begin Experimental unless separately promoted; PHP support remains
+`>=8.5.0 <8.6.0`. Architecture and roadmap alone grant no implementation
+authority for a later row.
+
 ## Phase 21A-H optional Object Storage Platform policy
 
 Phase 21A accepts
@@ -29,7 +97,7 @@ leaf. Phase 21F accepts
 the [storage application workflow guide](docs/architecture/storage-application-workflow.md),
 the separately optional Experimental `kongono/storage-application` package,
 three explicit profile commands, and the copy-once `storage-minimal` example.
-Phases 21A-G are Current and Accepted. Phase 21G accepts
+Phases 21A-H are Current and Accepted. Phase 21G accepts
 [ADR 0213](docs/adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md),
 the [storage inspection guide](docs/architecture/storage-inspection-and-intelligence.md),
 and the separately optional Experimental `kongono/storage-inspection` offline
@@ -39,8 +107,9 @@ It performs no object, provider, adapter, credential, authorization, runtime,
 role, recording, or export action. Phase 21H implements the root-owned local
 external acceptance harness under [ADR 0214](docs/adr/0214-phase-21-external-storage-acceptance-and-checkpoint.md)
 and the [acceptance guide](docs/architecture/phase-21-external-storage-acceptance.md).
-Its local validation, security audit, architect acceptance, and exact checkpoint
-are separate gates. Other provider adapters require separate authority.
+Its separate local validation, time-bound security audit, architect acceptance,
+and exact checkpoint gates completed for Phase 21. Other provider adapters
+require separate authority.
 
 The Phase 21B contract defines Contract Version 1; bounded canonical namespace,
 logical-object and operation identities; closed capability, operation,

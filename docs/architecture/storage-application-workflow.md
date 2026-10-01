@@ -6,8 +6,9 @@ Phase 21F accepts the separately optional Experimental
 `kongono/storage-application` workflow, three supported Console profile
 commands, and the copy-once `storage-minimal` example. It builds on the
 accepted neutral contract, profile build, adapter protocol, and exact-current
-runtime. Phase 21G inspection is Accepted. Phase 21H adds root-owned local
-acceptance with separate validation, audit and checkpoint gates.
+runtime. Phase 21G inspection is Accepted. Phase 21H completed root-owned
+local acceptance, the separate time-bound audit, architect acceptance and
+the exact checkpoint with their recorded limits.
 
 The profile workflow has no object-operation, adapter, credential, provider,
 or authorization effect. Application code must supply an exact current build,

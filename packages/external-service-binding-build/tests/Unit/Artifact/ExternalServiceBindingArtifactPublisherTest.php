@@ -103,7 +103,11 @@ final class ExternalServiceBindingArtifactPublisherTest extends TestCase
             } catch (ExternalServiceBindingArtifactPublicationException) {
                 self::addToAssertionCount(1);
             } finally {
-                self::assertTrue(unlink($link));
+                $removed = 'Windows' === PHP_OS_FAMILY ? rmdir($link) : unlink($link);
+                self::assertTrue($removed);
+                clearstatcache(true, $link);
+                self::assertFalse(is_link($link));
+                self::assertFalse(file_exists($link));
             }
         } elseif ('Windows' !== PHP_OS_FAMILY) {
             self::markTestSkipped('Symbolic-link creation is unavailable in this environment.');

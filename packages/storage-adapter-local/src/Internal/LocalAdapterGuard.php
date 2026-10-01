@@ -28,6 +28,7 @@ final class LocalAdapterGuard
                 throw InvalidLocalStorageConfigurationException::invalid('root_segment');
             }
         }
+        clearstatcache(true, $path);
         $resolved = realpath($path);
         if (false === $resolved || !is_dir($path) || is_link($path)) {
             throw InvalidLocalStorageConfigurationException::invalid('root_type');
@@ -41,15 +42,34 @@ final class LocalAdapterGuard
         return $canonical;
     }
 
-    public static function contained(string $root, string $path, bool $mayBeMissing = false): string
+    public static function contained(string $root, string $path, bool $mayBeMissing = false, bool $directory = false): string
     {
-        $root = rtrim(self::normalize($root), '/');
+        $root = self::root($root);
         $path = self::normalize($path);
-        if (!str_starts_with($path, $root . '/') || str_contains(substr($path, strlen($root) + 1), '..')) {
+        if (!str_starts_with($path, $root . '/')) {
             throw InvalidLocalStorageConfigurationException::invalid('containment');
         }
-        if (!$mayBeMissing && !file_exists($path)) {
-            throw InvalidLocalStorageConfigurationException::invalid('missing_path');
+        $segments = explode('/', substr($path, strlen($root) + 1));
+        $current = $root;
+        foreach ($segments as $position => $segment) {
+            if ('' === $segment || '.' === $segment || '..' === $segment || str_contains($segment, ':') || self::device($segment)) {
+                throw InvalidLocalStorageConfigurationException::invalid('containment');
+            }
+            $current .= '/' . $segment;
+            clearstatcache(true, $current);
+            $stat = @lstat($current);
+            $final = $position === count($segments) - 1;
+            if (false === $stat) {
+                if ($final && $mayBeMissing && !is_link($current)) {
+                    return $path;
+                }
+                throw InvalidLocalStorageConfigurationException::invalid('missing_path');
+            }
+            $expectedType = !$final || $directory ? 0040000 : 0100000;
+            $resolved = realpath($current);
+            if (($stat['mode'] & 0170000) !== $expectedType || is_link($current) || false === $resolved || self::normalize($resolved) !== $current) {
+                throw InvalidLocalStorageConfigurationException::invalid('containment');
+            }
         }
 
         return $path;
@@ -72,6 +92,7 @@ final class LocalAdapterGuard
         $rest = $windows ? substr($path, 3) : ltrim($path, '/');
         foreach (explode('/', $rest) as $segment) {
             $current .= '/' . $segment;
+            clearstatcache(true, $current);
             $stat = @lstat($current);
             if (false === $stat || 0040000 !== ($stat['mode'] & 0170000) || is_link($current)) {
                 throw InvalidLocalStorageConfigurationException::invalid('root_ancestor');

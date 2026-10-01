@@ -1,5 +1,36 @@
 # Kongono
 
+## Phase 22A-E optional Application Events
+
+Phase 22A accepts documentation architecture for optional application-owned
+occurrences and explicitly selected synchronous handlers. The neutral
+`kongono/event-contract` is now an inert optional Experimental package with
+loaded exact event-type registration, a native non-generic handler interface,
+and bounded ordered registration sets under
+[ADR 0216](docs/adr/0216-neutral-application-event-contract-and-bounded-registration.md).
+The separately optional Experimental `kongono/event-runtime` now supplies
+explicit synchronous dispatch under
+[ADR 0217](docs/adr/0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md).
+Direct calls and install-none applications remain first-class. The runtime
+matches exact concrete event classes in registration order, makes empty or
+unmatched dispatch a no-op, preserves the first original handler Throwable
+and earlier effects, and rejects same-instance overlap until its `finally`
+guard releases. Events are
+distinct from operational telemetry, security audit, Graph facts, commands
+and queues; dispatch grants no authorization or durability. See
+[ADR 0215](docs/adr/0215-optional-application-events-and-explicit-synchronous-dispatch.md),
+the [Application Events guide](docs/architecture/application-events.md),
+[event authoring](docs/engineering/event-authoring.md), and the
+[Phase 22 roadmap](docs/architecture/phase-22-roadmap.md) and the
+[event-minimal copy-once example](skeletons/event-minimal/README.md). Phases
+22A-E are architect-accepted within their recorded limits. Phase 22E's
+assembled-path and local copied-example validation are complete, including a
+bounded example bootstrap warning correction. Phase 22F's root-owned offline
+acceptance harness and current-source focused validation have passed; broad
+milestone validation, advisory audit, architect milestone acceptance and the
+exact checkpoint remain pending. See the
+[local acceptance guide](docs/architecture/phase-22-external-acceptance.md).
+
 ## Phase 21A-H Object Storage boundary
 
 Phase 21A accepts documentation architecture for an optional provider-neutral
@@ -40,7 +71,8 @@ and the [storage inspection guide](docs/architecture/storage-inspection-and-inte
 It reconstructs supplied in-memory evidence without object, provider, or runtime
 access. Phase 21G is Current and Accepted. Phase 21H adds a
 [root-owned local acceptance harness](docs/architecture/phase-21-external-storage-acceptance.md);
-security audit, architect acceptance, and checkpoint remain separate gates.
+the separate time-bound audit and exact checkpoint completed, and the
+architect accepted Phase 21 with its recorded local-validation limits.
 
 The architecture keeps logical identity, provider location, content evidence,
 concurrency evidence, authority, authorization, and operation lifecycle

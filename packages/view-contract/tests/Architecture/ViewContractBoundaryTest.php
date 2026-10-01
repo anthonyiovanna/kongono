@@ -41,7 +41,7 @@ final class ViewContractBoundaryTest extends TestCase
 
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(116, $manifests);
+        self::assertCount(118, $manifests);
         foreach ($manifests as $path) {
             $candidate = json_decode((string) file_get_contents($path), true, flags: JSON_THROW_ON_ERROR);
             self::assertIsArray($candidate);

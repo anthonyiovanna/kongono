@@ -1,5 +1,34 @@
 # Architecture Overview
 
+## Phase 22A-D optional Application Events map
+
+Phase 22A accepts [ADR 0215](../adr/0215-optional-application-events-and-explicit-synchronous-dispatch.md)
+and the [Application Events guide](application-events.md) as documentation
+architecture only. Phase 22B adds the inert optional Experimental
+`kongono/event-contract` under
+[ADR 0216](../adr/0216-neutral-application-event-contract-and-bounded-registration.md).
+The separately optional Experimental `kongono/event-runtime` implements the
+direct synchronous path under
+[ADR 0217](../adr/0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md).
+Applications may
+use direct calls or explicitly ordered synchronous handlers for a typed
+application occurrence. Complete registration validation precedes effects;
+no match is a no-op; the first handler Throwable stops later calls without
+rolling back earlier effects. Business authorization remains at each handler
+effect. This is separate from operational telemetry, security audit, Graph
+facts, commands and queues. See [event authoring](../engineering/event-authoring.md)
+and the [A-F roadmap](phase-22-roadmap.md). The runtime matches the same event
+object by exact concrete class, rejects same-instance overlap before matching,
+and releases its guard in `finally`. Phases 22A-C are architect-accepted within
+their recorded limits. The [event-minimal example](../../skeletons/event-minimal/README.md)
+demonstrates explicit caller-owned composition, authorization before each
+effect and honest partial failure. Phase 22D is architect-accepted within its
+recorded local limits. Phase 22E assembled-path and local copied-example
+validation are architect-accepted within recorded limits, including the
+corrected demo bootstrap warning boundary. Phase 22F's local own-autoload
+consumer and focused current-source validation passed; broad validation,
+advisory audit, architect milestone acceptance and exact checkpoint are pending.
+
 ## Phase 21A-H optional Object Storage map
 
 Phase 21A accepts documentation architecture for an optional provider-neutral
@@ -20,7 +49,8 @@ detached aggregates; see [ADR 0213](../adr/0213-visibility-safe-storage-inspecti
 and the [storage inspection guide](storage-inspection-and-intelligence.md).
 Phase 21G is Current and Accepted. Phase 21H adds the
 [root-owned local acceptance harness](phase-21-external-storage-acceptance.md);
-security audit, architect acceptance, and checkpoint remain separate gates.
+the separate time-bound audit and exact checkpoint completed, and Phase 21
+was architect-accepted with its recorded local-validation limits.
 
 ```text
 application authorization and composition

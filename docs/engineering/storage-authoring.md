@@ -26,7 +26,8 @@ See [ADR 0213](../adr/0213-visibility-safe-storage-inspection-and-developer-inte
 and the [storage inspection guide](../architecture/storage-inspection-and-intelligence.md).
 Phase 21G is Current and Accepted. Phase 21H adds
 [root-owned local acceptance](../architecture/phase-21-external-storage-acceptance.md)
-with separate security audit, architect acceptance, and checkpoint gates.
+whose separate time-bound audit, architect acceptance, and exact checkpoint
+gates completed with their recorded limits.
 
 Use the [Storage Platform guide](../architecture/storage-platform.md),
 [ADR 0206](../adr/0206-optional-object-storage-platform-and-explicit-authority-boundary.md),
@@ -297,5 +298,5 @@ contained artifact publication; neither performs these object-operation steps.
 - Are provider guarantees declared honestly?
 - Does local mapping prove containment without ambient roots or scanning?
 - Are diagnostics and inspection nondisclosing?
-- Is Phase 21G clearly labeled Current and Accepted, and Phase 21H local
-  acceptance distinguished from pending audit, architect acceptance and checkpoint?
+- Are Phase 21G and 21H labeled Accepted, with the time-bound audit and
+  exact checkpoint distinguished from cloud or production certification?

@@ -1,0 +1,23 @@
+{
+  "name": "kongono/event-contract",
+  "description": "Neutral, bounded application-event and explicit registration contracts for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\EventContract\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\EventContract\\Tests\\": "tests/"
+    }
+  }
+}

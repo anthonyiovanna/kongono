@@ -1,0 +1,24 @@
+{
+  "name": "kongono/event-runtime",
+  "description": "Optional explicit synchronous application-event dispatcher for Kongono Framework.",
+  "type": "library",
+  "require": {
+    "php": ">=8.5.0 <8.6.0",
+    "kongono/api-metadata": "*",
+    "kongono/diagnostics": "*",
+    "kongono/event-contract": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\EventRuntime\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Kongono\\EventRuntime\\Tests\\": "tests/"
+    }
+  }
+}

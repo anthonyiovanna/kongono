@@ -17,7 +17,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertIsArray($root);
         self::assertIsArray($root['scripts']);
         self::assertIsArray($root['scripts']['validate:packages']);
-        self::assertCount(116, $root['scripts']['validate:packages']);
+        self::assertCount(118, $root['scripts']['validate:packages']);
         $assetAdapterContractValidation = 'composer --working-dir=packages/asset-adapter-contract validate --no-check-publish';
         self::assertSame(1, count(array_keys($root['scripts']['validate:packages'], $assetAdapterContractValidation, true)));
         $assetAdapterViteValidation = 'composer --working-dir=packages/asset-adapter-vite validate --no-check-publish';
@@ -161,6 +161,8 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertContains('composer --working-dir=packages/storage-application validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/storage-build validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/storage-contract validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/event-contract validate --no-check-publish', $root['scripts']['validate:packages']);
+        self::assertContains('composer --working-dir=packages/event-runtime validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/storage-inspection validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/storage-runtime validate --no-check-publish', $root['scripts']['validate:packages']);
         self::assertContains('composer --working-dir=packages/tracing validate --no-check-publish', $root['scripts']['validate:packages']);
@@ -173,6 +175,7 @@ final class FrameworkQualityProfileTest extends TestCase
             'composer --working-dir=skeletons/asset-minimal validate --no-check-publish',
             'composer --working-dir=skeletons/cache-minimal validate --no-check-publish',
             'composer --working-dir=skeletons/data-minimal validate --no-check-publish',
+            'composer --working-dir=skeletons/event-minimal validate --no-check-publish',
             'composer --working-dir=skeletons/minimal validate --no-check-publish',
             'composer --working-dir=skeletons/observability-minimal validate --no-check-publish',
             'composer --working-dir=skeletons/persistence-minimal validate --no-check-publish',
@@ -200,7 +203,7 @@ final class FrameworkQualityProfileTest extends TestCase
 
         $resourceValidation = $resource['composer_scripts']['validate:packages'] ?? null;
         self::assertIsArray($resourceValidation);
-        self::assertCount(116, $resourceValidation);
+        self::assertCount(118, $resourceValidation);
         self::assertSame($root['scripts']['validate:packages'], $resourceValidation);
         self::assertSame($root['scripts']['validate:skeleton'], $resource['composer_scripts']['validate:skeleton']);
         self::assertSame($root['scripts']['acceptance:phase7'], $resource['composer_scripts']['acceptance:phase7']);
@@ -218,6 +221,7 @@ final class FrameworkQualityProfileTest extends TestCase
         self::assertSame($root['scripts']['acceptance:phase19'], $resource['composer_scripts']['acceptance:phase19']);
         self::assertSame($root['scripts']['acceptance:phase20'], $resource['composer_scripts']['acceptance:phase20']);
         self::assertSame($root['scripts']['acceptance:phase21'], $resource['composer_scripts']['acceptance:phase21']);
+        self::assertSame($root['scripts']['acceptance:phase22'], $resource['composer_scripts']['acceptance:phase22']);
     }
 
     public function testUnknownProfileIsRejected(): void

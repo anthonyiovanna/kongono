@@ -22,7 +22,18 @@ final class AssetBuildArtifactPublisherTest extends TestCase
 
     protected function tearDown(): void
     {
+        $link = $this->directory . '/linked';
+        if (is_link($link)) {
+            $removed = 'Windows' === PHP_OS_FAMILY ? rmdir($link) : unlink($link);
+            self::assertTrue($removed);
+        }
+        clearstatcache(true, $link);
+        self::assertFalse(is_link($link));
+        self::assertFalse(file_exists($link));
         self::remove($this->directory);
+        clearstatcache(true, $this->directory);
+        self::assertFalse(file_exists($this->directory));
+        self::assertFalse(is_link($this->directory));
     }
 
     public function testPublicationIsContainedAndIdempotent(): void

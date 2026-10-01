@@ -39,6 +39,8 @@ final class ValidatedReadSource implements StorageByteSource
         if ($this->closed || $maximumBytes < 1 || $maximumBytes > $this->maximumChunkBytes) {
             throw InvalidStorageRuntimeException::operation('source_read_bound', 'read', context: ['limit' => $this->maximumChunkBytes]);
         }
+        $primary = null;
+        $chunk = null;
         try {
             $chunk = $this->source->read($maximumBytes);
             if (null === $chunk) {
@@ -55,31 +57,28 @@ final class ValidatedReadSource implements StorageByteSource
                     }
                 }
                 $this->exhausted = true;
-                $this->retire();
+            } else {
+                $count = $chunk->byteCount()->value();
+                if ($count > $maximumBytes || $count > $this->maximumChunkBytes || $this->observedBytes + $count > $this->expectedBytes) {
+                    throw InvalidStorageRuntimeException::evidence('read_chunk_limit', 'read', 'completed', context: ['byte_count' => $this->observedBytes + $count, 'limit' => $this->expectedBytes]);
+                }
+                if (null !== $this->hash) {
+                    hash_update($this->hash, $chunk->bytes());
+                }
+                $this->observedBytes += $count;
 
-                return null;
             }
-            $count = $chunk->byteCount()->value();
-            if ($count > $maximumBytes || $count > $this->maximumChunkBytes || $this->observedBytes + $count > $this->expectedBytes) {
-                throw InvalidStorageRuntimeException::evidence('read_chunk_limit', 'read', 'completed', context: ['byte_count' => $this->observedBytes + $count, 'limit' => $this->expectedBytes]);
-            }
-            if (null !== $this->hash) {
-                hash_update($this->hash, $chunk->bytes());
-            }
-            $this->observedBytes += $count;
-
-            return $chunk;
         } catch (Error $failure) {
-            $this->retire($failure);
-            throw $failure;
+            $primary = $failure;
         } catch (InvalidStorageRuntimeException $failure) {
-            $this->retire($failure);
-            throw $failure;
+            $primary = $failure;
         } catch (Throwable $failure) {
-            $operationFailure = StorageRuntimeOperationException::adapterFailed('read', $failure);
-            $this->retire($operationFailure);
-            throw $operationFailure;
+            $primary = StorageRuntimeOperationException::adapterFailed('read', $failure);
         }
+        if (null !== $primary || $this->exhausted) {
+            $this->retire($primary);
+        }
+        return $chunk;
     }
 
     public function exhausted(): bool

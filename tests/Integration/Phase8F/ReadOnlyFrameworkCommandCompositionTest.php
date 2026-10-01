@@ -319,13 +319,20 @@ $wiring = (new Kongono\Composition\Generated\GeneratedWiringValidator())->valida
 $generatedPath = $applicationRoot . '/kongono-wiring-v1-' . $wiring->wiringSha256() . '.php';
 expect(strlen($wiring->canonicalBytes()) === file_put_contents($generatedPath, $wiring->canonicalBytes()), 'Generated write failed.');
 
+$phpstanCache = $applicationRoot . '/phpstan-cache';
+expect(mkdir($phpstanCache, 0700), 'Private PHPStan cache directory could not be created.');
+$phpstanWrapper = $applicationRoot . '/phpstan-wrapper.neon';
+$wrapperBytes = "includes:\n    - " . json_encode(str_replace('\\', '/', $repository) . '/phpstan.neon.dist', JSON_THROW_ON_ERROR)
+    . "\nparameters:\n    tmpDir: " . json_encode($phpstanCache, JSON_THROW_ON_ERROR) . "\n";
+expect(strlen($wrapperBytes) === file_put_contents($phpstanWrapper, $wrapperBytes), 'Private PHPStan wrapper could not be created.');
+
 $gates = [
     'lint' => runCommand([PHP_BINARY, '-l', $generatedPath], 'nested-lint', $applicationRoot),
     'phpstan' => runCommand([
         PHP_BINARY,
         $repository . '/vendor/bin/phpstan',
         'analyse',
-        '--configuration=' . $repository . '/phpstan.neon.dist',
+        '--configuration=' . $phpstanWrapper,
         '--level=max',
         '--no-progress',
         '--debug',

@@ -38,8 +38,10 @@ Phase 21F adds the separately optional Experimental
 `kongono/storage-application` workflow, three explicit profile commands, and
 the copy-once `storage-minimal` example. Phase 21G adds only offline
 inspection of supplied exact-current evidence and optional detached bounded
-aggregate counts. Phase 21H implementation has separate local validation,
-security audit, architect acceptance, and checkpoint gates.
+aggregate counts. Phase 21H completed separate local validation, time-bound
+security audit, architect acceptance, and exact checkpoint gates with the
+limits in the
+[Phase 21 acceptance guide](phase-21-external-storage-acceptance.md).
 
 ## Goals
 
@@ -270,7 +272,7 @@ fallbacks do not.
 | 21E | **Current / Accepted** | Exact-current operation runtime. |
 | 21F | **Current / Accepted** | Supported profile workflow, explicit guarded composition, three commands, and copy-once example. |
 | 21G | **Current / Accepted** | Visibility-safe inspection and developer intelligence. |
-| 21H | **Implemented; local validation, audit and checkpoint separate** | External acceptance and exact checkpoint. |
+| 21H | **Accepted; exact checkpoint complete** | Root-owned local acceptance, separate time-bound audit, architect acceptance and exact checkpoint. |
 
 The roadmap is not implementation authority.
 

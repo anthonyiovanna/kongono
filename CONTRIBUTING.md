@@ -56,7 +56,8 @@ storage work. Phase 21G adds only optional offline
 see [ADR 0213](docs/adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
 and the [storage inspection guide](docs/architecture/storage-inspection-and-intelligence.md).
 Phase 21H adds the [root-owned local acceptance harness](docs/architecture/phase-21-external-storage-acceptance.md).
-Security audit, architect acceptance, and checkpoint remain separate gates.
+The separate time-bound audit, architect acceptance, and exact checkpoint
+gates completed for Phase 21; the local proof retains its recorded limits.
 
 ## Phase 20 cache changes
 

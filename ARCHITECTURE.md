@@ -1,5 +1,41 @@
 # Kongono Architecture
 
+## Phase 22A-E optional Application Events boundary
+
+Phase 22A accepts [ADR 0215](docs/adr/0215-optional-application-events-and-explicit-synchronous-dispatch.md)
+and the [Application Events guide](docs/architecture/application-events.md)
+as documentation architecture. An application may directly supply typed
+occurrences to explicitly ordered synchronous handlers, or keep using direct
+calls. Phase 22B adds the optional Experimental inert
+`kongono/event-contract` under
+[ADR 0216](docs/adr/0216-neutral-application-event-contract-and-bounded-registration.md).
+Its loaded canonical event-type and bounded ordered registration validation
+does not invoke a handler. A separately optional Experimental
+`kongono/event-runtime` implements synchronous dispatch under
+[ADR 0217](docs/adr/0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md);
+lower
+Kernel, HTTP, DI, database, Storage and Agent packages gain no mandatory
+dependency. Validate complete registrations before effect, match exact
+types, reject duplicate bindings, preserve no-match no-op and the original
+first handler Throwable with truthful earlier partial effects, and isolate
+same-instance dispatch state. Business authorization stays at each handler
+effect. Events do not become telemetry, audit, Graph facts, commands, queues,
+durable messages or grants. See [event authoring](docs/engineering/event-authoring.md)
+and the [A-F roadmap](docs/architecture/phase-22-roadmap.md). The runtime
+retains the validated set and a busy flag, passes the same event object to
+exact matching handlers, rejects same-instance overlap before matching with a
+fixed Safe diagnostic, and releases its guard in `finally`. Phases 22A-C are
+architect-accepted within their recorded limits. The
+[event-minimal example](skeletons/event-minimal/README.md) composes two
+application-owned handlers and checks authorization before each effect.
+Phase 22D is architect-accepted within its recorded local limits. Phase 22E
+has completed root-owned assembled-path and local copied-example validation,
+including the corrected example bootstrap warning boundary; architect
+acceptance was granted within its recorded limits. Phase 22F's separate-process,
+own-autoload local consumer and current-source focused validation have passed;
+broad milestone validation, advisory audit, architect milestone acceptance and
+the exact checkpoint remain pending.
+
 ## Phase 21A-H optional Object Storage Platform boundary
 
 Phase 21A accepts documentation architecture for an optional provider-neutral
@@ -36,8 +72,8 @@ See [ADR 0213](docs/adr/0213-visibility-safe-storage-inspection-and-developer-in
 and the [storage inspection guide](docs/architecture/storage-inspection-and-intelligence.md).
 Phase 21H adds the [root-owned local acceptance harness](docs/architecture/phase-21-external-storage-acceptance.md)
 under [ADR 0214](docs/adr/0214-phase-21-external-storage-acceptance-and-checkpoint.md).
-Local validation evidence, security audit, architect acceptance, and checkpoint
-are separate gates.
+The separate local validation, time-bound audit, architect acceptance, and
+exact checkpoint gates completed for Phase 21 with their recorded limits.
 
 Storage is distinct from cache, database persistence, assets, HTTP delivery,
 uploads, media processing, public-file serving, and backup. Logical object and

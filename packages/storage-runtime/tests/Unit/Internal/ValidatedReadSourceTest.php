@@ -25,4 +25,47 @@ final class ValidatedReadSourceTest extends TestCase
         self::assertTrue($source->closed());
         self::assertTrue($scope->retired());
     }
+
+    public function testTerminalCloseFailureIsNotCaughtAndRecomposed(): void
+    {
+        foreach ([false, true] as $failRead) {
+            $guard = new RuntimeGuard();
+            $scope = $guard->enter(new StorageOperationIdentity('read-cleanup'), StorageOperation::Read);
+            $underlying = new ScriptedStorageByteSource('', failRead: $failRead, failClose: true);
+            $source = new ValidatedReadSource($underlying, $scope, 0, 4, null);
+            try {
+                $source->read(4);
+                self::fail('Cleanup failure lost.');
+            } catch (\Kongono\StorageRuntime\Exception\StorageRuntimeCleanupException $failure) {
+                self::assertFalse($failRead);
+                self::assertCount(1, $failure->cleanupFailures());
+            } catch (\Kongono\StorageRuntime\Exception\StorageRuntimeOperationAndCleanupException $failure) {
+                self::assertTrue($failRead);
+                self::assertInstanceOf(\Kongono\StorageRuntime\Exception\StorageRuntimeOperationException::class, $failure->primaryFailure());
+                self::assertSame('fixture-read-failure', $failure->primaryFailure()->getPrevious()?->getMessage());
+                self::assertCount(1, $failure->cleanupFailures());
+            }
+            self::assertSame(1, $underlying->closeCalls);
+            self::assertTrue($scope->retired());
+            self::assertTrue($source->closed());
+            $source->close();
+            self::assertSame(1, $underlying->closeCalls);
+            $next = $guard->enter(new StorageOperationIdentity('next-read'), StorageOperation::Read);
+            $next->retire();
+        }
+    }
+
+    public function testComposerPreservesExactPrimaryAndOrderedCleanupCauses(): void
+    {
+        $primary = new \Error('synthetic-primary');
+        $close = new \RuntimeException('synthetic-close');
+        $scope = new \RuntimeException('synthetic-scope');
+        try {
+            \Kongono\StorageRuntime\Internal\LifecycleFailureComposer::finish('read', $primary, [$close, $scope]);
+            self::fail('Combined failure lost.');
+        } catch (\Kongono\StorageRuntime\Exception\StorageRuntimeOperationAndCleanupException $failure) {
+            self::assertSame($primary, $failure->primaryFailure());
+            self::assertSame([$close, $scope], $failure->cleanupFailures());
+        }
+    }
 }

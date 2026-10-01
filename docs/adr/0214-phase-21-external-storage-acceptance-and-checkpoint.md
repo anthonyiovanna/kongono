@@ -1,6 +1,6 @@
 # ADR 0214: Phase 21 external storage acceptance and checkpoint
 
-- Status: Implemented for Phase 21H; local validation and architect acceptance are separate gates
+- Status: Accepted for Phase 21H; separate local validation, audit, architect acceptance and exact checkpoint complete
 - Date: 2026-09-25
 - Phase: 21H
 
@@ -40,9 +40,12 @@ The acceptance is run with an exact local PHP profile and offline dependencies.
 The local gate includes repository analysis, configured tests, regression
 profiles, Composer validation, platform and knowledge checks, exhaustive
 style, documentation consistency, and preservation evidence. The security
-audit requires separate owner approval. Architect acceptance and an exact
-checkpoint remain separate decisions; implementation or local test success
-alone does not close Phase 21.
+audit required separate owner approval; H.15 obtained it and audited the
+then-current 189-entry lock without advisories at that time. Architect
+acceptance and an exact checkpoint remained separate decisions; they
+subsequently completed. Implementation or local test success alone did not
+close Phase 21. The accepted proof retains the limitations in the
+[Phase 21 acceptance guide](../architecture/phase-21-external-storage-acceptance.md).
 
 ## Consequences
 
@@ -53,7 +56,7 @@ performance, deployment, production readiness, Stable/1.0, or future PHP
 versions. Link creation is tested only when host permissions allow it;
 containment and no-clobber tests do not depend on that capability. All owned
 success resources are retired, while failure captures remain available for
-review. The exact checkpoint subject, if later authorized, is
+review. The authorized exact checkpoint subject was
 `Complete Kongono Phase 21 storage platform milestone`.
 
 See the [Phase 21 external acceptance guide](../architecture/phase-21-external-storage-acceptance.md)

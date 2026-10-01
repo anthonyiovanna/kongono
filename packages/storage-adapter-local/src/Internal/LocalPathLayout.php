@@ -19,7 +19,7 @@ final readonly class LocalPathLayout
 
     public function ensureNamespace(string $namespace): void
     {
-        foreach ([$this->base(), $this->namespaces(), $this->locks(), $this->objectDirectory($namespace), $this->lockDirectory($namespace)] as $path) {
+        foreach ([$this->base(), $this->namespaces(), $this->locks(), $this->namespaces() . '/' . $this->namespaceHash($namespace), $this->objectDirectory($namespace), $this->lockDirectory($namespace)] as $path) {
             $this->ensureDirectory($path);
         }
     }
@@ -54,9 +54,20 @@ final readonly class LocalPathLayout
         return hash('sha256', "kongono.storage.local.object.v1\0" . $namespace . "\0" . $logical);
     }
 
-    public function assertContained(string $path, bool $mayBeMissing = false): string
+    public function assertContained(string $path, bool $mayBeMissing = false, bool $directory = false): string
     {
-        return LocalAdapterGuard::contained($this->root->resolvedPath(), $path, $mayBeMissing);
+        return LocalAdapterGuard::contained($this->root->resolvedPath(), $path, $mayBeMissing, $directory);
+    }
+
+    /** @param resource $handle */
+    public function assertFileHandle(string $path, mixed $handle): void
+    {
+        $this->assertContained($path);
+        $opened = fstat($handle);
+        $current = @lstat($path);
+        if (false === $opened || false === $current || 0100000 !== ($opened['mode'] & 0170000) || $opened['dev'] !== $current['dev'] || $opened['ino'] !== $current['ino']) {
+            throw LocalStorageOperationException::failed('unexpected_path_type', 'prepare');
+        }
     }
 
     private function base(): string
@@ -78,13 +89,13 @@ final readonly class LocalPathLayout
 
     private function ensureDirectory(string $path): void
     {
-        $this->assertContained($path, true);
-        if (!is_dir($path) && !@mkdir($path, 0700, true) && !is_dir($path)) {
+        $this->assertContained($path, true, true);
+        if (!is_dir($path) && !@mkdir($path, 0700) && !is_dir($path)) {
             throw LocalStorageOperationException::failed('directory_creation_failed', 'prepare');
         }
         if (is_link($path)) {
             throw LocalStorageOperationException::failed('unexpected_path_type', 'prepare');
         }
-        $this->assertContained($path);
+        $this->assertContained($path, false, true);
     }
 }

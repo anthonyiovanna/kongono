@@ -99,7 +99,7 @@ final class AgentRuntimeBoundaryTest extends TestCase
         $root = dirname(__DIR__, 4);
         $manifests = glob($root . '/packages/*/composer.json');
         self::assertIsArray($manifests);
-        self::assertCount(116, $manifests);
+        self::assertCount(118, $manifests);
         $graph = [];
         $edges = 0;
         foreach ($manifests as $path) {
@@ -120,7 +120,7 @@ final class AgentRuntimeBoundaryTest extends TestCase
                 self::assertArrayNotHasKey('kongono/agent-runtime', $manifest['require']);
             }
         }
-        self::assertSame(501, $edges);
+        self::assertSame(506, $edges);
         $visit = static function (string $name, array $path = []) use (&$visit, $graph): void {
             self::assertArrayNotHasKey($name, $path);
             $path[$name] = true;

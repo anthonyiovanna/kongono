@@ -52,6 +52,24 @@ whole-object buffering. Exhaustion closes the adapter source and retires the
 scope. Early close explicitly cancels remaining consumption and retires the
 same resources without inventing verification success.
 
+Immediately after an adapter returns, its source is runtime-owned pending echo,
+result and evidence validation. Rejection or wrapper-construction failure
+attempts close once when the source is open, then scope retirement even if
+close fails. A throwing closed-state observation is itself a cleanup failure;
+it does not establish source retirement. Already-closed sources are rejected
+without redundant close. Ownership transfers to the caller only after the
+complete runtime read and wrapper are constructed; valid handoff does not close
+the source early. An adapter throwing before return remains responsible for
+resources it never transferred.
+
+Primary validation errors and native Errors retain their exact identity.
+Unexpected collaborator failures use the existing bounded adapter-failure
+wrapping. Failure composition happens outside operation catches, preserving
+primary and ordered source-close/scope-retirement causes without catching and
+recomposing a cleanup failure or repeating close. The same rule applies to
+terminal validating-stream paths. No destructor, shutdown hook or retry is
+part of source retirement.
+
 For create and replace, ownership of the caller source transfers for the call.
 The metered wrapper bounds requests and chunks, counts bytes, computes the
 declared digest, and requires exact exhaustion before a Completed result is

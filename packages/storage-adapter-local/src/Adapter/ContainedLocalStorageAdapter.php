@@ -88,35 +88,45 @@ final class ContainedLocalStorageAdapter implements StorageAdapter
         $namespace = $request->objectIdentity()->namespace()->value();
         $logical = $request->objectIdentity()->logicalIdentity()->value();
         $lock = null;
+        $handle = null;
+        $outcome = StorageReadOutcome::Unavailable;
         try {
             $lock = LocalObjectLock::acquire($this->layout, $namespace, $logical, false);
-            $path = $this->layout->objectPath($namespace, $logical);
+            $path = $this->layout->assertContained($this->layout->objectPath($namespace, $logical), true);
             if (!file_exists($path)) {
-                $lock->close();
-
-                return new StorageAdapterRead($request, new StorageReadResult(StorageReadOutcome::Absent));
-            }
-            $record = LocalObjectReader::open($path, $namespace, $logical, $this->layout, $this->descriptor->artifact(), $this->descriptor->profileName());
-            if ($record['header']->byteCount() > $request->maximumByteCount()->value() || $record['header']->byteCount() > $profile->limits()->maxObjectBytes()) {
-                fclose($record['handle']);
-                $lock->close();
-
-                return new StorageAdapterRead($request, new StorageReadResult(StorageReadOutcome::Rejected));
-            }
-            $result = new StorageReadResult(StorageReadOutcome::Completed, $record['header']->evidence());
-            $source = new LocalReadSource($record['handle'], $lock, $record['header']->byteCount(), $profile->limits()->maxChunkBytes());
-
-            return new StorageAdapterRead($request, $result, $source);
-        } catch (Throwable) {
-            if (null !== $lock && !$lock->closed()) {
-                try {
-                    $lock->close();
-                } catch (Throwable) {
+                $outcome = StorageReadOutcome::Absent;
+            } else {
+                $record = LocalObjectReader::open($path, $namespace, $logical, $this->layout, $this->descriptor->artifact(), $this->descriptor->profileName());
+                $handle = $record['handle'];
+                if ($record['header']->byteCount() > $request->maximumByteCount()->value() || $record['header']->byteCount() > $profile->limits()->maxObjectBytes()) {
+                    $outcome = StorageReadOutcome::Rejected;
+                } else {
+                    $result = new StorageReadResult(StorageReadOutcome::Completed, $record['header']->evidence());
+                    $source = new LocalReadSource($handle, $lock, $record['header']->byteCount(), $profile->limits()->maxChunkBytes());
+                    $returned = new StorageAdapterRead($request, $result, $source);
+                    return $returned;
                 }
             }
-
-            return new StorageAdapterRead($request, new StorageReadResult(StorageReadOutcome::Unavailable));
+        } catch (Throwable) {
+            $outcome = StorageReadOutcome::Unavailable;
         }
+        if (is_resource($handle)) {
+            try {
+                if (!fclose($handle)) {
+                    $outcome = StorageReadOutcome::Unavailable;
+                }
+            } catch (Throwable) {
+                $outcome = StorageReadOutcome::Unavailable;
+            }
+        }
+        if (null !== $lock && !$lock->closed()) {
+            try {
+                $lock->close();
+            } catch (Throwable) {
+                $outcome = StorageReadOutcome::Unavailable;
+            }
+        }
+        return new StorageAdapterRead($request, new StorageReadResult($outcome));
     }
 
     public function write(StorageWriteRequest $request, StorageByteSource $source): StorageMutationResult
@@ -137,66 +147,129 @@ final class ContainedLocalStorageAdapter implements StorageAdapter
         $namespace = $request->objectIdentity()->namespace()->value();
         $logical = $request->objectIdentity()->logicalIdentity()->value();
         $lock = null;
+        $handle = null;
         $temporary = null;
+        $owned = null;
+        $effect = false;
+        $outcome = StorageMutationOutcome::Unavailable;
+        $version = null;
         try {
             $lock = LocalObjectLock::acquire($this->layout, $namespace, $logical, true);
             $path = $this->layout->assertContained($this->layout->objectPath($namespace, $logical), true);
             $exists = file_exists($path);
-            $prior = 'creation';
+            $prior = null;
             if (StorageOperation::Create === $operation && $exists) {
-                $lock->close();
-
-                return new StorageMutationResult(StorageMutationOutcome::AlreadyExists);
-            }
-            if (StorageOperation::Replace === $operation) {
-                if (!$exists) {
-                    $lock->close();
-                    return new StorageMutationResult(StorageMutationOutcome::Absent);
+                $outcome = StorageMutationOutcome::AlreadyExists;
+            } elseif (StorageOperation::Replace === $operation && !$exists) {
+                $outcome = StorageMutationOutcome::Absent;
+            } else {
+                if ($exists) {
+                    $record = LocalObjectReader::open($path, $namespace, $logical, $this->layout, $this->descriptor->artifact(), $this->descriptor->profileName());
+                    $prior = $record['header']->version();
+                    if (!fclose($record['handle'])) {
+                        throw LocalStorageOperationException::cleanup('write');
+                    }
                 }
-                $record = LocalObjectReader::open($path, $namespace, $logical, $this->layout, $this->descriptor->artifact(), $this->descriptor->profileName());
-                fclose($record['handle']);
-                $prior = $record['header']->version();
                 $expected = $request->condition()->version();
-                if (null === $expected || !hash_equals($prior, $expected->value())) {
-                    $lock->close();
-                    return new StorageMutationResult(StorageMutationOutcome::Conflict);
+                if (StorageOperation::Replace === $operation && (null === $expected || !hash_equals($prior, $expected->value()))) {
+                    $outcome = StorageMutationOutcome::Conflict;
+                } else {
+                    $version = bin2hex(random_bytes(32));
+                    if ($version === $prior) {
+                        throw LocalStorageOperationException::failed('generation_collision', 'write');
+                    }
+                    $metadata = array_map(static fn(StorageMetadataEntry $entry): array => ['name' => $entry->name(), 'value' => $entry->value()], $request->metadata()->entries());
+                    $header = LocalObjectHeader::create($namespace, $logical, $this->layout, $declared, $request->contentDigest()->algorithm()->value, $request->contentDigest()->digest(), $request->mediaType()->value(), $metadata, $version, $this->descriptor->artifact(), $this->descriptor->profileName());
+                    $temporary = $this->layout->assertContained($this->layout->temporaryPath($namespace, $logical, $request->operationIdentity()->value()), true);
+                    if (false === @lstat($temporary)) {
+                        $handle = @fopen($temporary, 'x+b');
+                        if (false !== $handle) {
+                            $owned = fstat($handle);
+                            $this->layout->assertFileHandle($temporary, $handle);
+                            try {
+                                $written = LocalObjectWriter::write($handle, $header, $source, $profile->limits()->maxChunkBytes());
+                            } catch (Throwable $failure) {
+                                $outcome = StorageMutationOutcome::Rejected;
+                                throw $failure;
+                            }
+                            if (!$written) {
+                                throw LocalStorageOperationException::failed('temporary_write_failed', 'write');
+                            }
+                            $this->layout->assertFileHandle($temporary, $handle);
+                            $closed = fclose($handle);
+                            $handle = null;
+                            if (!$closed) {
+                                throw LocalStorageOperationException::cleanup('write');
+                            }
+                            $this->assertOwnedTemporary($temporary, $owned);
+                            $this->layout->assertContained($path, true);
+                            if (!$exists && file_exists($path)) {
+                                throw LocalStorageOperationException::failed('record_preexisting', 'write');
+                            }
+                            if ($exists) {
+                                $effect = true;
+                                if (!@unlink($path)) {
+                                    throw LocalStorageOperationException::failed('record_remove_failed', 'write');
+                                }
+                            }
+                            $this->assertOwnedTemporary($temporary, $owned);
+                            $this->layout->assertContained($path, true);
+                            $effect = true;
+                            if (!@rename($temporary, $path)) {
+                                throw LocalStorageOperationException::failed('record_publish_failed', 'write');
+                            }
+                            $owned = null;
+                            $this->layout->assertContained($path);
+                            $outcome = StorageMutationOutcome::Completed;
+                        }
+                    }
                 }
             }
-            $metadata = array_map(static fn(StorageMetadataEntry $entry): array => ['name' => $entry->name(),'value' => $entry->value()], $request->metadata()->entries());
-            $version = hash('sha256', "kongono.storage.local.object-version.v1\0" . $prior . "\0" . $namespace . "\0" . $logical . "\0" . $request->contentDigest()->digest() . "\0" . json_encode($metadata, JSON_THROW_ON_ERROR));
-            $header = LocalObjectHeader::create($namespace, $logical, $this->layout, $declared, $request->contentDigest()->algorithm()->value, $request->contentDigest()->digest(), $request->mediaType()->value(), $metadata, $version, $this->descriptor->artifact(), $this->descriptor->profileName());
-            $temporary = $this->layout->assertContained($this->layout->temporaryPath($namespace, $logical, $request->operationIdentity()->value()), true);
-            if (file_exists($temporary)) {
-                return new StorageMutationResult(StorageMutationOutcome::Unavailable);
-            }
-            LocalObjectWriter::write($temporary, $header, $source, $profile->limits()->maxChunkBytes());
-            $this->layout->assertContained($temporary);
-            $this->layout->assertContained($path, true);
-            if ($exists && !@unlink($path)) {
-                return new StorageMutationResult(StorageMutationOutcome::Unavailable);
-            }
-            if (!@rename($temporary, $path)) {
-                return new StorageMutationResult($exists ? StorageMutationOutcome::Uncertain : StorageMutationOutcome::Unavailable);
-            }
-            $temporary = null;
-            $this->layout->assertContained($path);
-            $lock->close();
-
-            return new StorageMutationResult(StorageMutationOutcome::Completed, new StorageObjectVersion($version), $request->contentDigest());
-        } catch (LocalStorageOperationException) {
-            return new StorageMutationResult(StorageMutationOutcome::Rejected);
         } catch (Throwable) {
-            return new StorageMutationResult(StorageMutationOutcome::Unavailable);
-        } finally {
-            if (null !== $temporary && file_exists($temporary) && is_file($temporary) && !is_link($temporary)) {
-                @unlink($temporary);
+            if ($effect) {
+                $outcome = StorageMutationOutcome::Uncertain;
             }
-            if (null !== $lock && !$lock->closed()) {
-                try {
-                    $lock->close();
-                } catch (Throwable) {
+        }
+        $cleanupFailed = false;
+        if (null !== $handle && false !== $handle) {
+            try {
+                $cleanupFailed = !fclose($handle);
+            } catch (Throwable) {
+                $cleanupFailed = true;
+            }
+        }
+        if (null !== $temporary && is_array($owned)) {
+            try {
+                $this->assertOwnedTemporary($temporary, $owned);
+                if (!@unlink($temporary)) {
+                    $cleanupFailed = true;
                 }
+            } catch (Throwable) {
+                $cleanupFailed = true;
             }
+        }
+        if (null !== $lock && !$lock->closed()) {
+            try {
+                $lock->close();
+            } catch (Throwable) {
+                $cleanupFailed = true;
+            }
+        }
+        if ($cleanupFailed) {
+            $outcome = $effect ? StorageMutationOutcome::Uncertain : StorageMutationOutcome::Unavailable;
+        }
+        return StorageMutationOutcome::Completed === $outcome && null !== $version
+            ? new StorageMutationResult($outcome, new StorageObjectVersion($version), $request->contentDigest())
+            : new StorageMutationResult($outcome);
+    }
+
+    /** @param array{dev: int, ino: int}|false|null $owned */
+    private function assertOwnedTemporary(string $path, array|false|null $owned): void
+    {
+        $this->layout->assertContained($path);
+        $current = @lstat($path);
+        if (!is_array($owned) || false === $current || $current['dev'] !== $owned['dev'] || $current['ino'] !== $owned['ino']) {
+            throw LocalStorageOperationException::cleanup('write');
         }
     }
 
@@ -211,37 +284,40 @@ final class ContainedLocalStorageAdapter implements StorageAdapter
         $namespace = $request->objectIdentity()->namespace()->value();
         $logical = $request->objectIdentity()->logicalIdentity()->value();
         $lock = null;
+        $effect = false;
+        $expected = $request->condition()->version();
+        $outcome = StorageMutationOutcome::Unavailable;
         try {
             $lock = LocalObjectLock::acquire($this->layout, $namespace, $logical, true);
-            $path = $this->layout->objectPath($namespace, $logical);
+            $path = $this->layout->assertContained($this->layout->objectPath($namespace, $logical), true);
             if (!file_exists($path)) {
-                $lock->close();
-                return new StorageMutationResult(StorageMutationOutcome::Absent);
-            }
-            $record = LocalObjectReader::open($path, $namespace, $logical, $this->layout, $this->descriptor->artifact(), $this->descriptor->profileName());
-            fclose($record['handle']);
-            $expected = $request->condition()->version();
-            if (null === $expected || !hash_equals($record['header']->version(), $expected->value())) {
-                $lock->close();
-                return new StorageMutationResult(StorageMutationOutcome::Conflict);
-            }
-            $this->layout->assertContained($path);
-            if (!@unlink($path)) {
-                return new StorageMutationResult(StorageMutationOutcome::Uncertain);
-            }
-            $lock->close();
-
-            return new StorageMutationResult(StorageMutationOutcome::Completed, $expected);
-        } catch (Throwable) {
-            return new StorageMutationResult(StorageMutationOutcome::Unavailable);
-        } finally {
-            if (null !== $lock && !$lock->closed()) {
-                try {
-                    $lock->close();
-                } catch (Throwable) {
+                $outcome = StorageMutationOutcome::Absent;
+            } else {
+                $record = LocalObjectReader::open($path, $namespace, $logical, $this->layout, $this->descriptor->artifact(), $this->descriptor->profileName());
+                if (!fclose($record['handle'])) {
+                    throw LocalStorageOperationException::cleanup('delete');
+                }
+                if (null === $expected || !hash_equals($record['header']->version(), $expected->value())) {
+                    $outcome = StorageMutationOutcome::Conflict;
+                } else {
+                    $this->layout->assertContained($path);
+                    $effect = true;
+                    $outcome = @unlink($path) ? StorageMutationOutcome::Completed : StorageMutationOutcome::Uncertain;
                 }
             }
+        } catch (Throwable) {
+            $outcome = $effect ? StorageMutationOutcome::Uncertain : StorageMutationOutcome::Unavailable;
         }
+        if (null !== $lock && !$lock->closed()) {
+            try {
+                $lock->close();
+            } catch (Throwable) {
+                $outcome = $effect ? StorageMutationOutcome::Uncertain : StorageMutationOutcome::Unavailable;
+            }
+        }
+        return StorageMutationOutcome::Completed === $outcome && null !== $expected
+            ? new StorageMutationResult($outcome, $expected)
+            : new StorageMutationResult($outcome);
     }
 
     public function list(StorageListRequest $request): StorageListResult
@@ -256,7 +332,7 @@ final class ContainedLocalStorageAdapter implements StorageAdapter
         try {
             $this->layout->ensureNamespace($namespace);
             $after = null === $request->continuationToken() ? null : LocalContinuationCodec::decode($request->continuationToken(), $this->descriptor, $namespace);
-            $directory = $this->layout->assertContained($this->layout->objectDirectory($namespace));
+            $directory = $this->layout->assertContained($this->layout->objectDirectory($namespace), false, true);
             $entries = [];
             $iterator = new \FilesystemIterator($directory, \FilesystemIterator::SKIP_DOTS);
             foreach ($iterator as $file) {
@@ -273,7 +349,9 @@ final class ContainedLocalStorageAdapter implements StorageAdapter
                 $lock = LocalObjectLock::acquire($this->layout, $namespace, $logical, false);
                 try {
                     $record = LocalObjectReader::open($file->getPathname(), $namespace, $logical, $this->layout, $this->descriptor->artifact(), $this->descriptor->profileName());
-                    fclose($record['handle']);
+                    if (!fclose($record['handle'])) {
+                        throw LocalStorageOperationException::cleanup('list');
+                    }
                     $evidence = $record['header']->evidence();
                     $entries[$logical] = new StorageListEntry($evidence->identity(), $evidence->byteCount(), $evidence->objectVersion());
                 } finally {
@@ -317,11 +395,13 @@ final class ContainedLocalStorageAdapter implements StorageAdapter
 
     private function logicalFromRecord(string $path): string
     {
-        $handle = fopen($path, 'rb');
+        $this->layout->assertContained($path);
+        $handle = @fopen($path, 'rb');
         if (false === $handle) {
             throw LocalStorageOperationException::failed('record_open_failed', 'list');
         }
         try {
+            $this->layout->assertFileHandle($path, $handle);
             if (fread($handle, strlen(LocalObjectReader::MARKER)) !== LocalObjectReader::MARKER) {
                 throw LocalStorageOperationException::failed('record_framing', 'list');
             }
@@ -340,7 +420,9 @@ final class ContainedLocalStorageAdapter implements StorageAdapter
 
             return LocalObjectHeader::decode($bytes)->logical();
         } finally {
-            fclose($handle);
+            if (!fclose($handle)) {
+                throw LocalStorageOperationException::cleanup('list');
+            }
         }
     }
 }

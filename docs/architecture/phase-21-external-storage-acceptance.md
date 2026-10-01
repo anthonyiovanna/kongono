@@ -65,6 +65,16 @@ for disclosure under effective trace settings 0 and 1.
 The broader local gate also runs whole-repository analysis and tests, eight
 unchanged earlier acceptance profiles, Composer validation of root/packages/
 skeletons, platform requirements, Knowledge checks, style and preservation.
-The separately approved network security audit, architect acceptance and
-checkpoint remain pending. This guide grants no permission to run network
-commands, select a cloud provider, stage or commit changes, or start Phase 22.
+The separately approved network security audit of the then-current 189-entry
+lock reported no advisories at its 2026-09-26 run. Architect acceptance and
+the exact Phase 21 checkpoint subsequently completed. H.11 whole-tree
+analysis/tests were before H.14's one-file Console fixture correction;
+H.14 supplied focused and regression proof, not a fresh whole-tree
+post-commit run. H.11 PHPUnit selected 3,726 tests, passed 3,725, and
+retained one directory-symlink capability skip, 72 suppressed warnings and
+an unavailable assertion total. H.17 independently verified committed bytes,
+not functional reruns. The audit is time-bound. This local proof does not
+certify cloud providers, deployment, performance, durability, production
+readiness or Stable/1.0. Completion grants no permission to run another
+network command, select a cloud provider, stage or commit changes, or begin
+a later phase.

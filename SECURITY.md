@@ -1,5 +1,45 @@
 # Security Policy
 
+## Phase 22A-E Application Events security boundary
+
+Phase 22A accepts only [documentation architecture](docs/architecture/application-events.md)
+under [ADR 0215](docs/adr/0215-optional-application-events-and-explicit-synchronous-dispatch.md)
+and the [Phase 22 roadmap](docs/architecture/phase-22-roadmap.md). Phase 22B
+implements the inert optional contract under
+[ADR 0216](docs/adr/0216-neutral-application-event-contract-and-bounded-registration.md):
+registration checks one already-loaded canonical concrete event class, and
+the set validates at most 64 ordered entries, without autoload, event
+construction or handler invocation. Its four fixed diagnostics expose only a
+Safe violation token. Native PHP errors and programmatic traces remain
+outside that presentation guarantee. The separately optional Experimental
+dispatcher under
+[ADR 0217](docs/adr/0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md)
+receives an explicitly typed application event and complete
+caller-supplied registrations; malformed or duplicate bindings fail before
+handler effects. It preserves the original first handler Throwable and
+truthful earlier partial effects, rejects same-instance reentrancy before
+matching with fixed Safe diagnostic `KGN-EVENT-RUNTIME-2221`, and releases its
+guard in `finally`. Each effectful handler owns business authorization,
+privacy, credentials and safe failure presentation. Framework diagnostics
+must omit raw payloads, handler results and arbitrary throwable messages.
+Events are separate from telemetry, audit, Graph facts, commands and queues;
+no hidden network, persistence, retry, worker or automatic publication is
+accepted. Phases 22A-C are architect-accepted within their recorded limits.
+The [event-minimal example](skeletons/event-minimal/README.md) checks current
+application authorization before each receipt and ledger effect; its fixed
+sample policy is not production authorization. Native errors, handler
+Throwables and traces require application-owned safe presentation. Phase 22D
+is architect-accepted within its recorded local limits. Phase 22E found that
+a missing demo autoloader emitted a native warning before the fixed failure
+token; a temporary E_WARNING handler now converts that trusted bootstrap
+warning to a fixed exception and is restored in `finally`. Local recovery and
+assembled-path validation are architect-accepted within their recorded limits.
+This does not sanitize arbitrary native warnings or handler traces. Phase 22F's
+offline separate-process and own-autoload consumer proof passed locally; broad
+milestone validation, advisory audit, architect milestone acceptance and the
+exact checkpoint remain pending. See
+[event authoring](docs/engineering/event-authoring.md).
+
 ## Phase 21A-H Object Storage security boundary
 
 Phase 21A accepts documentation architecture; Phase 21B accepts only the inert
@@ -36,7 +76,9 @@ See [ADR 0213](docs/adr/0213-visibility-safe-storage-inspection-and-developer-in
 and the [storage inspection guide](docs/architecture/storage-inspection-and-intelligence.md).
 Phase 21H adds [bounded root-owned local acceptance](docs/architecture/phase-21-external-storage-acceptance.md)
 without granting provider, credential, network, or application authority.
-Security audit, architect acceptance, and checkpoint remain separate gates.
+The time-bound audit, architect acceptance, and exact checkpoint completed as
+separate Phase 21 gates; local proof retains its recorded limits.
+
 Contract requests contain no provider locator, path, URL, credential,
 authorization result, retry policy, or runtime object. Runtime storage access
 must be capability-scoped and explicitly composed. Logical object identifiers, namespaces, provider

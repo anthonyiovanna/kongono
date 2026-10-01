@@ -1,5 +1,71 @@
 # Testing
 
+Phase 22A was documentation architecture only. Phase 22B adds 15 package-test
+PHP files and extends root architecture and Hantei profile checks for the
+inert optional `kongono/event-contract`. Focused local style, static analysis
+and 95 PHPUnit tests passed before Phase 22B architect acceptance. Tests cover
+loaded canonical types, bounds, ordered and duplicate
+registrations, zero handler invocation, four nondisclosing diagnostics and
+the exact eight-declaration status split. The
+[A-F roadmap](../architecture/phase-22-roadmap.md) records the Phase 22C
+dispatcher and reserves caller-owned composition, adversarial cross-package
+evidence and a separate checkpoint. Phase 22C adds
+12 event-runtime package-test PHP files and extends root architecture and
+Hantei boundary checks. Focused PHPStan and both planned PHPUnit disclosure
+profiles pass locally: 117 tests each, with no failed, skipped, risky,
+incomplete, warning or deprecation events. The debug output does not emit an
+assertion total. Phase 22C's separate time-bound audit and architect
+acceptance completed within their recorded limits; full configured quality
+remains separate. Runtime tests distinguish no-match no-op,
+validation-before-effect, original handler Throwable identity, earlier partial
+effects, reentrancy guard release
+and later-operation health, including suspended-Fiber overlap and
+non-retention after completion. See [ADR 0217](../adr/0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md),
+[ADR 0215](../adr/0215-optional-application-events-and-explicit-synchronous-dispatch.md),
+the [Application Events guide](../architecture/application-events.md), and
+[event authoring](event-authoring.md).
+
+Phase 22D adds four application-owned PHP files under the
+[event-minimal example](../../skeletons/event-minimal/README.md), including one
+focused test file. Root-configured focused syntax, style and sequential
+PHPStan pass after one ordinary test correction; both initial
+`zend.exception_ignore_args` profiles pass 88 PHPUnit tests each with no
+failure, skip, risky, incomplete, warning or deprecation events. The
+standalone demo boots its own local autoloader and emits only its fixed success
+token. Phase 22D is architect-accepted within those recorded local limits;
+its earlier tests did not exercise a missing autoloader. Phase 22E exposed
+the native warning in that condition and corrected the demo's bootstrap
+presentation with a temporary warning handler restored in `finally`.
+
+Phase 22E adds one root assembled-path test file, raising the root-test
+PHP inventory at that phase to 109. Focused syntax, style and sequential PHPStan pass after
+one ordinary test correction. Both root PHPUnit trace profiles pass 85 tests
+each with no failed, skipped, risky, incomplete, warning or deprecation
+events. A separate missing-autoloader probe emits exactly the fixed failure
+token; successful in-repository and copied-consumer demos emit exactly the
+fixed success token. A private sentinel harness verifies the caller's warning
+handler is restored on successful bootstrap. The offline copied-example
+install includes exactly four local libraries. Phase 22E is architect-accepted
+within its recorded local limits; those checks remain distinct from Phase 22F's
+later separate-process consumer proof and do not establish production suitability.
+
+Phase 22F adds four root-owned acceptance PHP files, bringing the current
+root-test PHP inventory to 113 without a production package or dependency edge.
+The [local acceptance runner](../architecture/phase-22-external-acceptance.md)
+passed eight closed groups through a fresh offline copied consumer with its own
+generated lock, four local dependencies and autoloader. Current-source focused
+PHPUnit finished 81 tests across the Hantei profile and API-status architecture
+targets. The architect accepted six individual style checks and six individual
+PHPStan analyses for the unchanged focused inputs. Earlier combined style and
+PHPStan native failures and a separate PowerShell/.NET preparation failure
+remain unexplained; no combined or whole-tree quality pass is inferred.
+Offline root Composer validation exited 0 with 119 nonfatal warnings: one
+missing-license warning and 118 local unbounded `@dev` constraints. This was
+not a dependency audit. Broad milestone validation, advisory audit, architect
+milestone acceptance and exact checkpoint remain pending. See the
+[Phase 22F.7 focused validation report](../task_reports/phase_22/Phase_22F_7_focused_validation.md)
+for exact raw evidence and limits.
+
 Phase 21B adds 21 package-test PHP files for `kongono/storage-contract` and no
 root-test PHP files. Focused coverage proves the 40-declaration, 37
 Experimental / 3 Internal / 0 Public / 0 Stable split; every exact scalar and
@@ -68,8 +134,9 @@ The measured current inventories are 116 packages, 501 local production
 edges, 2,322 production PHP, 1,228 package-test PHP, and 104 root-test PHP
 files. Phase 21G is Current and Accepted. Phase 21H adds four root-owned
 external harness PHP files, raising the root-test inventory to 108. Local
-validation, security audit, architect acceptance, and checkpoint are separate
-gates. See
+validation, time-bound security audit, architect acceptance, and exact
+checkpoint completed as separate Phase 21 gates with the limits recorded in
+the acceptance guide. See
 [ADR 0213](../adr/0213-visibility-safe-storage-inspection-and-developer-intelligence.md)
 and the [storage inspection guide](../architecture/storage-inspection-and-intelligence.md),
 plus [ADR 0214](../adr/0214-phase-21-external-storage-acceptance-and-checkpoint.md)

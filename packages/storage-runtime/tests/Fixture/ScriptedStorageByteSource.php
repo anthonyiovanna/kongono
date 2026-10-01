@@ -13,6 +13,7 @@ final class ScriptedStorageByteSource implements StorageByteSource
     private int $offset = 0;
     private bool $closed = false;
     public int $closeCalls = 0;
+    public bool $failClosedObservation = false;
 
     public function __construct(
         private readonly string $bytes,
@@ -54,6 +55,9 @@ final class ScriptedStorageByteSource implements StorageByteSource
 
     public function closed(): bool
     {
+        if ($this->failClosedObservation) {
+            throw new RuntimeException('fixture-closed-observation-failure');
+        }
         return $this->closed;
     }
 }

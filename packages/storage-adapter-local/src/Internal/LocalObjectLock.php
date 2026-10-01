@@ -23,15 +23,27 @@ final class LocalObjectLock
             throw LocalStorageOperationException::failed('unexpected_lock_type', 'lock');
         }
         $handle = @fopen($path, 'c+b');
-        if (false === $handle || !@flock($handle, $exclusive ? LOCK_EX : LOCK_SH)) {
-            if (is_resource($handle)) {
-                @fclose($handle);
-            }
+        if (false === $handle) {
             throw LocalStorageOperationException::failed('lock_failed', 'lock');
         }
-        $layout->assertContained($path);
+        $acquired = false;
+        try {
+            if (!@flock($handle, $exclusive ? LOCK_EX : LOCK_SH)) {
+                throw LocalStorageOperationException::failed('lock_failed', 'lock');
+            }
+            $layout->assertFileHandle($path, $handle);
+            $acquired = true;
 
-        return new self($handle);
+            return new self($handle);
+        } finally {
+            if (!$acquired) {
+                $unlocked = @flock($handle, LOCK_UN);
+                $closed = @fclose($handle);
+                if (!$unlocked || !$closed) {
+                    throw LocalStorageOperationException::cleanup('lock');
+                }
+            }
+        }
     }
 
     public function close(): void
@@ -40,7 +52,9 @@ final class LocalObjectLock
             return;
         }
         $this->closed = true;
-        if (!@flock($this->handle, LOCK_UN) || !@fclose($this->handle)) {
+        $unlocked = @flock($this->handle, LOCK_UN);
+        $closed = @fclose($this->handle);
+        if (!$unlocked || !$closed) {
             throw LocalStorageOperationException::cleanup('lock');
         }
     }

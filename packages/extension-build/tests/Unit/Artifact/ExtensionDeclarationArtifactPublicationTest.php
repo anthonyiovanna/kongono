@@ -84,9 +84,15 @@ final class ExtensionDeclarationArtifactPublicationTest extends TestCase
             }
         } finally {
             if (is_link($alias)) {
-                unlink($alias);
+                $removed = 'Windows' === PHP_OS_FAMILY ? rmdir($alias) : unlink($alias);
+                self::assertTrue($removed);
             }
+            clearstatcache(true, $alias);
+            self::assertFalse(is_link($alias));
+            self::assertFalse(file_exists($alias));
             self::removeDirectory($directory);
+            clearstatcache(true, $directory);
+            self::assertFalse(file_exists($directory));
         }
     }
 

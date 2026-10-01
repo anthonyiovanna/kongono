@@ -1,5 +1,27 @@
 # API Status
 
+## Phase 22A-E Application Events status
+
+Phase 22A accepts [ADR 0215](../adr/0215-optional-application-events-and-explicit-synchronous-dispatch.md)
+and the [A-F roadmap](../architecture/phase-22-roadmap.md) as architecture
+only in Phase 22A. Phase 22B implements eight production declarations in the
+optional `kongono/event-contract` package: six Experimental and two Internal,
+with none Public or Stable, under
+[ADR 0216](../adr/0216-neutral-application-event-contract-and-bounded-registration.md).
+The separately optional `kongono/event-runtime` has four production
+declarations under
+[ADR 0217](../adr/0217-optional-synchronous-application-event-dispatcher-and-instance-lifecycle.md):
+three Experimental and one Internal, with none Public or Stable. Phases 22A
+through 22E are architect-accepted within their recorded limits. Phase 22D
+adds only the application-owned [event-minimal example](../../skeletons/event-minimal/README.md),
+not a framework API or package. Phase 22E's root assembled-path tests and
+offline copied-consumer check are locally complete within those accepted limits.
+Phase 22F's root-owned acceptance and focused current-source validation passed;
+broad validation, advisory audit, architect milestone acceptance and exact
+checkpoint remain pending. No API status promotion is implied. See the
+[Application Events guide](../architecture/application-events.md) and
+[event authoring](event-authoring.md).
+
 ## Phase 21 Object Storage status
 
 Phase 21A accepts
@@ -61,7 +83,8 @@ The three new Console handlers are Experimental. No new declaration is Stable.
 The optional `kongono/storage-inspection` leaf has 23 declarations: 20
 Experimental, two Internal, and one Public exception-family interface. None
 is Stable. Phase 21H external acceptance adds no production declarations;
-security audit, architect acceptance, and checkpoint remain separate gates.
+its separate time-bound audit, architect acceptance, and exact checkpoint
+gates completed with their recorded validation limits.
 
 ## Phase 20 Derived-Data Cache status
 

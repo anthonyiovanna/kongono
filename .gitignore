@@ -1,6 +1,7 @@
 /.idea/
 /.vscode/
 /vendor/
+/skeletons/event-minimal/vendor/
 .php-cs-fixer.cache
 .phpunit.cache/
 .cache/

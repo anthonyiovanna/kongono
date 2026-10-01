@@ -32,6 +32,7 @@
             <directory>packages/asset-inspection/tests</directory>
             <directory>skeletons/asset-minimal/tests</directory>
             <directory>skeletons/cache-minimal/tests</directory>
+            <directory>skeletons/event-minimal/tests</directory>
             <directory>packages/asset-resolution/tests</directory>
             <directory>packages/asset-build/tests</directory>
             <directory>packages/asset-contract/tests</directory>
@@ -71,6 +72,8 @@
             <directory>packages/extension-contract/tests</directory>
             <directory>packages/extension-host/tests</directory>
             <directory>packages/extension-inspection/tests</directory>
+            <directory>packages/event-contract/tests</directory>
+            <directory>packages/event-runtime/tests</directory>
             <directory>packages/external-service-application/tests</directory>
             <directory>packages/external-service-binding-build/tests</directory>
             <directory>packages/external-service-contract/tests</directory>
@@ -188,6 +191,8 @@
             <directory>packages/extension-contract/src</directory>
             <directory>packages/extension-host/src</directory>
             <directory>packages/extension-inspection/src</directory>
+            <directory>packages/event-contract/src</directory>
+            <directory>packages/event-runtime/src</directory>
             <directory>packages/external-service-application/src</directory>
             <directory>packages/external-service-binding-build/src</directory>
             <directory>packages/external-service-contract/src</directory>
@@ -251,6 +256,7 @@
             <directory>skeletons/security-minimal/src</directory>
             <directory>skeletons/asset-minimal/src</directory>
             <directory>skeletons/cache-minimal/src</directory>
+            <directory>skeletons/event-minimal/src</directory>
             <directory>skeletons/storage-minimal/src</directory>
             <directory>skeletons/view-minimal/src</directory>
         </include>
