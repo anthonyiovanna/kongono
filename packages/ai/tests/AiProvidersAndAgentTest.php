@@ -10,6 +10,11 @@ use Kongono\Ai\Agent\AgentRunner;
 use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
+use Kongono\Ai\Embedding\KnowledgeBase;
+use Kongono\Ai\Embedding\MemoryVectorStore;
+use Kongono\Ai\Embedding\PgVectorStore;
+use Kongono\Ai\Embedding\TextChunker;
+use Kongono\Ai\Embedding\VectorDocument;
 use Kongono\Ai\Mcp\McpServer;
 use Kongono\Ai\Message;
 use Kongono\Ai\Provider\AnthropicProvider;
@@ -21,6 +26,9 @@ use Kongono\Ai\ToolDefinition;
 use Kongono\Ai\Transport\HttpResponse;
 use Kongono\Ai\Transport\HttpTransportInterface;
 use Kongono\Ai\Transport\StreamingHttpTransportInterface;
+use Kongono\Database\ConnectionInterface;
+use Kongono\Database\Dialect;
+use Kongono\Database\QueryBuilder;
 use Kongono\Validation\Attributes\In;
 use Kongono\Validation\Attributes\Required;
 use PHPUnit\Framework\TestCase;
@@ -392,5 +400,102 @@ final class AiProvidersAndAgentTest extends TestCase
         fclose($out);
         self::assertIsString($stdioOut);
         self::assertStringContainsString('"id":"p1"', $stdioOut);
+    }
+
+    public function testEmbeddingsProvidersChunkerVectorStoresAndRagKnowledgeBase(): void
+    {
+        // 1. OpenAI, Gemini & Ollama native embedding wire protocols
+        $openai = new OpenAiProvider('sk-test', transport: new FakeTransport(
+            new HttpResponse(200, json_encode(['data' => [['embedding' => [1.0, 0.0]], ['embedding' => [0.0, 1.0]]]], JSON_THROW_ON_ERROR)),
+            new HttpResponse(200, json_encode(['data' => [['embedding' => [0.95, 0.05]]]], JSON_THROW_ON_ERROR)),
+            new HttpResponse(200, json_encode([
+                'model' => 'gpt-4.1-mini',
+                'choices' => [['message' => ['content' => 'Kongono runs on PHP 8.5 [1].']]],
+            ], JSON_THROW_ON_ERROR)),
+        ));
+
+        $gemini = new GeminiProvider('AIzaTest', transport: new FakeTransport(
+            new HttpResponse(200, json_encode(['embeddings' => [['values' => [0.5, 0.5]]]], JSON_THROW_ON_ERROR)),
+        ));
+        self::assertSame([[0.5, 0.5]], $gemini->embed(['hello']));
+
+        $ollama = new OllamaProvider(transport: new FakeTransport(
+            new HttpResponse(200, json_encode(['embeddings' => [[0.25, 0.75]]], JSON_THROW_ON_ERROR)),
+        ));
+        self::assertSame([[0.25, 0.75]], $ollama->embed(['local']));
+
+        // 2. TextChunker overlapping split
+        $chunker = new TextChunker(chunkSize: 30, overlap: 10);
+        $chunks = $chunker->split('Kongono is a modern zero-legacy PHP 8.5 framework with built-in AI companions.');
+        self::assertGreaterThan(1, count($chunks));
+
+        // 3. MemoryVectorStore + KnowledgeBase RAG with citations & secret scrubbing
+        $store = new MemoryVectorStore();
+        $kb = new KnowledgeBase($openai, $store, new TextChunker(chunkSize: 35, overlap: 0));
+        $indexed = $kb->ingest('doc-1', 'Kongono runs on PHP 8.5 with zero Symfony and sk-proj-1234567890abcdef1234', ['topic' => 'core']);
+        self::assertSame(2, $indexed);
+
+        $rag = $kb->ask('What PHP version does Kongono use?', new AiClient($openai), topK: 1, metadataFilter: ['topic' => 'core']);
+        self::assertStringContainsString('PHP 8.5', $rag['answer']);
+        self::assertCount(1, $rag['sources']);
+        self::assertStringNotContainsString('sk-proj-1234567890abcdef1234', $rag['sources'][0]['excerpt']);
+
+        // 4. PgVectorStore SQL verification
+        $sqlLog = [];
+        $fakePg = new class ($sqlLog) implements ConnectionInterface {
+            /** @param list<string> $sqlLog */
+            public function __construct(public array &$sqlLog) {}
+
+            public function dialect(): Dialect
+            {
+                return Dialect::Postgres;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                $this->sqlLog[] = $sql;
+
+                return [[
+                    'id' => 'pg-1',
+                    'content' => 'pgvector doc',
+                    'embedding' => '[1,0]',
+                    'metadata' => '{"env":"prod"}',
+                    'score' => 0.99,
+                ]];
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                return null;
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                $this->sqlLog[] = $sql;
+
+                return 1;
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, Dialect::Postgres, $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                return $callback($this);
+            }
+        };
+
+        $pgStore = new PgVectorStore($fakePg);
+        $pgStore->ensureTable(2);
+        $pgStore->upsert(new VectorDocument('pg-1', 'pgvector doc', [1.0, 0.0], ['env' => 'prod']));
+        $pgHits = $pgStore->search([1.0, 0.0], limit: 3, metadataFilter: ['env' => 'prod']);
+        self::assertCount(1, $pgHits);
+        self::assertSame('pg-1', $pgHits[0]->document->id);
+        self::assertSame(0.99, $pgHits[0]->score);
+        self::assertStringContainsString('CREATE EXTENSION IF NOT EXISTS vector', $sqlLog[0]);
+        self::assertStringContainsString('ON CONFLICT (id) DO UPDATE', $sqlLog[2]);
+        self::assertStringContainsString('metadata @> ?::jsonb', $sqlLog[3]);
     }
 }

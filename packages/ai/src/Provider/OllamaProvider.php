@@ -9,6 +9,7 @@ use JsonException;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
 use Kongono\Ai\ChatResponse;
+use Kongono\Ai\Embedding\EmbeddingProviderInterface;
 use Kongono\Ai\Message;
 use Kongono\Ai\TokenUsage;
 use Kongono\Ai\ToolCall;
@@ -18,8 +19,8 @@ use Kongono\Ai\Transport\HttpTransportInterface;
 use Kongono\Ai\Transport\StreamingHttpTransportInterface;
 use Kongono\Core\Diagnostics\SecretScrubber;
 
-/** Local / self-hosted Ollama chat provider with native NDJSON streaming (zero API key required). */
-final readonly class OllamaProvider implements StreamingAiProviderInterface
+/** Local / self-hosted Ollama chat & embeddings provider with native NDJSON streaming (zero API key required). */
+final readonly class OllamaProvider implements EmbeddingProviderInterface, StreamingAiProviderInterface
 {
     private HttpTransportInterface $transport;
 
@@ -196,5 +197,43 @@ final readonly class OllamaProvider implements StreamingAiProviderInterface
         }
 
         return new ChatResponse($fullText, $resolvedModel, $this->name(), finishReason: $finishReason);
+    }
+
+    public function embed(array $texts, ?string $model = null): array
+    {
+        $embedModel = $model ?? 'nomic-embed-text';
+        $url = rtrim($this->host, '/') . '/api/embed';
+        $http = $this->transport->postJson(
+            $url,
+            [],
+            json_encode(['model' => $embedModel, 'input' => $texts], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+        );
+
+        if ($http->statusCode < 200 || $http->statusCode >= 300) {
+            throw new AiException(sprintf(
+                'Ollama Embeddings API returned HTTP %d: %s',
+                $http->statusCode,
+                SecretScrubber::scrub(substr($http->body, 0, 500)),
+            ));
+        }
+
+        $decoded = json_decode($http->body, true, 64, JSON_THROW_ON_ERROR);
+        if (!is_array($decoded) || !isset($decoded['embeddings']) || !is_array($decoded['embeddings'])) {
+            throw new AiException('Unexpected Ollama embeddings response: missing embeddings.');
+        }
+
+        $vectors = [];
+        foreach ($decoded['embeddings'] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $vec = [];
+            foreach ($item as $n) {
+                $vec[] = is_numeric($n) ? (float) $n : 0.0;
+            }
+            $vectors[] = $vec;
+        }
+
+        return $vectors;
     }
 }

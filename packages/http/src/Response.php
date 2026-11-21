@@ -140,6 +140,11 @@ final class Response implements ResponseInterface
         return $this->streamProducer;
     }
 
+    public function isStreaming(): bool
+    {
+        return null !== $this->streamProducer;
+    }
+
     public function status(): int
     {
         return $this->statusCode;

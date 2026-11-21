@@ -161,6 +161,35 @@ PHP;
         return $path;
     }
 
+    public function makeSeeder(ProjectContext $context, string $name): string
+    {
+        $className = $this->studly($name);
+        if (!str_ends_with($className, 'Seeder')) {
+            $className .= 'Seeder';
+        }
+        $path = 'seeders/' . $className . '.php';
+
+        $code = <<<PHP
+<?php
+
+declare(strict_types=1);
+
+use Kongono\Database\ConnectionInterface;
+use Kongono\Database\SeederInterface;
+
+return new class () implements SeederInterface {
+    public function run(ConnectionInterface \$db): void
+    {
+        // \$db->table('items')->insert(['name' => 'Example']);
+    }
+};
+
+PHP;
+        $context->writeFileContained($path, $code);
+
+        return $path;
+    }
+
     private function studly(string $name): string
     {
         $cleaned = preg_replace('/[^a-zA-Z0-9]+/', ' ', trim($name));

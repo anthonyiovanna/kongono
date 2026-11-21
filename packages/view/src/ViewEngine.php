@@ -109,6 +109,19 @@ final readonly class ViewEngine
         return $templates;
     }
 
+    /** Pre-compile all templates into the cache directory for zero-cold-start deployments. */
+    public function warmCache(): int
+    {
+        $compiled = 0;
+        foreach ($this->listTemplates() as $template) {
+            $sourcePath = $this->resolveTemplatePath($template);
+            $this->ensureCompiled($template, $sourcePath);
+            ++$compiled;
+        }
+
+        return $compiled;
+    }
+
     /** @param array<string, mixed> $data */
     private function evaluate(string $template, array $data, RenderState $state): string
     {

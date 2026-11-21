@@ -9,12 +9,14 @@ use Kongono\Http\App;
 use Kongono\Http\Cookie;
 use Kongono\Http\Dev\DevDashboardMiddleware;
 use Kongono\Http\Dev\DevInspector;
+use Kongono\Http\Middleware\CompressionMiddleware;
 use Kongono\Http\Middleware\StaticFilesMiddleware;
 use Kongono\Http\OpenApi\ApiDocsRenderer;
 use Kongono\Http\OpenApi\OpenApiGenerator;
 use Kongono\Http\Realtime\EventBus;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
+use Kongono\Http\Routing\CacheControl;
 use Kongono\Http\Routing\Get;
 use Kongono\Http\Routing\Middleware;
 use Kongono\Http\Routing\Post;
@@ -332,5 +334,39 @@ final class HttpAppTest extends TestCase
         self::assertCount(2, $replayed);
         self::assertSame('note.updated', $replayed[0]->event);
         self::assertSame('note.deleted', $replayed[1]->event);
+    }
+
+    public function testCompressionMiddlewareAndCacheControlAttribute(): void
+    {
+        $app = App::create(__DIR__)
+            ->middleware(new CompressionMiddleware(minBytes: 64))
+            ->controller(CachedDemoController::class);
+
+        $first = $app->handle(Request::create('GET', '/cached-feed', ['Accept-Encoding' => 'gzip']));
+        self::assertSame(200, $first->getStatusCode());
+        self::assertSame('public, max-age=120, stale-while-revalidate=30', $first->getHeaderLine('Cache-Control'));
+        self::assertSame('gzip', $first->getHeaderLine('Content-Encoding'));
+        self::assertStringContainsString('Accept-Encoding', $first->getHeaderLine('Vary'));
+        $etag = $first->getHeaderLine('ETag');
+        self::assertStringStartsWith('W/"', $etag);
+
+        $decoded = gzdecode((string) $first->getBody());
+        self::assertIsString($decoded);
+        self::assertStringContainsString('Kongono fast response', $decoded);
+
+        // Conditional GET with matching If-None-Match returns 304 Not Modified
+        $notMod = $app->handle(Request::create('GET', '/cached-feed', ['If-None-Match' => $etag]));
+        self::assertSame(304, $notMod->getStatusCode());
+        self::assertSame('', (string) $notMod->getBody());
+    }
+}
+
+final readonly class CachedDemoController
+{
+    #[Get('/cached-feed', name: 'cached.feed')]
+    #[CacheControl(maxAge: 120, public: true, staleWhileRevalidate: 30)]
+    public function feed(): Response
+    {
+        return Response::json(['items' => array_fill(0, 20, 'Kongono fast response')]);
     }
 }

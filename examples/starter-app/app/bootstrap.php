@@ -13,6 +13,7 @@ use Kongono\Core\Telemetry\Metrics;
 use Kongono\Http\App;
 use Kongono\Http\Dev\DevDashboardMiddleware;
 use Kongono\Http\Dev\DevInspector;
+use Kongono\Http\Middleware\CompressionMiddleware;
 use Kongono\Http\Middleware\StaticFilesMiddleware;
 use Kongono\Http\Realtime\EventBus;
 use Kongono\Http\Session\CacheSessionStore;
@@ -128,6 +129,7 @@ $app = App::create($baseDir, name: 'Kongono Starter App')
 
 $app->middleware(
     new DevDashboardMiddleware($app, $inspector),
+    new CompressionMiddleware(),
     new StaticFilesMiddleware($baseDir . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets', '/assets/'),
     new SecurityHeadersMiddleware(),
     new CorsMiddleware(allowedOrigins: ['*']),

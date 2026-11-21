@@ -15,11 +15,13 @@ use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\MigrationInterface;
 use Kongono\Database\Migrator;
+use Kongono\Database\SeederInterface;
 use Kongono\Http\App;
 use Kongono\Http\OpenApi\OpenApiGenerator;
 use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
 use Kongono\Security\Encryptor;
+use Kongono\View\ViewEngine;
 use Throwable;
 
 /** Unified `kongo` CLI entry point (serve, routes, graph, oshie, chie, hantei). */
@@ -59,9 +61,12 @@ final readonly class KongoCli
                 'schedule:run' => $this->cmdScheduleRun($appRoot),
                 'migrate' => $this->cmdMigrate($appRoot),
                 'migrate:rollback' => $this->cmdMigrateRollback($appRoot, $options),
+                'db:seed' => $this->cmdDbSeed($appRoot),
+                'optimize' => $this->cmdOptimize($appRoot),
                 'make:controller' => $this->cmdMake('controller', $appRoot, $rest),
                 'make:dto' => $this->cmdMake('dto', $appRoot, $rest),
                 'make:migration' => $this->cmdMake('migration', $appRoot, $rest),
+                'make:seeder' => $this->cmdMake('seeder', $appRoot, $rest),
                 'make:test' => $this->cmdMake('test', $appRoot, $rest),
                 'key:generate' => [0, 'APP_KEY=' . Encryptor::generateKey() . "\n"],
                 'doctor' => $this->cmdDoctor($appRoot),
@@ -291,8 +296,8 @@ final readonly class KongoCli
     }
 
     /**
-     * @param 'controller'|'dto'|'migration'|'test' $kind
-     * @param list<string>                          $args
+     * @param 'controller'|'dto'|'migration'|'seeder'|'test' $kind
+     * @param list<string>                                   $args
      * @return array{0: int, 1: string}
      */
     private function cmdMake(string $kind, string $appRoot, array $args): array
@@ -308,10 +313,81 @@ final readonly class KongoCli
             'controller' => $generator->makeController($context, $name),
             'dto' => $generator->makeDto($context, $name),
             'migration' => $generator->makeMigration($context, $name),
+            'seeder' => $generator->makeSeeder($context, $name),
             'test' => $generator->makeTest($context, $name),
         };
 
         return [0, sprintf("Created %s: %s\n", $kind, $createdPath)];
+    }
+
+    /** @return array{0: int, 1: string} */
+    private function cmdOptimize(string $appRoot): array
+    {
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (!is_file($bootstrap)) {
+            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $app = require $bootstrap;
+        if (!$app instanceof App) {
+            return [1, "app/bootstrap.php did not return a Kongono\\Http\\App instance.\n"];
+        }
+
+        $cacheDir = $app->basePath() . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'cache';
+        if (!is_dir($cacheDir) && !@mkdir($cacheDir, 0o775, true) && !is_dir($cacheDir)) {
+            return [1, sprintf("Unable to create cache directory %s.\n", $cacheDir)];
+        }
+
+        $compiledViews = 0;
+        if ($app->container()->has(ViewEngine::class)) {
+            $compiledViews = $app->container()->make(ViewEngine::class)->warmCache();
+        }
+
+        file_put_contents($cacheDir . DIRECTORY_SEPARATOR . 'graph.json', $app->graph()->toJson(pretty: true), LOCK_EX);
+        file_put_contents($cacheDir . DIRECTORY_SEPARATOR . 'openapi.json', (new OpenApiGenerator())->generateJson($app), LOCK_EX);
+
+        return [0, sprintf(
+            "Optimized \"%s\":\n  + Precompiled %d template(s)\n  + Cached var/cache/graph.json\n  + Cached var/cache/openapi.json\n",
+            $app->graph()->appName,
+            $compiledViews,
+        )];
+    }
+
+    /** @return array{0: int, 1: string} */
+    private function cmdDbSeed(string $appRoot): array
+    {
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (!is_file($bootstrap)) {
+            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $app = require $bootstrap;
+        if (!$app instanceof App || !$app->container()->has(ConnectionInterface::class)) {
+            return [1, "No Kongono\\Database\\ConnectionInterface registered in this application's container.\n"];
+        }
+
+        $seedersDir = $appRoot . DIRECTORY_SEPARATOR . 'seeders';
+        $files = is_dir($seedersDir) ? glob($seedersDir . DIRECTORY_SEPARATOR . '*.php') : [];
+        if (false === $files || [] === $files) {
+            return [0, "No seeder files found.\n"];
+        }
+        sort($files, SORT_STRING);
+
+        $db = $app->container()->make(ConnectionInterface::class);
+        $ran = [];
+        foreach ($files as $file) {
+            $loaded = require $file;
+            if ($loaded instanceof SeederInterface) {
+                $loaded->run($db);
+                $ran[] = basename($file);
+            }
+        }
+
+        if ([] === $ran) {
+            return [0, "No SeederInterface classes executed.\n"];
+        }
+
+        return [0, "Executed seeders:\n" . implode("\n", array_map(static fn(string $f): string => '  + ' . $f, $ran)) . "\n"];
     }
 
     /** @return array{0: int, 1: string} */
@@ -705,9 +781,12 @@ Core Commands:
   schedule:run [--app=path]                             Execute due scheduled cron tasks
   migrate [--app=path]                                  Run pending database migrations
   migrate:rollback [--app=path] [--steps=1]             Roll back applied database migrations
+  db:seed [--app=path]                                  Execute SeederInterface files in seeders/
+  optimize [--app=path]                                 Precompile .kgn.html views & cache graph/OpenAPI
   make:controller <Name> [--app=path]                   Generate a PHP 8.5 attribute controller
   make:dto <Name> [--app=path]                          Generate a validated readonly input DTO
   make:migration <Name> [--app=path]                    Generate a Schema::create() migration
+  make:seeder <Name> [--app=path]                       Generate a database SeederInterface file
   make:test <Name> [--app=path]                         Generate a PHPUnit 13 TestClient test
   key:generate                                          Generate a 256-bit APP_KEY for .env
   doctor [--app=path]                                   Verify PHP 8.5, extensions, AI provider & app health

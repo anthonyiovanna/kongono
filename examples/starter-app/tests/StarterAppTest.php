@@ -158,12 +158,20 @@ final class StarterAppTest extends TestCase
             ->assertOk()
             ->assertJsonPath('kind', 'human');
 
-        // Live OpenAPI 3.1 spec auto-generated from PHP 8.5 controllers & DTOs
-        $client->get('/openapi.json')
+        // Live OpenAPI 3.1 spec auto-generated from PHP 8.5 controllers & DTOs (with #[CacheControl] + ETag/304 + gzip)
+        $openApiRes = $client->get('/openapi.json')
             ->assertOk()
             ->assertJsonPath('openapi', '3.1.0')
             ->assertSee('RegisterInput')
             ->assertSee('CreateNoteInput');
+        self::assertStringContainsString('max-age=300', $openApiRes->header('Cache-Control'));
+        $etag = $openApiRes->header('ETag');
+        self::assertNotSame('', $etag);
+        $client->get('/openapi.json', ['If-None-Match' => $etag])->assertStatus(304);
+
+        $gzipped = $app->handle(Request::create('GET', '/openapi.json', ['Accept-Encoding' => 'gzip']));
+        self::assertSame('gzip', $gzipped->getHeaderLine('Content-Encoding'));
+        self::assertIsString(gzdecode((string) $gzipped->getBody()));
 
         // Live Server-Sent Events stream
         $sse = $app->handle(Request::create('GET', '/api/events'));

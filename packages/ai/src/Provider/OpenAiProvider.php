@@ -9,6 +9,7 @@ use JsonException;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
 use Kongono\Ai\ChatResponse;
+use Kongono\Ai\Embedding\EmbeddingProviderInterface;
 use Kongono\Ai\Message;
 use Kongono\Ai\Role;
 use Kongono\Ai\TokenUsage;
@@ -22,9 +23,9 @@ use SensitiveParameter;
 
 /**
  * OpenAI & OpenAI-compatible provider (OpenAI, OpenRouter, Groq, vLLM, LM Studio).
- * Forward-compatible JSON decoding and live SSE token streaming.
+ * Forward-compatible JSON decoding, live SSE token streaming, and vector embeddings.
  */
-final readonly class OpenAiProvider implements StreamingAiProviderInterface
+final readonly class OpenAiProvider implements EmbeddingProviderInterface, StreamingAiProviderInterface
 {
     private HttpTransportInterface $transport;
 
@@ -234,6 +235,44 @@ final readonly class OpenAiProvider implements StreamingAiProviderInterface
             provider: $this->name(),
             finishReason: $finishReason,
         );
+    }
+
+    public function embed(array $texts, ?string $model = null): array
+    {
+        $embedModel = $model ?? 'text-embedding-3-small';
+        $url = rtrim($this->baseUrl, '/') . '/embeddings';
+        $http = $this->transport->postJson(
+            $url,
+            ['Authorization' => 'Bearer ' . $this->apiKey],
+            json_encode(['model' => $embedModel, 'input' => $texts], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+        );
+
+        if ($http->statusCode < 200 || $http->statusCode >= 300) {
+            throw new AiException(sprintf(
+                'OpenAI Embeddings API returned HTTP %d: %s',
+                $http->statusCode,
+                SecretScrubber::scrub(substr($http->body, 0, 500)),
+            ));
+        }
+
+        $decoded = json_decode($http->body, true, 64, JSON_THROW_ON_ERROR);
+        if (!is_array($decoded) || !isset($decoded['data']) || !is_array($decoded['data'])) {
+            throw new AiException('Unexpected OpenAI embeddings response: missing data.');
+        }
+
+        $vectors = [];
+        foreach ($decoded['data'] as $item) {
+            if (!is_array($item) || !isset($item['embedding']) || !is_array($item['embedding'])) {
+                continue;
+            }
+            $vec = [];
+            foreach ($item['embedding'] as $n) {
+                $vec[] = is_numeric($n) ? (float) $n : 0.0;
+            }
+            $vectors[] = $vec;
+        }
+
+        return $vectors;
     }
 
     /** @return array<string, mixed> */

@@ -14,6 +14,7 @@ use Kongono\Http\OpenApi\OpenApiGenerator;
 use Kongono\Http\Realtime\EventBus;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
+use Kongono\Http\Routing\CacheControl;
 use Kongono\Http\Routing\Delete;
 use Kongono\Http\Routing\Get;
 use Kongono\Http\Routing\Post;
@@ -182,6 +183,7 @@ final readonly class NoteController
     }
 
     #[Get('/openapi.json', name: 'openapi')]
+    #[CacheControl(maxAge: 300, public: true, staleWhileRevalidate: 60)]
     public function openApi(): Response
     {
         return Response::json((new OpenApiGenerator())->generate($this->app));

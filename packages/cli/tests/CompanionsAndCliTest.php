@@ -112,7 +112,12 @@ final class CompanionsAndCliTest extends TestCase
             self::assertStringContainsString('HomeTest.php', $mtOut);
             self::assertFileExists($tempDir . '/tests/HomeTest.php');
 
-            // Verify key:generate and doctor
+            [$msCode, $msOut] = $cli->run(['make:seeder', 'Users', '--app=' . $tempDir]);
+            self::assertSame(0, $msCode);
+            self::assertStringContainsString('UsersSeeder.php', $msOut);
+            self::assertFileExists($tempDir . '/seeders/UsersSeeder.php');
+
+            // Verify key:generate, doctor, and optimize
             [$kgCode, $kgOut] = $cli->run(['key:generate']);
             self::assertSame(0, $kgCode);
             self::assertStringStartsWith('APP_KEY=', $kgOut);
@@ -122,6 +127,13 @@ final class CompanionsAndCliTest extends TestCase
             self::assertStringContainsString('PHP version:', $docOut);
             self::assertStringContainsString('ext-sodium', $docOut);
             self::assertStringContainsString('Kongono Starter App', $docOut);
+
+            [$optCode, $optOut] = $cli->run(['optimize', '--app=' . $this->starterAppRoot]);
+            self::assertSame(0, $optCode);
+            self::assertStringContainsString('Precompiled', $optOut);
+            self::assertFileExists($this->starterAppRoot . '/var/cache/graph.json');
+            self::assertFileExists($this->starterAppRoot . '/var/cache/openapi.json');
+            $this->removeDir($this->starterAppRoot . '/var');
         } finally {
             $this->removeDir($tempDir);
         }

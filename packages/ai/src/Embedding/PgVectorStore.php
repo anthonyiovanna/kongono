@@ -1,0 +1,119 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kongono\Ai\Embedding;
+
+use Kongono\Database\ConnectionInterface;
+
+/**
+ * PostgreSQL `pgvector` vector store using parameterized cosine distance (`<=>`)
+ * and JSONB metadata containment filtering (`@>`).
+ */
+final readonly class PgVectorStore implements VectorStoreInterface
+{
+    public function __construct(
+        private ConnectionInterface $db,
+        private string $table = 'kongono_embeddings',
+    ) {}
+
+    public function ensureTable(int $dimensions = 1536): void
+    {
+        $quoted = $this->db->dialect()->quoteIdentifier($this->table);
+        $this->db->execute('CREATE EXTENSION IF NOT EXISTS vector');
+        $this->db->execute(sprintf(
+            'CREATE TABLE IF NOT EXISTS %s ('
+            . 'id VARCHAR(255) PRIMARY KEY, '
+            . 'content TEXT NOT NULL, '
+            . 'embedding vector(%d) NOT NULL, '
+            . 'metadata JSONB NOT NULL DEFAULT \'{}\'::jsonb, '
+            . 'updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()'
+            . ')',
+            $quoted,
+            max(1, $dimensions),
+        ));
+    }
+
+    public function upsert(VectorDocument $document): void
+    {
+        $quoted = $this->db->dialect()->quoteIdentifier($this->table);
+        $vectorLiteral = $this->formatVector($document->vector);
+        $metaJson = json_encode($document->metadata, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+
+        $this->db->execute(
+            sprintf(
+                'INSERT INTO %s (id, content, embedding, metadata, updated_at) '
+                . 'VALUES (?, ?, ?::vector, ?::jsonb, NOW()) '
+                . 'ON CONFLICT (id) DO UPDATE SET '
+                . 'content = EXCLUDED.content, embedding = EXCLUDED.embedding, metadata = EXCLUDED.metadata, updated_at = NOW()',
+                $quoted,
+            ),
+            [$document->id, $document->content, $vectorLiteral, $metaJson],
+        );
+    }
+
+    public function search(array $queryVector, int $limit = 5, array $metadataFilter = []): array
+    {
+        $quoted = $this->db->dialect()->quoteIdentifier($this->table);
+        $vectorLiteral = $this->formatVector($queryVector);
+        $bindings = [$vectorLiteral];
+        $whereSql = '';
+
+        if ([] !== $metadataFilter) {
+            $whereSql = ' WHERE metadata @> ?::jsonb';
+            $bindings[] = json_encode($metadataFilter, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        }
+
+        $bindings[] = $vectorLiteral;
+        $bindings[] = $limit;
+
+        $rows = $this->db->query(
+            sprintf(
+                'SELECT id, content, embedding::text AS embedding, metadata::text AS metadata, '
+                . '1 - (embedding <=> ?::vector) AS score '
+                . 'FROM %s%s ORDER BY embedding <=> ?::vector ASC LIMIT ?',
+                $quoted,
+                $whereSql,
+            ),
+            $bindings,
+        );
+
+        $hits = [];
+        foreach ($rows as $row) {
+            $id = is_string($row['id'] ?? null) ? $row['id'] : '';
+            $content = is_string($row['content'] ?? null) ? $row['content'] : '';
+            $vec = is_string($row['embedding'] ?? null) ? $this->parseVector($row['embedding']) : [];
+            $metaRaw = is_string($row['metadata'] ?? null) ? json_decode($row['metadata'], true) : [];
+            /** @var array<string, mixed> $meta */
+            $meta = is_array($metaRaw) ? $metaRaw : [];
+            $score = is_numeric($row['score'] ?? null) ? (float) $row['score'] : 0.0;
+
+            $hits[] = new SearchHit(new VectorDocument($id, $content, $vec, $meta), $score);
+        }
+
+        return $hits;
+    }
+
+    public function delete(string $id): void
+    {
+        $quoted = $this->db->dialect()->quoteIdentifier($this->table);
+        $this->db->execute(sprintf('DELETE FROM %s WHERE id = ?', $quoted), [$id]);
+    }
+
+    /** @param list<float> $vector */
+    private function formatVector(array $vector): string
+    {
+        return '[' . implode(',', array_map(static fn(float $v): string => sprintf('%.8F', $v), $vector)) . ']';
+    }
+
+    /** @return list<float> */
+    private function parseVector(string $literal): array
+    {
+        $trimmed = trim($literal, "[] \t\n\r");
+        if ('' === $trimmed) {
+            return [];
+        }
+
+        return array_map(static fn(string $p): float => (float) trim($p), explode(',', $trimmed));
+    }
+}

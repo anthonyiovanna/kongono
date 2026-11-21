@@ -9,6 +9,7 @@ use JsonException;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
 use Kongono\Ai\ChatResponse;
+use Kongono\Ai\Embedding\EmbeddingProviderInterface;
 use Kongono\Ai\Role;
 use Kongono\Ai\TokenUsage;
 use Kongono\Ai\ToolCall;
@@ -19,8 +20,8 @@ use Kongono\Ai\Transport\StreamingHttpTransportInterface;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use SensitiveParameter;
 
-/** Google Gemini GenerateContent API provider with live SSE token streaming. */
-final readonly class GeminiProvider implements StreamingAiProviderInterface
+/** Google Gemini GenerateContent API provider with live SSE token streaming and embeddings. */
+final readonly class GeminiProvider implements EmbeddingProviderInterface, StreamingAiProviderInterface
 {
     private HttpTransportInterface $transport;
 
@@ -225,5 +226,51 @@ final readonly class GeminiProvider implements StreamingAiProviderInterface
         }
 
         return new ChatResponse($fullText, $model, $this->name(), finishReason: $finishReason);
+    }
+
+    public function embed(array $texts, ?string $model = null): array
+    {
+        $embedModel = $model ?? 'text-embedding-004';
+        $url = sprintf('%s/models/%s:batchEmbedContents', rtrim($this->baseUrl, '/'), rawurlencode($embedModel));
+        $requests = array_map(
+            static fn(string $t): array => [
+                'model' => 'models/' . $embedModel,
+                'content' => ['parts' => [['text' => $t]]],
+            ],
+            $texts,
+        );
+
+        $http = $this->transport->postJson(
+            $url,
+            ['x-goog-api-key' => $this->apiKey],
+            json_encode(['requests' => $requests], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+        );
+
+        if ($http->statusCode < 200 || $http->statusCode >= 300) {
+            throw new AiException(sprintf(
+                'Gemini Embeddings API returned HTTP %d: %s',
+                $http->statusCode,
+                SecretScrubber::scrub(substr($http->body, 0, 500)),
+            ));
+        }
+
+        $decoded = json_decode($http->body, true, 64, JSON_THROW_ON_ERROR);
+        if (!is_array($decoded) || !isset($decoded['embeddings']) || !is_array($decoded['embeddings'])) {
+            throw new AiException('Unexpected Gemini embeddings response: missing embeddings.');
+        }
+
+        $vectors = [];
+        foreach ($decoded['embeddings'] as $item) {
+            if (!is_array($item) || !isset($item['values']) || !is_array($item['values'])) {
+                continue;
+            }
+            $vec = [];
+            foreach ($item['values'] as $n) {
+                $vec[] = is_numeric($n) ? (float) $n : 0.0;
+            }
+            $vectors[] = $vec;
+        }
+
+        return $vectors;
     }
 }

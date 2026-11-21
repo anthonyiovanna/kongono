@@ -127,6 +127,7 @@ HTML,
         $html = $engine->render('i18n', ['user' => '<b>Ada</b>']);
         self::assertStringContainsString('<h1>Hello, &lt;b&gt;Ada&lt;/b&gt;!</h1>', $html);
         self::assertStringContainsString('<p>こんにちは、&lt;b&gt;Ada&lt;/b&gt;！</p>', $html);
+        self::assertSame(1, $engine->warmCache());
     }
 
     private function removeDir(string $dir): void
