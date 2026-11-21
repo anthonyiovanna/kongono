@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Kongono\Mail\Tests;
 
 use Kongono\Core\Log\Logger;
+use Kongono\Core\Notifications\Notification;
+use Kongono\Core\Notifications\NotificationDispatcher;
 use Kongono\Mail\Address;
 use Kongono\Mail\Email;
 use Kongono\Mail\LogTransport;
 use Kongono\Mail\Mailer;
 use Kongono\Mail\MailException;
+use Kongono\Mail\MailNotificationChannel;
 use Kongono\Mail\MemoryTransport;
 use Kongono\Mail\ResendTransport;
 use Kongono\View\ViewEngine;
@@ -83,5 +86,24 @@ final class MailTest extends TestCase
             @rmdir($dir . '/cache');
             @rmdir($dir);
         }
+    }
+
+    public function testMailNotificationChannelDeliversThroughDispatcher(): void
+    {
+        $memory = new MemoryTransport();
+        $mailer = new Mailer($memory, new Address('no-reply@kongono.dev', 'Kongono'));
+
+        $dispatcher = (new NotificationDispatcher())
+            ->registerChannel(new MailNotificationChannel($mailer));
+
+        $res = $dispatcher->send(
+            ['email' => 'ada@kongono.dev', 'name' => 'Ada'],
+            new Notification('welcome', 'Welcome!', 'Glad you are here.'),
+            ['mail'],
+        );
+
+        self::assertTrue($res['mail']['ok']);
+        self::assertCount(1, $memory->sent());
+        self::assertSame('Welcome!', $memory->sent()[0]->subject);
     }
 }

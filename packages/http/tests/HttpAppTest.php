@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Http\Tests;
 
 use Kongono\Core\Cache\MemoryCache;
+use Kongono\Core\Features\FeatureManager;
 use Kongono\Http\App;
 use Kongono\Http\Cookie;
 use Kongono\Http\Dev\DevDashboardMiddleware;
@@ -17,7 +18,9 @@ use Kongono\Http\Realtime\EventBus;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Http\Routing\CacheControl;
+use Kongono\Http\Routing\Feature;
 use Kongono\Http\Routing\Get;
+use Kongono\Http\Routing\Idempotent;
 use Kongono\Http\Routing\Middleware;
 use Kongono\Http\Routing\Post;
 use Kongono\Http\Routing\Prefix;
@@ -359,14 +362,82 @@ final class HttpAppTest extends TestCase
         self::assertSame(304, $notMod->getStatusCode());
         self::assertSame('', (string) $notMod->getBody());
     }
+
+    public function testIdempotentAndFeatureAttributesOnControllers(): void
+    {
+        $cache = new MemoryCache();
+        $features = (new FeatureManager($cache))
+            ->define('beta_api', static fn(?string $scope): bool => 'vip' === $scope);
+
+        $counter = new \ArrayObject(['calls' => 0]);
+        $app = App::create(__DIR__)
+            ->instance(\Kongono\Core\Cache\CacheInterface::class, $cache)
+            ->instance(FeatureManager::class, $features)
+            ->instance(\ArrayObject::class, $counter)
+            ->controller(CachedDemoController::class);
+
+        $client = new TestClient($app);
+
+        // First POST executes handler
+        $p1 = $client->withHeader('Idempotency-Key', 'order-123')
+            ->postJson('/orders', ['amount' => 50])
+            ->assertCreated()
+            ->assertJsonPath('call_number', 1);
+        self::assertSame('', $p1->header('Idempotency-Replayed'));
+
+        // Retry with same Idempotency-Key + same body replays cached 201 without re-executing handler
+        $p2 = $client->withHeader('Idempotency-Key', 'order-123')
+            ->postJson('/orders', ['amount' => 50])
+            ->assertCreated()
+            ->assertJsonPath('call_number', 1);
+        self::assertSame('true', $p2->header('Idempotency-Replayed'));
+        self::assertSame(1, $counter['calls']);
+
+        // Reusing Idempotency-Key with a DIFFERENT payload fails closed 409 Conflict
+        $client->withHeader('Idempotency-Key', 'order-123')
+            ->postJson('/orders', ['amount' => 999])
+            ->assertStatus(409);
+
+        // #[Feature('beta_api')] fails closed 404 unless scope is enabled
+        $client->get('/beta')->assertStatus(404);
+        $client->withHeader('X-Feature-Scope', 'vip')
+            ->get('/beta')
+            ->assertOk()
+            ->assertJsonPath('beta', true);
+    }
 }
 
 final readonly class CachedDemoController
 {
+    /** @param \ArrayObject<string, int>|null $counter */
+    public function __construct(
+        private ?\ArrayObject $counter = null,
+    ) {}
+
     #[Get('/cached-feed', name: 'cached.feed')]
     #[CacheControl(maxAge: 120, public: true, staleWhileRevalidate: 30)]
     public function feed(): Response
     {
         return Response::json(['items' => array_fill(0, 20, 'Kongono fast response')]);
+    }
+
+    #[Post('/orders', name: 'orders.create')]
+    #[Idempotent(ttlSeconds: 3600)]
+    public function createOrder(): Response
+    {
+        $n = 1;
+        if (null !== $this->counter) {
+            $n = ($this->counter['calls'] ?? 0) + 1;
+            $this->counter['calls'] = $n;
+        }
+
+        return Response::json(['call_number' => $n], 201);
+    }
+
+    #[Get('/beta', name: 'beta.index')]
+    #[Feature('beta_api')]
+    public function beta(): Response
+    {
+        return Response::json(['beta' => true]);
     }
 }

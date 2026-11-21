@@ -12,6 +12,7 @@ use Kongono\Cli\Companions\HanteiDebugger;
 use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
+use Kongono\Core\Graph\RouteNode;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\MigrationInterface;
 use Kongono\Database\Migrator;
@@ -51,7 +52,7 @@ final readonly class KongoCli
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
                 'version', '-v', '--version' => [0, 'Kongono Framework v1.0.0-alpha (PHP ' . PHP_VERSION . ")\n"],
-                'routes' => $this->cmdRoutes($appRoot),
+                'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
                 'mcp' => $this->cmdMcp($appRoot),
@@ -63,6 +64,7 @@ final readonly class KongoCli
                 'migrate:rollback' => $this->cmdMigrateRollback($appRoot, $options),
                 'db:seed' => $this->cmdDbSeed($appRoot),
                 'optimize' => $this->cmdOptimize($appRoot),
+                'cache:clear' => $this->cmdCacheClear($appRoot),
                 'make:controller' => $this->cmdMake('controller', $appRoot, $rest),
                 'make:dto' => $this->cmdMake('dto', $appRoot, $rest),
                 'make:migration' => $this->cmdMake('migration', $appRoot, $rest),
@@ -82,12 +84,21 @@ final readonly class KongoCli
         }
     }
 
-    /** @return array{0: int, 1: string} */
-    private function cmdRoutes(string $appRoot): array
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdRoutes(string $appRoot, array $options = []): array
     {
         $context = ProjectContext::discover($appRoot);
         if (null === $context->graph) {
             return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        if (isset($options['json'])) {
+            $payload = array_map(static fn(RouteNode $r): array => $r->toArray(), $context->graph->routes);
+
+            return [0, json_encode($payload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
         }
 
         $lines = [
@@ -351,6 +362,42 @@ final readonly class KongoCli
             $app->graph()->appName,
             $compiledViews,
         )];
+    }
+
+    /** @return array{0: int, 1: string} */
+    private function cmdCacheClear(string $appRoot): array
+    {
+        $cacheDir = $appRoot . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'cache';
+        if (!is_dir($cacheDir)) {
+            return [0, "Cache directory is already empty.\n"];
+        }
+
+        $removed = $this->deleteDirectoryFiles($cacheDir);
+
+        return [0, sprintf("Cleared %d cached file(s) under %s.\n", $removed, $cacheDir)];
+    }
+
+    private function deleteDirectoryFiles(string $dir): int
+    {
+        $count = 0;
+        $entries = scandir($dir);
+        if (false === $entries) {
+            return 0;
+        }
+        foreach ($entries as $entry) {
+            if ('.' === $entry || '..' === $entry) {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $entry;
+            if (is_dir($path)) {
+                $count += $this->deleteDirectoryFiles($path);
+                @rmdir($path);
+            } elseif (@unlink($path)) {
+                ++$count;
+            }
+        }
+
+        return $count;
     }
 
     /** @return array{0: int, 1: string} */
@@ -783,6 +830,7 @@ Core Commands:
   migrate:rollback [--app=path] [--steps=1]             Roll back applied database migrations
   db:seed [--app=path]                                  Execute SeederInterface files in seeders/
   optimize [--app=path]                                 Precompile .kgn.html views & cache graph/OpenAPI
+  cache:clear [--app=path]                              Clear compiled views & cached app files
   make:controller <Name> [--app=path]                   Generate a PHP 8.5 attribute controller
   make:dto <Name> [--app=path]                          Generate a validated readonly input DTO
   make:migration <Name> [--app=path]                    Generate a Schema::create() migration
@@ -790,7 +838,7 @@ Core Commands:
   make:test <Name> [--app=path]                         Generate a PHPUnit 13 TestClient test
   key:generate                                          Generate a 256-bit APP_KEY for .env
   doctor [--app=path]                                   Verify PHP 8.5, extensions, AI provider & app health
-  routes [--app=path]                                   List all registered routes
+  routes [--app=path] [--json]                          List all registered routes
   graph [--app=path]                                    Print live ApplicationGraph JSON
   openapi [--app=path]                                  Generate OpenAPI 3.1 JSON spec from routes & DTOs
   mcp [--app=path]                                      Run Model Context Protocol (MCP) JSON-RPC stdio server

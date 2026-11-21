@@ -133,7 +133,18 @@ final class CompanionsAndCliTest extends TestCase
             self::assertStringContainsString('Precompiled', $optOut);
             self::assertFileExists($this->starterAppRoot . '/var/cache/graph.json');
             self::assertFileExists($this->starterAppRoot . '/var/cache/openapi.json');
+
+            [$ccCode, $ccOut] = $cli->run(['cache:clear', '--app=' . $this->starterAppRoot]);
+            self::assertSame(0, $ccCode);
+            self::assertStringContainsString('Cleared', $ccOut);
+            self::assertFileDoesNotExist($this->starterAppRoot . '/var/cache/graph.json');
             $this->removeDir($this->starterAppRoot . '/var');
+
+            [$rjCode, $rjOut] = $cli->run(['routes', '--json', '--app=' . $this->starterAppRoot]);
+            self::assertSame(0, $rjCode);
+            $routeList = json_decode($rjOut, true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($routeList);
+            self::assertNotEmpty($routeList);
         } finally {
             $this->removeDir($tempDir);
         }

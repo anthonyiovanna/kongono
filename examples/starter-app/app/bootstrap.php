@@ -6,6 +6,7 @@ use Kongono\Core\Cache\CacheInterface;
 use Kongono\Core\Cache\FileCache;
 use Kongono\Core\Config;
 use Kongono\Core\EnvLoader;
+use Kongono\Core\Features\FeatureManager;
 use Kongono\Core\Health\HealthCheck;
 use Kongono\Core\I18n\Translator;
 use Kongono\Core\Log\Logger;
@@ -95,6 +96,8 @@ $scheduler->call('heartbeat', static function () use ($logger): void {
 
 $inspector = new DevInspector();
 $eventBus = new EventBus();
+$features = (new FeatureManager($cache))
+    ->define('beta_insights', static fn(?string $scope): bool => 'beta-tester' === $scope);
 $bearerAuth = new BearerAuthMiddleware(static function (string $token) use ($signer): ?Principal {
     $claims = $signer->verify($token);
     if (null === $claims || !is_string($claims['sub'] ?? null)) {
@@ -113,6 +116,7 @@ $app = App::create($baseDir, name: 'Kongono Starter App')
     ->instance(Metrics::class, $metrics)
     ->instance(HealthCheck::class, $health)
     ->instance(Translator::class, $translator)
+    ->instance(FeatureManager::class, $features)
     ->instance(Scheduler::class, $scheduler)
     ->instance(TokenSigner::class, $signer)
     ->instance(Encryptor::class, $encryptor)

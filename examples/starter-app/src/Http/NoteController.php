@@ -16,7 +16,9 @@ use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Http\Routing\CacheControl;
 use Kongono\Http\Routing\Delete;
+use Kongono\Http\Routing\Feature;
 use Kongono\Http\Routing\Get;
+use Kongono\Http\Routing\Idempotent;
 use Kongono\Http\Routing\Post;
 use Kongono\Http\Session\Session;
 use Kongono\Http\SseEvent;
@@ -86,6 +88,7 @@ final readonly class NoteController
     }
 
     #[Post('/api/notes', name: 'api.notes.create')]
+    #[Idempotent(ttlSeconds: 3600)]
     public function apiCreate(CreateNoteInput $input): Response
     {
         $note = $this->store->create($input->title, $input->body);
@@ -96,6 +99,21 @@ final readonly class NoteController
             ...$note->toArray(),
             'queued_job_id' => $job->id,
         ], status: 201);
+    }
+
+    #[Get('/api/insights', name: 'api.insights')]
+    #[Feature('beta_insights')]
+    public function apiInsights(): Response
+    {
+        $notes = $this->store->all();
+
+        return Response::json([
+            'feature' => 'beta_insights',
+            'total_notes' => count($notes),
+            'avg_body_length' => [] === $notes
+                ? 0
+                : (int) round(array_sum(array_map(static fn(Note $n): int => mb_strlen($n->body), $notes)) / count($notes)),
+        ]);
     }
 
     #[Delete('/api/notes/{id:\d+}', name: 'api.notes.delete')]

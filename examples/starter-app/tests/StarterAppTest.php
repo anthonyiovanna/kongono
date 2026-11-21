@@ -242,6 +242,26 @@ final class StarterAppTest extends TestCase
         self::assertInstanceOf(Response::class, $sse);
         self::assertStringContainsString('event: note.created', $sse->bodyString());
         self::assertStringContainsString('Live Event', $sse->bodyString());
+
+        // #[Idempotent] on POST /api/notes prevents duplicate note creation on retries
+        $firstIdemp = $client->withHeader('Idempotency-Key', 'note-idem-1')
+            ->postJson('/api/notes', ['title' => 'Once Only', 'body' => 'Never duplicated'])
+            ->assertCreated();
+        $secondIdemp = $client->withHeader('Idempotency-Key', 'note-idem-1')
+            ->postJson('/api/notes', ['title' => 'Once Only', 'body' => 'Never duplicated'])
+            ->assertCreated();
+        self::assertSame($firstIdemp->json()['id'], $secondIdemp->json()['id']);
+        self::assertSame('true', $secondIdemp->header('Idempotency-Replayed'));
+        $client->withHeader('Idempotency-Key', 'note-idem-1')
+            ->postJson('/api/notes', ['title' => 'Different', 'body' => 'Conflict'])
+            ->assertStatus(409);
+
+        // #[Feature('beta_insights')] gates /api/insights cleanly
+        $client->get('/api/insights')->assertStatus(404);
+        $client->withHeader('X-Feature-Scope', 'beta-tester')
+            ->get('/api/insights')
+            ->assertOk()
+            ->assertJsonPath('feature', 'beta_insights');
     }
 
     private function removeDir(string $dir): void
