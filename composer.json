@@ -17,7 +17,7 @@
     "psr-15",
     "zero-legacy"
   ],
-  "homepage": "https://github.com/kongono/framework",
+  "homepage": "https://github.com/anthonyiovanna/kongono",
   "authors": [
     {
       "name": "Anthony Iovanna",
@@ -25,9 +25,9 @@
     }
   ],
   "support": {
-    "issues": "https://github.com/kongono/framework/issues",
-    "source": "https://github.com/kongono/framework",
-    "docs": "https://github.com/kongono/framework/tree/main/docs"
+    "issues": "https://github.com/anthonyiovanna/kongono/issues",
+    "source": "https://github.com/anthonyiovanna/kongono",
+    "docs": "https://github.com/anthonyiovanna/kongono/tree/main/docs"
   },
   "require": {
     "php": ">=8.5.0",
