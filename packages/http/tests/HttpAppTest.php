@@ -7,13 +7,18 @@ namespace Kongono\Http\Tests;
 use Kongono\Core\Cache\MemoryCache;
 use Kongono\Http\App;
 use Kongono\Http\Cookie;
+use Kongono\Http\Dev\DevDashboardMiddleware;
+use Kongono\Http\Dev\DevInspector;
 use Kongono\Http\Middleware\StaticFilesMiddleware;
 use Kongono\Http\OpenApi\ApiDocsRenderer;
 use Kongono\Http\OpenApi\OpenApiGenerator;
+use Kongono\Http\Realtime\EventBus;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Http\Routing\Get;
+use Kongono\Http\Routing\Middleware;
 use Kongono\Http\Routing\Post;
+use Kongono\Http\Routing\Prefix;
 use Kongono\Http\Routing\Router;
 use Kongono\Http\Session\CacheSessionStore;
 use Kongono\Http\Session\Session;
@@ -24,8 +29,31 @@ use Kongono\Http\UploadedFile;
 use Kongono\Validation\Attributes\Email;
 use Kongono\Validation\Attributes\Required;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 use RuntimeException;
 use stdClass;
+
+final readonly class AddTagHeaderMiddleware implements MiddlewareInterface
+{
+    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+    {
+        return $handler->handle($request)->withHeader('X-Attr-Middleware', 'applied');
+    }
+}
+
+#[Prefix('/prefixed')]
+#[Middleware(AddTagHeaderMiddleware::class)]
+final readonly class PrefixedController
+{
+    #[Get('/hello', name: 'prefixed.hello')]
+    public function hello(): Response
+    {
+        return Response::json(['ok' => true]);
+    }
+}
 
 final readonly class SubscribeInput
 {
@@ -255,5 +283,54 @@ final class HttpAppTest extends TestCase
         self::assertStringContainsString('/subscribe', $docsHtml);
         self::assertStringContainsString('Send Request', $docsHtml);
         self::assertStringContainsString('bearerToken', $docsHtml);
+    }
+
+    public function testPrefixMiddlewareAttributesEventBusAndDevStudio(): void
+    {
+        $inspector = new DevInspector();
+        $app = App::create(__DIR__, name: 'Studio Demo')
+            ->debug(true)
+            ->controller(PrefixedController::class);
+        $app->middleware(new DevDashboardMiddleware($app, $inspector));
+
+        $client = new TestClient($app);
+
+        // #[Prefix] + #[Middleware] attribute route
+        $hello = $client->get('/prefixed/hello')->assertOk()->assertJsonPath('ok', true);
+        self::assertSame('applied', $hello->header('X-Attr-Middleware'));
+
+        // Dev Studio HTML + recorded trace API + clear API
+        $client->get('/_kongono')
+            ->assertOk()
+            ->assertSee('Kongono Dev Studio')
+            ->assertSee('/prefixed/hello');
+
+        $traces = $client->get('/_kongono/api/traces')->assertOk()->json();
+        self::assertCount(1, $traces);
+        self::assertSame('/prefixed/hello', $traces[0]['path']);
+
+        $client->postJson('/_kongono/api/clear', [])->assertOk();
+        self::assertSame([], $client->get('/_kongono/api/traces')->assertOk()->json());
+
+        // Production mode disables Dev Studio completely (fail-closed 404)
+        $app->debug(false);
+        $client->get('/_kongono')->assertStatus(404);
+
+        // Real-time EventBus pub/sub + Last-Event-ID replay + unsubscribe
+        $bus = new EventBus(maxHistoryPerChannel: 5);
+        $received = [];
+        $unsub = $bus->subscribe('notes', static function (SseEvent $ev) use (&$received): void {
+            $received[] = $ev->event;
+        });
+        $e1 = $bus->publish('notes', 'note.created', ['id' => 1]);
+        $bus->publish('notes', 'note.updated', ['id' => 1]);
+        $unsub();
+        $bus->publish('notes', 'note.deleted', ['id' => 1]);
+
+        self::assertSame(['note.created', 'note.updated'], $received);
+        $replayed = $bus->since('notes', $e1->id);
+        self::assertCount(2, $replayed);
+        self::assertSame('note.updated', $replayed[0]->event);
+        self::assertSame('note.deleted', $replayed[1]->event);
     }
 }

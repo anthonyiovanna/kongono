@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kongono\Database;
 
+use Closure;
+
 /**
  * Parameterized, full-featured SQL QueryBuilder supporting JOINs, WHERE/OR/IN/NULL,
- * GROUP BY, HAVING, ORDER BY, LIMIT/OFFSET, INSERT/UPDATE/DELETE, and RETURNING.
+ * nested WHERE groups, UPSERT, GROUP BY, HAVING, ORDER BY, LIMIT/OFFSET, and RETURNING.
  */
 final class QueryBuilder
 {
@@ -146,6 +148,47 @@ final class QueryBuilder
         ];
 
         return $this;
+    }
+
+    /**
+     * Add a parenthesized nested WHERE group: `AND (...)`.
+     *
+     * @param Closure(self): void $callback
+     * @param 'AND'|'OR'          $boolean
+     */
+    public function whereGroup(Closure $callback, string $boolean = 'AND'): self
+    {
+        $nested = new self($this->table, $this->dialect, $this->connection, $this->alias);
+        $callback($nested);
+        if ([] === $nested->wheres) {
+            return $this;
+        }
+
+        $clauses = [];
+        $bindings = [];
+        foreach ($nested->wheres as $index => $where) {
+            $prefix = 0 === $index ? '' : $where['boolean'] . ' ';
+            $clauses[] = $prefix . $where['sql'];
+            array_push($bindings, ...$where['bindings']);
+        }
+
+        $this->wheres[] = [
+            'boolean' => $boolean,
+            'sql' => '(' . implode(' ', $clauses) . ')',
+            'bindings' => $bindings,
+        ];
+
+        return $this;
+    }
+
+    /**
+     * Add a parenthesized nested OR WHERE group: `OR (...)`.
+     *
+     * @param Closure(self): void $callback
+     */
+    public function orWhereGroup(Closure $callback): self
+    {
+        return $this->whereGroup($callback, 'OR');
     }
 
     public function groupBy(string ...$columns): self
@@ -294,6 +337,45 @@ final class QueryBuilder
         );
 
         return new Sql($sql, $bindings);
+    }
+
+    /**
+     * Compile a multi-row UPSERT (PostgreSQL/SQLite ON CONFLICT or MySQL ON DUPLICATE KEY UPDATE).
+     *
+     * @param non-empty-list<array<string, mixed>> $rows
+     * @param non-empty-list<string>               $conflictColumns
+     * @param list<string>                         $updateColumns   Empty = DO NOTHING / INSERT IGNORE
+     */
+    public function toUpsertSql(array $rows, array $conflictColumns, array $updateColumns = []): Sql
+    {
+        $base = $this->toInsertManySql($rows);
+
+        if (Dialect::Mysql === $this->dialect) {
+            if ([] === $updateColumns) {
+                $ignoreSql = (string) preg_replace('/\AINSERT INTO /', 'INSERT IGNORE INTO ', $base->query, 1);
+
+                return new Sql($ignoreSql, $base->bindings);
+            }
+
+            $updates = array_map(
+                fn(string $col): string => sprintf('%s = VALUES(%s)', $this->dialect->quoteIdentifier($col), $this->dialect->quoteIdentifier($col)),
+                $updateColumns,
+            );
+
+            return new Sql($base->query . ' ON DUPLICATE KEY UPDATE ' . implode(', ', $updates), $base->bindings);
+        }
+
+        $conflict = implode(', ', array_map($this->dialect->quoteIdentifier(...), $conflictColumns));
+        if ([] === $updateColumns) {
+            return new Sql(sprintf('%s ON CONFLICT (%s) DO NOTHING', $base->query, $conflict), $base->bindings);
+        }
+
+        $updates = array_map(
+            fn(string $col): string => sprintf('%s = EXCLUDED.%s', $this->dialect->quoteIdentifier($col), $this->dialect->quoteIdentifier($col)),
+            $updateColumns,
+        );
+
+        return new Sql(sprintf('%s ON CONFLICT (%s) DO UPDATE SET %s', $base->query, $conflict, implode(', ', $updates)), $base->bindings);
     }
 
     /**
@@ -509,6 +591,20 @@ final class QueryBuilder
     public function insert(array $values): int
     {
         $sql = $this->toInsertSql($values);
+
+        return $this->requireConnection()->execute($sql->query, $sql->bindings);
+    }
+
+    /**
+     * Execute a multi-row UPSERT against the bound database connection.
+     *
+     * @param non-empty-list<array<string, mixed>> $rows
+     * @param non-empty-list<string>               $conflictColumns
+     * @param list<string>                         $updateColumns
+     */
+    public function upsert(array $rows, array $conflictColumns, array $updateColumns = []): int
+    {
+        $sql = $this->toUpsertSql($rows, $conflictColumns, $updateColumns);
 
         return $this->requireConnection()->execute($sql->query, $sql->bindings);
     }

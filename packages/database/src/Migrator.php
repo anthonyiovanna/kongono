@@ -50,6 +50,44 @@ final readonly class Migrator
         return $ran;
     }
 
+    /**
+     * Roll back the last $steps applied migrations in reverse order inside strict transactions.
+     *
+     * @param list<MigrationInterface> $migrations
+     * @param positive-int             $steps
+     * @return list<string> Rolled-back migration IDs
+     */
+    public function rollback(array $migrations, int $steps = 1): array
+    {
+        $this->ensureTable();
+        $applied = $this->appliedIds();
+        if ([] === $applied) {
+            return [];
+        }
+
+        $byId = [];
+        foreach ($migrations as $migration) {
+            $byId[$migration->id()] = $migration;
+        }
+
+        $targets = array_slice(array_reverse($applied), 0, $steps);
+        $rolledBack = [];
+
+        foreach ($targets as $id) {
+            if (!isset($byId[$id])) {
+                continue;
+            }
+            $migration = $byId[$id];
+            $this->db->transaction(function (ConnectionInterface $tx) use ($migration, $id): void {
+                $migration->down($tx);
+                $tx->table($this->table)->where('id', '=', $id)->delete();
+            });
+            $rolledBack[] = $id;
+        }
+
+        return $rolledBack;
+    }
+
     /** @return list<string> */
     public function appliedIds(): array
     {

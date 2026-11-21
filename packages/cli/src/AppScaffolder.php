@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Cli;
 
 use Kongono\Core\CoreException;
+use Kongono\Security\Encryptor;
 
 /** Scaffolds a fresh, runnable Kongono v1 application via `kongo new <dir>`. */
 final class AppScaffolder
@@ -22,6 +23,7 @@ final class AppScaffolder
         }
 
         $safeName = str_replace("'", "\\'", $appName);
+        $generatedKey = Encryptor::generateKey();
         $files = [
             'composer.json' => json_encode([
                 'name' => 'app/' . strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', '-', trim($appName))),
@@ -34,20 +36,39 @@ final class AppScaffolder
                     'psr-4' => ['App\\' => 'src/'],
                 ],
             ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
+            '.env.example' => "APP_ENV=local\nAPP_DEBUG=true\nAPP_KEY={$generatedKey}\n# Set any one AI provider for Oshie, Chie & Hantei:\n# OPENAI_API_KEY=\n# ANTHROPIC_API_KEY=\n# GEMINI_API_KEY=\n# OLLAMA_HOST=http://127.0.0.1:11434\n",
             'app/bootstrap.php' => <<<PHP
 <?php
 
 declare(strict_types=1);
 
 use App\Http\HomeController;
+use Kongono\Core\EnvLoader;
+use Kongono\Core\Health\HealthCheck;
 use Kongono\Http\App;
+use Kongono\Http\Dev\DevDashboardMiddleware;
+use Kongono\Http\Dev\DevInspector;
 use Kongono\Security\Middleware\SecurityHeadersMiddleware;
 
-return App::create(dirname(__DIR__), name: '{$safeName}')
+\$baseDir = dirname(__DIR__);
+EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
+
+\$inspector = new DevInspector();
+\$health = (new HealthCheck())->check('runtime', static fn(): bool => true);
+
+\$app = App::create(\$baseDir, name: '{$safeName}')
     ->config(['app' => ['debug' => true]])
     ->views()
-    ->middleware(new SecurityHeadersMiddleware())
+    ->instance(HealthCheck::class, \$health)
+    ->instance(DevInspector::class, \$inspector)
     ->controller(HomeController::class);
+
+\$app->middleware(
+    new DevDashboardMiddleware(\$app, \$inspector),
+    new SecurityHeadersMiddleware(),
+);
+
+return \$app;
 
 PHP,
             'public/index.php' => <<<'PHP'
@@ -64,6 +85,27 @@ $app = require dirname(__DIR__) . '/app/bootstrap.php';
 $app->run();
 
 PHP,
+            'public/worker.php' => <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Kongono\Http\App;
+
+require dirname(__DIR__) . '/vendor/autoload.php';
+
+/** @var App $app */
+$app = require dirname(__DIR__) . '/app/bootstrap.php';
+
+if (function_exists('frankenphp_handle_request')) {
+    $app->runWorker(static fn(Closure $handler): bool => frankenphp_handle_request($handler));
+} else {
+    $app->run();
+}
+
+PHP,
+            'Caddyfile' => "{\n    frankenphp {\n        worker ./public/worker.php\n    }\n}\n\n:8080 {\n    root * ./public\n    encode zstd br gzip\n    php_server\n}\n",
+            'Dockerfile' => "FROM dunglas/frankenphp:php8.5\nWORKDIR /app\nCOPY . /app\nEXPOSE 8080\nCMD [\"frankenphp\", \"run\", \"--config\", \"/app/Caddyfile\"]\n",
             'src/Http/HomeController.php' => <<<PHP
 <?php
 
@@ -71,6 +113,10 @@ declare(strict_types=1);
 
 namespace App\Http;
 
+use Kongono\Core\Health\HealthCheck;
+use Kongono\Http\App;
+use Kongono\Http\OpenApi\ApiDocsRenderer;
+use Kongono\Http\OpenApi\OpenApiGenerator;
 use Kongono\Http\Response;
 use Kongono\Http\Routing\Get;
 use Kongono\View\ViewEngine;
@@ -79,6 +125,8 @@ final readonly class HomeController
 {
     public function __construct(
         private ViewEngine \$views,
+        private HealthCheck \$health,
+        private App \$app,
     ) {}
 
     #[Get('/', name: 'home')]
@@ -90,10 +138,24 @@ final readonly class HomeController
         ]));
     }
 
-    #[Get('/api/health', name: 'api.health')]
+    #[Get('/health', name: 'health')]
     public function health(): Response
     {
-        return Response::json(['status' => 'ok', 'app' => '{$safeName}']);
+        \$report = \$this->health->run();
+
+        return Response::json(\$report, status: \$report['healthy'] ? 200 : 503);
+    }
+
+    #[Get('/openapi.json', name: 'openapi')]
+    public function openApi(): Response
+    {
+        return Response::json((new OpenApiGenerator())->generate(\$this->app));
+    }
+
+    #[Get('/docs', name: 'api.docs')]
+    public function docs(): Response
+    {
+        return Response::html((new ApiDocsRenderer())->render(\$this->app));
     }
 }
 
@@ -108,6 +170,7 @@ PHP,
 <body>
   <h1>{{ $title }}</h1>
   <p>Running on Kongono Framework v1 (PHP {{ $phpVersion }}).</p>
+  <p><a href="/docs">API Explorer (/docs)</a> &middot; <a href="/_kongono">Dev Studio (/_kongono)</a> &middot; <a href="/health">Health</a></p>
 </body>
 </html>
 

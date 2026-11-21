@@ -6,13 +6,19 @@ namespace StarterApp\Http;
 
 use Kongono\Http\HttpException;
 use Kongono\Http\Response;
+use Kongono\Http\Routing\Get;
+use Kongono\Http\Routing\Middleware;
 use Kongono\Http\Routing\Post;
+use Kongono\Http\Routing\Prefix;
 use Kongono\Mail\Email;
 use Kongono\Mail\Mailer;
+use Kongono\Security\Attributes\Can;
+use Kongono\Security\Middleware\BearerAuthMiddleware;
 use Kongono\Security\Principal;
 use Kongono\Security\TokenSigner;
 use StarterApp\Domain\UserStore;
 
+#[Prefix('/api/auth')]
 final readonly class AuthController
 {
     public function __construct(
@@ -21,7 +27,7 @@ final readonly class AuthController
         private Mailer $mailer,
     ) {}
 
-    #[Post('/api/auth/register', name: 'api.auth.register')]
+    #[Post('/register', name: 'api.auth.register')]
     public function register(RegisterInput $input): Response
     {
         if (null !== $this->users->findByEmail($input->email)) {
@@ -38,7 +44,7 @@ final readonly class AuthController
         return Response::json(['user' => $user, 'token' => $token], status: 201);
     }
 
-    #[Post('/api/auth/login', name: 'api.auth.login')]
+    #[Post('/login', name: 'api.auth.login')]
     public function login(LoginInput $input): Response
     {
         $user = $this->users->verifyCredentials($input->email, $input->password);
@@ -51,6 +57,9 @@ final readonly class AuthController
         return Response::json(['user' => $user, 'token' => $token]);
     }
 
+    #[Get('/me', name: 'api.auth.me')]
+    #[Middleware(BearerAuthMiddleware::class)]
+    #[Can('notes.read')]
     public function me(Principal $principal): Response
     {
         return Response::json([

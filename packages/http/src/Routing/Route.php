@@ -13,6 +13,9 @@ final class Route
     /** @var list<MiddlewareInterface> */
     private array $middleware = [];
 
+    /** @var list<MiddlewareAttributeInterface> */
+    private array $middlewareAttributes = [];
+
     /**
      * @param list<string>                               $methods
      * @param Closure|array{0: class-string, 1: string}  $handler
@@ -47,6 +50,19 @@ final class Route
     public function routeMiddleware(): array
     {
         return $this->middleware;
+    }
+
+    public function middlewareAttributes(MiddlewareAttributeInterface ...$attributes): self
+    {
+        array_push($this->middlewareAttributes, ...$attributes);
+
+        return $this;
+    }
+
+    /** @return list<MiddlewareAttributeInterface> */
+    public function routeMiddlewareAttributes(): array
+    {
+        return $this->middlewareAttributes;
     }
 
     public function handlerLabel(): string

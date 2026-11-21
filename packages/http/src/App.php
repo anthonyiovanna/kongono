@@ -95,6 +95,11 @@ final class App
         return $this;
     }
 
+    public function isDebug(): bool
+    {
+        return $this->debug;
+    }
+
     public function views(?string $viewsPath = null, ?string $cachePath = null): self
     {
         $path = $viewsPath ?? ($this->basePath . DIRECTORY_SEPARATOR . 'views');
@@ -371,6 +376,10 @@ final class App
         };
 
         $routeMiddleware = $match->route->routeMiddleware();
+        foreach ($match->route->routeMiddlewareAttributes() as $middlewareAttr) {
+            $routeMiddleware[] = $middlewareAttr->toMiddleware($this->container);
+        }
+
         if ([] === $routeMiddleware) {
             return $routeTerminal->handle($enriched);
         }
@@ -495,8 +504,17 @@ final class App
         }
         foreach ($ctor->getParameters() as $param) {
             $type = $param->getType();
-            if ($type instanceof ReflectionNamedType && $type->isBuiltin()) {
-                return true;
+            if ($type instanceof ReflectionNamedType) {
+                if ($type->isBuiltin()) {
+                    return true;
+                }
+                $paramTypeName = $type->getName();
+                if (enum_exists($paramTypeName)) {
+                    return true;
+                }
+                if (class_exists($paramTypeName) && !$this->container->has($paramTypeName) && $this->looksLikeInputDto($paramTypeName)) {
+                    return true;
+                }
             }
         }
 

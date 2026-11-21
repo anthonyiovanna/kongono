@@ -7,7 +7,7 @@ namespace Kongono\Cli;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Core\CoreException;
 
-/** Zero-AI instant deterministic code generators (`kongo make:controller`, `make:dto`, `make:migration`). */
+/** Zero-AI instant deterministic code generators (`kongo make:controller`, `make:dto`, `make:migration`, `make:test`). */
 final class CodeGenerator
 {
     public function makeController(ProjectContext $context, string $name, string $namespace = 'App\\Http'): string
@@ -117,6 +117,43 @@ return new class () implements MigrationInterface {
         Schema::dropIfExists(\$db, '{$slug}');
     }
 };
+
+PHP;
+        $context->writeFileContained($path, $code);
+
+        return $path;
+    }
+
+    public function makeTest(ProjectContext $context, string $name, string $namespace = 'App\\Tests'): string
+    {
+        $className = $this->studly($name);
+        if (!str_ends_with($className, 'Test')) {
+            $className .= 'Test';
+        }
+        $path = 'tests/' . $className . '.php';
+
+        $code = <<<PHP
+<?php
+
+declare(strict_types=1);
+
+namespace {$namespace};
+
+use Kongono\Http\App;
+use Kongono\Http\Testing\TestClient;
+use PHPUnit\Framework\TestCase;
+
+final class {$className} extends TestCase
+{
+    public function testHomeRouteReturnsOk(): void
+    {
+        /** @var App \$app */
+        \$app = require dirname(__DIR__) . '/app/bootstrap.php';
+        \$client = new TestClient(\$app);
+
+        \$client->get('/')->assertOk();
+    }
+}
 
 PHP;
         $context->writeFileContained($path, $code);

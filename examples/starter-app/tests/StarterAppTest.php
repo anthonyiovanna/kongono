@@ -219,6 +219,21 @@ final class StarterAppTest extends TestCase
         ])->assertOk();
         self::assertFalse($call->json()['result']['isError']);
         self::assertStringContainsString('Kongono Starter App', $call->json()['result']['content'][0]['text']);
+
+        // Built-in /_kongono Dev Studio (enabled in debug mode) captures recent requests
+        $client->get('/_kongono')
+            ->assertOk()
+            ->assertSee('Kongono Dev Studio')
+            ->assertSee('Kongono Starter App');
+        $traces = $client->get('/_kongono/api/traces')->assertOk()->json();
+        self::assertNotEmpty($traces);
+
+        // Creating a note publishes onto EventBus and replays over /api/events SSE
+        $client->postJson('/api/notes', ['title' => 'Live Event', 'body' => 'Streams via EventBus'])->assertCreated();
+        $sse = $app->handle(Request::create('GET', '/api/events', ['Last-Event-ID' => '0']));
+        self::assertInstanceOf(Response::class, $sse);
+        self::assertStringContainsString('event: note.created', $sse->bodyString());
+        self::assertStringContainsString('Live Event', $sse->bodyString());
     }
 
     private function removeDir(string $dir): void

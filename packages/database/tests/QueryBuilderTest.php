@@ -8,6 +8,8 @@ use Closure;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\DatabaseException;
 use Kongono\Database\Dialect;
+use Kongono\Database\MigrationInterface;
+use Kongono\Database\Migrator;
 use Kongono\Database\PdoConnection;
 use Kongono\Database\QueryBuilder;
 use Kongono\Database\Repository;
@@ -239,5 +241,132 @@ final class QueryBuilderTest extends TestCase
         self::assertSame('SELECT 2', $recorded[1]['sql']);
         self::assertSame('UPDATE notes SET title = ?', $recorded[2]['sql']);
         self::assertGreaterThanOrEqual(0.0, $recorded[0]['ms']);
+    }
+
+    public function testNestedWhereGroupsUpsertAndMigratorRollback(): void
+    {
+        $grouped = (new QueryBuilder('users', Dialect::Postgres))
+            ->where('active', '=', true)
+            ->whereGroup(static function (QueryBuilder $q): void {
+                $q->where('role', '=', 'admin')->orWhere('role', '=', 'editor');
+            })
+            ->orWhereGroup(static function (QueryBuilder $q): void {
+                $q->where('vip', '=', true)->where('score', '>=', 100);
+            })
+            ->toSelectSql();
+
+        self::assertSame(
+            'SELECT * FROM "users" WHERE "active" = ? AND ("role" = ? OR "role" = ?) OR ("vip" = ? AND "score" >= ?)',
+            $grouped->query,
+        );
+        self::assertSame([true, 'admin', 'editor', true, 100], $grouped->bindings);
+
+        $pgUpsert = (new QueryBuilder('settings', Dialect::Postgres))
+            ->toUpsertSql(
+                [['key' => 'theme', 'value' => 'dark'], ['key' => 'lang', 'value' => 'en']],
+                ['key'],
+                ['value'],
+            );
+        self::assertSame(
+            'INSERT INTO "settings" ("key", "value") VALUES (?, ?), (?, ?) ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value"',
+            $pgUpsert->query,
+        );
+        self::assertSame(['theme', 'dark', 'lang', 'en'], $pgUpsert->bindings);
+
+        $pgIgnore = (new QueryBuilder('settings', Dialect::Sqlite))
+            ->toUpsertSql([['key' => 'theme', 'value' => 'dark']], ['key']);
+        self::assertSame('INSERT INTO "settings" ("key", "value") VALUES (?, ?) ON CONFLICT ("key") DO NOTHING', $pgIgnore->query);
+
+        $mysqlUpsert = (new QueryBuilder('settings', Dialect::Mysql))
+            ->toUpsertSql([['key' => 'theme', 'value' => 'dark']], ['key'], ['value']);
+        self::assertSame('INSERT INTO `settings` (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)', $mysqlUpsert->query);
+
+        // Verify Migrator::migrate() and Migrator::rollback()
+        $events = [];
+        $applied = [];
+        $fakeConn = new class ($events, $applied) implements ConnectionInterface {
+            /**
+             * @param list<string> $events
+             * @param list<string> $applied
+             */
+            public function __construct(public array &$events, public array &$applied) {}
+
+            public function dialect(): Dialect
+            {
+                return Dialect::Postgres;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                return array_map(static fn(string $id): array => ['id' => $id], $this->applied);
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                return null;
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                if (str_starts_with($sql, 'INSERT INTO "kongono_migrations"') && is_string($bindings[0] ?? null)) {
+                    $this->applied[] = $bindings[0];
+                } elseif (str_starts_with($sql, 'DELETE FROM "kongono_migrations"') && is_string($bindings[0] ?? null)) {
+                    $this->applied = array_values(array_filter($this->applied, static fn(string $id): bool => $id !== $bindings[0]));
+                } else {
+                    $this->events[] = $sql;
+                }
+
+                return 1;
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, Dialect::Postgres, $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                return $callback($this);
+            }
+        };
+
+        $m1 = new class implements MigrationInterface {
+            public function id(): string
+            {
+                return '20260101_create_a';
+            }
+
+            public function up(ConnectionInterface $db): void
+            {
+                $db->execute('UP_A');
+            }
+
+            public function down(ConnectionInterface $db): void
+            {
+                $db->execute('DOWN_A');
+            }
+        };
+        $m2 = new class implements MigrationInterface {
+            public function id(): string
+            {
+                return '20260102_create_b';
+            }
+
+            public function up(ConnectionInterface $db): void
+            {
+                $db->execute('UP_B');
+            }
+
+            public function down(ConnectionInterface $db): void
+            {
+                $db->execute('DOWN_B');
+            }
+        };
+
+        $migrator = new Migrator($fakeConn);
+        self::assertSame(['20260101_create_a', '20260102_create_b'], $migrator->migrate([$m1, $m2]));
+        self::assertSame(['20260102_create_b'], $migrator->rollback([$m1, $m2], steps: 1));
+        self::assertContains('DOWN_B', $events);
+        self::assertSame(['20260101_create_a'], $applied);
     }
 }

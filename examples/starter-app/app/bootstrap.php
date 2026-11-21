@@ -11,8 +11,10 @@ use Kongono\Core\I18n\Translator;
 use Kongono\Core\Log\Logger;
 use Kongono\Core\Telemetry\Metrics;
 use Kongono\Http\App;
+use Kongono\Http\Dev\DevDashboardMiddleware;
+use Kongono\Http\Dev\DevInspector;
 use Kongono\Http\Middleware\StaticFilesMiddleware;
-use Kongono\Http\Routing\Router;
+use Kongono\Http\Realtime\EventBus;
 use Kongono\Http\Session\CacheSessionStore;
 use Kongono\Http\Session\SessionMiddleware;
 use Kongono\Jobs\Job;
@@ -90,6 +92,17 @@ $scheduler->call('heartbeat', static function () use ($logger): void {
     $logger->info('Scheduled heartbeat ran.');
 })->everyMinute();
 
+$inspector = new DevInspector();
+$eventBus = new EventBus();
+$bearerAuth = new BearerAuthMiddleware(static function (string $token) use ($signer): ?Principal {
+    $claims = $signer->verify($token);
+    if (null === $claims || !is_string($claims['sub'] ?? null)) {
+        return null;
+    }
+
+    return new Principal($claims['sub'], PrincipalKind::Human, ['notes.read', 'notes.write'], $claims);
+});
+
 $app = App::create($baseDir, name: 'Kongono Starter App')
     ->config(['app' => ['debug' => true]])
     ->views()
@@ -104,33 +117,24 @@ $app = App::create($baseDir, name: 'Kongono Starter App')
     ->instance(Encryptor::class, $encryptor)
     ->instance(SignedUrl::class, $signedUrl)
     ->instance(PasswordHasher::class, $hasher)
+    ->instance(DevInspector::class, $inspector)
+    ->instance(EventBus::class, $eventBus)
+    ->instance(BearerAuthMiddleware::class, $bearerAuth)
     ->singleton(NoteStore::class, NoteStore::class)
     ->singleton(UserStore::class, UserStore::class)
     ->instance(Queue::class, $queue)
-    ->middleware(
-        new StaticFilesMiddleware($baseDir . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets', '/assets/'),
-        new SecurityHeadersMiddleware(),
-        new CorsMiddleware(allowedOrigins: ['*']),
-        new RateLimitMiddleware($cache, maxRequests: 120, windowSeconds: 60),
-        new SessionMiddleware(new CacheSessionStore($cache)),
-        new RequestTimingMiddleware($metrics),
-    )
     ->controller(NoteController::class)
-    ->controller(AuthController::class)
-    ->routes(static function (Router $r) use ($signer): void {
-        $bearer = new BearerAuthMiddleware(static function (string $token) use ($signer): ?Principal {
-            $claims = $signer->verify($token);
-            if (null === $claims || !is_string($claims['sub'] ?? null)) {
-                return null;
-            }
+    ->controller(AuthController::class);
 
-            return new Principal($claims['sub'], PrincipalKind::Human, ['notes.read', 'notes.write'], $claims);
-        });
-
-        $r->get('/api/auth/me', [AuthController::class, 'me'])
-            ->name('api.auth.me')
-            ->middleware($bearer);
-    });
+$app->middleware(
+    new DevDashboardMiddleware($app, $inspector),
+    new StaticFilesMiddleware($baseDir . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets', '/assets/'),
+    new SecurityHeadersMiddleware(),
+    new CorsMiddleware(allowedOrigins: ['*']),
+    new RateLimitMiddleware($cache, maxRequests: 120, windowSeconds: 60),
+    new SessionMiddleware(new CacheSessionStore($cache)),
+    new RequestTimingMiddleware($metrics),
+);
 
 $viewsWithI18n = $app->container()->make(ViewEngine::class)->withTranslator($translator->get(...));
 $app->instance(ViewEngine::class, $viewsWithI18n);

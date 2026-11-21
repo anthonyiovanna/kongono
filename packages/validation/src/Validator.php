@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Kongono\Validation;
 
+use BackedEnum;
 use Kongono\Core\CoreException;
+use Kongono\Validation\Attributes\Between;
+use Kongono\Validation\Attributes\Confirmed;
 use Kongono\Validation\Attributes\Email;
 use Kongono\Validation\Attributes\In;
 use Kongono\Validation\Attributes\Max;
@@ -12,11 +15,13 @@ use Kongono\Validation\Attributes\Min;
 use Kongono\Validation\Attributes\Regex;
 use Kongono\Validation\Attributes\Required;
 use Kongono\Validation\Attributes\Url;
+use Kongono\Validation\Attributes\Uuid;
 use ReflectionClass;
+use ReflectionEnum;
 use ReflectionNamedType;
 use ReflectionParameter;
 
-/** Validates raw request/input arrays into strictly typed PHP 8.5 DTOs. */
+/** Validates raw request/input arrays into strictly typed PHP 8.5 DTOs (including BackedEnums and nested DTOs). */
 final class Validator
 {
     /**
@@ -71,13 +76,20 @@ final class Validator
                 continue;
             }
 
-            [$coerced, $typeError] = $this->coerce($parameter, $raw, $name);
+            try {
+                [$coerced, $typeError] = $this->coerce($parameter, $raw, $name);
+            } catch (ValidationException $nested) {
+                foreach ($nested->errors as $subField => $subMessages) {
+                    $errors[$name . '.' . $subField] = $subMessages;
+                }
+                continue;
+            }
             if (null !== $typeError) {
                 $errors[$name][] = $typeError;
                 continue;
             }
 
-            $ruleErrors = $this->checkAttributes($attributes, $coerced, $name);
+            $ruleErrors = $this->checkAttributes($attributes, $coerced, $name, $input);
             if ([] !== $ruleErrors) {
                 $errors[$name] = $ruleErrors;
                 continue;
@@ -187,17 +199,65 @@ final class Validator
             'array' => is_array($value)
                 ? [$value, null]
                 : [null, sprintf('The %s field must be an array.', $name)],
-            default => $value instanceof ($type->getName())
-                ? [$value, null]
-                : throw new CoreException(sprintf('Unsupported DTO field type "%s" for "$%s".', $type->getName(), $name)),
+            default => $this->coerceObjectOrEnum($type->getName(), $value, $name),
         };
     }
 
+    /** @return array{0: mixed, 1: ?string} */
+    private function coerceObjectOrEnum(string $typeName, mixed $value, string $name): array
+    {
+        if (is_subclass_of($typeName, BackedEnum::class)) {
+            if ($value instanceof $typeName) {
+                return [$value, null];
+            }
+
+            $enumRef = new ReflectionEnum($typeName);
+            $backingType = $enumRef->getBackingType();
+            $backingName = $backingType instanceof ReflectionNamedType ? $backingType->getName() : 'string';
+
+            $candidate = match ($backingName) {
+                'int' => is_int($value) ? $value : (is_string($value) && 1 === preg_match('/\A-?\d+\z/', trim($value)) ? (int) trim($value) : null),
+                default => is_string($value) ? trim($value) : null,
+            };
+
+            if (null !== $candidate) {
+                $case = $typeName::tryFrom($candidate);
+                if (null !== $case) {
+                    return [$case, null];
+                }
+            }
+
+            $allowed = array_map(static fn(BackedEnum $c): string => (string) $c->value, $typeName::cases());
+
+            return [null, sprintf('The %s field must be one of: %s.', $name, implode(', ', $allowed))];
+        }
+
+        if (class_exists($typeName)) {
+            if ($value instanceof $typeName) {
+                return [$value, null];
+            }
+            if (is_array($value)) {
+                /** @var array<string, mixed> $nestedInput */
+                $nestedInput = [];
+                foreach ($value as $k => $v) {
+                    $nestedInput[(string) $k] = $v;
+                }
+
+                return [$this->validate($typeName, $nestedInput), null];
+            }
+
+            return [null, sprintf('The %s field must be an object.', $name)];
+        }
+
+        throw new CoreException(sprintf('Unsupported DTO field type "%s" for "$%s".', $typeName, $name));
+    }
+
     /**
-     * @param list<object> $attributes
+     * @param list<object>         $attributes
+     * @param array<string, mixed> $allInput
      * @return list<string>
      */
-    private function checkAttributes(array $attributes, mixed $value, string $name): array
+    private function checkAttributes(array $attributes, mixed $value, string $name, array $allInput): array
     {
         $errors = [];
 
@@ -214,6 +274,17 @@ final class Validator
                 } elseif ((is_int($value) || is_float($value)) && $value > $attribute->value) {
                     $errors[] = $attribute->message ?? sprintf('The %s field must be at most %s.', $name, (string) $attribute->value);
                 }
+            } elseif ($attribute instanceof Between) {
+                if (is_string($value)) {
+                    $len = mb_strlen($value);
+                    if ($len < $attribute->min || $len > $attribute->max) {
+                        $errors[] = $attribute->message ?? sprintf('The %s field must be between %s and %s characters.', $name, (string) $attribute->min, (string) $attribute->max);
+                    }
+                } elseif (is_int($value) || is_float($value)) {
+                    if ($value < $attribute->min || $value > $attribute->max) {
+                        $errors[] = $attribute->message ?? sprintf('The %s field must be between %s and %s.', $name, (string) $attribute->min, (string) $attribute->max);
+                    }
+                }
             } elseif ($attribute instanceof Email) {
                 if (!is_string($value) || false === filter_var($value, FILTER_VALIDATE_EMAIL)) {
                     $errors[] = $attribute->message ?? sprintf('The %s field must be a valid email address.', $name);
@@ -222,6 +293,10 @@ final class Validator
                 if (!is_string($value) || false === filter_var($value, FILTER_VALIDATE_URL)) {
                     $errors[] = $attribute->message ?? sprintf('The %s field must be a valid URL.', $name);
                 }
+            } elseif ($attribute instanceof Uuid) {
+                if (!is_string($value) || 1 !== preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/i', $value)) {
+                    $errors[] = $attribute->message ?? sprintf('The %s field must be a valid UUID.', $name);
+                }
             } elseif ($attribute instanceof In) {
                 if (!in_array($value, $attribute->allowed, true)) {
                     $errors[] = $attribute->message ?? sprintf('The %s field must be one of: %s.', $name, implode(', ', array_map('strval', $attribute->allowed)));
@@ -229,6 +304,12 @@ final class Validator
             } elseif ($attribute instanceof Regex) {
                 if (!is_string($value) || 1 !== preg_match($attribute->pattern, $value)) {
                     $errors[] = $attribute->message ?? sprintf('The %s field format is invalid.', $name);
+                }
+            } elseif ($attribute instanceof Confirmed) {
+                $other = $allInput[$attribute->otherField] ?? null;
+                $normalizedOther = is_string($other) ? trim($other) : $other;
+                if ($value !== $normalizedOther) {
+                    $errors[] = $attribute->message ?? sprintf('The %s field must match %s.', $name, $attribute->otherField);
                 }
             }
         }

@@ -101,19 +101,49 @@ final class Router
 
     /**
      * Register all methods decorated with #[Get], #[Post], #[Put], #[Patch], #[Delete] on a controller class.
+     * Supports class-level #[Prefix] plus class- and method-level MiddlewareAttributeInterface attributes
+     * such as #[Middleware(...)] and #[Can(...)].
      *
      * @param class-string $controllerClass
      */
     public function controller(string $controllerClass): self
     {
         $reflection = new ReflectionClass($controllerClass);
+
+        $classPrefix = '';
+        $prefixAttrs = $reflection->getAttributes(Prefix::class);
+        if ([] !== $prefixAttrs) {
+            $classPrefix = rtrim($prefixAttrs[0]->newInstance()->path, '/');
+        }
+
+        $classMiddlewareAttrs = array_map(
+            static fn(ReflectionAttribute $attr): MiddlewareAttributeInterface => $attr->newInstance(),
+            $reflection->getAttributes(MiddlewareAttributeInterface::class, ReflectionAttribute::IS_INSTANCEOF),
+        );
+
         foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
             $attributes = $method->getAttributes(RouteAttribute::class, ReflectionAttribute::IS_INSTANCEOF);
+            if ([] === $attributes) {
+                continue;
+            }
+
+            $methodMiddlewareAttrs = array_map(
+                static fn(ReflectionAttribute $attr): MiddlewareAttributeInterface => $attr->newInstance(),
+                $method->getAttributes(MiddlewareAttributeInterface::class, ReflectionAttribute::IS_INSTANCEOF),
+            );
+            $allMiddlewareAttrs = [...$classMiddlewareAttrs, ...$methodMiddlewareAttrs];
+
             foreach ($attributes as $attribute) {
                 $instance = $attribute->newInstance();
-                $route = $this->add($instance->methods, $instance->path, [$controllerClass, $method->getName()]);
+                $fullPath = '' !== $classPrefix
+                    ? $classPrefix . '/' . ltrim($instance->path, '/')
+                    : $instance->path;
+                $route = $this->add($instance->methods, $fullPath, [$controllerClass, $method->getName()]);
                 if (null !== $instance->name) {
                     $route->name($instance->name);
+                }
+                if ([] !== $allMiddlewareAttrs) {
+                    $route->middlewareAttributes(...$allMiddlewareAttrs);
                 }
             }
         }

@@ -88,8 +88,12 @@ final class CompanionsAndCliTest extends TestCase
             self::assertFileExists($tempDir . '/public/index.php');
             self::assertFileExists($tempDir . '/src/Http/HomeController.php');
             self::assertFileExists($tempDir . '/views/home.kgn.html');
+            self::assertFileExists($tempDir . '/.env.example');
+            self::assertFileExists($tempDir . '/public/worker.php');
+            self::assertFileExists($tempDir . '/Caddyfile');
+            self::assertFileExists($tempDir . '/Dockerfile');
 
-            // Verify make:controller, make:dto, and make:migration in the freshly scaffolded app
+            // Verify make:controller, make:dto, make:migration, and make:test in the freshly scaffolded app
             [$mcCode, $mcOut] = $cli->run(['make:controller', 'Post', '--app=' . $tempDir]);
             self::assertSame(0, $mcCode);
             self::assertStringContainsString('PostController.php', $mcOut);
@@ -102,6 +106,22 @@ final class CompanionsAndCliTest extends TestCase
             [$mmCode, $mmOut] = $cli->run(['make:migration', 'create_posts', '--app=' . $tempDir]);
             self::assertSame(0, $mmCode);
             self::assertStringContainsString('migrations/', $mmOut);
+
+            [$mtCode, $mtOut] = $cli->run(['make:test', 'Home', '--app=' . $tempDir]);
+            self::assertSame(0, $mtCode);
+            self::assertStringContainsString('HomeTest.php', $mtOut);
+            self::assertFileExists($tempDir . '/tests/HomeTest.php');
+
+            // Verify key:generate and doctor
+            [$kgCode, $kgOut] = $cli->run(['key:generate']);
+            self::assertSame(0, $kgCode);
+            self::assertStringStartsWith('APP_KEY=', $kgOut);
+
+            [$docCode, $docOut] = $cli->run(['doctor', '--app=' . $this->starterAppRoot]);
+            self::assertSame(0, $docCode);
+            self::assertStringContainsString('PHP version:', $docOut);
+            self::assertStringContainsString('ext-sodium', $docOut);
+            self::assertStringContainsString('Kongono Starter App', $docOut);
         } finally {
             $this->removeDir($tempDir);
         }

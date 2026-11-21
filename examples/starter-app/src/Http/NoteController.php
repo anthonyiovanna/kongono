@@ -11,6 +11,7 @@ use Kongono\Http\App;
 use Kongono\Http\HttpException;
 use Kongono\Http\OpenApi\ApiDocsRenderer;
 use Kongono\Http\OpenApi\OpenApiGenerator;
+use Kongono\Http\Realtime\EventBus;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Http\Routing\Delete;
@@ -35,6 +36,7 @@ final readonly class NoteController
         private Worker $worker,
         private Metrics $metrics,
         private HealthCheck $health,
+        private EventBus $events,
         private App $app,
     ) {}
 
@@ -87,6 +89,7 @@ final readonly class NoteController
     {
         $note = $this->store->create($input->title, $input->body);
         $job = $this->queue->dispatch('note.indexed', ['note_id' => $note->id]);
+        $this->events->publish('notes', 'note.created', $note->toArray());
 
         return Response::json([
             ...$note->toArray(),
@@ -100,6 +103,7 @@ final readonly class NoteController
         if (!$this->store->delete($id)) {
             throw new HttpException(404, sprintf('Note #%d not found.', $id));
         }
+        $this->events->publish('notes', 'note.deleted', ['id' => $id]);
 
         return Response::noContent();
     }
@@ -210,13 +214,18 @@ final readonly class NoteController
     }
 
     #[Get('/api/events', name: 'api.events')]
-    public function events(): Response
+    public function events(Request $request): Response
     {
         $noteCount = count($this->store->all());
+        $lastId = $request->getHeaderLine('Last-Event-ID');
+        $replayed = $this->events->since('notes', '' !== $lastId ? $lastId : null);
 
-        return Response::sse(static function () use ($noteCount): iterable {
-            yield SseEvent::json(['status' => 'connected', 'notes' => $noteCount], event: 'ready', id: '1');
-            yield SseEvent::json(['framework' => 'Kongono v1', 'php' => PHP_VERSION], event: 'info', id: '2');
+        return Response::sse(static function () use ($noteCount, $replayed): iterable {
+            yield SseEvent::json(['status' => 'connected', 'notes' => $noteCount], event: 'ready', id: '0');
+            foreach ($replayed as $ev) {
+                yield $ev;
+            }
+            yield SseEvent::json(['framework' => 'Kongono v1', 'php' => PHP_VERSION], event: 'info');
         });
     }
 }

@@ -26,10 +26,12 @@ Kongono is a modern, zero-legacy **PHP 8.5+** application framework built from t
 # Scaffold a brand-new Kongono app
 php bin/kongo new my-app --name="My App"
 
-# Run the starter app locally (includes /docs API Explorer, /health, /openapi.json, /metrics, /mcp)
+# Run the starter app locally (includes /_kongono Dev Studio, /docs API Explorer, /health, /openapi.json, /metrics, /mcp)
 php bin/kongo serve --app=examples/starter-app --port=8000
 
-# Inspect live routes, ApplicationGraph, OpenAPI 3.1 spec, or start the MCP server
+# Verify environment & live app health, generate APP_KEY, inspect routes/graph/OpenAPI/MCP
+php bin/kongo doctor --app=examples/starter-app
+php bin/kongo key:generate
 php bin/kongo routes --app=examples/starter-app
 php bin/kongo graph --app=examples/starter-app
 php bin/kongo openapi --app=examples/starter-app
@@ -57,16 +59,16 @@ To enable live AI responses for Oshie, Chie, and Hantei, set any one environment
 | # | Package | Namespace | Purpose |
 | --- | --- | --- | --- |
 | 1 | `packages/core` | `Kongono\Core\` | Persistent `Kernel`, PSR-11 `Container`, `Config`, `EnvLoader`, PSR-3 `Logger`, `MemoryCache`/`FileCache`, `Metrics`/`Tracer`, `HealthCheck`, `I18n\Translator`, `Diagnostics`, `EventDispatcher`, `ApplicationGraph` |
-| 2 | `packages/http` | `Kongono\Http\` | PSR-7/15 `Request`/`Response`/`Cookie`, `Session`, `StaticFilesMiddleware`, `SseEvent`, `OpenApiGenerator`, zero-CDN `ApiDocsRenderer` (`/docs`), `DevErrorRenderer`, fluent `TestClient`, attribute + fluent `Router`, persistent `App` |
+| 2 | `packages/http` | `Kongono\Http\` | PSR-7/15 `Request`/`Response`/`Cookie`, `Session`, `StaticFilesMiddleware`, `SseEvent` + `EventBus`, `OpenApiGenerator`, `/docs` `ApiDocsRenderer`, `/_kongono` `DevDashboardMiddleware`, `DevErrorRenderer`, fluent `TestClient`, `#[Prefix]`/`#[Middleware]`/`#[Get]` `Router`, persistent `App` |
 | 3 | `packages/view` | `Kongono\View\` | Compiled `.kgn.html` templates, layouts, loops, `<x-component>` slots, `@t(...)` i18n, `@json`, automatic XSS escaping |
-| 4 | `packages/validation` | `Kongono\Validation\` | PHP 8.5 attribute-driven typed DTO validation |
-| 5 | `packages/database` | `Kongono\Database\` | Parameterized `QueryBuilder` (`JOIN`, `GROUP BY`, `HAVING`, `RETURNING`, `paginate()`, `getAs()`, `insertMany()`), `Schema`/`Blueprint`, `Repository`, `PdoConnection::onQuery()` telemetry, `Migrator` |
-| 6 | `packages/security` | `Kongono\Security\` | `Principal` (Human/Service/Agent), `Gate`, Argon2id `PasswordHasher`, AEAD `Encryptor` (XChaCha20-Poly1305 + key rotation), HMAC `TokenSigner` & `SignedUrl`, CSRF/CORS/Bearer/RateLimit/SecurityHeaders middleware, SSRF-hardened `SafeHttpClient` |
+| 4 | `packages/validation` | `Kongono\Validation\` | PHP 8.5 attribute-driven typed DTO validation (nested DTOs, `BackedEnum`, `#[Uuid]`, `#[Between]`, `#[Confirmed]`, `#[Email]`, `#[Min]`/`#[Max]`, `#[In]`, `#[Regex]`) |
+| 5 | `packages/database` | `Kongono\Database\` | Parameterized `QueryBuilder` (`JOIN`, `whereGroup()`, `upsert()`, `GROUP BY`, `HAVING`, `RETURNING`, `paginate()`, `getAs()`, `insertMany()`), `Schema`/`Blueprint`, `Repository`, `PdoConnection::onQuery()`, `Migrator` (`migrate` + `rollback`), `SeederInterface` |
+| 6 | `packages/security` | `Kongono\Security\` | `Principal` (Human/Service/Agent), `Gate`, `#[Can]` + `AuthorizeMiddleware`, Argon2id `PasswordHasher`, AEAD `Encryptor` (XChaCha20-Poly1305 + key rotation), HMAC `TokenSigner` & `SignedUrl`, CSRF/CORS/Bearer/RateLimit/SecurityHeaders middleware, SSRF-hardened `SafeHttpClient` |
 | 7 | `packages/storage` | `Kongono\Storage\` | Contained atomic `LocalStorage`, pure PHP 8.5 AWS SigV4 `S3Storage` (S3/R2/MinIO + presigned URLs), and `MemoryStorage` |
 | 8 | `packages/jobs` | `Kongono\Jobs\` | Background `Queue`, persistent `Worker`, `PostgresQueueDriver` (`FOR UPDATE SKIP LOCKED` + fencing tokens), `MemoryQueueDriver`, and cron `Scheduler` |
 | 9 | `packages/mail` | `Kongono\Mail\` | Zero-dependency transactional email (`SmtpTransport` STARTTLS, `ResendTransport`, `LogTransport`, `MemoryTransport`, `.kgn.html` email views) |
 | 10 | `packages/ai` | `Kongono\Ai\` | Multi-provider `AiClient` (OpenAI, Anthropic, Gemini, Ollama) with live streaming on all 4 providers, `structured()` DTO extraction, governed `AgentPrincipal`/`AgentRunner`, and native `McpServer` (JSON-RPC 2.0) |
-| 11 | `packages/cli` | `Kongono\Cli\` | Unified `kongo` CLI (`new`, `serve`, `work`, `schedule:run`, `migrate`, `make:*`, `routes`, `graph`, `openapi`, `mcp`, `check`, `test`) + built-in **Oshie**, **Chie**, and **Hantei** |
+| 11 | `packages/cli` | `Kongono\Cli\` | Unified `kongo` CLI (`new`, `serve`, `doctor`, `key:generate`, `work`, `schedule:run`, `migrate`, `migrate:rollback`, `make:*`, `routes`, `graph`, `openapi`, `mcp`, `check`, `test`) + built-in **Oshie**, **Chie**, and **Hantei** |
 
 *(Historical Phase 0–23 architecture archives remain preserved on the `main` and `archive/phase-23c-wip` branches.)*
 
