@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentation — Kongono Framework v1</title>
+  <meta name="description" content="Complete developer documentation for Kongono Framework v1: PHP 8.5+ routing, compiled views, DTO validation, QueryBuilder, security, Redis, pgvector RAG, MCP, Dev Studio, and FrankenPHP deployment.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="logo" href="index.html">
+        <span class="logo-mark">K</span>
+        <span>Kongono</span>
+        <span class="version-pill">v1.0.0</span>
+      </a>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a class="active" href="docs.html">Documentation</a>
+        <a href="#ai-companions">AI &amp; MCP</a>
+        <a href="#production">FrankenPHP</a>
+        <a href="https://packagist.org/packages/kongono/framework" target="_blank" rel="noopener">Packagist</a>
+        <a href="https://github.com/anthonyiovanna/kongono" target="_blank" rel="noopener">GitHub</a>
+        <button class="theme-btn" type="button" data-theme-toggle>Light Mode</button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="docs-layout">
+    <aside class="sidebar">
+      <input id="docSearch" class="search-input" type="search" placeholder="Search docs... (press /)" aria-label="Search documentation">
+
+      <h4>Start Here</h4>
+      <ul>
+        <li><a href="#quickstart">Quick Start</a></li>
+        <li><a href="#architecture">11-Package Architecture</a></li>
+      </ul>
+
+      <h4>Web &amp; HTTP</h4>
+      <ul>
+        <li><a href="#routing">Routing &amp; Attributes</a></li>
+        <li><a href="#views">Compiled .kgn.html Views</a></li>
+        <li><a href="#validation">Typed DTO Validation</a></li>
+        <li><a href="#http-features">Caching, Compression, SSE &amp; Idempotency</a></li>
+      </ul>
+
+      <h4>Data &amp; Infrastructure</h4>
+      <ul>
+        <li><a href="#database">Database, Migrations &amp; Seeders</a></li>
+        <li><a href="#security">Security, TOTP &amp; Webhooks</a></li>
+        <li><a href="#infra">Storage, Queues, Redis &amp; Mail</a></li>
+      </ul>
+
+      <h4>AI &amp; Operations</h4>
+      <ul>
+        <li><a href="#ai-rag">AI SDK, Streaming &amp; pgvector RAG</a></li>
+        <li><a href="#ai-companions">Oshie, Chie, Hantei &amp; MCP</a></li>
+        <li><a href="#observability">Dev Studio, Features &amp; Resilience</a></li>
+        <li><a href="#production">FrankenPHP &amp; Production</a></li>
+        <li><a href="#cli">Complete CLI Reference</a></li>
+      </ul>
+    </aside>
+
+    <article class="docs-content">
+      <h1>Kongono v1 Documentation</h1>
+      <p class="hero-lead" style="margin:0 0 1.25rem;max-width:none;">
+        Everything you need to build, test, and scale modern PHP 8.5+ applications with zero Symfony runtime dependencies.
+      </p>
+
+      <section id="quickstart">
+        <h2>1. Quick Start</h2>
+        <p><strong>Requirements:</strong> PHP 8.5+ (<code>ext-curl</code>, <code>ext-json</code>, <code>ext-mbstring</code>, <code>ext-pdo</code>, <code>ext-sodium</code>) and Composer 2.x.</p>
+        <h3>Create a New Project (Recommended)</h3>
+<pre><code>composer create-project kongono/app my-app
+cd my-app
+composer dev</code></pre>
+        <p>The installer automatically copies <code>.env.example</code> to <code>.env</code> and generates a 256-bit <code>APP_KEY</code>. Open:</p>
+        <ul>
+          <li><strong>App Home:</strong> <code>http://127.0.0.1:8000/</code></li>
+          <li><strong>Kongono Dev Studio:</strong> <code>http://127.0.0.1:8000/_kongono</code></li>
+          <li><strong>Interactive OpenAPI 3.1 Explorer:</strong> <code>http://127.0.0.1:8000/docs</code></li>
+          <li><strong>Readiness Health Check:</strong> <code>http://127.0.0.1:8000/health</code></li>
+        </ul>
+        <h3>Install into an Existing Project</h3>
+<pre><code>composer require kongono/framework
+php vendor/bin/kongo doctor</code></pre>
+      </section>
+
+      <section id="architecture">
+        <h2>2. 11-Package Architecture</h2>
+        <p>Kongono organizes the entire framework into 11 cohesive namespaces delivered in one lean package (<code>kongono/framework</code>) with zero Symfony runtime packages and strict persistent-runtime isolation.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Namespace</th><th>Core Components</th></tr></thead>
+            <tbody>
+              <tr><td><code>Kongono\Core\</code></td><td><code>Kernel</code>, <code>OperationScope</code>, PSR-11 <code>Container</code>, <code>Config</code>, <code>EnvLoader</code>, <code>Logger</code>, <code>MemoryCache</code>/<code>FileCache</code>/<code>RedisClient</code>+<code>RedisCache</code>, <code>FeatureManager</code>, <code>NotificationDispatcher</code>, <code>Retry</code>/<code>CircuitBreaker</code>, <code>HealthCheck</code>, <code>Translator</code>, <code>Metrics</code>/<code>Tracer</code>, <code>ApplicationGraph</code></td></tr>
+              <tr><td><code>Kongono\Http\</code></td><td>PSR-7/15 <code>Request</code>/<code>Response</code>/<code>Cookie</code>, <code>Session</code>, <code>Router</code>, <code>App</code>, <code>StaticFilesMiddleware</code>, <code>CompressionMiddleware</code>, <code>HttpCacheMiddleware</code>, <code>IdempotencyMiddleware</code>, <code>EventBus</code> SSE, <code>OpenApiGenerator</code>, <code>ApiDocsRenderer</code>, <code>DevDashboardMiddleware</code>, <code>DevErrorRenderer</code>, <code>TestClient</code></td></tr>
+              <tr><td><code>Kongono\View\</code></td><td>Compiled <code>.kgn.html</code> templates, XSS auto-escaping, layouts, loops, <code>&lt;x-component&gt;</code> slots, <code>@t(...)</code>, <code>@json</code>, <code>warmCache()</code></td></tr>
+              <tr><td><code>Kongono\Validation\</code></td><td>Attribute-driven DTO validation, nested DTOs, <code>BackedEnum</code> coercion, <code>#[Uuid]</code>, <code>#[Between]</code>, <code>#[Confirmed]</code></td></tr>
+              <tr><td><code>Kongono\Database\</code></td><td><code>QueryBuilder</code> (<code>JOIN</code>, <code>whereGroup</code>, <code>upsert</code>, <code>RETURNING</code>, <code>paginate</code>, <code>getAs</code>), <code>Schema</code>/<code>Blueprint</code>, <code>Repository</code>, <code>PdoConnection</code>, <code>Migrator</code>, <code>SeederInterface</code></td></tr>
+              <tr><td><code>Kongono\Security\</code></td><td><code>Principal</code>, <code>Gate</code>, <code>#[Can]</code>, Argon2id <code>PasswordHasher</code>, AEAD <code>Encryptor</code>, RFC 6238 <code>Totp</code>, <code>TokenSigner</code>, <code>SignedUrl</code>, SSRF <code>SafeHttpClient</code>, signed Webhooks, CSRF/CORS/Bearer/RateLimit/SecurityHeaders</td></tr>
+              <tr><td><code>Kongono\Storage\</code></td><td>Contained atomic <code>LocalStorage</code>, pure-PHP AWS SigV4 <code>S3Storage</code> (S3/R2/MinIO + presigned URLs), <code>MemoryStorage</code></td></tr>
+              <tr><td><code>Kongono\Jobs\</code></td><td><code>Queue</code>, persistent <code>Worker</code>, <code>PostgresQueueDriver</code> (<code>FOR UPDATE SKIP LOCKED</code>), <code>RedisQueueDriver</code>, <code>MemoryQueueDriver</code>, cron <code>Scheduler</code></td></tr>
+              <tr><td><code>Kongono\Mail\</code></td><td><code>Mailer</code>, <code>SmtpTransport</code> (STARTTLS), <code>ResendTransport</code>, <code>LogTransport</code>, <code>MemoryTransport</code>, <code>MailNotificationChannel</code></td></tr>
+              <tr><td><code>Kongono\Ai\</code></td><td><code>AiClient</code> (OpenAI, Anthropic, Gemini, Ollama + streaming), <code>KnowledgeBase</code> + <code>PgVectorStore</code>/<code>MemoryVectorStore</code>, <code>structured()</code>, governed <code>AgentRunner</code>, native <code>McpServer</code></td></tr>
+              <tr><td><code>Kongono\Cli\</code></td><td>Unified <code>kongo</code> CLI + <strong>Oshie</strong>, <strong>Chie</strong>, <strong>Hantei</strong> companions + <code>KongonoMcpFactory</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="routing">
+        <h2>3. Routing &amp; PHP 8.5 Attributes</h2>
+        <p>Register controllers with <code>$app-&gt;controller(PostController::class)</code> or fluent route closures via <code>$app-&gt;routes(fn(Router $r) =&gt; ...)</code>. Route handlers receive automatic DI for <code>Request</code>, <code>Session</code>, <code>Principal</code>, typed route params (<code>int $id</code>), Container services, and validated DTOs.</p>
+<pre><code>#[Prefix('/api/posts')]
+final readonly class PostController
+{
+    #[Get('/', name: 'posts.index')]
+    #[CacheControl(maxAge: 60, public: true, staleWhileRevalidate: 30)]
+    public function index(): Response { ... }
+
+    #[Get('/{id:\d+}', name: 'posts.show')]
+    public function show(int $id): Response { ... }
+
+    #[Post('/', name: 'posts.create')]
+    #[Middleware(BearerAuthMiddleware::class)]
+    #[Can('posts.write')]
+    #[Idempotent(ttlSeconds: 3600)]
+    public function store(CreatePostInput $input, Principal $principal): Response { ... }
+}</code></pre>
+        <div class="callout">
+          <strong>Custom Route Attributes:</strong> Any PHP 8.5 attribute implementing <code>Kongono\Http\Routing\MiddlewareAttributeInterface</code> automatically attaches PSR-15 middleware resolved from the Container!
+        </div>
+      </section>
+
+      <section id="views">
+        <h2>4. Compiled .kgn.html Views &amp; Components</h2>
+        <p>Templates live in <code>views/</code> and compile once into opcache-friendly PHP files. All <code>{{ $expr }}</code> and <code>@t(...)</code> outputs are contextually HTML-escaped against XSS.</p>
+<pre><code>@extends('layouts/app')
+@section('title', 'Dashboard')
+
+@section('content')
+  &lt;h1&gt;@t('dashboard.welcome', ['name' =&gt; $user-&gt;name])&lt;/h1&gt;
+
+  @unless ($archived)
+    &lt;x-card :title="$project-&gt;name"&gt;
+      @forelse ($tasks as $task)
+        &lt;p&gt;{{ $task-&gt;title }}&lt;/p&gt;
+      @empty
+        &lt;p&gt;All caught up!&lt;/p&gt;
+      @endforelse
+    &lt;/x-card&gt;
+  @endunless
+
+  &lt;script&gt;window.__DATA__ = @json($payload);&lt;/script&gt;
+@endsection</code></pre>
+        <p>Precompile every view before deploying with <code>php vendor/bin/kongo optimize</code> (calls <code>ViewEngine::warmCache()</code>).</p>
+      </section>
+
+      <section id="validation">
+        <h2>5. Typed DTO Validation</h2>
+        <p>Type-hint any readonly DTO in a controller method. Kongono validates JSON or form input, coerces scalars and <code>BackedEnum</code>s, validates nested DTOs recursively, and returns a structured <code>422 Unprocessable Content</code> response with dotted field keys (e.g. <code>shipping.postalCode</code>) on failure.</p>
+<pre><code>enum Priority: string { case Low = 'low'; case High = 'high'; }
+
+final readonly class CreateTicketInput
+{
+    public function __construct(
+        #[Required, Uuid] public string $clientRequestId,
+        #[Required, Min(3), Max(140)] public string $subject,
+        #[Required, Email] public string $reporterEmail,
+        #[Between(1, 5)] public int $severity,
+        public Priority $priority = Priority::Low,
+    ) {}
+}</code></pre>
+        <p>Built-in attributes: <code>#[Required]</code>, <code>#[Min]</code>, <code>#[Max]</code>, <code>#[Between]</code>, <code>#[Email]</code>, <code>#[Url]</code>, <code>#[Uuid]</code>, <code>#[In]</code>, <code>#[Regex]</code>, and <code>#[Confirmed('password')]</code>.</p>
+      </section>
+
+      <section id="http-features">
+        <h2>6. Caching, Compression, SSE &amp; Idempotency</h2>
+        <ul>
+          <li><strong>HTTP Caching &amp; 304:</strong> Decorate GET handlers with <code>#[CacheControl(maxAge: 300, public: true, staleWhileRevalidate: 60)]</code> to emit <code>Cache-Control</code>, weak <code>ETag</code>, and automatic <code>304 Not Modified</code> responses.</li>
+          <li><strong>Compression:</strong> Add <code>new CompressionMiddleware()</code> for automatic <code>gzip</code>/<code>deflate</code> encoding (safely skips streaming SSE &amp; binary payloads).</li>
+          <li><strong>Idempotency:</strong> Decorate mutating actions with <code>#[Idempotent(ttlSeconds: 86400)]</code> — retries with the same <code>Idempotency-Key</code> replay cleanly (<code>Idempotency-Replayed: true</code>), while payload mismatches fail closed with <code>409 Conflict</code>.</li>
+          <li><strong>Real-Time SSE Pub/Sub:</strong> Publish events with <code>$eventBus-&gt;publish('notes', 'note.created', $data)</code> and stream replays honoring <code>Last-Event-ID</code> via <code>Response::sse(...)</code>.</li>
+        </ul>
+      </section>
+
+      <section id="database">
+        <h2>7. Database, Migrations &amp; Seeders</h2>
+        <p>Every value in <code>QueryBuilder</code> is bound via real PDO prepared statements (<code>ATTR_EMULATE_PREPARES = false</code>). Unscoped <code>UPDATE</code>/<code>DELETE</code> statements fail closed by default.</p>
+<pre><code>$db = PdoConnection::fromUrl(Config::env('DATABASE_URL'));
+$db-&gt;onQuery(fn(string $sql, float $ms) =&gt; $inspector-&gt;recordQuery($sql, $ms));
+
+$page = $db-&gt;table('articles')
+    -&gt;leftJoin('users', 'users.id', '=', 'articles.author_id')
+    -&gt;where('articles.published', '=', true)
+    -&gt;whereGroup(fn(QueryBuilder $q) =&gt; $q-&gt;where('featured', '=', true)-&gt;orWhere('views', '&gt;=', 1000))
+    -&gt;orderBy('articles.created_at', 'DESC')
+    -&gt;paginate(page: 1, perPage: 20);
+
+// Hydrate directly into readonly DTOs (snake_case -&gt; camelCase)
+$dtos = $db-&gt;table('articles')-&gt;limit(10)-&gt;getAs(ArticleDto::class);</code></pre>
+<pre><code>php vendor/bin/kongo make:migration create_articles
+php vendor/bin/kongo migrate
+php vendor/bin/kongo migrate:rollback --steps=1
+php vendor/bin/kongo make:seeder Articles
+php vendor/bin/kongo db:seed</code></pre>
+      </section>
+
+      <section id="security">
+        <h2>8. Security, TOTP 2FA &amp; Signed Webhooks</h2>
+        <ul>
+          <li><strong>Principals &amp; Authorization:</strong> Typed <code>Principal</code> (<code>Human</code>, <code>Service</code>, <code>Agent</code>, <code>System</code>), fail-closed <code>Gate</code>, and declarative <code>#[Can('ability')]</code> route attributes.</li>
+          <li><strong>Cryptography:</strong> Argon2id <code>PasswordHasher</code>, AEAD <code>XChaCha20-Poly1305</code> <code>Encryptor</code> with <code>previousKeys</code> rotation, HMAC <code>TokenSigner</code>, and expiring <code>SignedUrl</code>.</li>
+          <li><strong>RFC 6238 TOTP 2FA:</strong> <code>Totp::generateSecret()</code>, <code>$totp-&gt;provisioningUri(...)</code>, <code>$totp-&gt;verify($secret, $code)</code>, and <code>Totp::generateRecoveryCodes()</code>.</li>
+          <li><strong>SSRF-Hardened Egress &amp; Webhooks:</strong> <code>SafeHttpClient</code> pins resolved public IPs via <code>CURLOPT_RESOLVE</code> and blocks loopback/private/cloud-metadata IPs. Pair with <code>WebhookDispatcher</code> outbound and <code>#[VerifyWebhook]</code> inbound.</li>
+        </ul>
+      </section>
+
+      <section id="infra">
+        <h2>9. Storage, Queues, Redis &amp; Mail</h2>
+        <ul>
+          <li><strong>Storage:</strong> Root-contained atomic <code>LocalStorage</code> (SHA-256 versioned + optimistic concurrency) and zero-dependency AWS SigV4 <code>S3Storage</code> (works with AWS S3, Cloudflare R2, and MinIO, including presigned URLs).</li>
+          <li><strong>Pure-PHP Redis / Valkey:</strong> <code>RedisClient::fromUrl('redis://127.0.0.1:6379/0')</code> powers <code>RedisCache</code> (drop-in for sessions, rate limits, feature flags, and idempotency) and <code>RedisQueueDriver</code> with zero <code>ext-redis</code> compilation.</li>
+          <li><strong>Queues &amp; Cron Scheduler:</strong> <code>PostgresQueueDriver</code> (<code>FOR UPDATE SKIP LOCKED</code> + fencing tokens), <code>RedisQueueDriver</code>, <code>Worker</code> preserving <code>JobOutcome::Uncertain</code>, and fluent cron <code>Scheduler</code> (<code>kongo work</code> / <code>kongo schedule:run</code>).</li>
+          <li><strong>Mail &amp; Notifications:</strong> <code>Mailer</code> (<code>SmtpTransport</code> STARTTLS, <code>ResendTransport</code>, compiled <code>.kgn.html</code> email views) + multi-channel <code>NotificationDispatcher</code> (<code>MailNotificationChannel</code>, <code>WebhookNotificationChannel</code>, <code>MemoryNotificationChannel</code>).</li>
+        </ul>
+      </section>
+
+      <section id="ai-rag">
+        <h2>10. AI SDK, Streaming &amp; 5-Line pgvector RAG</h2>
+        <p>Set any one provider environment variable (<code>OPENAI_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, <code>GEMINI_API_KEY</code>, or <code>OLLAMA_HOST</code>) and use one unified API across all four providers:</p>
+<pre><code>$ai = AiClient::fromEnv();
+
+// 1. Live token streaming (OpenAI, Anthropic, Gemini &amp; Ollama)
+$ai-&gt;chatStream(
+    new ChatRequest([Message::user('Summarize Kongono in 2 bullets')]),
+    static function (string $delta): void { echo $delta; },
+);
+
+// 2. Validated structured DTO extraction
+$sentiment = $ai-&gt;structured($reviewText, SentimentDto::class);
+
+// 3. 5-Line RAG with PostgreSQL pgvector
+$kb = new KnowledgeBase($embedder, new PgVectorStore($db));
+$kb-&gt;ingest('docs-1', $markdownText, ['product' =&gt; 'kongono']);
+$answer = $kb-&gt;ask('How does key rotation work?', $ai);</code></pre>
+      </section>
+
+      <section id="ai-companions">
+        <h2>11. Built-In AI Companions &amp; Native MCP Server</h2>
+        <p>Every Kongono app ships with three built-in AI companions plus a capability-governed JSON-RPC 2.0 MCP server:</p>
+<pre><code>php vendor/bin/kongo oshie --interactive            # Learn Kongono interactively
+php vendor/bin/kongo chie "Add a /api/posts CRUD"   # Diff preview (--apply to write)
+php vendor/bin/kongo hantei check                   # Run tests &amp; AI-diagnose failures
+php vendor/bin/kongo mcp                            # Start stdio MCP server</code></pre>
+        <h3>Connect Antigravity, Cursor, Claude Code, or Codex via MCP</h3>
+<pre><code>{
+  "mcpServers": {
+    "kongono": {
+      "command": "php",
+      "args": ["vendor/bin/kongo", "mcp"]
+    }
+  }
+}</code></pre>
+        <p>Exposed read-only, secret-scrubbed MCP tools (<code>.env</code> reads explicitly blocked): <code>kongono_graph</code>, <code>kongono_openapi</code>, <code>kongono_routes</code>, <code>kongono_list_files</code>, <code>kongono_read_file</code>, and <code>kongono_oshie_lesson</code>.</p>
+      </section>
+
+      <section id="observability">
+        <h2>12. Dev Studio, Feature Flags &amp; Resilience</h2>
+        <ul>
+          <li><strong>Kongono Dev Studio (<code>/_kongono</code>):</strong> Live request/SQL trace viewer, route explorer, ApplicationGraph service &amp; middleware inspector, and interactive browser Oshie/Hantei/MCP studio. Automatically returns <code>404</code> when <code>APP_DEBUG=false</code>.</li>
+          <li><strong>Feature Flags:</strong> <code>$features-&gt;rollout('new_ui', 25)</code> for deterministic percentage rollouts + <code>#[Feature('new_ui')]</code> route gating.</li>
+          <li><strong>Resilience:</strong> <code>Retry::run($fn, maxAttempts: 3, baseDelayMs: 100)</code> and <code>CircuitBreaker</code> (<code>Closed</code> &rarr; <code>Open</code> &rarr; <code>HalfOpen</code>) protect upstream API calls.</li>
+          <li><strong>Observability:</strong> <code>GET /health</code> readiness JSON, <code>GET /metrics</code> Prometheus exposition, and <code>Server-Timing</code> headers via <code>Tracer</code>.</li>
+        </ul>
+      </section>
+
+      <section id="production">
+        <h2>13. Production Deployment (FrankenPHP)</h2>
+        <p>Apps created with <code>kongono/app</code> ship with a production FrankenPHP persistent-worker <code>Dockerfile</code>, <code>Caddyfile</code>, and <code>public/worker.php</code>:</p>
+<pre><code>docker build -t my-kongono-app .
+docker run -p 8080:8080 --env-file .env.production my-kongono-app</code></pre>
+        <p>Key checklist: set <code>APP_DEBUG=false</code>, run <code>php vendor/bin/kongo optimize</code> during image build, rotate <code>APP_KEY</code> with <code>Encryptor::$previousKeys</code>, and point load-balancer probes to <code>/health</code>.</p>
+      </section>
+
+      <section id="cli">
+        <h2>14. Complete <code>kongo</code> CLI Reference</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Command</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>kongo new &lt;dir&gt;</code></td><td>Scaffold a new Kongono app (FrankenPHP + Dev Studio + OpenAPI ready)</td></tr>
+              <tr><td><code>kongo serve [--port=8000]</code></td><td>Start local PHP 8.5 dev server</td></tr>
+              <tr><td><code>kongo doctor</code></td><td>Verify PHP 8.5+, extensions, AI provider config &amp; live app graph</td></tr>
+              <tr><td><code>kongo env:check</code></td><td>Verify required keys from <code>.env.example</code> exist in <code>.env</code></td></tr>
+              <tr><td><code>kongo key:generate</code></td><td>Generate a cryptographically secure 256-bit <code>APP_KEY</code></td></tr>
+              <tr><td><code>kongo optimize</code> / <code>cache:clear</code></td><td>Precompile all <code>.kgn.html</code> views &amp; cache graph/OpenAPI (or clear cache)</td></tr>
+              <tr><td><code>kongo routes [--json]</code></td><td>Display registered HTTP routes (table or JSON)</td></tr>
+              <tr><td><code>kongo graph</code> / <code>openapi</code></td><td>Output live <code>ApplicationGraph</code> or OpenAPI 3.1.0 JSON</td></tr>
+              <tr><td><code>kongo mcp</code></td><td>Run read-only JSON-RPC 2.0 MCP server over stdio</td></tr>
+              <tr><td><code>kongo migrate</code> / <code>migrate:rollback</code> / <code>db:seed</code></td><td>Run transactional schema migrations, rollbacks, and seeders</td></tr>
+              <tr><td><code>kongo work</code> / <code>schedule:run</code></td><td>Process background job queues or execute due cron tasks</td></tr>
+              <tr><td><code>kongo make:controller|dto|migration|seeder|test</code></td><td>Deterministic zero-AI PHP 8.5 code generators</td></tr>
+              <tr><td><code>kongo oshie</code> / <code>chie</code> / <code>hantei</code></td><td>Built-in AI tutor, project-aware builder, and debugger/test generator</td></tr>
+              <tr><td><code>kongo check</code> / <code>test</code></td><td>Run full CS + PHPStan Level 9 Strict + PHPUnit 13 quality suite</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </article>
+  </div>
+
+  <footer>
+    <div class="container">
+      <strong>Kongono Framework v1.0.0</strong> &middot; MIT License &middot;
+      <a href="index.html">Home</a> &middot;
+      <a href="https://github.com/anthonyiovanna/kongono" target="_blank" rel="noopener">GitHub</a> &middot;
+      <a href="https://packagist.org/packages/kongono/framework" target="_blank" rel="noopener">Packagist</a>
+    </div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>

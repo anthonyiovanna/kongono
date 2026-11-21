@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kongono Framework — Zero-Legacy PHP 8.5+ Framework with Built-In AI</title>
+  <meta name="description" content="A modern, zero-legacy PHP 8.5+ application framework built from the ground up with zero Symfony packages, persistent-runtime safety, native MCP, pgvector RAG, and built-in Oshie, Chie & Hantei AI companions.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="logo" href="index.html">
+        <span class="logo-mark">K</span>
+        <span>Kongono</span>
+        <span class="version-pill">v1.0.0</span>
+      </a>
+      <nav class="nav-links">
+        <a class="active" href="index.html">Home</a>
+        <a href="docs.html">Documentation</a>
+        <a href="docs.html#ai-companions">AI &amp; MCP</a>
+        <a href="docs.html#production">FrankenPHP</a>
+        <a href="https://packagist.org/packages/kongono/framework" target="_blank" rel="noopener">Packagist</a>
+        <a href="https://github.com/anthonyiovanna/kongono" target="_blank" rel="noopener">GitHub</a>
+        <button class="theme-btn" type="button" data-theme-toggle>Light Mode</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="container">
+        <div class="hero-kicker">PHP 8.5+ Native &middot; 0 Symfony Packages &middot; MIT License</div>
+        <h1>The Zero-Legacy PHP Framework <span class="grad">Built for 2026 &amp; Beyond</span></h1>
+        <p class="hero-lead">
+          Built from the ground up — no Symfony dependency, no magic global facades, no PHP 7 shims.
+          Persistent-runtime first, hardened by default, with <strong>Oshie</strong>, <strong>Chie</strong>, and <strong>Hantei</strong> AI companions + a native <strong>MCP Server</strong> built right in.
+        </p>
+
+        <div class="install-box">
+          <span class="prompt">$</span>
+          <span>composer create-project kongono/app my-app</span>
+          <button class="copy-btn" type="button" data-copy="composer create-project kongono/app my-app">Copy</button>
+        </div>
+
+        <div class="cta-row">
+          <a class="btn btn-primary" href="docs.html">Read the Docs &rarr;</a>
+          <a class="btn btn-secondary" href="https://github.com/anthonyiovanna/kongono" target="_blank" rel="noopener">Star on GitHub</a>
+          <a class="btn btn-secondary" href="https://packagist.org/packages/kongono/app" target="_blank" rel="noopener">Packagist</a>
+        </div>
+
+        <div class="stats-strip">
+          <div class="stat-card"><div class="num">0</div><div class="lbl">Symfony Packages</div></div>
+          <div class="stat-card"><div class="num">8</div><div class="lbl">Production Packages Total</div></div>
+          <div class="stat-card"><div class="num">11</div><div class="lbl">Cohesive Namespaces</div></div>
+          <div class="stat-card"><div class="num">4</div><div class="lbl">Native AI Providers</div></div>
+          <div class="stat-card"><div class="num">Level 9</div><div class="lbl">PHPStan Strict Rules</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-head">
+          <h2>Expressive PHP 8.5, Zero Magic Underneath</h2>
+          <p>Declarative attributes, strict readonly DTOs, compiled XSS-safe views, 5-line RAG, and production security primitives out of the box.</p>
+        </div>
+
+        <div class="code-tabs-wrap" data-tabs>
+          <div class="code-tabs-bar">
+            <button class="tab-btn active" type="button" data-tab-target="routing">Routing &amp; Attributes</button>
+            <button class="tab-btn" type="button" data-tab-target="validation">DTO Validation</button>
+            <button class="tab-btn" type="button" data-tab-target="views">Compiled Views</button>
+            <button class="tab-btn" type="button" data-tab-target="database">QueryBuilder &amp; Upsert</button>
+            <button class="tab-btn" type="button" data-tab-target="rag">5-Line pgvector RAG</button>
+            <button class="tab-btn" type="button" data-tab-target="security">Security &amp; TOTP</button>
+          </div>
+
+          <div class="tab-panel active" data-tab-panel="routing">
+<pre><code>&lt;?php
+
+declare(strict_types=1);
+
+namespace App\Http;
+
+use Kongono\Http\Response;
+use Kongono\Http\Routing\{CacheControl, Feature, Get, Idempotent, Middleware, Post, Prefix};
+use Kongono\Security\Attributes\Can;
+use Kongono\Security\Middleware\BearerAuthMiddleware;
+use Kongono\Security\Principal;
+
+#[Prefix('/api/notes')]
+final readonly class NoteController
+{
+    #[Get('/', name: 'notes.index')]
+    #[CacheControl(maxAge: 60, public: true, staleWhileRevalidate: 30)]
+    public function index(): Response { /* auto ETag &amp; 304 Not Modified */ }
+
+    #[Post('/', name: 'notes.create')]
+    #[Middleware(BearerAuthMiddleware::class)]
+    #[Can('notes.write')]
+    #[Idempotent(ttlSeconds: 3600)]
+    public function create(CreateNoteInput $input, Principal $actor): Response
+    {
+        return Response::json(['author' => $actor-&gt;id, 'title' =&gt; $input-&gt;title], 201);
+    }
+
+    #[Get('/insights', name: 'notes.insights')]
+    #[Feature('beta_insights')]
+    public function insights(): Response { /* fail-closed 404 unless enabled */ }
+}</code></pre>
+          </div>
+
+          <div class="tab-panel" data-tab-panel="validation">
+<pre><code>&lt;?php
+
+declare(strict_types=1);
+
+use Kongono\Validation\Attributes\{Between, Confirmed, Email, Min, Required, Uuid};
+
+enum Plan: string { case Free = 'free'; case Pro = 'pro'; }
+
+final readonly class AddressInput
+{
+    public function __construct(
+        #[Required, Min(2)] public string $city,
+        #[Required, Between(5, 10)] public string $postalCode,
+    ) {}
+}
+
+final readonly class SignupInput
+{
+    public function __construct(
+        #[Required, Uuid] public string $requestId,
+        #[Required, Email] public string $email,
+        public Plan $plan,                              // BackedEnum auto-coerced!
+        #[Required, Min(12)] public string $password,
+        #[Required, Confirmed('password')] public string $passwordConfirmation,
+        public AddressInput $billingAddress,            // Nested DTOs -&gt; billingAddress.city
+    ) {}
+}</code></pre>
+          </div>
+
+          <div class="tab-panel" data-tab-panel="views">
+<pre><code>@extends('layouts/app')
+
+@section('title', 'Notes')
+
+@section('content')
+  &lt;h1&gt;@t('notes.heading', ['name' =&gt; $user-&gt;name])&lt;/h1&gt;
+
+  @forelse ($notes as $note)
+    &lt;x-card :title="$note-&gt;title"&gt;
+      &lt;p&gt;{{ $note-&gt;body }}&lt;/p&gt;  {{-- Auto-escaped against XSS --}}
+      &lt;x-badge :label="'#' . $note-&gt;id" /&gt;
+    &lt;/x-card&gt;
+  @empty
+    &lt;p&gt;No notes yet.&lt;/p&gt;
+  @endforelse
+
+  &lt;script&gt;const initialState = @json($summary);&lt;/script&gt;
+@endsection</code></pre>
+          </div>
+
+          <div class="tab-panel" data-tab-panel="database">
+<pre><code>// Parameterized SQL with parenthesized WHERE groups, DTO hydration &amp; UPSERT
+$users = $db-&gt;table('users')
+    -&gt;select('users.id', 'users.email', 'users.created_at')
+    -&gt;where('active', '=', true)
+    -&gt;whereGroup(static function ($q): void {
+        $q-&gt;where('role', '=', 'admin')-&gt;orWhere('role', '=', 'editor');
+    })
+    -&gt;orderBy('created_at', 'DESC')
+    -&gt;paginate(page: 1, perPage: 25);
+
+// Multi-dialect UPSERT (PostgreSQL/SQLite ON CONFLICT or MySQL ON DUPLICATE KEY)
+$db-&gt;table('settings')-&gt;upsert(
+    [['key' =&gt; 'theme', 'value' =&gt; 'dark']],
+    conflictColumns: ['key'],
+    updateColumns: ['value'],
+);</code></pre>
+          </div>
+
+          <div class="tab-panel" data-tab-panel="rag">
+<pre><code>use Kongono\Ai\AiClient;
+use Kongono\Ai\Embedding\{KnowledgeBase, PgVectorStore};
+use Kongono\Ai\Provider\OpenAiProvider; // or GeminiProvider / OllamaProvider
+
+$embedder = new OpenAiProvider($_ENV['OPENAI_API_KEY']);
+$kb = new KnowledgeBase($embedder, new PgVectorStore($db));
+
+// 1. Chunk, secret-scrub, embed, and upsert into PostgreSQL pgvector
+$kb-&gt;ingest('handbook-v1', file_get_contents('docs/handbook.md'), ['team' =&gt; 'eng']);
+
+// 2. Semantic retrieval + grounded LLM answer with inline [1] citations
+$result = $kb-&gt;ask('How does Kongono handle FrankenPHP workers?', AiClient::fromEnv());
+echo $result['answer'];</code></pre>
+          </div>
+
+          <div class="tab-panel" data-tab-panel="security">
+<pre><code>use Kongono\Security\{Encryptor, PasswordHasher, SignedUrl, Totp};
+use Kongono\Security\Egress\SafeHttpClient;
+use Kongono\Security\Webhook\{WebhookDispatcher, WebhookSigner};
+
+// Authenticated AEAD encryption (XChaCha20-Poly1305) with seamless key rotation
+$enc = new Encryptor($currentKey, previousKeys: [$oldKey]);
+$ciphertext = $enc-&gt;encrypt($secret, associatedData: 'tenant:42');
+
+// RFC 6238 TOTP 2FA + backup recovery codes (zero third-party libraries)
+$totp = new Totp();
+$secret = Totp::generateSecret();
+$valid = $totp-&gt;verify($secret, $userCode);
+
+// SSRF-hardened outbound webhooks (DNS IP pinning + private/metadata IP blocking)
+$dispatcher = new WebhookDispatcher(new SafeHttpClient(['hooks.partner.com']), new WebhookSigner($secret));
+$dispatcher-&gt;send('https://hooks.partner.com/events', 'invoice.paid', ['amount' =&gt; 4200]);</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-head">
+          <h2>Three Built-In AI Companions + Native MCP Server</h2>
+          <p>Works with <strong>OpenAI</strong>, <strong>Anthropic Claude</strong>, <strong>Google Gemini</strong>, or free local <strong>Ollama</strong> — grounded directly in your app's live <code>ApplicationGraph</code> with automatic secret scrubbing.</p>
+        </div>
+
+        <div class="grid-3">
+          <div class="card">
+            <span class="tag">Oshie (教え) &middot; Learn</span>
+            <h3>Interactive AI Tutor</h3>
+            <p>Built-in lessons + multi-turn CLI REPL (<code>kongo oshie --interactive</code>) and browser AI Studio inside <code>/_kongono</code> that teaches Kongono using your actual routes and services.</p>
+          </div>
+          <div class="card">
+            <span class="tag">Chie (知恵) &middot; Build</span>
+            <h3>Project-Aware AI Builder</h3>
+            <p>Runs under a capability-governed <code>AgentPrincipal</code>, reads your live project structure, renders unified diffs first, and writes strictly contained PHP 8.5 code only when you pass <code>--apply</code>.</p>
+          </div>
+          <div class="card">
+            <span class="tag">Hantei (判定) &middot; Debug &amp; Test</span>
+            <h3>AI Debugger &amp; Test Generator</h3>
+            <p>Runs PHPUnit, scrubs secrets via <code>SecretScrubber</code>, diagnoses failures against your live app graph (CLI &amp; browser), and generates PHPUnit 13 tests.</p>
+          </div>
+          <div class="card">
+            <span class="tag">MCP &middot; JSON-RPC 2.0</span>
+            <h3>Native Model Context Protocol</h3>
+            <p>Run <code>php vendor/bin/kongo mcp</code> (stdio) or <code>POST /mcp</code> so Antigravity, Cursor, Claude Code, and Codex inspect your live routes, graph, and OpenAPI 3.1 spec safely.</p>
+          </div>
+          <div class="card">
+            <span class="tag">/_kongono &amp; /docs</span>
+            <h3>Zero-CDN Dev Studio &amp; API Explorer</h3>
+            <p>Built-in dark-mode request/SQL inspector, service graph viewer, Oshie/Hantei browser workbench, and interactive OpenAPI 3.1 Explorer — fail-closed in production.</p>
+          </div>
+          <div class="card">
+            <span class="tag">Persistent-Runtime First</span>
+            <h3>FrankenPHP &amp; Horizontal Scale</h3>
+            <p>Deterministic <code>OperationScope</code> cleanup, zero static request leaks, pure-PHP Redis client/cache/queue, PostgreSQL <code>SKIP LOCKED</code> jobs, S3 SigV4 storage, and <code>kongo optimize</code>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-head">
+          <h2>Coming from Laravel or Symfony?</h2>
+          <p>Kongono keeps the developer joy you love and drops the 15-year legacy weight you don't.</p>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Capability</th>
+                <th>Traditional PHP Frameworks</th>
+                <th>Kongono v1 (PHP 8.5+)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Runtime Dependencies</strong></td>
+                <td>50–90+ transitive packages (Symfony core + polyfills)</td>
+                <td><strong>8 packages total</strong> (Kongono + 7 PSR interfaces, <strong>0 Symfony</strong>)</td>
+              </tr>
+              <tr>
+                <td><strong>Persistent Runtimes</strong></td>
+                <td>Bolt-on resetters (Octane) to patch static/global state</td>
+                <td><strong>Persistent-runtime native</strong>: explicit <code>OperationScope</code> + <code>Container::resetScope()</code></td>
+              </tr>
+              <tr>
+                <td><strong>Routing &amp; Validation</strong></td>
+                <td>String middleware aliases, FormRequest classes, magic globals</td>
+                <td>Typed PHP 8.5 attributes (<code>#[Prefix]</code>, <code>#[Can]</code>, <code>#[Idempotent]</code>, <code>#[CacheControl]</code>, <code>#[Feature]</code>) + readonly DTOs</td>
+              </tr>
+              <tr>
+                <td><strong>API Docs &amp; Dev Dashboard</strong></td>
+                <td>Separate packages (Telescope, Scramble/L5-Swagger) + asset builds</td>
+                <td><strong>Built-in zero-CDN</strong> <code>/_kongono</code> Dev Studio + auto OpenAPI 3.1 <code>/docs</code> Explorer</td>
+              </tr>
+              <tr>
+                <td><strong>AI, RAG &amp; MCP</strong></td>
+                <td>Third-party SDK glue with inconsistent safety boundaries</td>
+                <td><strong>First-class:</strong> 4 streaming providers, <code>pgvector</code> RAG, governed agents, Oshie/Chie/Hantei, and native <code>kongo mcp</code></td>
+              </tr>
+              <tr>
+                <td><strong>Security Defaults</strong></td>
+                <td>Opt-in SSRF protection, manual webhook signing &amp; 2FA packages</td>
+                <td>Built-in DNS-pinned <code>SafeHttpClient</code>, AEAD <code>Encryptor</code> rotation, RFC 6238 <code>Totp</code>, signed webhooks, secret-scrubbed logs</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <strong>Kongono Framework v1.0.0</strong> &middot; MIT License &middot;
+      <a href="docs.html">Documentation</a> &middot;
+      <a href="https://github.com/anthonyiovanna/kongono" target="_blank" rel="noopener">Framework Repo</a> &middot;
+      <a href="https://github.com/anthonyiovanna/kongono-app" target="_blank" rel="noopener">App Skeleton</a> &middot;
+      <a href="https://packagist.org/packages/kongono/framework" target="_blank" rel="noopener">Packagist</a>
+    </div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>

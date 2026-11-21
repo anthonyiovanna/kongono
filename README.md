@@ -103,6 +103,7 @@ composer test      # PHPUnit 13
 
 ## Documentation
 
+- **[Official Documentation Site (GitHub Pages)](https://anthonyiovanna.github.io/kongono/)**
 - [Getting Started](docs/getting-started.md)
 - [Architecture Overview](docs/architecture.md)
 - [Built-In AI Companions & MCP Server](docs/ai-companions.md)
