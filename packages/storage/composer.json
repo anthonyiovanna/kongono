@@ -1,0 +1,14 @@
+{
+  "name": "kongono/storage",
+  "description": "Kongono v1 contained, atomic, versioned object storage (LocalStorage + MemoryStorage).",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.5.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Storage\\": "src/"
+    }
+  }
+}

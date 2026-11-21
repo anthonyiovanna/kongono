@@ -1,0 +1,14 @@
+{
+  "name": "kongono/view",
+  "description": "Kongono v1 compiled HTML template engine (.kgn.html) with context-aware escaping, layouts, and components.",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.5.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\View\\": "src/"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "kongono/ai",
+  "description": "Kongono v1 multi-provider AI SDK (OpenAI, Anthropic, Gemini, Ollama) and governed Agent Principal runtime.",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.5.0",
+    "ext-curl": "*",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Ai\\": "src/"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "kongono/jobs",
+  "description": "Kongono v1 background jobs & queues with atomic leasing, generation fencing, PostgreSQL + Memory drivers, and persistent-runtime-safe Worker.",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.5.0",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Jobs\\": "src/"
+    }
+  }
+}

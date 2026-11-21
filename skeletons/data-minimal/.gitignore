@@ -1,3 +1,0 @@
-/vendor/
-/var/kongono/build/*
-!/var/kongono/build/.gitignore

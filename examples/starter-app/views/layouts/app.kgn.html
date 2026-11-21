@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>@yield('title', 'Kongono v1')</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <header>
+    <div>
+      <strong>Kongono Framework</strong>
+      <div class="muted">Zero-legacy PHP 8.5+ with Oshie, Chie &amp; Hantei</div>
+    </div>
+    <div>@yield('header-badges')</div>
+  </header>
+  <main>@yield('content')</main>
+</body>
+</html>

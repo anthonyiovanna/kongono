@@ -1,1 +1,0 @@
-{"id":"resp_function","incomplete_details":null,"model":"openai-test-model","object":"response","output":[{"arguments":"{\"answer\":\"accepted\"}","call_id":"call_synthetic","id":"fc_synthetic","name":"record_answer","status":"completed","type":"function_call"}],"status":"completed","usage":{"input_tokens":7,"output_tokens":5,"total_tokens":12}}

@@ -1,0 +1,144 @@
+<?php
+
+declare(strict_types=1);
+
+namespace StarterApp\Tests;
+
+use Kongono\Http\App;
+use Kongono\Http\Request;
+use Kongono\Http\UploadedFile;
+use PHPUnit\Framework\TestCase;
+
+final class StarterAppTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        $varDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'var';
+        $this->removeDir($varDir);
+    }
+
+    protected function tearDown(): void
+    {
+        $varDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'var';
+        $this->removeDir($varDir);
+    }
+
+    private function bootApp(): App
+    {
+        /** @var App $app */
+        $app = require dirname(__DIR__) . '/app/bootstrap.php';
+
+        return $app;
+    }
+
+    public function testHomePageStaticCssSessionFlashAndMiddlewareHeaders(): void
+    {
+        $app = $this->bootApp();
+        $res = $app->handle(Request::create('GET', '/'));
+
+        self::assertSame(200, $res->getStatusCode());
+        self::assertStringContainsString('Kongono v1 Starter', (string) $res->getBody());
+        self::assertStringContainsString('Welcome to Kongono v1', (string) $res->getBody());
+        self::assertStringContainsString('Kongono/1.0', $res->getHeaderLine('X-Powered-By'));
+        self::assertNotSame('', $res->getHeaderLine('X-Response-Time-Ms'));
+        self::assertSame('nosniff', $res->getHeaderLine('X-Content-Type-Options'));
+        self::assertSame('DENY', $res->getHeaderLine('X-Frame-Options'));
+        self::assertSame('120', $res->getHeaderLine('X-RateLimit-Limit'));
+
+        // Static CSS served directly by StaticFilesMiddleware
+        $css = $app->handle(Request::create('GET', '/assets/app.css'));
+        self::assertSame(200, $css->getStatusCode());
+        self::assertStringContainsString('text/css', $css->getHeaderLine('Content-Type'));
+    }
+
+    public function testNotesJsonCrudValidationStorageAndJobs(): void
+    {
+        $app = $this->bootApp();
+
+        // Validation error on short title
+        $invalid = $app->handle(Request::json('POST', '/api/notes', ['title' => 'Hi', 'body' => '']));
+        self::assertSame(422, $invalid->getStatusCode());
+        $errData = json_decode((string) $invalid->getBody(), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($errData);
+        self::assertArrayHasKey('title', $errData['fields']);
+        self::assertArrayHasKey('body', $errData['fields']);
+
+        // Create valid note (also enqueues background job)
+        $created = $app->handle(Request::json('POST', '/api/notes', ['title' => 'Ship v1', 'body' => 'Kongono is alive!']));
+        self::assertSame(201, $created->getStatusCode());
+        $note = json_decode((string) $created->getBody(), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($note);
+        self::assertSame(3, $note['id']);
+        self::assertSame('Ship v1', $note['title']);
+        self::assertNotEmpty($note['queued_job_id']);
+
+        // Process background job via Worker
+        $worked = $app->handle(Request::create('POST', '/api/jobs/run', ['Accept' => 'application/json']));
+        self::assertSame(200, $worked->getStatusCode());
+        $workReport = json_decode((string) $worked->getBody(), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($workReport);
+        self::assertSame(1, $workReport['completed']);
+
+        // Fetch note
+        $fetched = $app->handle(Request::create('GET', '/api/notes/3', ['Accept' => 'application/json']));
+        self::assertSame(200, $fetched->getStatusCode());
+
+        // Delete note
+        $deleted = $app->handle(Request::create('DELETE', '/api/notes/3', ['Accept' => 'application/json']));
+        self::assertSame(204, $deleted->getStatusCode());
+
+        // Multipart upload stored atomically via LocalStorage & downloaded back
+        $upload = $app->handle(Request::create(
+            'POST',
+            '/api/upload',
+            headers: ['Accept' => 'application/json'],
+            files: ['document' => UploadedFile::fromString('hello world', 'hello.txt', 'text/plain')],
+        ));
+        self::assertSame(201, $upload->getStatusCode());
+        $meta = json_decode((string) $upload->getBody(), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($meta);
+        self::assertSame('hello.txt', $meta['filename']);
+        self::assertSame(11, $meta['size']);
+        self::assertNotEmpty($meta['version']);
+
+        $downloaded = $app->handle(Request::create('GET', '/api/files/hello.txt'));
+        self::assertSame(200, $downloaded->getStatusCode());
+        self::assertSame('hello world', (string) $downloaded->getBody());
+        self::assertSame('"' . $meta['version'] . '"', $downloaded->getHeaderLine('ETag'));
+
+        // Live ApplicationGraph endpoint
+        $graphRes = $app->handle(Request::create('GET', '/api/graph'));
+        self::assertSame(200, $graphRes->getStatusCode());
+        self::assertStringContainsString('Kongono Starter App', (string) $graphRes->getBody());
+
+        // Verify created notes persist across fresh app restarts via LocalStorage
+        $created2 = $app->handle(Request::json('POST', '/api/notes', ['title' => 'Persistent Note', 'body' => 'Survives restart!']));
+        self::assertSame(201, $created2->getStatusCode());
+        $freshApp = $this->bootApp();
+        $listAfterRestart = $freshApp->handle(Request::create('GET', '/api/notes', ['Accept' => 'application/json']));
+        self::assertStringContainsString('Persistent Note', (string) $listAfterRestart->getBody());
+    }
+
+    private function removeDir(string $dir): void
+    {
+        if (!is_dir($dir)) {
+            return;
+        }
+        $entries = scandir($dir);
+        if (false === $entries) {
+            return;
+        }
+        foreach ($entries as $entry) {
+            if ('.' === $entry || '..' === $entry) {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $entry;
+            if (is_dir($path)) {
+                $this->removeDir($path);
+            } else {
+                @unlink($path);
+            }
+        }
+        @rmdir($dir);
+    }
+}

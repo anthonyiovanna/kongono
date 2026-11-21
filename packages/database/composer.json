@@ -1,20 +1,15 @@
 {
   "name": "kongono/database",
-  "description": "Neutral bounded database execution and lifecycle contracts for Kongono Framework.",
+  "description": "Kongono v1 parameterized SQL QueryBuilder (JOINs, GROUP BY, RETURNING), strict PDO connections, and transactional migrations.",
   "type": "library",
+  "license": "MIT",
   "require": {
-    "kongono/api-metadata": "*",
-    "kongono/diagnostics": "*",
-    "php": ">=8.5.0 <8.6.0"
+    "php": ">=8.5.0",
+    "ext-pdo": "*"
   },
   "autoload": {
     "psr-4": {
       "Kongono\\Database\\": "src/"
-    }
-  },
-  "autoload-dev": {
-    "psr-4": {
-      "Kongono\\Database\\Tests\\": "tests/"
     }
   }
 }

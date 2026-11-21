@@ -1,1 +1,0 @@
-{"id":"resp_synthetic_mismatch","model":"different-test-model","object":"response","output":[{"content":[{"text":"synthetic output","type":"output_text"}],"role":"assistant","status":"completed","type":"message"}],"status":"completed"}

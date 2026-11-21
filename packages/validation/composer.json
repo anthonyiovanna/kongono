@@ -1,0 +1,15 @@
+{
+  "name": "kongono/validation",
+  "description": "Kongono v1 PHP 8.5 attribute and typed DTO validation.",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.5.0",
+    "ext-mbstring": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Validation\\": "src/"
+    }
+  }
+}

@@ -1,1 +1,0 @@
-{"id":"resp_function_invalid","incomplete_details":null,"model":"openai-test-model","object":"response","output":[{"arguments":"{\"answer\":7}","call_id":"call_synthetic","id":"fc_synthetic","name":"record_answer","status":"completed","type":"function_call"}],"status":"completed","usage":null}

@@ -1,1 +1,0 @@
-{"id":"resp_structured","incomplete_details":null,"model":"openai-test-model","object":"response","output":[{"content":[{"annotations":[],"text":"{\"answer\":\"accepted\"}","type":"output_text"}],"id":"msg_structured","role":"assistant","status":"completed","type":"message"}],"status":"completed","usage":{"input_tokens":7,"output_tokens":5,"total_tokens":12}}

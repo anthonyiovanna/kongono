@@ -1,1 +1,0 @@
-{"schema":"kongono/cache-application-profile-source/1","profiles":[{"name":"application","contract_version":1,"namespace":"application","codec":{"name":"application-json","version":1},"lifetime_microseconds":1000000,"max_value_bytes":1024}]}

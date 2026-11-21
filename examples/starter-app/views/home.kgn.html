@@ -1,0 +1,33 @@
+@extends('layouts/app')
+
+@section('title', $title)
+
+@section('header-badges')
+  <x-badge :label="'PHP ' . $phpVersion" />
+  <x-badge :label="$routeCount . ' routes'" />
+@endsection
+
+@section('content')
+  <h1>{{ $title }}</h1>
+
+  @if (null !== $flash)
+    <div class="flash">{{ $flash }}</div>
+  @endif
+
+  @forelse ($notes as $note)
+    <x-card :title="$note->title">
+      <p>{{ $note->body }}</p>
+      <div class="muted">Note #{{ $note->id }} &middot; {{ $note->createdAt }}</div>
+    </x-card>
+  @empty
+    <p>No notes yet.</p>
+  @endforelse
+
+  <x-card title="Create a Note">
+    <form method="POST" action="/notes">
+      <label>Title <input type="text" name="title" required minlength="3" maxlength="120"></label>
+      <label>Body <textarea name="body" rows="3" required></textarea></label>
+      <button type="submit">Save Note</button>
+    </form>
+  </x-card>
+@endsection
