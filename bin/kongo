@@ -5,17 +5,33 @@ declare(strict_types=1);
 
 use Kongono\Cli\KongoCli;
 
-$autoload = dirname(__DIR__) . '/vendor/autoload.php';
-if (!is_file($autoload)) {
-    fwrite(STDERR, "Vendor autoloader not found. Run `composer dump-autoload`.\n");
+$cwd = getcwd();
+$workingDir = false !== $cwd ? $cwd : dirname(__DIR__);
+
+$autoloadCandidates = array_filter([
+    isset($_composer_autoload_path) && is_string($_composer_autoload_path) ? $_composer_autoload_path : null,
+    dirname(__DIR__, 3) . '/autoload.php',
+    dirname(__DIR__) . '/vendor/autoload.php',
+    $workingDir . '/vendor/autoload.php',
+]);
+
+$autoload = null;
+foreach ($autoloadCandidates as $candidate) {
+    if (is_file($candidate)) {
+        $autoload = $candidate;
+        break;
+    }
+}
+
+if (null === $autoload) {
+    fwrite(STDERR, "Vendor autoloader not found. Run `composer install` or `composer dump-autoload`.\n");
     exit(1);
 }
 require $autoload;
 
 /** @var list<string> $argv */
 $args = array_slice($argv, 1);
-$cwd = getcwd();
-$cli = new KongoCli(false !== $cwd ? $cwd : dirname(__DIR__));
+$cli = new KongoCli($workingDir);
 [$exitCode, $output] = $cli->run($args);
 
 if ('' !== $output) {

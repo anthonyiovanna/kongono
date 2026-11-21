@@ -1,8 +1,34 @@
 {
   "name": "kongono/framework",
-  "description": "A modern, zero-legacy PHP 8.5+ application framework built from the ground up with integrated Oshie (learn), Chie (build), and Hantei (debug/test) AI companions.",
+  "description": "A modern, zero-legacy PHP 8.5+ application framework built from the ground up with zero Symfony dependency and integrated Oshie (learn), Chie (build), and Hantei (debug/test) AI companions.",
   "type": "library",
   "license": "MIT",
+  "keywords": [
+    "php",
+    "php85",
+    "framework",
+    "ai",
+    "mcp",
+    "rag",
+    "pgvector",
+    "frankenphp",
+    "openapi",
+    "psr-7",
+    "psr-15",
+    "zero-legacy"
+  ],
+  "homepage": "https://github.com/kongono/framework",
+  "authors": [
+    {
+      "name": "Anthony Iovanna",
+      "email": "anthonyiovanna@gmail.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/kongono/framework/issues",
+    "source": "https://github.com/kongono/framework",
+    "docs": "https://github.com/kongono/framework/tree/main/docs"
+  },
   "require": {
     "php": ">=8.5.0",
     "ext-curl": "*",
@@ -23,6 +49,25 @@
     "phpstan/phpstan": "^2.2",
     "phpstan/phpstan-strict-rules": "^2.0",
     "phpunit/phpunit": "^13.2"
+  },
+  "replace": {
+    "kongono/ai": "self.version",
+    "kongono/cli": "self.version",
+    "kongono/core": "self.version",
+    "kongono/database": "self.version",
+    "kongono/http": "self.version",
+    "kongono/jobs": "self.version",
+    "kongono/mail": "self.version",
+    "kongono/security": "self.version",
+    "kongono/storage": "self.version",
+    "kongono/validation": "self.version",
+    "kongono/view": "self.version"
+  },
+  "suggest": {
+    "ext-openssl": "Required for STARTTLS SMTP email delivery and TLS Redis connections.",
+    "ext-pdo_pgsql": "Required for PostgreSQL, pgvector semantic search, and PostgresQueueDriver.",
+    "ext-pdo_sqlite": "Optional for lightweight local SQLite databases.",
+    "ext-zlib": "Required for HTTP gzip/deflate response compression via CompressionMiddleware."
   },
   "autoload": {
     "psr-4": {
@@ -52,6 +97,7 @@
       "Kongono\\Mail\\Tests\\": "packages/mail/tests/",
       "Kongono\\Ai\\Tests\\": "packages/ai/tests/",
       "Kongono\\Cli\\Tests\\": "packages/cli/tests/",
+      "Kongono\\Tests\\Integration\\": "tests/Integration/",
       "StarterApp\\": "examples/starter-app/src/",
       "StarterApp\\Tests\\": "examples/starter-app/tests/"
     }
@@ -59,12 +105,15 @@
   "bin": [
     "bin/kongo"
   ],
+  "minimum-stability": "stable",
+  "prefer-stable": true,
   "config": {
     "sort-packages": true,
     "allow-plugins": {}
   },
   "scripts": {
     "test": "@php -d memory_limit=512M vendor/bin/phpunit --configuration phpunit.xml.dist",
+    "test:integration": "@php -d memory_limit=512M vendor/bin/phpunit --configuration phpunit.xml.dist tests/Integration",
     "analyse": "@php -d memory_limit=512M vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress",
     "cs": "vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
     "cs:fix": "vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php",

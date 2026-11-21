@@ -3,6 +3,7 @@ name: Kongono CI
 on:
   push:
     branches: [v1, main]
+    tags: ['v*']
   pull_request:
     branches: [v1, main]
 
@@ -18,7 +19,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: curl, json, mbstring, pdo, pdo_pgsql
+          extensions: curl, json, mbstring, openssl, pdo, pdo_pgsql, sodium, zlib
           tools: composer:v2
 
       - name: Install Dependencies
@@ -37,5 +38,92 @@ jobs:
       - name: Static Analysis (PHPStan Level 9 + Strict)
         run: composer analyse
 
-      - name: Test Suite (PHPUnit 13)
-        run: composer test
+      - name: Unit & App Test Suite (PHPUnit 13 Strict)
+        run: php -d memory_limit=512M vendor/bin/phpunit --configuration phpunit.xml.dist --fail-on-deprecation --fail-on-warning --fail-on-notice
+
+  integration:
+    name: Live PostgreSQL (pgvector) & Redis Integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: kongono
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: kongono_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U kongono -d kongono_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: curl, json, mbstring, openssl, pdo, pdo_pgsql, sodium, zlib
+          tools: composer:v2
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run Live Infrastructure Tests
+        env:
+          KONGONO_TEST_POSTGRES_URL: pgsql://kongono:secret@127.0.0.1:5432/kongono_test
+          KONGONO_TEST_REDIS_URL: redis://127.0.0.1:6379/0
+        run: composer test:integration
+
+  standalone-smoke:
+    name: Standalone Composer App Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: curl, json, mbstring, openssl, pdo, sodium, zlib
+          tools: composer:v2
+
+      - name: Install Framework Dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Scaffold & Boot Standalone Consumer App
+        run: |
+          php bin/kongo new /tmp/smoke-app --name="Smoke App"
+          php -r '
+            $f = "/tmp/smoke-app/composer.json";
+            $j = json_decode(file_get_contents($f), true, 16, JSON_THROW_ON_ERROR);
+            $j["repositories"] = [["type" => "path", "url" => getcwd(), "options" => ["symlink" => false]]];
+            $j["require"]["kongono/framework"] = "*@dev";
+            file_put_contents($f, json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+          '
+          cd /tmp/smoke-app
+          composer install --no-interaction
+          php vendor/bin/kongo doctor
+          php vendor/bin/kongo routes --json
+          php vendor/bin/kongo optimize
+          php -S 127.0.0.1:8799 -t public public/index.php &
+          SERVER_PID=$!
+          sleep 1
+          curl -fsS http://127.0.0.1:8799/ | grep -q "Smoke App"
+          curl -fsS http://127.0.0.1:8799/health | grep -q '"status":"ok"'
+          curl -fsS http://127.0.0.1:8799/docs | grep -q "OpenAPI 3.1.0"
+          curl -fsS http://127.0.0.1:8799/_kongono | grep -q "Kongono Dev Studio"
+          kill $SERVER_PID

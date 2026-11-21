@@ -1,6 +1,10 @@
-# Kongono Framework (v1)
+# Kongono Framework (v1.0.0)
 
 > **Build what comes next.**
+
+![PHP 8.5+](https://img.shields.io/badge/PHP-8.5%2B-777BB4?logo=php&logoColor=white)
+![Zero Symfony](https://img.shields.io/badge/Symfony-0%20runtime%20deps-16a34a)
+![License MIT](https://img.shields.io/badge/License-MIT-0284c7)
 
 Kongono is a modern, zero-legacy **PHP 8.5+** application framework built from the ground up — **no Symfony dependency, no PHP 7/8.1 shims, no magic global facades** — designed for persistent runtimes and featuring **three built-in AI companions**:
 
@@ -20,13 +24,22 @@ Kongono is a modern, zero-legacy **PHP 8.5+** application framework built from t
 
 ---
 
-## Quick Start
+## Installation & Quick Start
 
 ```bash
-# Scaffold a brand-new Kongono app
-php bin/kongo new my-app --name="My App"
+# Install Kongono Framework into your project
+composer require kongono/framework
 
-# Run the starter app locally (includes /_kongono Dev Studio, /docs API Explorer, /health, /openapi.json, /metrics, /mcp)
+# Scaffold a brand-new Kongono app (includes /_kongono Dev Studio, /docs, /health, FrankenPHP Dockerfile)
+php vendor/bin/kongo new my-app --name="My App"
+cd my-app && composer install
+php vendor/bin/kongo serve --port=8000
+```
+
+Or run directly from this repository:
+
+```bash
+# Run the full starter app locally (includes /_kongono Dev Studio, /docs API Explorer, /health, /openapi.json, /metrics, /mcp)
 php bin/kongo serve --app=examples/starter-app --port=8000
 
 # Verify environment & live app health, generate APP_KEY, inspect routes/graph/OpenAPI/MCP
@@ -82,6 +95,14 @@ composer cs        # PHP-CS-Fixer
 composer analyse   # PHPStan level 9 + strict rules
 composer test      # PHPUnit 13
 ```
+
+## Documentation
+
+- [Getting Started](docs/getting-started.md)
+- [Architecture Overview](docs/architecture.md)
+- [Built-In AI Companions & MCP Server](docs/ai-companions.md)
+- [Production Deployment & Scaling Guide](docs/production-deployment.md)
+- [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Security Policy](SECURITY.md)
 
 ## License
 
