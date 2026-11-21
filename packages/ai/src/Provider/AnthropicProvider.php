@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Ai\Provider;
 
+use Closure;
 use JsonException;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
@@ -14,11 +15,12 @@ use Kongono\Ai\ToolCall;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Ai\Transport\CurlTransport;
 use Kongono\Ai\Transport\HttpTransportInterface;
+use Kongono\Ai\Transport\StreamingHttpTransportInterface;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use SensitiveParameter;
 
-/** Anthropic Claude Messages API provider. */
-final readonly class AnthropicProvider implements AiProviderInterface
+/** Anthropic Claude Messages API provider with live SSE token streaming. */
+final readonly class AnthropicProvider implements StreamingAiProviderInterface
 {
     private HttpTransportInterface $transport;
 
@@ -169,5 +171,77 @@ final readonly class AnthropicProvider implements AiProviderInterface
             usage: $usage,
             finishReason: is_string($decoded['stop_reason'] ?? null) ? $decoded['stop_reason'] : null,
         );
+    }
+
+    public function chatStream(ChatRequest $request, Closure $onDelta): ChatResponse
+    {
+        if (!$this->transport instanceof StreamingHttpTransportInterface) {
+            $response = $this->chat($request);
+            if ('' !== $response->text) {
+                $onDelta($response->text);
+            }
+
+            return $response;
+        }
+
+        $model = $request->model ?? $this->model;
+        $systemParts = [];
+        $messages = [];
+        foreach ($request->messages as $msg) {
+            if (Role::System === $msg->role) {
+                $systemParts[] = $msg->content;
+            } else {
+                $messages[] = ['role' => Role::Assistant === $msg->role ? 'assistant' : 'user', 'content' => $msg->content];
+            }
+        }
+
+        $payload = [
+            'model' => $model,
+            'max_tokens' => $request->maxTokens ?? 4096,
+            'stream' => true,
+            'messages' => $messages,
+        ];
+        if ([] !== $systemParts) {
+            $payload['system'] = implode("\n\n", $systemParts);
+        }
+
+        $url = rtrim($this->baseUrl, '/') . '/messages';
+        $buffer = '';
+        $fullText = '';
+        $finishReason = null;
+
+        $status = $this->transport->postJsonStream(
+            $url,
+            ['x-api-key' => $this->apiKey, 'anthropic-version' => $this->anthropicVersion],
+            json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+            static function (string $chunk) use (&$buffer, &$fullText, &$finishReason, $onDelta): void {
+                $buffer .= str_replace("\r\n", "\n", $chunk);
+                while (false !== ($pos = strpos($buffer, "\n"))) {
+                    $line = trim(substr($buffer, 0, $pos));
+                    $buffer = substr($buffer, $pos + 1);
+                    if (!str_starts_with($line, 'data:')) {
+                        continue;
+                    }
+                    $frame = json_decode(trim(substr($line, 5)), true);
+                    if (!is_array($frame)) {
+                        continue;
+                    }
+                    $type = $frame['type'] ?? null;
+                    if ('content_block_delta' === $type && is_array($frame['delta'] ?? null) && is_string($frame['delta']['text'] ?? null)) {
+                        $delta = $frame['delta']['text'];
+                        $fullText .= $delta;
+                        $onDelta($delta);
+                    } elseif ('message_delta' === $type && is_array($frame['delta'] ?? null) && is_string($frame['delta']['stop_reason'] ?? null)) {
+                        $finishReason = $frame['delta']['stop_reason'];
+                    }
+                }
+            },
+        );
+
+        if ($status < 200 || $status >= 300) {
+            throw new AiException(sprintf('Anthropic streaming API returned HTTP %d.', $status));
+        }
+
+        return new ChatResponse($fullText, $model, $this->name(), finishReason: $finishReason);
     }
 }

@@ -46,7 +46,46 @@ php bin/kongo hantei generate-tests src/Http/NoteController.php --apply
 
 ```php
 use Kongono\Ai\AiClient;
+use Kongono\Ai\ChatRequest;
+use Kongono\Ai\Message;
 
 $ai = AiClient::fromEnv();
 $summary = $ai->structured('Summarize this ticket with priority and tags...', TicketSummaryDto::class);
+
+// Live streaming supported across OpenAI, Anthropic, Gemini, and Ollama
+$ai->chatStream(
+    new ChatRequest([Message::user('Explain Kongono OperationScope')]),
+    static function (string $delta): void {
+        echo $delta;
+    },
+);
 ```
+
+## Model Context Protocol (MCP) Server for AI IDEs
+
+Connect Antigravity, Cursor, Claude Code, or Codex directly to any Kongono app over stdio or HTTP (`POST /mcp`):
+
+```bash
+php bin/kongo mcp --app=examples/starter-app
+```
+
+Example MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "kongono": {
+      "command": "php",
+      "args": ["bin/kongo", "mcp", "--app=examples/starter-app"]
+    }
+  }
+}
+```
+
+Exposed read-only, `AgentPrincipal`-governed tools (all output scrubbed by `SecretScrubber`, `.env` reads explicitly blocked):
+- `kongono_graph` — Live `ApplicationGraph` JSON
+- `kongono_openapi` — Live OpenAPI 3.1.0 specification
+- `kongono_routes` — Full HTTP route table
+- `kongono_list_files` — Contained project file listing
+- `kongono_read_file` — Secret-scrubbed source file reader
+- `kongono_oshie_lesson` — Built-in Kongono v1 Oshie guides

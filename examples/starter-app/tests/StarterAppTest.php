@@ -172,6 +172,55 @@ final class StarterAppTest extends TestCase
         self::assertStringContainsString('event: ready', $sse->bodyString());
     }
 
+    public function testDocsHealthAndMcpEndpointsWorkEndToEnd(): void
+    {
+        $app = $this->bootApp();
+        $client = new TestClient($app);
+
+        // Zero-CDN Interactive /docs API Explorer
+        $client->get('/docs')
+            ->assertOk()
+            ->assertSee('<!doctype html>')
+            ->assertSee('Kongono Starter App')
+            ->assertSee('/api/notes')
+            ->assertSee('Send Request');
+
+        // Structured /health readiness probe
+        $client->get('/health')
+            ->assertOk()
+            ->assertJsonPath('status', 'ok')
+            ->assertJsonPath('healthy', true)
+            ->assertJsonPath('checks.cache.ok', true)
+            ->assertJsonPath('checks.storage.ok', true);
+
+        // Live MCP JSON-RPC 2.0 endpoint over HTTP (POST /mcp)
+        $init = $client->postJson('/mcp', [
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'initialize',
+            'params' => [],
+        ])->assertOk();
+        self::assertSame('kongono-framework', $init->json()['result']['serverInfo']['name']);
+
+        $list = $client->postJson('/mcp', [
+            'jsonrpc' => '2.0',
+            'id' => 2,
+            'method' => 'tools/list',
+        ])->assertOk();
+        $toolNames = array_column($list->json()['result']['tools'], 'name');
+        self::assertContains('kongono_graph', $toolNames);
+        self::assertContains('kongono_openapi', $toolNames);
+
+        $call = $client->postJson('/mcp', [
+            'jsonrpc' => '2.0',
+            'id' => 3,
+            'method' => 'tools/call',
+            'params' => ['name' => 'kongono_graph', 'arguments' => []],
+        ])->assertOk();
+        self::assertFalse($call->json()['result']['isError']);
+        self::assertStringContainsString('Kongono Starter App', $call->json()['result']['content'][0]['text']);
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\View;
 
+use Closure;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
@@ -21,10 +22,14 @@ final readonly class ViewEngine
     private string $cachePath;
     private TemplateCompiler $compiler;
 
+    /**
+     * @param ?Closure(string, array<string, string|int|float>, ?string): string $translator
+     */
     public function __construct(
         string $viewsPath,
         ?string $cachePath = null,
         private string $extension = '.kgn.html',
+        private ?Closure $translator = null,
     ) {
         $resolvedViews = realpath($viewsPath);
         if (false === $resolvedViews || !is_dir($resolvedViews)) {
@@ -33,6 +38,26 @@ final readonly class ViewEngine
         $this->viewsPath = $resolvedViews;
         $this->cachePath = $cachePath ?? (sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-views-' . hash('xxh128', $resolvedViews));
         $this->compiler = new TemplateCompiler();
+    }
+
+    /**
+     * Return a new ViewEngine bound to a translation callback (e.g. `$translator->get(...)`).
+     *
+     * @param Closure(string, array<string, string|int|float>, ?string): string $translator
+     */
+    public function withTranslator(Closure $translator): self
+    {
+        return new self($this->viewsPath, $this->cachePath, $this->extension, $translator);
+    }
+
+    /** @param array<string, string|int|float> $params */
+    public function translate(string $key, array $params = [], ?string $locale = null): string
+    {
+        if (null !== $this->translator) {
+            return ($this->translator)($key, $params, $locale);
+        }
+
+        return $key;
     }
 
     /**

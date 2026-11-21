@@ -36,6 +36,12 @@ final class RenderState
         return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
+    /** @param array<string, string|int|float> $params */
+    public function translate(string $key, array $params = [], ?string $locale = null): string
+    {
+        return $this->escape($this->engine->translate($key, $params, $locale));
+    }
+
     public function extend(string $layout): void
     {
         $this->layout = $layout;

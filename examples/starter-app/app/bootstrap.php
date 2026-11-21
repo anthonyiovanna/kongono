@@ -6,6 +6,8 @@ use Kongono\Core\Cache\CacheInterface;
 use Kongono\Core\Cache\FileCache;
 use Kongono\Core\Config;
 use Kongono\Core\EnvLoader;
+use Kongono\Core\Health\HealthCheck;
+use Kongono\Core\I18n\Translator;
 use Kongono\Core\Log\Logger;
 use Kongono\Core\Telemetry\Metrics;
 use Kongono\Http\App;
@@ -22,6 +24,7 @@ use Kongono\Jobs\Worker;
 use Kongono\Mail\Address;
 use Kongono\Mail\LogTransport;
 use Kongono\Mail\Mailer;
+use Kongono\Security\Encryptor;
 use Kongono\Security\Middleware\BearerAuthMiddleware;
 use Kongono\Security\Middleware\CorsMiddleware;
 use Kongono\Security\Middleware\RateLimitMiddleware;
@@ -29,6 +32,7 @@ use Kongono\Security\Middleware\SecurityHeadersMiddleware;
 use Kongono\Security\PasswordHasher;
 use Kongono\Security\Principal;
 use Kongono\Security\PrincipalKind;
+use Kongono\Security\SignedUrl;
 use Kongono\Security\TokenSigner;
 use Kongono\Storage\LocalStorage;
 use Kongono\Storage\StorageInterface;
@@ -49,8 +53,37 @@ $logger = new Logger('starter-app', retainInMemory: true);
 $metrics = new Metrics();
 $queueDriver = new MemoryQueueDriver();
 $queue = new Queue($queueDriver);
-$signer = new TokenSigner(Config::env('APP_KEY') ?? 'kongono-starter-dev-key-change-in-prod');
+$appKey = Config::env('APP_KEY') ?? 'kongono-starter-dev-key-change-in-prod';
+$signer = new TokenSigner($appKey);
+$encryptor = new Encryptor($appKey);
+$signedUrl = new SignedUrl($appKey);
 $hasher = new PasswordHasher();
+
+$translator = (new Translator('en'))
+    ->addMessages('en', [
+        'app.title' => 'Kongono v1 Starter',
+        'notes.count' => 'No notes yet|1 note|:count notes',
+    ])
+    ->addMessages('ja', [
+        'app.title' => 'Kongono v1 スターター',
+        'notes.count' => 'メモなし|1件のメモ|:count件のメモ',
+    ]);
+
+$health = (new HealthCheck())
+    ->check('cache', static function () use ($cache): bool {
+        $cache->set('health:probe', 'ok', 15);
+        $ok = 'ok' === $cache->get('health:probe');
+        $cache->delete('health:probe');
+
+        return $ok;
+    })
+    ->check('storage', static function () use ($storage): bool {
+        $storage->put('_health/probe.txt', 'ok', 'text/plain');
+        $ok = 'ok' === $storage->get('_health/probe.txt');
+        $storage->delete('_health/probe.txt');
+
+        return $ok;
+    });
 
 $scheduler = new Scheduler();
 $scheduler->call('heartbeat', static function () use ($logger): void {
@@ -64,8 +97,12 @@ $app = App::create($baseDir, name: 'Kongono Starter App')
     ->instance(StorageInterface::class, $storage)
     ->instance(LoggerInterface::class, $logger)
     ->instance(Metrics::class, $metrics)
+    ->instance(HealthCheck::class, $health)
+    ->instance(Translator::class, $translator)
     ->instance(Scheduler::class, $scheduler)
     ->instance(TokenSigner::class, $signer)
+    ->instance(Encryptor::class, $encryptor)
+    ->instance(SignedUrl::class, $signedUrl)
     ->instance(PasswordHasher::class, $hasher)
     ->singleton(NoteStore::class, NoteStore::class)
     ->singleton(UserStore::class, UserStore::class)
@@ -95,10 +132,13 @@ $app = App::create($baseDir, name: 'Kongono Starter App')
             ->middleware($bearer);
     });
 
+$viewsWithI18n = $app->container()->make(ViewEngine::class)->withTranslator($translator->get(...));
+$app->instance(ViewEngine::class, $viewsWithI18n);
+
 $mailer = new Mailer(
     new LogTransport($logger),
     new Address('no-reply@kongono.local', 'Kongono Starter'),
-    $app->container()->make(ViewEngine::class),
+    $viewsWithI18n,
 );
 $app->instance(Mailer::class, $mailer);
 

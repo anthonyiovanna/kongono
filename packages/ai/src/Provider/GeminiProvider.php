@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Ai\Provider;
 
+use Closure;
 use JsonException;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
@@ -14,11 +15,12 @@ use Kongono\Ai\ToolCall;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Ai\Transport\CurlTransport;
 use Kongono\Ai\Transport\HttpTransportInterface;
+use Kongono\Ai\Transport\StreamingHttpTransportInterface;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use SensitiveParameter;
 
-/** Google Gemini GenerateContent API provider. */
-final readonly class GeminiProvider implements AiProviderInterface
+/** Google Gemini GenerateContent API provider with live SSE token streaming. */
+final readonly class GeminiProvider implements StreamingAiProviderInterface
 {
     private HttpTransportInterface $transport;
 
@@ -153,5 +155,75 @@ final readonly class GeminiProvider implements AiProviderInterface
             usage: $usage,
             finishReason: is_string($candidate['finishReason'] ?? null) ? $candidate['finishReason'] : null,
         );
+    }
+
+    public function chatStream(ChatRequest $request, Closure $onDelta): ChatResponse
+    {
+        if (!$this->transport instanceof StreamingHttpTransportInterface) {
+            $response = $this->chat($request);
+            if ('' !== $response->text) {
+                $onDelta($response->text);
+            }
+
+            return $response;
+        }
+
+        $model = $request->model ?? $this->model;
+        $systemParts = [];
+        $contents = [];
+        foreach ($request->messages as $msg) {
+            if (Role::System === $msg->role) {
+                $systemParts[] = $msg->content;
+            } else {
+                $contents[] = ['role' => Role::Assistant === $msg->role ? 'model' : 'user', 'parts' => [['text' => $msg->content]]];
+            }
+        }
+        $payload = ['contents' => $contents];
+        if ([] !== $systemParts) {
+            $payload['systemInstruction'] = ['parts' => [['text' => implode("\n\n", $systemParts)]]];
+        }
+
+        $url = sprintf('%s/models/%s:streamGenerateContent?alt=sse', rtrim($this->baseUrl, '/'), rawurlencode($model));
+        $buffer = '';
+        $fullText = '';
+        $finishReason = null;
+
+        $status = $this->transport->postJsonStream(
+            $url,
+            ['x-goog-api-key' => $this->apiKey],
+            json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+            static function (string $chunk) use (&$buffer, &$fullText, &$finishReason, $onDelta): void {
+                $buffer .= str_replace("\r\n", "\n", $chunk);
+                while (false !== ($pos = strpos($buffer, "\n"))) {
+                    $line = trim(substr($buffer, 0, $pos));
+                    $buffer = substr($buffer, $pos + 1);
+                    if (!str_starts_with($line, 'data:')) {
+                        continue;
+                    }
+                    $frame = json_decode(trim(substr($line, 5)), true);
+                    if (!is_array($frame) || !isset($frame['candidates']) || !is_array($frame['candidates']) || !isset($frame['candidates'][0]) || !is_array($frame['candidates'][0])) {
+                        continue;
+                    }
+                    $cand = $frame['candidates'][0];
+                    if (is_string($cand['finishReason'] ?? null)) {
+                        $finishReason = $cand['finishReason'];
+                    }
+                    $content = is_array($cand['content'] ?? null) ? $cand['content'] : [];
+                    $parts = is_array($content['parts'] ?? null) ? $content['parts'] : [];
+                    foreach ($parts as $part) {
+                        if (is_array($part) && is_string($part['text'] ?? null) && '' !== $part['text']) {
+                            $fullText .= $part['text'];
+                            $onDelta($part['text']);
+                        }
+                    }
+                }
+            },
+        );
+
+        if ($status < 200 || $status >= 300) {
+            throw new AiException(sprintf('Gemini streaming API returned HTTP %d.', $status));
+        }
+
+        return new ChatResponse($fullText, $model, $this->name(), finishReason: $finishReason);
     }
 }

@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace StarterApp\Http;
 
+use Kongono\Cli\Mcp\KongonoMcpFactory;
+use Kongono\Core\Health\HealthCheck;
 use Kongono\Core\Telemetry\Metrics;
 use Kongono\Http\App;
 use Kongono\Http\HttpException;
+use Kongono\Http\OpenApi\ApiDocsRenderer;
 use Kongono\Http\OpenApi\OpenApiGenerator;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
@@ -31,6 +34,7 @@ final readonly class NoteController
         private Queue $queue,
         private Worker $worker,
         private Metrics $metrics,
+        private HealthCheck $health,
         private App $app,
     ) {}
 
@@ -177,6 +181,32 @@ final readonly class NoteController
     public function openApi(): Response
     {
         return Response::json((new OpenApiGenerator())->generate($this->app));
+    }
+
+    #[Get('/docs', name: 'api.docs')]
+    public function apiDocs(): Response
+    {
+        return Response::html((new ApiDocsRenderer())->render($this->app));
+    }
+
+    #[Get('/health', name: 'health')]
+    public function health(): Response
+    {
+        $report = $this->health->run();
+
+        return Response::json($report, status: $report['healthy'] ? 200 : 503);
+    }
+
+    #[Post('/mcp', name: 'mcp')]
+    public function mcp(Request $request): Response
+    {
+        $server = KongonoMcpFactory::forApp($this->app->basePath(), $this->app);
+        $reply = $server->handleJson((string) $request->getBody());
+        if (null === $reply) {
+            return Response::noContent();
+        }
+
+        return Response::text($reply, 200, ['Content-Type' => 'application/json; charset=utf-8']);
     }
 
     #[Get('/api/events', name: 'api.events')]

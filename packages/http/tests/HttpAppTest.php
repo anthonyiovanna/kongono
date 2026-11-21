@@ -8,6 +8,7 @@ use Kongono\Core\Cache\MemoryCache;
 use Kongono\Http\App;
 use Kongono\Http\Cookie;
 use Kongono\Http\Middleware\StaticFilesMiddleware;
+use Kongono\Http\OpenApi\ApiDocsRenderer;
 use Kongono\Http\OpenApi\OpenApiGenerator;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
@@ -247,5 +248,12 @@ final class HttpAppTest extends TestCase
         self::assertIsArray($spec['components']);
         self::assertArrayHasKey('SubscribeInput', $spec['components']['schemas']);
         self::assertSame('email', $spec['components']['schemas']['SubscribeInput']['properties']['email']['format']);
+
+        $docsHtml = (new ApiDocsRenderer())->render($app);
+        self::assertStringContainsString('<!doctype html>', $docsHtml);
+        self::assertStringContainsString('OpenAPI Demo', $docsHtml);
+        self::assertStringContainsString('/subscribe', $docsHtml);
+        self::assertStringContainsString('Send Request', $docsHtml);
+        self::assertStringContainsString('bearerToken', $docsHtml);
     }
 }

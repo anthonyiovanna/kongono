@@ -8,10 +8,13 @@ use Closure;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\DatabaseException;
 use Kongono\Database\Dialect;
+use Kongono\Database\PdoConnection;
 use Kongono\Database\QueryBuilder;
 use Kongono\Database\Repository;
 use Kongono\Database\Schema\Blueprint;
 use Kongono\Database\Schema\Schema;
+use PDO;
+use PDOStatement;
 use PHPUnit\Framework\TestCase;
 
 final readonly class NoteRowDto
@@ -177,5 +180,64 @@ final class QueryBuilderTest extends TestCase
         self::assertInstanceOf(NoteRowDto::class, $found);
         self::assertSame('First', $found->title);
         self::assertSame(5, $repo->count());
+    }
+
+    public function testPdoConnectionOnQueryListenerRecordsSqlAndDuration(): void
+    {
+        $fakeStmt = new class extends PDOStatement {
+            public function __construct() {}
+
+            public function execute(?array $params = null): bool
+            {
+                return true;
+            }
+
+            /** @return list<array<string, mixed>> */
+            public function fetchAll(int $mode = PDO::FETCH_DEFAULT, mixed ...$args): array
+            {
+                return [['id' => 1]];
+            }
+
+            public function fetch(int $mode = PDO::FETCH_DEFAULT, int $cursorOrientation = PDO::FETCH_ORI_NEXT, int $cursorOffset = 0): mixed
+            {
+                return ['id' => 1];
+            }
+
+            public function rowCount(): int
+            {
+                return 2;
+            }
+        };
+
+        $fakePdo = new class ($fakeStmt) extends PDO {
+            public function __construct(private readonly PDOStatement $stmt) {}
+
+            public function setAttribute(int $attribute, mixed $value): bool
+            {
+                return true;
+            }
+
+            /** @param array<int, mixed> $options */
+            public function prepare(string $query, array $options = []): PDOStatement|false
+            {
+                return $this->stmt;
+            }
+        };
+
+        $recorded = [];
+        $conn = (new PdoConnection($fakePdo, Dialect::Postgres))
+            ->onQuery(static function (string $sql, float $durationMs) use (&$recorded): void {
+                $recorded[] = ['sql' => $sql, 'ms' => $durationMs];
+            });
+
+        self::assertSame([['id' => 1]], $conn->query('SELECT 1'));
+        self::assertSame(['id' => 1], $conn->first('SELECT 2'));
+        self::assertSame(2, $conn->execute('UPDATE notes SET title = ?', ['Hi']));
+
+        self::assertCount(3, $recorded);
+        self::assertSame('SELECT 1', $recorded[0]['sql']);
+        self::assertSame('SELECT 2', $recorded[1]['sql']);
+        self::assertSame('UPDATE notes SET title = ?', $recorded[2]['sql']);
+        self::assertGreaterThanOrEqual(0.0, $recorded[0]['ms']);
     }
 }

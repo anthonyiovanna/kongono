@@ -101,6 +101,34 @@ HTML,
         self::assertStringContainsString('<p>5</p>', $html);
     }
 
+    public function testSupportsAutoEscapedTranslationDirective(): void
+    {
+        file_put_contents(
+            $this->tempDir . '/views/i18n.kgn.html',
+            '<h1>@t("greeting", ["name" => $user])</h1><p>@t("greeting", ["name" => $user], "ja")</p>',
+        );
+
+        $messages = [
+            'en' => ['greeting' => 'Hello, :name!'],
+            'ja' => ['greeting' => 'こんにちは、:name！'],
+        ];
+        $engine = (new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache'))
+            ->withTranslator(static function (string $key, array $params = [], ?string $locale = null) use ($messages): string {
+                $loc = $locale ?? 'en';
+                $tpl = $messages[$loc][$key] ?? $key;
+                $map = [];
+                foreach ($params as $k => $v) {
+                    $map[':' . $k] = (string) $v;
+                }
+
+                return strtr($tpl, $map);
+            });
+
+        $html = $engine->render('i18n', ['user' => '<b>Ada</b>']);
+        self::assertStringContainsString('<h1>Hello, &lt;b&gt;Ada&lt;/b&gt;!</h1>', $html);
+        self::assertStringContainsString('<p>こんにちは、&lt;b&gt;Ada&lt;/b&gt;！</p>', $html);
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {

@@ -9,6 +9,7 @@ use Kongono\Ai\Provider\OpenAiProvider;
 use Kongono\Ai\Transport\HttpResponse;
 use Kongono\Ai\Transport\HttpTransportInterface;
 use Kongono\Cli\KongoCli;
+use Kongono\Cli\Mcp\KongonoMcpFactory;
 use PHPUnit\Framework\TestCase;
 
 final class ScriptedTransport implements HttpTransportInterface
@@ -173,5 +174,42 @@ final class CompanionsAndCliTest extends TestCase
         [$hCode, $hanteiOut] = $cli->run(['hantei', 'debug', 'KGN-VALIDATION-422 on POST /api/notes', '--app=' . $this->starterAppRoot]);
         self::assertSame(0, $hCode);
         self::assertStringContainsString('Root cause', $hanteiOut);
+    }
+
+    public function testKongonoMcpFactoryExposesGovernedProjectTools(): void
+    {
+        $server = KongonoMcpFactory::forApp($this->starterAppRoot);
+
+        $list = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":1,"method":"tools/list"}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($list);
+        $names = array_column($list['result']['tools'], 'name');
+        self::assertSame(KongonoMcpFactory::DEFAULT_TOOLS, $names);
+
+        $graph = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"kongono_graph"}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($graph);
+        self::assertFalse($graph['result']['isError']);
+        self::assertStringContainsString('Kongono Starter App', $graph['result']['content'][0]['text']);
+
+        $openapi = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"kongono_openapi"}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($openapi);
+        self::assertFalse($openapi['result']['isError']);
+        self::assertStringContainsString('"3.1.0"', $openapi['result']['content'][0]['text']);
+
+        $lesson = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"kongono_oshie_lesson","arguments":{"topic":"routing"}}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($lesson);
+        self::assertFalse($lesson['result']['isError']);
+        self::assertStringContainsString('Routing & Controllers', $lesson['result']['content'][0]['text']);
+
+        // Reading .env is explicitly blocked by kongono_read_file
+        $envBlocked = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"kongono_read_file","arguments":{"path":".env"}}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($envBlocked);
+        self::assertTrue($envBlocked['result']['isError']);
+        self::assertStringContainsString('forbidden', $envBlocked['result']['content'][0]['text']);
+
+        // Reading regular source file succeeds
+        $readOk = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"kongono_read_file","arguments":{"path":"src/Http/NoteController.php"}}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($readOk);
+        self::assertFalse($readOk['result']['isError']);
+        self::assertStringContainsString('final readonly class NoteController', $readOk['result']['content'][0]['text']);
     }
 }

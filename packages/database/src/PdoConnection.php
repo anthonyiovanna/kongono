@@ -10,15 +10,30 @@ use PDOException;
 use Throwable;
 
 /** Strict PDO connection supporting PostgreSQL, SQLite, and MySQL with real prepared statements. */
-final readonly class PdoConnection implements ConnectionInterface
+final class PdoConnection implements ConnectionInterface
 {
+    /** @var list<Closure(string, float): void> */
+    private array $queryListeners = [];
+
     public function __construct(
-        private PDO $pdo,
-        private Dialect $dialect = Dialect::Postgres,
+        private readonly PDO $pdo,
+        private readonly Dialect $dialect = Dialect::Postgres,
     ) {
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         $this->pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+    }
+
+    /**
+     * Register a query telemetry/profiling listener invoked after each executed statement.
+     *
+     * @param Closure(string, float): void $listener Receives ($sql, $durationMs)
+     */
+    public function onQuery(Closure $listener): self
+    {
+        $this->queryListeners[] = $listener;
+
+        return $this;
     }
 
     public static function pgsql(
@@ -79,11 +94,14 @@ final readonly class PdoConnection implements ConnectionInterface
 
     public function query(string $sql, array $bindings = []): array
     {
+        $start = [] !== $this->queryListeners ? hrtime(true) : 0;
+
         try {
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($bindings);
             /** @var list<array<string, mixed>> $rows */
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $this->notifyQuery($sql, $start);
 
             return $rows;
         } catch (PDOException $e) {
@@ -93,10 +111,13 @@ final readonly class PdoConnection implements ConnectionInterface
 
     public function first(string $sql, array $bindings = []): ?array
     {
+        $start = [] !== $this->queryListeners ? hrtime(true) : 0;
+
         try {
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($bindings);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $this->notifyQuery($sql, $start);
             if (!is_array($row)) {
                 return null;
             }
@@ -111,13 +132,28 @@ final readonly class PdoConnection implements ConnectionInterface
 
     public function execute(string $sql, array $bindings = []): int
     {
+        $start = [] !== $this->queryListeners ? hrtime(true) : 0;
+
         try {
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($bindings);
+            $count = $stmt->rowCount();
+            $this->notifyQuery($sql, $start);
 
-            return $stmt->rowCount();
+            return $count;
         } catch (PDOException $e) {
             throw new DatabaseException('Database execution failed: ' . $e->getMessage(), previous: $e);
+        }
+    }
+
+    private function notifyQuery(string $sql, int $startNs): void
+    {
+        if ([] === $this->queryListeners) {
+            return;
+        }
+        $durationMs = round((hrtime(true) - $startNs) / 1_000_000, 3);
+        foreach ($this->queryListeners as $listener) {
+            $listener($sql, $durationMs);
         }
     }
 

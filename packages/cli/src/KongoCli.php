@@ -11,6 +11,7 @@ use Kongono\Cli\Companions\DiffRenderer;
 use Kongono\Cli\Companions\HanteiDebugger;
 use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\MigrationInterface;
 use Kongono\Database\Migrator;
@@ -50,6 +51,7 @@ final readonly class KongoCli
                 'routes' => $this->cmdRoutes($appRoot),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
+                'mcp' => $this->cmdMcp($appRoot),
                 'serve' => $this->cmdServe($appRoot, $options),
                 'new' => $this->cmdNew($rest, $options),
                 'work' => $this->cmdWork($appRoot, $options),
@@ -122,6 +124,15 @@ final readonly class KongoCli
         }
 
         return [0, (new OpenApiGenerator())->generateJson($app) . "\n"];
+    }
+
+    /** @return array{0: int, 1: string} */
+    private function cmdMcp(string $appRoot): array
+    {
+        $server = KongonoMcpFactory::forApp($appRoot);
+        $server->serveStdio();
+
+        return [0, ''];
     }
 
     /**
@@ -609,6 +620,7 @@ Core Commands:
   routes [--app=path]                                   List all registered routes
   graph [--app=path]                                    Print live ApplicationGraph JSON
   openapi [--app=path]                                  Generate OpenAPI 3.1 JSON spec from routes & DTOs
+  mcp [--app=path]                                      Run Model Context Protocol (MCP) JSON-RPC stdio server
   check                                                 Run full CS + PHPStan + PHPUnit suite
   test                                                  Run PHPUnit test suite
   version                                               Show Kongono & PHP version
