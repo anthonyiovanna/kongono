@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+use Kongono\Ai\AiClient;
+use Kongono\Ai\AiException;
+use Kongono\Cli\Companions\HanteiDebugger;
+use Kongono\Cli\Companions\OshieTutor;
+use Kongono\Cli\Context\ProjectContext;
 use Kongono\Core\Cache\CacheInterface;
 use Kongono\Core\Cache\FileCache;
 use Kongono\Core\Config;
@@ -131,8 +136,30 @@ $app = App::create($baseDir, name: 'Kongono Starter App')
     ->controller(NoteController::class)
     ->controller(AuthController::class);
 
+$tryAi = static function (): ?AiClient {
+    try {
+        return AiClient::fromEnv();
+    } catch (AiException) {
+        return null;
+    }
+};
+
 $app->middleware(
-    new DevDashboardMiddleware($app, $inspector),
+    new DevDashboardMiddleware(
+        app: $app,
+        inspector: $inspector,
+        oshieHandler: static function (string $question, ?string $lesson) use ($app, $baseDir, $tryAi): string {
+            $ctx = new ProjectContext($baseDir, $app->graph());
+            $oshie = new OshieTutor($tryAi());
+
+            return null !== $lesson ? $oshie->teachLesson($lesson, $ctx) : $oshie->ask('' !== $question ? $question : 'Explain routing in Kongono.', $ctx);
+        },
+        hanteiHandler: static function (string $diagnostic) use ($app, $baseDir, $tryAi): string {
+            $ctx = new ProjectContext($baseDir, $app->graph());
+
+            return (new HanteiDebugger($tryAi()))->diagnose($diagnostic, $ctx);
+        },
+    ),
     new CompressionMiddleware(),
     new StaticFilesMiddleware($baseDir . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets', '/assets/'),
     new SecurityHeadersMiddleware(),

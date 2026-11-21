@@ -145,6 +145,16 @@ final class CompanionsAndCliTest extends TestCase
             $routeList = json_decode($rjOut, true, 32, JSON_THROW_ON_ERROR);
             self::assertIsArray($routeList);
             self::assertNotEmpty($routeList);
+
+            // Verify env:check fails when .env is missing keys from .env.example and passes once populated
+            [$ecFail, $ecOutFail] = $cli->run(['env:check', '--app=' . $tempDir]);
+            self::assertSame(1, $ecFail);
+            self::assertStringContainsString('[MISS] APP_KEY', $ecOutFail);
+
+            copy($tempDir . '/.env.example', $tempDir . '/.env');
+            [$ecOk, $ecOutOk] = $cli->run(['env:check', '--app=' . $tempDir]);
+            self::assertSame(0, $ecOk);
+            self::assertStringContainsString('[OK  ] APP_KEY', $ecOutOk);
         } finally {
             $this->removeDir($tempDir);
         }

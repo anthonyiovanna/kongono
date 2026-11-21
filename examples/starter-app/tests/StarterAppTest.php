@@ -262,6 +262,16 @@ final class StarterAppTest extends TestCase
             ->get('/api/insights')
             ->assertOk()
             ->assertJsonPath('feature', 'beta_insights');
+
+        // Live Browser Oshie & Hantei AI Studio endpoints inside /_kongono
+        $client->postJson('/_kongono/api/oshie', ['lesson' => 'routing'])
+            ->assertOk()
+            ->assertSee('Routing & Controllers');
+
+        $client->postJson('/_kongono/api/hantei', ['diagnostic' => 'KGN-VALIDATION-422 on POST /api/notes with sk-proj-1234567890abcdef1234'])
+            ->assertOk()
+            ->assertSee('Hantei')
+            ->assertDontSee('sk-proj-1234567890abcdef1234');
     }
 
     private function removeDir(string $dir): void

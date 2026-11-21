@@ -72,6 +72,7 @@ final readonly class KongoCli
                 'make:test' => $this->cmdMake('test', $appRoot, $rest),
                 'key:generate' => [0, 'APP_KEY=' . Encryptor::generateKey() . "\n"],
                 'doctor' => $this->cmdDoctor($appRoot),
+                'env:check' => $this->cmdEnvCheck($appRoot),
                 'check' => $this->cmdCheck($appRoot),
                 'test' => $this->cmdHantei($appRoot, ['test'], $options),
                 'oshie' => $this->cmdOshie($appRoot, $rest, $options),
@@ -478,6 +479,60 @@ final readonly class KongoCli
         return [$allOk ? 0 : 1, implode("\n", $lines) . "\n"];
     }
 
+    /** @return array{0: int, 1: string} */
+    private function cmdEnvCheck(string $appRoot): array
+    {
+        $exampleFile = $appRoot . DIRECTORY_SEPARATOR . '.env.example';
+        if (!is_file($exampleFile)) {
+            return [0, sprintf("No .env.example found in %s; nothing to compare.\n", $appRoot)];
+        }
+
+        $exampleLines = file($exampleFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (false === $exampleLines) {
+            return [1, "Unable to read .env.example.\n"];
+        }
+
+        $requiredKeys = [];
+        foreach ($exampleLines as $line) {
+            $trimmed = trim($line);
+            if ('' === $trimmed || str_starts_with($trimmed, '#') || !str_contains($trimmed, '=')) {
+                continue;
+            }
+            [$key] = explode('=', $trimmed, 2);
+            $key = trim($key);
+            if ('' !== $key) {
+                $requiredKeys[] = $key;
+            }
+        }
+
+        $envFile = $appRoot . DIRECTORY_SEPARATOR . '.env';
+        $present = [];
+        if (is_file($envFile)) {
+            $rawEnvLines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            $envLines = false !== $rawEnvLines ? $rawEnvLines : [];
+            foreach ($envLines as $line) {
+                $trimmed = trim($line);
+                if ('' === $trimmed || str_starts_with($trimmed, '#') || !str_contains($trimmed, '=')) {
+                    continue;
+                }
+                [$k] = explode('=', $trimmed, 2);
+                $present[trim($k)] = true;
+            }
+        }
+
+        $missing = [];
+        $lines = [sprintf('Environment check (%s):', $appRoot)];
+        foreach ($requiredKeys as $key) {
+            $inEnv = isset($present[$key]) || false !== getenv($key);
+            $lines[] = sprintf('  [%s] %s', $inEnv ? 'OK  ' : 'MISS', $key);
+            if (!$inEnv) {
+                $missing[] = $key;
+            }
+        }
+
+        return [[] === $missing ? 0 : 1, implode("\n", $lines) . "\n"];
+    }
+
     /**
      * @param array<string, string|true> $options
      * @return array{0: int, 1: string}
@@ -838,6 +893,7 @@ Core Commands:
   make:test <Name> [--app=path]                         Generate a PHPUnit 13 TestClient test
   key:generate                                          Generate a 256-bit APP_KEY for .env
   doctor [--app=path]                                   Verify PHP 8.5, extensions, AI provider & app health
+  env:check [--app=path]                                Verify required keys from .env.example exist in .env
   routes [--app=path] [--json]                          List all registered routes
   graph [--app=path]                                    Print live ApplicationGraph JSON
   openapi [--app=path]                                  Generate OpenAPI 3.1 JSON spec from routes & DTOs

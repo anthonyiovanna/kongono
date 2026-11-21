@@ -6,6 +6,7 @@ namespace Kongono\Jobs\Tests;
 
 use Closure;
 use DateTimeImmutable;
+use Kongono\Core\Cache\RedisClient;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\Dialect;
 use Kongono\Database\QueryBuilder;
@@ -14,6 +15,7 @@ use Kongono\Jobs\JobOutcome;
 use Kongono\Jobs\MemoryQueueDriver;
 use Kongono\Jobs\PostgresQueueDriver;
 use Kongono\Jobs\Queue;
+use Kongono\Jobs\RedisQueueDriver;
 use Kongono\Jobs\Scheduler\CronExpression;
 use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
@@ -157,5 +159,59 @@ final class JobsTest extends TestCase
         self::assertSame([], $report['failed']);
         self::assertSame(['cleanup'], $ran);
         self::assertSame(1, $queue->stats()['pending']);
+    }
+
+    public function testRedisQueueDriverPushesReservesAndAcknowledgesOverResp(): void
+    {
+        $pair = stream_socket_pair(STREAM_PF_INET, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        self::assertIsArray($pair);
+        [$clientSock, $serverSock] = $pair;
+
+        $jobJson = json_encode([
+            'id' => 'job_abc',
+            'queue' => 'default',
+            'type' => 'email.send',
+            'payload' => ['to' => 'ada@kongono.dev'],
+            'attempt' => 0,
+            'max_attempts' => 3,
+            'generation' => 0,
+            'lease_token' => null,
+            'available_at' => 1000,
+            'lease_until' => null,
+            'status' => 'pending',
+            'last_error' => null,
+        ], JSON_THROW_ON_ERROR);
+
+        // Preload deterministic RESP responses for push (HSET, ZADD) + reserve (ZRANGEBYSCORE, ZREM, HGET, HSET, ZADD)
+        fwrite(
+            $serverSock,
+            ":1\r\n"
+            . ":1\r\n"
+            . "*1\r\n\$7\r\njob_abc\r\n"
+            . ":1\r\n"
+            . '$' . strlen($jobJson) . "\r\n" . $jobJson . "\r\n"
+            . ":0\r\n"
+            . ":1\r\n",
+        );
+
+        try {
+            $redis = RedisClient::fromStream($clientSock);
+            $driver = new RedisQueueDriver($redis);
+
+            $pushed = $driver->push('default', 'email.send', ['to' => 'ada@kongono.dev'], now: 1000);
+            self::assertSame('pending', $pushed->status->value);
+
+            $reserved = $driver->reserve('default', leaseSeconds: 60, now: 1005);
+            self::assertNotNull($reserved);
+            self::assertSame('job_abc', $reserved->id);
+            self::assertSame(1, $reserved->attempt);
+            self::assertSame(1, $reserved->generation);
+            self::assertNotNull($reserved->leaseToken);
+            self::assertSame(1065, $reserved->leaseUntil);
+
+            $redis->close();
+        } finally {
+            fclose($serverSock);
+        }
     }
 }

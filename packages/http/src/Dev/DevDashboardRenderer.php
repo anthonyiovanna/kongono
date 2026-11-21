@@ -124,11 +124,33 @@ final class DevDashboardRenderer
 
   <section id="tab-ai" class="panel">
     <div class="card">
-      <h3>Built-in AI Companions (Oshie &middot; Chie &middot; Hantei)</h3>
-      <pre>php bin/kongo oshie --interactive
-php bin/kongo chie "Add a /api/stats endpoint"
-php bin/kongo hantei check
-php bin/kongo mcp</pre>
+      <h3>Oshie — Interactive Kongono Tutor</h3>
+      <div class="toolbar">
+        <select id="oshieLesson" class="btn">
+          <option value="">Ask a question below...</option>
+          <option value="routing">Lesson: Routing &amp; Controllers</option>
+          <option value="views">Lesson: Compiled .kgn.html Views</option>
+          <option value="validation">Lesson: Typed DTO Validation</option>
+          <option value="database">Lesson: QueryBuilder &amp; Migrations</option>
+          <option value="ai">Lesson: Multi-Provider AI &amp; Agents</option>
+          <option value="security">Lesson: Security, Auth &amp; SSRF</option>
+          <option value="storage">Lesson: Contained Storage &amp; S3</option>
+          <option value="jobs">Lesson: Queues, Workers &amp; Scheduler</option>
+        </select>
+        <input id="oshieInput" type="text" placeholder="Ask Oshie anything about your Kongono app..." style="flex:1;min-width:240px;padding:0.45rem 0.7rem;border-radius:6px;border:1px solid #334155;background:#020617;color:#f8fafc;">
+        <button class="btn" id="oshieSend">Ask Oshie</button>
+      </div>
+      <pre id="oshieOut">Pick a lesson or ask a question to study Kongono right inside Dev Studio.</pre>
+    </div>
+    <div class="card">
+      <h3>Hantei — Instant Error &amp; Diagnostic Debugger</h3>
+      <div class="toolbar">
+        <input id="hanteiInput" type="text" placeholder="Paste an error message or KGN-* diagnostic code..." style="flex:1;min-width:260px;padding:0.45rem 0.7rem;border-radius:6px;border:1px solid #334155;background:#020617;color:#f8fafc;">
+        <button class="btn" id="hanteiSend">Diagnose with Hantei</button>
+      </div>
+      <pre id="hanteiOut">Hantei automatically scrubs secrets before diagnosing errors against your ApplicationGraph.</pre>
+    </div>
+    <div class="card">
       <h3>Live MCP Workbench (POST /mcp)</h3>
       <div class="toolbar">
         <button class="btn" data-mcp="kongono_routes">Call kongono_routes</button>
@@ -194,6 +216,32 @@ php bin/kongo mcp</pre>
       await fetch(BASE + '/api/clear', { method: 'POST' });
       traces = [];
       renderTraces();
+    });
+    document.getElementById('oshieSend').addEventListener('click', async () => {
+      const out = document.getElementById('oshieOut');
+      const lesson = document.getElementById('oshieLesson').value;
+      const question = document.getElementById('oshieInput').value.trim();
+      out.textContent = 'Asking Oshie...';
+      const res = await fetch(BASE + '/api/oshie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, lesson }),
+      });
+      const json = await res.json();
+      out.textContent = json.reply || JSON.stringify(json, null, 2);
+    });
+    document.getElementById('hanteiSend').addEventListener('click', async () => {
+      const out = document.getElementById('hanteiOut');
+      const diagnostic = document.getElementById('hanteiInput').value.trim();
+      if (!diagnostic) return;
+      out.textContent = 'Running Hantei diagnosis...';
+      const res = await fetch(BASE + '/api/hantei', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ diagnostic }),
+      });
+      const json = await res.json();
+      out.textContent = json.diagnosis || JSON.stringify(json, null, 2);
     });
     document.querySelectorAll('[data-mcp]').forEach(btn => {
       btn.addEventListener('click', async () => {
