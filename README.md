@@ -3,6 +3,7 @@
 > **Build what comes next.**
 
 [![CI](https://github.com/anthonyiovanna/kongono/actions/workflows/ci.yml/badge.svg)](https://github.com/anthonyiovanna/kongono/actions/workflows/ci.yml)
+[![Latest Stable Version](https://img.shields.io/packagist/v/kongono/framework.svg?label=Packagist)](https://packagist.org/packages/kongono/framework)
 ![PHP 8.5+](https://img.shields.io/badge/PHP-8.5%2B-777BB4?logo=php&logoColor=white)
 ![Zero Symfony](https://img.shields.io/badge/Symfony-0%20runtime%20deps-16a34a)
 ![License MIT](https://img.shields.io/badge/License-MIT-0284c7)
@@ -28,13 +29,16 @@ Kongono is a modern, zero-legacy **PHP 8.5+** application framework built from t
 ## Installation & Quick Start
 
 ```bash
-# Install Kongono Framework into your project
-composer require kongono/framework
+# Create a brand-new Kongono app (includes /_kongono Dev Studio, /docs, /health, /mcp & FrankenPHP Dockerfile)
+composer create-project kongono/app my-app
+cd my-app
+composer dev
+```
 
-# Scaffold a brand-new Kongono app (includes /_kongono Dev Studio, /docs, /health, FrankenPHP Dockerfile)
-php vendor/bin/kongo new my-app --name="My App"
-cd my-app && composer install
-php vendor/bin/kongo serve --port=8000
+Or install `kongono/framework` directly into an existing project:
+
+```bash
+composer require kongono/framework
 ```
 
 Or run directly from this repository:

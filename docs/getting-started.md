@@ -8,13 +8,18 @@ Kongono is a zero-legacy **PHP 8.5+** application framework built from the groun
 - Optional recommended extensions: `ext-pdo_pgsql` (PostgreSQL/`pgvector`), `ext-zlib` (gzip/deflate compression), `ext-openssl` (STARTTLS SMTP & TLS Redis)
 - Composer 2.x
 
-## Install via Composer
+## Create a New App (Recommended — 1 Command)
+
+```bash
+composer create-project kongono/app my-app
+cd my-app
+composer dev
+```
+
+Or install `kongono/framework` directly into an existing PHP 8.5+ project:
 
 ```bash
 composer require kongono/framework
-php vendor/bin/kongo new my-app --name="My App"
-cd my-app
-composer install
 php vendor/bin/kongo doctor
 php vendor/bin/kongo serve --port=8000
 ```
