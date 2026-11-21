@@ -30,6 +30,7 @@ final readonly class ViewEngine
         ?string $cachePath = null,
         private string $extension = '.kgn.html',
         private ?Closure $translator = null,
+        private ?ViteManifest $vite = null,
     ) {
         $resolvedViews = realpath($viewsPath);
         if (false === $resolvedViews || !is_dir($resolvedViews)) {
@@ -47,7 +48,23 @@ final readonly class ViewEngine
      */
     public function withTranslator(Closure $translator): self
     {
-        return new self($this->viewsPath, $this->cachePath, $this->extension, $translator);
+        return new self($this->viewsPath, $this->cachePath, $this->extension, $translator, $this->vite);
+    }
+
+    /** Return a new ViewEngine bound to a ViteManifest for `@vite(...)` directive rendering. */
+    public function withVite(ViteManifest $vite): self
+    {
+        return new self($this->viewsPath, $this->cachePath, $this->extension, $this->translator, $vite);
+    }
+
+    /** @param string|list<string> $entries */
+    public function viteTags(string|array $entries): string
+    {
+        if (null === $this->vite) {
+            throw new ViewException('ViteManifest is not configured on ViewEngine. Call $views->withVite(new ViteManifest(...)).');
+        }
+
+        return $this->vite->tags($entries);
     }
 
     /** @param array<string, string|int|float> $params */

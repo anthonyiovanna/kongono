@@ -155,6 +155,19 @@ final class CompanionsAndCliTest extends TestCase
             [$ecOk, $ecOutOk] = $cli->run(['env:check', '--app=' . $tempDir]);
             self::assertSame(0, $ecOk);
             self::assertStringContainsString('[OK  ] APP_KEY', $ecOutOk);
+
+            // Verify version and single-shot tinker --eval against starter app
+            [$vCode, $vOut] = $cli->run(['version']);
+            self::assertSame(0, $vCode);
+            self::assertStringContainsString('v1.1.0', $vOut);
+
+            [$tkCode, $tkOut] = $cli->run(['tinker', '--app=' . $this->starterAppRoot, '--eval=$graph->appName']);
+            self::assertSame(0, $tkCode);
+            self::assertSame("Kongono Starter App\n", $tkOut);
+
+            [$tkCountCode, $tkCountOut] = $cli->run(['tinker', '--app=' . $this->starterAppRoot, '--eval=count($graph->routes)']);
+            self::assertSame(0, $tkCountCode);
+            self::assertGreaterThan(10, (int) trim($tkCountOut));
         } finally {
             $this->removeDir($tempDir);
         }

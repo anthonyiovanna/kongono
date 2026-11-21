@@ -143,6 +143,14 @@ final class DevDashboardRenderer
       <pre id="oshieOut">Pick a lesson or ask a question to study Kongono right inside Dev Studio.</pre>
     </div>
     <div class="card">
+      <h3>Chie — Project-Aware AI Builder (Safe Diff Preview)</h3>
+      <div class="toolbar">
+        <input id="chieInput" type="text" placeholder="Describe what to build (e.g. Add a /api/stats endpoint)..." style="flex:1;min-width:260px;padding:0.45rem 0.7rem;border-radius:6px;border:1px solid #334155;background:#020617;color:#f8fafc;">
+        <button class="btn" id="chieSend">Preview Diff with Chie</button>
+      </div>
+      <pre id="chieOut">Chie previews unified diffs against your live ApplicationGraph without modifying disk from the browser. Run `kongo chie "..." --apply` in your terminal to write approved changes.</pre>
+    </div>
+    <div class="card">
       <h3>Hantei — Instant Error &amp; Diagnostic Debugger</h3>
       <div class="toolbar">
         <input id="hanteiInput" type="text" placeholder="Paste an error message or KGN-* diagnostic code..." style="flex:1;min-width:260px;padding:0.45rem 0.7rem;border-radius:6px;border:1px solid #334155;background:#020617;color:#f8fafc;">
@@ -242,6 +250,24 @@ final class DevDashboardRenderer
       });
       const json = await res.json();
       out.textContent = json.diagnosis || JSON.stringify(json, null, 2);
+    });
+    document.getElementById('chieSend').addEventListener('click', async () => {
+      const out = document.getElementById('chieOut');
+      const instruction = document.getElementById('chieInput').value.trim();
+      if (!instruction) return;
+      out.textContent = 'Asking Chie for a safe diff preview...';
+      const res = await fetch(BASE + '/api/chie', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ instruction }),
+      });
+      const json = await res.json();
+      const blocks = [json.summary || ''];
+      for (const d of (json.diffs || [])) {
+        blocks.push('\n[' + (d.action || 'change') + '] ' + d.path + ' — ' + (d.explanation || '') + '\n' + (d.diff || ''));
+      }
+      if (json.apply_command) blocks.push('\nApply in terminal:\n  ' + json.apply_command);
+      out.textContent = blocks.join('\n').trim() || JSON.stringify(json, null, 2);
     });
     document.querySelectorAll('[data-mcp]').forEach(btn => {
       btn.addEventListener('click', async () => {

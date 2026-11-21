@@ -24,8 +24,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
     private DevDashboardRenderer $renderer;
 
     /**
-     * @param (Closure(string, ?string): string)|null $oshieHandler  Optional callback ($question, $lesson) => reply
-     * @param (Closure(string): string)|null          $hanteiHandler Optional callback ($diagnostic) => diagnosis
+     * @param (Closure(string, ?string): string)|null            $oshieHandler  Optional callback ($question, $lesson) => reply
+     * @param (Closure(string): string)|null                     $hanteiHandler Optional callback ($diagnostic) => diagnosis
+     * @param (Closure(string): array<string, mixed>)|null       $chieHandler   Optional preview-only builder callback ($instruction) => diff payload
      */
     public function __construct(
         private App $app,
@@ -33,6 +34,7 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         private string $prefix = '/_kongono',
         private ?Closure $oshieHandler = null,
         private ?Closure $hanteiHandler = null,
+        private ?Closure $chieHandler = null,
     ) {
         $this->renderer = new DevDashboardRenderer();
     }
@@ -80,6 +82,19 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             $diagnostic = is_array($decoded) && is_string($decoded['diagnostic'] ?? null) ? trim($decoded['diagnostic']) : '';
 
             return Response::json(['diagnosis' => ($this->hanteiHandler)($diagnostic)]);
+        }
+
+        if ($path === $base . '/api/chie' && 'POST' === $method) {
+            if (null === $this->chieHandler) {
+                return Response::json(['summary' => 'Chie browser preview bridge is not configured on DevDashboardMiddleware.', 'diffs' => []], 501);
+            }
+            $decoded = json_decode((string) $request->getBody(), true);
+            $instruction = is_array($decoded) && is_string($decoded['instruction'] ?? null) ? trim($decoded['instruction']) : '';
+            if ('' === $instruction) {
+                return Response::json(['error' => 'Provide an "instruction" string for Chie preview.'], 422);
+            }
+
+            return Response::json(($this->chieHandler)($instruction));
         }
 
         $this->inspector->beginRequest();

@@ -296,7 +296,14 @@ final class HttpAppTest extends TestCase
         $app = App::create(__DIR__, name: 'Studio Demo')
             ->debug(true)
             ->controller(PrefixedController::class);
-        $app->middleware(new DevDashboardMiddleware($app, $inspector));
+        $app->middleware(new DevDashboardMiddleware(
+            app: $app,
+            inspector: $inspector,
+            chieHandler: static fn(string $instruction): array => [
+                'summary' => 'Planned: ' . $instruction,
+                'diffs' => [['path' => 'src/Http/StatsController.php', 'action' => 'create', 'explanation' => 'Adds stats', 'diff' => '+<?php']],
+            ],
+        ));
 
         $client = new TestClient($app);
 
@@ -304,11 +311,17 @@ final class HttpAppTest extends TestCase
         $hello = $client->get('/prefixed/hello')->assertOk()->assertJsonPath('ok', true);
         self::assertSame('applied', $hello->header('X-Attr-Middleware'));
 
-        // Dev Studio HTML + recorded trace API + clear API
+        // Dev Studio HTML + recorded trace API + Chie preview API + clear API
         $client->get('/_kongono')
             ->assertOk()
             ->assertSee('Kongono Dev Studio')
-            ->assertSee('/prefixed/hello');
+            ->assertSee('/prefixed/hello')
+            ->assertSee('Preview Diff with Chie');
+
+        $client->postJson('/_kongono/api/chie', ['instruction' => 'Add /stats'])
+            ->assertOk()
+            ->assertJsonPath('summary', 'Planned: Add /stats');
+        $client->postJson('/_kongono/api/chie', ['instruction' => ''])->assertStatus(422);
 
         $traces = $client->get('/_kongono/api/traces')->assertOk()->json();
         self::assertCount(1, $traces);

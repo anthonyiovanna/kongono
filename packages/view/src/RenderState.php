@@ -42,6 +42,12 @@ final class RenderState
         return $this->escape($this->engine->translate($key, $params, $locale));
     }
 
+    /** @param string|list<string> $entries */
+    public function vite(string|array $entries): string
+    {
+        return $this->engine->viteTags($entries);
+    }
+
     public function extend(string $layout): void
     {
         $this->layout = $layout;

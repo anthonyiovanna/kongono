@@ -6,6 +6,7 @@ namespace Kongono\View\Tests;
 
 use Kongono\View\ViewEngine;
 use Kongono\View\ViewException;
+use Kongono\View\ViteManifest;
 use PHPUnit\Framework\TestCase;
 
 final class ViewEngineTest extends TestCase
@@ -128,6 +129,45 @@ HTML,
         self::assertStringContainsString('<h1>Hello, &lt;b&gt;Ada&lt;/b&gt;!</h1>', $html);
         self::assertStringContainsString('<p>こんにちは、&lt;b&gt;Ada&lt;/b&gt;！</p>', $html);
         self::assertSame(1, $engine->warmCache());
+    }
+
+    public function testViteManifestAndViteDirectiveSupportDevHmrAndProductionBuilds(): void
+    {
+        $publicDir = $this->tempDir . DIRECTORY_SEPARATOR . 'public';
+        mkdir($publicDir . DIRECTORY_SEPARATOR . 'build' . DIRECTORY_SEPARATOR . '.vite', 0o777, true);
+        file_put_contents(
+            $publicDir . DIRECTORY_SEPARATOR . 'build' . DIRECTORY_SEPARATOR . '.vite' . DIRECTORY_SEPARATOR . 'manifest.json',
+            json_encode([
+                'resources/js/app.js' => [
+                    'file' => 'assets/app-abc123.js',
+                    'css' => ['assets/app-abc123.css'],
+                    'imports' => ['_vendor.js'],
+                ],
+                '_vendor.js' => [
+                    'file' => 'assets/vendor-def456.js',
+                ],
+            ], JSON_THROW_ON_ERROR),
+        );
+        file_put_contents(
+            $this->tempDir . '/views/vite.kgn.html',
+            '<head>@vite("resources/js/app.js")</head>',
+        );
+
+        $vite = new ViteManifest($publicDir);
+        $engine = (new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache'))->withVite($vite);
+
+        // Production mode emits hashed CSS, modulepreload, and module script
+        $prodHtml = $engine->render('vite');
+        self::assertStringContainsString('<link rel="stylesheet" href="/build/assets/app-abc123.css">', $prodHtml);
+        self::assertStringContainsString('<link rel="modulepreload" href="/build/assets/vendor-def456.js">', $prodHtml);
+        self::assertStringContainsString('<script type="module" src="/build/assets/app-abc123.js"></script>', $prodHtml);
+        self::assertSame('/build/assets/app-abc123.js', $vite->asset('resources/js/app.js'));
+
+        // Dev HMR mode when public/hot exists
+        file_put_contents($publicDir . DIRECTORY_SEPARATOR . 'hot', "http://127.0.0.1:5173\n");
+        $devHtml = $engine->render('vite');
+        self::assertStringContainsString('<script type="module" src="http://127.0.0.1:5173/@vite/client"></script>', $devHtml);
+        self::assertStringContainsString('<script type="module" src="http://127.0.0.1:5173/resources/js/app.js"></script>', $devHtml);
     }
 
     private function removeDir(string $dir): void

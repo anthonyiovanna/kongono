@@ -51,17 +51,19 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.0.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.1.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
                 'mcp' => $this->cmdMcp($appRoot),
                 'serve' => $this->cmdServe($appRoot, $options),
+                'tinker' => $this->cmdTinker($appRoot, $options),
                 'new' => $this->cmdNew($rest, $options),
                 'work' => $this->cmdWork($appRoot, $options),
                 'schedule:run' => $this->cmdScheduleRun($appRoot),
                 'migrate' => $this->cmdMigrate($appRoot),
                 'migrate:rollback' => $this->cmdMigrateRollback($appRoot, $options),
+                'migrate:status' => $this->cmdMigrateStatus($appRoot),
                 'db:seed' => $this->cmdDbSeed($appRoot),
                 'optimize' => $this->cmdOptimize($appRoot),
                 'cache:clear' => $this->cmdCacheClear($appRoot),
@@ -577,6 +579,173 @@ final readonly class KongoCli
     }
 
     /** @return array{0: int, 1: string} */
+    private function cmdMigrateStatus(string $appRoot): array
+    {
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (!is_file($bootstrap)) {
+            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $app = require $bootstrap;
+        if (!$app instanceof App || !$app->container()->has(ConnectionInterface::class)) {
+            return [1, "No Kongono\\Database\\ConnectionInterface registered in this application's container.\n"];
+        }
+
+        $migrationsDir = $appRoot . DIRECTORY_SEPARATOR . 'migrations';
+        $files = is_dir($migrationsDir) ? glob($migrationsDir . DIRECTORY_SEPARATOR . '*.php') : [];
+        if (false === $files || [] === $files) {
+            return [0, "No migration files found.\n"];
+        }
+        sort($files, SORT_STRING);
+
+        $migrations = [];
+        foreach ($files as $file) {
+            $loaded = require $file;
+            if ($loaded instanceof MigrationInterface) {
+                $migrations[] = $loaded;
+            }
+        }
+
+        $db = $app->container()->make(ConnectionInterface::class);
+        $rows = (new Migrator($db))->status($migrations);
+        $lines = [
+            sprintf('Migration status (%d total):', count($rows)),
+            str_repeat('-', 56),
+        ];
+        foreach ($rows as $row) {
+            $lines[] = sprintf('  [%-7s] %s', $row['applied'] ? 'APPLIED' : 'PENDING', $row['id']);
+        }
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * Interactive PHP 8.5 REPL (or single-shot `--eval="..."`) pre-booted with `$app`, `$container`, `$router`, and `$graph`.
+     *
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdTinker(string $appRoot, array $options): array
+    {
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (!is_file($bootstrap)) {
+            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $app = require $bootstrap;
+        if (!$app instanceof App) {
+            return [1, "app/bootstrap.php did not return a Kongono\\Http\\App instance.\n"];
+        }
+
+        $container = $app->container();
+        $router = $app->router();
+        $graph = $app->graph();
+
+        $evalCode = is_string($options['eval'] ?? null) ? trim($options['eval']) : null;
+        if (null !== $evalCode && '' !== $evalCode) {
+            $result = $this->evalTinkerSnippet($evalCode, $app, $container, $router, $graph);
+
+            return [$result['ok'] ? 0 : 1, $result['output'] . "\n"];
+        }
+
+        fwrite(STDOUT, sprintf("Kongono Tinker — %s (PHP %s)\n", $graph->appName, PHP_VERSION));
+        fwrite(STDOUT, "Available: \$app, \$container, \$router, \$graph  |  Commands: :routes, :services, :graph, :exit\n");
+
+        while (true) {
+            fwrite(STDOUT, "\ntinker> ");
+            $line = fgets(STDIN);
+            if (false === $line) {
+                break;
+            }
+            $input = trim($line);
+            if ('' === $input) {
+                continue;
+            }
+            if (':exit' === $input || ':quit' === $input || 'exit' === $input) {
+                break;
+            }
+            if (':routes' === $input) {
+                foreach ($graph->routes as $r) {
+                    fwrite(STDOUT, sprintf("  %-10s %s -> %s\n", implode('|', $r->methods), $r->path, $r->handler));
+                }
+                continue;
+            }
+            if (':services' === $input) {
+                foreach ($graph->services as $s) {
+                    fwrite(STDOUT, sprintf("  [%-9s] %s\n", $s->lifetime, $s->id));
+                }
+                continue;
+            }
+            if (':graph' === $input) {
+                fwrite(STDOUT, $graph->toJson(pretty: true) . "\n");
+                continue;
+            }
+
+            $res = $this->evalTinkerSnippet($input, $app, $container, $router, $graph);
+            fwrite(STDOUT, $res['output'] . "\n");
+        }
+
+        return [0, "Goodbye from Tinker.\n"];
+    }
+
+    /**
+     * @return array{ok: bool, output: string}
+     */
+    private function evalTinkerSnippet(
+        string $code,
+        App $app,
+        \Kongono\Core\Container $container,
+        \Kongono\Http\Routing\Router $router,
+        \Kongono\Core\Graph\ApplicationGraph $graph,
+    ): array {
+        $trimmed = rtrim($code, "; \t\n\r");
+        $isStatement = str_starts_with($trimmed, 'echo ')
+            || str_starts_with($trimmed, 'return ')
+            || str_contains($trimmed, ';');
+        $executable = $isStatement ? ($trimmed . ';') : ('return ' . $trimmed . ';');
+
+        ob_start();
+        try {
+            $value = (static function (
+                string $__code,
+                App $app,
+                \Kongono\Core\Container $container,
+                \Kongono\Http\Routing\Router $router,
+                \Kongono\Core\Graph\ApplicationGraph $graph,
+            ): mixed {
+                return eval($__code);
+            })($executable, $app, $container, $router, $graph);
+
+            $printed = ob_get_clean();
+            $printedStr = false === $printed ? '' : $printed;
+            $formatted = null === $value
+                ? ($printedStr !== '' ? rtrim($printedStr, "\r\n") : 'null')
+                : ($printedStr . $this->formatTinkerValue($value));
+
+            return ['ok' => true, 'output' => $formatted];
+        } catch (Throwable $e) {
+            ob_end_clean();
+
+            return ['ok' => false, 'output' => sprintf('%s: %s', $e::class, $e->getMessage())];
+        }
+    }
+
+    private function formatTinkerValue(mixed $value): string
+    {
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (is_int($value) || is_float($value) || is_string($value)) {
+            return (string) $value;
+        }
+        if (is_array($value)) {
+            return json_encode($value, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        }
+
+        return print_r($value, true);
+    }
+
+    /** @return array{0: int, 1: string} */
     private function cmdMigrate(string $appRoot): array
     {
         $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
@@ -812,7 +981,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -879,10 +1048,12 @@ Usage:
 Core Commands:
   new <dir> [--name="My App"]                           Scaffold a brand-new Kongono v1 project
   serve [--app=path] [--host=127.0.0.1] [--port=8000]   Start local PHP 8.5 dev server
+  tinker [--app=path] [--eval="expr"]                   Interactive PHP 8.5 REPL with live $app & $container
   work [--app=path] [--queue=default] [--max-jobs=50]   Process queued background jobs
   schedule:run [--app=path]                             Execute due scheduled cron tasks
   migrate [--app=path]                                  Run pending database migrations
   migrate:rollback [--app=path] [--steps=1]             Roll back applied database migrations
+  migrate:status [--app=path]                           Show applied vs pending database migrations
   db:seed [--app=path]                                  Execute SeederInterface files in seeders/
   optimize [--app=path]                                 Precompile .kgn.html views & cache graph/OpenAPI
   cache:clear [--app=path]                              Clear compiled views & cached app files

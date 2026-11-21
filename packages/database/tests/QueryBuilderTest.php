@@ -365,7 +365,15 @@ final class QueryBuilderTest extends TestCase
 
         $migrator = new Migrator($fakeConn);
         self::assertSame(['20260101_create_a', '20260102_create_b'], $migrator->migrate([$m1, $m2]));
+        self::assertSame([
+            ['id' => '20260101_create_a', 'applied' => true],
+            ['id' => '20260102_create_b', 'applied' => true],
+        ], $migrator->status([$m1, $m2]));
         self::assertSame(['20260102_create_b'], $migrator->rollback([$m1, $m2], steps: 1));
+        self::assertSame([
+            ['id' => '20260101_create_a', 'applied' => true],
+            ['id' => '20260102_create_b', 'applied' => false],
+        ], $migrator->status([$m1, $m2]));
         self::assertContains('DOWN_B', $events);
         self::assertSame(['20260101_create_a'], $applied);
     }

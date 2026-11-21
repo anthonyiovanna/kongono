@@ -272,6 +272,10 @@ final class StarterAppTest extends TestCase
             ->assertOk()
             ->assertSee('Hantei')
             ->assertDontSee('sk-proj-1234567890abcdef1234');
+
+        $client->postJson('/_kongono/api/chie', ['instruction' => 'Add a /api/stats endpoint'])
+            ->assertOk()
+            ->assertSee('Chie');
     }
 
     private function removeDir(string $dir): void

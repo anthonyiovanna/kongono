@@ -88,6 +88,29 @@ final readonly class Migrator
         return $rolledBack;
     }
 
+    /**
+     * Return applied/pending status for every known migration in order.
+     *
+     * @param list<MigrationInterface> $migrations
+     * @return list<array{id: string, applied: bool}>
+     */
+    public function status(array $migrations): array
+    {
+        $this->ensureTable();
+        $applied = $this->appliedIds();
+        $rows = [];
+
+        foreach ($migrations as $migration) {
+            $id = $migration->id();
+            $rows[] = [
+                'id' => $id,
+                'applied' => in_array($id, $applied, true),
+            ];
+        }
+
+        return $rows;
+    }
+
     /** @return list<string> */
     public function appliedIds(): array
     {

@@ -4,6 +4,19 @@ All notable changes to the **Kongono Framework** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-21
+
+### Added
+
+- **First-Class Vite Integration (`kongono/view`):**
+  - `ViteManifest` supporting both hot-reload dev servers (`public/hot` -> `@vite/client`) and Vite 5/6/7 production manifests (`public/build/manifest.json` or `.vite/manifest.json`) with hashed CSS, `modulepreload` chunks, and `<script type="module">` tags.
+  - `@vite('resources/js/app.js')` / `@vite([...])` template directive + `ViewEngine::withVite()`.
+- **Complete Browser AI Trio inside `/_kongono` Dev Studio (`kongono/http`):**
+  - Added debug-only `POST /_kongono/api/chie` preview endpoint and interactive **Chie — Project-Aware AI Builder (Safe Diff Preview)** panel right alongside Oshie, Hantei, and MCP (strictly read/diff-preview only in browser; writes remain terminal-confirmed via `--apply`).
+- **Database Status & Interactive App REPL (`kongono/database`, `kongono/cli`):**
+  - `Migrator::status()` and `kongo migrate:status` showing `[APPLIED]` vs `[PENDING]` migrations.
+  - `kongo tinker [--app=path] [--eval="expr"]` — interactive PHP 8.5 REPL (and one-liner `--eval` script runner) pre-booted with `$app`, `$container`, `$router`, and `$graph`.
+
 ## [1.0.0] - 2026-11-21
 
 ### Added
