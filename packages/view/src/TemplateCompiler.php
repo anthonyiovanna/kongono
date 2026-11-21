@@ -90,7 +90,12 @@ final class TemplateCompiler
         // 8. Escaped echo {{ $expr }}
         $output = $this->replaceCallback('/\{\{\s*(.+?)\s*\}\}/s', static fn(array $m): string => sprintf('<?php echo $__env->escape(%s); ?>', $m[1]), $output);
 
-        return "<?php declare(strict_types=1); ?>\n" . $output;
+        return "<?php declare(strict_types=1);\n"
+            . "return static function (array \$__vars, \\Kongono\\View\\RenderState \$__env): void {\n"
+            . "    extract(\$__vars, EXTR_SKIP);\n"
+            . "?>\n"
+            . $output
+            . "<?php };\n";
     }
 
     private function compileSelfClosingComponents(string $source): string

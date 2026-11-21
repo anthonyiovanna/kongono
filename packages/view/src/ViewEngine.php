@@ -14,13 +14,21 @@ use Throwable;
  * Compiled HTML template engine for Kongono v1 (`.kgn.html`).
  *
  * Contained within one views root directory, compiles templates to opcache-friendly PHP
- * files in a cache directory, and isolates every render call with zero shared state.
+ * closure scripts in a cache directory, and isolates every render call with zero shared
+ * request state. Set `autoReload: false` in production persistent workers (FrankenPHP,
+ * RoadRunner, `kongo serve`) to keep compiled closures hot in memory with zero per-request
+ * filesystem checks.
  */
-final readonly class ViewEngine
+final class ViewEngine
 {
-    private string $viewsPath;
-    private string $cachePath;
-    private TemplateCompiler $compiler;
+    private const string CACHE_VERSION = 'v2';
+
+    private readonly string $viewsPath;
+    private readonly string $cachePath;
+    private readonly TemplateCompiler $compiler;
+
+    /** @var array<string, Closure(array<string, mixed>, RenderState): void> */
+    private array $compiledRenderers = [];
 
     /**
      * @param ?Closure(string, array<string, string|int|float>, ?string): string $translator
@@ -28,9 +36,10 @@ final readonly class ViewEngine
     public function __construct(
         string $viewsPath,
         ?string $cachePath = null,
-        private string $extension = '.kgn.html',
-        private ?Closure $translator = null,
-        private ?ViteManifest $vite = null,
+        private readonly string $extension = '.kgn.html',
+        private readonly ?Closure $translator = null,
+        private readonly ?ViteManifest $vite = null,
+        private readonly bool $autoReload = true,
     ) {
         $resolvedViews = realpath($viewsPath);
         if (false === $resolvedViews || !is_dir($resolvedViews)) {
@@ -48,13 +57,29 @@ final readonly class ViewEngine
      */
     public function withTranslator(Closure $translator): self
     {
-        return new self($this->viewsPath, $this->cachePath, $this->extension, $translator, $this->vite);
+        return new self($this->viewsPath, $this->cachePath, $this->extension, $translator, $this->vite, $this->autoReload);
     }
 
     /** Return a new ViewEngine bound to a ViteManifest for `@vite(...)` directive rendering. */
     public function withVite(ViteManifest $vite): self
     {
-        return new self($this->viewsPath, $this->cachePath, $this->extension, $this->translator, $vite);
+        return new self($this->viewsPath, $this->cachePath, $this->extension, $this->translator, $vite, $this->autoReload);
+    }
+
+    /**
+     * Return a new ViewEngine with auto-reload enabled (dev) or disabled (production workers).
+     *
+     * When disabled, compiled template closures are cached in memory per ViewEngine instance so
+     * repeated renders skip `realpath()`, `filemtime()`, and `require` overhead.
+     */
+    public function withAutoReload(bool $autoReload = true): self
+    {
+        return new self($this->viewsPath, $this->cachePath, $this->extension, $this->translator, $this->vite, $autoReload);
+    }
+
+    public function isAutoReload(): bool
+    {
+        return $this->autoReload;
     }
 
     /** @param string|list<string> $entries */
@@ -126,13 +151,19 @@ final readonly class ViewEngine
         return $templates;
     }
 
-    /** Pre-compile all templates into the cache directory for zero-cold-start deployments. */
+    /**
+     * Pre-compile all templates into the cache directory for zero-cold-start deployments.
+     * When `autoReload` is false, also preloads compiled closures into memory.
+     */
     public function warmCache(): int
     {
         $compiled = 0;
         foreach ($this->listTemplates() as $template) {
-            $sourcePath = $this->resolveTemplatePath($template);
-            $this->ensureCompiled($template, $sourcePath);
+            $sourcePath = $this->resolveNormalizedTemplatePath($template, $template);
+            $compiledPath = $this->ensureCompiled($template, $sourcePath, checkFreshness: true);
+            if (!$this->autoReload) {
+                $this->compiledRenderers[$template] = $this->loadCompiledRenderer($compiledPath, $template);
+            }
             ++$compiled;
         }
 
@@ -142,44 +173,74 @@ final readonly class ViewEngine
     /** @param array<string, mixed> $data */
     private function evaluate(string $template, array $data, RenderState $state): string
     {
-        $sourcePath = $this->resolveTemplatePath($template);
-        $compiledPath = $this->ensureCompiled($template, $sourcePath);
+        if (!$this->autoReload) {
+            $cached = $this->compiledRenderers[$template] ?? null;
+            if (null !== $cached) {
+                return $this->executeRenderer($cached, $data, $state);
+            }
+        }
 
-        return $this->executeCompiled($compiledPath, $data, $state);
+        $normalized = $this->normalizeTemplateName($template);
+        if (!$this->autoReload) {
+            $cached = $this->compiledRenderers[$normalized] ?? null;
+            if (null !== $cached) {
+                return $this->executeRenderer($cached, $data, $state);
+            }
+        }
+
+        $sourcePath = $this->resolveNormalizedTemplatePath($normalized, $template);
+        $compiledPath = $this->ensureCompiled($normalized, $sourcePath, checkFreshness: $this->autoReload);
+        $renderer = $this->loadCompiledRenderer($compiledPath, $normalized);
+
+        if (!$this->autoReload) {
+            $this->compiledRenderers[$normalized] = $renderer;
+        }
+
+        return $this->executeRenderer($renderer, $data, $state);
     }
 
-    private function resolveTemplatePath(string $template): string
+    private function normalizeTemplateName(string $template): string
     {
         $normalized = ltrim(str_replace('\\', '/', trim($template)), '/');
         if ('' === $normalized || str_contains($normalized, '..') || str_contains($normalized, "\0")) {
             throw new ViewException(sprintf('Invalid template name "%s".', $template));
         }
 
+        return $normalized;
+    }
+
+    private function resolveNormalizedTemplatePath(string $normalized, string $original): string
+    {
         $candidate = $this->viewsPath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalized) . $this->extension;
         $real = realpath($candidate);
         if (false === $real || !is_file($real)) {
-            throw new ViewException(sprintf('Template "%s" not found.', $template));
+            throw new ViewException(sprintf('Template "%s" not found.', $original));
         }
 
         $prefix = rtrim($this->viewsPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         if (!str_starts_with($real, $prefix)) {
-            throw new ViewException(sprintf('Template "%s" escapes views directory.', $template));
+            throw new ViewException(sprintf('Template "%s" escapes views directory.', $original));
         }
 
         return $real;
     }
 
-    private function ensureCompiled(string $template, string $sourcePath): string
+    private function ensureCompiled(string $template, string $sourcePath, bool $checkFreshness = true): string
     {
-        if (!is_dir($this->cachePath) && !@mkdir($this->cachePath, 0o775, true) && !is_dir($this->cachePath)) {
-            throw new ViewException(sprintf('Unable to create view cache directory "%s".', $this->cachePath));
+        $cacheFile = $this->cachePath . DIRECTORY_SEPARATOR . hash('sha256', self::CACHE_VERSION . '|' . $template . '|' . $sourcePath) . '.php';
+
+        $needsCompile = !is_file($cacheFile);
+        if (!$needsCompile && $checkFreshness) {
+            $sourceMtime = filemtime($sourcePath);
+            $cacheMtime = filemtime($cacheFile);
+            $needsCompile = false === $cacheMtime || false === $sourceMtime || $cacheMtime < $sourceMtime;
         }
 
-        $cacheFile = $this->cachePath . DIRECTORY_SEPARATOR . hash('sha256', $template . '|' . $sourcePath) . '.php';
-        $sourceMtime = filemtime($sourcePath);
-        $cacheMtime = is_file($cacheFile) ? filemtime($cacheFile) : false;
+        if ($needsCompile) {
+            if (!is_dir($this->cachePath) && !@mkdir($this->cachePath, 0o775, true) && !is_dir($this->cachePath)) {
+                throw new ViewException(sprintf('Unable to create view cache directory "%s".', $this->cachePath));
+            }
 
-        if (false === $cacheMtime || false === $sourceMtime || $cacheMtime < $sourceMtime) {
             $source = file_get_contents($sourcePath);
             if (false === $source) {
                 throw new ViewException(sprintf('Failed to read template "%s".', $template));
@@ -196,23 +257,37 @@ final readonly class ViewEngine
                     throw new ViewException(sprintf('Failed to publish compiled template cache for "%s".', $template));
                 }
             }
+            if (function_exists('opcache_invalidate')) {
+                @opcache_invalidate($cacheFile, true);
+            }
         }
 
         return $cacheFile;
     }
 
-    /** @param array<string, mixed> $__data */
-    private function executeCompiled(string $__compiledPath, array $__data, RenderState $__env): string
+    /** @return Closure(array<string, mixed>, RenderState): void */
+    private function loadCompiledRenderer(string $compiledPath, string $template): Closure
+    {
+        $renderer = require $compiledPath;
+        if (!$renderer instanceof Closure) {
+            throw new ViewException(sprintf('Compiled template cache for "%s" is invalid.', $template));
+        }
+
+        /** @var Closure(array<string, mixed>, RenderState): void $renderer */
+        return $renderer;
+    }
+
+    /**
+     * @param Closure(array<string, mixed>, RenderState): void $renderer
+     * @param array<string, mixed>                             $data
+     */
+    private function executeRenderer(Closure $renderer, array $data, RenderState $state): string
     {
         $level = ob_get_level();
         ob_start();
 
         try {
-            (static function (string $__file, array $__vars, RenderState $__env): void {
-                extract($__vars, EXTR_SKIP);
-                require $__file;
-            })($__compiledPath, $__data, $__env);
-
+            $renderer($data, $state);
             $output = ob_get_clean();
 
             return false === $output ? '' : $output;

@@ -47,7 +47,7 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app
 
 ## 3. Production Hardening Checklist
 
-1. **Disable debug mode:** Set `APP_DEBUG=false` (disables `DevErrorRenderer` stack traces and automatically fail-closes `/_kongono` Dev Studio to `404`).
+1. **Disable debug mode & template auto-reload:** Set `APP_DEBUG=false` (disables `DevErrorRenderer` stack traces and automatically fail-closes `/_kongono` Dev Studio to `404`), and configure `->views(autoReload: false)` so persistent workers cache compiled `.kgn.html` closures in memory with zero per-request filesystem checks. Call `$views->warmCache()` at worker boot to eliminate first-request latency as well.
 2. **Generate a strong `APP_KEY`:** Run `php bin/kongo key:generate`. Rotate safely using `new Encryptor($currentKey, previousKeys: [$oldKey])`.
 3. **Database & Migrations:** Use `PdoConnection::fromUrl(Config::env('DATABASE_URL'))`, run `php bin/kongo migrate`, and use `PostgresQueueDriver` (`FOR UPDATE SKIP LOCKED` + fencing tokens) for durable background jobs.
 4. **Horizontal Scaling with Redis / Valkey:**

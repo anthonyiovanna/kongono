@@ -33,6 +33,7 @@ use Kongono\Http\Testing\TestClient;
 use Kongono\Http\UploadedFile;
 use Kongono\Validation\Attributes\Email;
 use Kongono\Validation\Attributes\Required;
+use Kongono\View\ViewEngine;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -417,6 +418,37 @@ final class HttpAppTest extends TestCase
             ->get('/beta')
             ->assertOk()
             ->assertJsonPath('beta', true);
+    }
+
+    public function testViewsSupportsAutoReloadFlagAndInstanceSync(): void
+    {
+        $tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-http-view-' . bin2hex(random_bytes(5));
+        mkdir($tempDir . DIRECTORY_SEPARATOR . 'views', 0o777, true);
+        mkdir($tempDir . DIRECTORY_SEPARATOR . 'cache', 0o777, true);
+        file_put_contents($tempDir . '/views/hello.kgn.html', '<p>@t("greet")</p>');
+
+        try {
+            $app = App::create($tempDir)
+                ->views($tempDir . '/views', $tempDir . '/cache', autoReload: false);
+
+            $engine = $app->container()->make(ViewEngine::class);
+            self::assertFalse($engine->isAutoReload());
+
+            $app->instance(ViewEngine::class, $engine->withTranslator(static fn(string $key): string => 'Hello ' . $key));
+            $response = $app->view('hello');
+
+            self::assertSame(200, $response->getStatusCode());
+            self::assertSame('<p>Hello greet</p>', (string) $response->getBody());
+            self::assertFalse($app->container()->make(ViewEngine::class)->isAutoReload());
+        } finally {
+            foreach (glob($tempDir . '/cache/*') ?: [] as $f) {
+                @unlink($f);
+            }
+            @unlink($tempDir . '/views/hello.kgn.html');
+            @rmdir($tempDir . '/cache');
+            @rmdir($tempDir . '/views');
+            @rmdir($tempDir);
+        }
     }
 }
 

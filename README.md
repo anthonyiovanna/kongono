@@ -1,4 +1,4 @@
-# Kongono Framework (v1.1.0)
+# Kongono Framework (v1.1.1)
 
 > **Build what comes next.**
 
@@ -78,7 +78,7 @@ To enable live AI responses for Oshie, Chie, and Hantei, set any one environment
 | --- | --- | --- | --- |
 | 1 | `packages/core` | `Kongono\Core\` | Persistent `Kernel`, PSR-11 `Container`, `Config`, `EnvLoader`, PSR-3 `Logger`, `MemoryCache`/`FileCache`/pure-PHP `RedisClient`+`RedisCache`, `FeatureManager`, `NotificationDispatcher`, `Retry`/`CircuitBreaker`, `Metrics`/`Tracer`, `HealthCheck`, `I18n\Translator`, `Diagnostics`, `EventDispatcher`, `ApplicationGraph` |
 | 2 | `packages/http` | `Kongono\Http\` | PSR-7/15 `Request`/`Response`/`Cookie`, `Session`, `StaticFilesMiddleware`, `CompressionMiddleware`, `#[CacheControl]`/`HttpCacheMiddleware`, `#[Idempotent]`/`IdempotencyMiddleware`, `#[Feature]`, `SseEvent` + `EventBus`, `OpenApiGenerator`, `/docs` `ApiDocsRenderer`, `/_kongono` `DevDashboardMiddleware` (with live Oshie/Hantei Studio), `DevErrorRenderer`, fluent `TestClient`, `#[Prefix]`/`#[Middleware]`/`#[Get]` `Router`, persistent `App` |
-| 3 | `packages/view` | `Kongono\View\` | Compiled `.kgn.html` templates (`warmCache()`), layouts, loops, `<x-component>` slots, `@t(...)` i18n, `@json`, automatic XSS escaping |
+| 3 | `packages/view` | `Kongono\View\` | Compiled `.kgn.html` closure templates (`warmCache()`, production `autoReload: false`), `@vite(...)`, layouts, loops, `<x-component>` slots, `@t(...)` i18n, `@json`, automatic XSS escaping |
 | 4 | `packages/validation` | `Kongono\Validation\` | PHP 8.5 attribute-driven typed DTO validation (nested DTOs, `BackedEnum`, `#[Uuid]`, `#[Between]`, `#[Confirmed]`, `#[Email]`, `#[Min]`/`#[Max]`, `#[In]`, `#[Regex]`) |
 | 5 | `packages/database` | `Kongono\Database\` | Parameterized `QueryBuilder` (`JOIN`, `whereGroup()`, `upsert()`, `GROUP BY`, `HAVING`, `RETURNING`, `paginate()`, `getAs()`, `insertMany()`), `Schema`/`Blueprint`, `Repository`, `PdoConnection::onQuery()`, `Migrator` (`migrate` + `rollback`), `SeederInterface` |
 | 6 | `packages/security` | `Kongono\Security\` | `Principal` (Human/Service/Agent), `Gate`, `#[Can]` + `AuthorizeMiddleware`, RFC 6238 `Totp` 2FA/MFA, `WebhookSigner` + `WebhookDispatcher` + `#[VerifyWebhook]`, Argon2id `PasswordHasher`, AEAD `Encryptor` (XChaCha20-Poly1305 + key rotation), HMAC `TokenSigner` & `SignedUrl`, CSRF/CORS/Bearer/RateLimit/SecurityHeaders middleware, SSRF-hardened `SafeHttpClient` |

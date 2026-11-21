@@ -61,7 +61,7 @@ $benchCache = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-bench-views-' 
 $bootStart = hrtime(true);
 $app = App::create($starterRoot, name: 'Kongono Benchmark')
     ->debug(false)
-    ->views($starterRoot . '/views', $benchCache)
+    ->views($starterRoot . '/views', $benchCache, autoReload: false)
     ->controller(BenchController::class);
 $app->boot();
 $bootMs = (hrtime(true) - $bootStart) / 1_000_000;
@@ -121,7 +121,7 @@ foreach (glob($benchCache . DIRECTORY_SEPARATOR . '*') ?: [] as $f) {
 
 $peakMb = round(memory_get_peak_usage(true) / 1_048_576, 2);
 
-echo "Kongono Framework v1.1.0 — Persistent-Worker In-Process Benchmark\n";
+echo "Kongono Framework v1.1.1 — Persistent-Worker In-Process Benchmark\n";
 echo sprintf("Runtime: PHP %s (%s) | Iterations: %d per scenario\n", PHP_VERSION, PHP_OS_FAMILY, $iterations);
 echo sprintf("Cold App Boot: %.2f ms | Peak Memory: %.2f MB | Active Ops After Run: %d\n\n", $bootMs, $peakMb, $app->kernel()->activeOperationCount());
 echo sprintf("%-42s %10s %9s %9s %9s %12s\n", 'SCENARIO', 'REQ/SEC', 'P50 (ms)', 'P95 (ms)', 'P99 (ms)', 'MEM DELTA');

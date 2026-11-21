@@ -100,11 +100,11 @@ final class App
         return $this->debug;
     }
 
-    public function views(?string $viewsPath = null, ?string $cachePath = null): self
+    public function views(?string $viewsPath = null, ?string $cachePath = null, bool $autoReload = true): self
     {
         $path = $viewsPath ?? ($this->basePath . DIRECTORY_SEPARATOR . 'views');
         $cache = $cachePath ?? ($this->basePath . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'views');
-        $this->views = new ViewEngine($path, $cache);
+        $this->views = new ViewEngine($path, $cache, autoReload: $autoReload);
         $this->container->instance(ViewEngine::class, $this->views);
 
         return $this;
@@ -145,6 +145,9 @@ final class App
 
     public function instance(string $id, mixed $value): self
     {
+        if (ViewEngine::class === $id && $value instanceof ViewEngine) {
+            $this->views = $value;
+        }
         $this->container->instance($id, $value);
 
         return $this;

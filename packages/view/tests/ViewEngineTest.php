@@ -170,6 +170,58 @@ HTML,
         self::assertStringContainsString('<script type="module" src="http://127.0.0.1:5173/resources/js/app.js"></script>', $devHtml);
     }
 
+    public function testAutoReloadEnabledRecompilesModifiedTemplates(): void
+    {
+        $templatePath = $this->tempDir . '/views/live.kgn.html';
+        file_put_contents($templatePath, '<p>v1: {{ $name }}</p>');
+
+        $engine = new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache');
+        self::assertTrue($engine->isAutoReload());
+        self::assertSame('<p>v1: Ada</p>', $engine->render('live', ['name' => 'Ada']));
+
+        file_put_contents($templatePath, '<p>v2: {{ $name }}</p>');
+        touch($templatePath, time() + 10);
+
+        self::assertSame('<p>v2: Ada</p>', $engine->render('live', ['name' => 'Ada']));
+    }
+
+    public function testAutoReloadDisabledCachesCompiledClosuresForPersistentWorkers(): void
+    {
+        $templatePath = $this->tempDir . '/views/worker.kgn.html';
+        file_put_contents($templatePath, '<h1>Hello {{ $name }}</h1>');
+
+        $devEngine = new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache');
+        $prodEngine = $devEngine->withAutoReload(false)->withTranslator(static fn(string $key): string => $key);
+        self::assertTrue($devEngine->isAutoReload());
+        self::assertFalse($prodEngine->isAutoReload());
+
+        self::assertSame('<h1>Hello Ada</h1>', $prodEngine->render('worker', ['name' => 'Ada']));
+
+        // Delete the source template after first render; cached closure must continue serving dynamic data
+        unlink($templatePath);
+
+        self::assertSame('<h1>Hello Grace</h1>', $prodEngine->render('worker', ['name' => 'Grace']));
+        self::assertSame('<h1>Hello Alan</h1>', $prodEngine->render('/worker', ['name' => 'Alan']));
+
+        // Invalid or traversal template names must still be rejected in production mode
+        $this->expectException(ViewException::class);
+        $prodEngine->render('../secret');
+    }
+
+    public function testWarmCachePreloadsClosuresWhenAutoReloadDisabled(): void
+    {
+        $templatePath = $this->tempDir . '/views/warm.kgn.html';
+        file_put_contents($templatePath, '<span>{{ $label }}</span>');
+
+        $engine = new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache', autoReload: false);
+        self::assertSame(1, $engine->warmCache());
+
+        // Removing the source file before the first render proves warmCache() preloaded the closure
+        unlink($templatePath);
+
+        self::assertSame('<span>Preloaded</span>', $engine->render('warm', ['label' => 'Preloaded']));
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {

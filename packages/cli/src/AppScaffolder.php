@@ -43,6 +43,7 @@ final class AppScaffolder
 declare(strict_types=1);
 
 use App\Http\HomeController;
+use Kongono\Core\Config;
 use Kongono\Core\EnvLoader;
 use Kongono\Core\Health\HealthCheck;
 use Kongono\Http\App;
@@ -53,12 +54,13 @@ use Kongono\Security\Middleware\SecurityHeadersMiddleware;
 \$baseDir = dirname(__DIR__);
 EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
 
+\$debug = filter_var(Config::env('APP_DEBUG') ?? 'true', FILTER_VALIDATE_BOOL);
 \$inspector = new DevInspector();
 \$health = (new HealthCheck())->check('runtime', static fn(): bool => true);
 
 \$app = App::create(\$baseDir, name: '{$safeName}')
-    ->config(['app' => ['debug' => true]])
-    ->views()
+    ->config(['app' => ['debug' => \$debug]])
+    ->views(autoReload: \$debug)
     ->instance(HealthCheck::class, \$health)
     ->instance(DevInspector::class, \$inspector)
     ->controller(HomeController::class);

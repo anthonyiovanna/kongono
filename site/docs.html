@@ -13,7 +13,7 @@
       <a class="logo" href="index.html">
         <span class="logo-mark">K</span>
         <span>Kongono</span>
-        <span class="version-pill">v1.1.0</span>
+        <span class="version-pill">v1.1.1</span>
       </a>
       <nav class="nav-links">
         <a href="index.html">Home</a>
@@ -96,7 +96,7 @@ php vendor/bin/kongo doctor</code></pre>
             <tbody>
               <tr><td><code>Kongono\Core\</code></td><td><code>Kernel</code>, <code>OperationScope</code>, PSR-11 <code>Container</code>, <code>Config</code>, <code>EnvLoader</code>, <code>Logger</code>, <code>MemoryCache</code>/<code>FileCache</code>/<code>RedisClient</code>+<code>RedisCache</code>, <code>FeatureManager</code>, <code>NotificationDispatcher</code>, <code>Retry</code>/<code>CircuitBreaker</code>, <code>HealthCheck</code>, <code>Translator</code>, <code>Metrics</code>/<code>Tracer</code>, <code>ApplicationGraph</code></td></tr>
               <tr><td><code>Kongono\Http\</code></td><td>PSR-7/15 <code>Request</code>/<code>Response</code>/<code>Cookie</code>, <code>Session</code>, <code>Router</code>, <code>App</code>, <code>StaticFilesMiddleware</code>, <code>CompressionMiddleware</code>, <code>HttpCacheMiddleware</code>, <code>IdempotencyMiddleware</code>, <code>EventBus</code> SSE, <code>OpenApiGenerator</code>, <code>ApiDocsRenderer</code>, <code>DevDashboardMiddleware</code>, <code>DevErrorRenderer</code>, <code>TestClient</code></td></tr>
-              <tr><td><code>Kongono\View\</code></td><td>Compiled <code>.kgn.html</code> templates, XSS auto-escaping, layouts, loops, <code>&lt;x-component&gt;</code> slots, <code>@t(...)</code>, <code>@json</code>, <code>warmCache()</code></td></tr>
+              <tr><td><code>Kongono\View\</code></td><td>Compiled <code>.kgn.html</code> closure templates, XSS auto-escaping, layouts, loops, <code>&lt;x-component&gt;</code> slots, <code>@t(...)</code>, <code>@vite(...)</code>, <code>@json</code>, <code>warmCache()</code>, production <code>autoReload: false</code></td></tr>
               <tr><td><code>Kongono\Validation\</code></td><td>Attribute-driven DTO validation, nested DTOs, <code>BackedEnum</code> coercion, <code>#[Uuid]</code>, <code>#[Between]</code>, <code>#[Confirmed]</code></td></tr>
               <tr><td><code>Kongono\Database\</code></td><td><code>QueryBuilder</code> (<code>JOIN</code>, <code>whereGroup</code>, <code>upsert</code>, <code>RETURNING</code>, <code>paginate</code>, <code>getAs</code>), <code>Schema</code>/<code>Blueprint</code>, <code>Repository</code>, <code>PdoConnection</code>, <code>Migrator</code>, <code>SeederInterface</code></td></tr>
               <tr><td><code>Kongono\Security\</code></td><td><code>Principal</code>, <code>Gate</code>, <code>#[Can]</code>, Argon2id <code>PasswordHasher</code>, AEAD <code>Encryptor</code>, RFC 6238 <code>Totp</code>, <code>TokenSigner</code>, <code>SignedUrl</code>, SSRF <code>SafeHttpClient</code>, signed Webhooks, CSRF/CORS/Bearer/RateLimit/SecurityHeaders</td></tr>
@@ -155,7 +155,7 @@ final readonly class PostController
 
   &lt;script&gt;window.__DATA__ = @json($payload);&lt;/script&gt;
 @endsection</code></pre>
-        <p>Precompile every view before deploying with <code>php vendor/bin/kongo optimize</code> (calls <code>ViewEngine::warmCache()</code>).</p>
+        <p>Precompile every view before deploying with <code>php vendor/bin/kongo optimize</code> (calls <code>ViewEngine::warmCache()</code>). In production persistent workers (FrankenPHP / RoadRunner), pass <code>$app-&gt;views(autoReload: false)</code> (or <code>$views-&gt;withAutoReload(false)</code>) to keep compiled template closures hot in memory with zero per-request filesystem checks.</p>
         <h3>First-Class Vite Integration (<code>@vite</code>)</h3>
         <p>Bind <code>$views-&gt;withVite(new ViteManifest($baseDir . '/public'))</code> and drop <code>@vite(['resources/css/app.css', 'resources/js/app.js'])</code> into your layout. Kongono automatically emits Vite HMR tags when <code>public/hot</code> exists and hashed CSS + <code>modulepreload</code> + module scripts from <code>public/build/manifest.json</code> in production.</p>
       </section>
@@ -317,7 +317,7 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app</code></pre>
 
   <footer>
     <div class="container">
-      <strong>Kongono Framework v1.1.0</strong> &middot; MIT License &middot;
+      <strong>Kongono Framework v1.1.1</strong> &middot; MIT License &middot;
       <a href="index.html">Home</a> &middot;
       <a href="https://github.com/anthonyiovanna/kongono" target="_blank" rel="noopener">GitHub</a> &middot;
       <a href="https://packagist.org/packages/kongono/framework" target="_blank" rel="noopener">Packagist</a>

@@ -4,6 +4,17 @@ All notable changes to the **Kongono Framework** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-11-21
+
+### Performance & Added
+
+- **Persistent-Worker In-Memory View Caching (`kongono/view`, `kongono/http`):**
+  - Compiled `.kgn.html` templates now emit OPcache-friendly pure static PHP closures (format `v2`, zero collision with prior caches) and invoke `opcache_invalidate()` when recompiled in dev mode.
+  - Added opt-in `autoReload: false` mode on `ViewEngine::__construct()`, `ViewEngine::withAutoReload(false)`, `ViewEngine::isAutoReload()`, and `App::views(..., autoReload: false)` for production persistent workers (FrankenPHP, RoadRunner, `kongo serve`).
+  - When `autoReload` is disabled, compiled template closures are cached per `ViewEngine` instance (and preloaded by `warmCache()`), eliminating per-request `realpath()`/`filemtime()`/`require` overhead (~116x faster `.kgn.html` rendering in `examples/benchmark.php`, jumping from ~508 req/s to ~59,000 req/s on PHP 8.5 CLI).
+  - `App::instance(ViewEngine::class, ...)` now keeps `$app->view(...)` synchronized when replacing `ViewEngine` (e.g. via `withTranslator()`, `withVite()`, or `withAutoReload()`).
+  - Updated `kongo new` scaffolding (`AppScaffolder`) so newly generated apps automatically wire `->views(autoReload: $debug)`.
+
 ## [1.1.0] - 2026-11-21
 
 ### Added
