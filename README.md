@@ -104,10 +104,12 @@ composer test      # PHPUnit 13
 ## Documentation
 
 - **[Official Documentation Site (GitHub Pages)](https://anthonyiovanna.github.io/kongono/)**
+- **[Community Discussions](https://github.com/anthonyiovanna/kongono/discussions)**
 - [Getting Started](docs/getting-started.md)
 - [Architecture Overview](docs/architecture.md)
 - [Built-In AI Companions & MCP Server](docs/ai-companions.md)
 - [Production Deployment & Scaling Guide](docs/production-deployment.md)
+- [Persistent-Worker Benchmark](examples/benchmark.php) (`php examples/benchmark.php`)
 - [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Security Policy](SECURITY.md)
 
 ## License
