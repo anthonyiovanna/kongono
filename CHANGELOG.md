@@ -4,6 +4,14 @@ All notable changes to the **Kongono Framework** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2026-11-21
+
+### Security
+
+- **Expanded `SecretScrubber` Redaction Coverage (`kongono/core`):**
+  - Automatically scrubs credentials embedded in URI/DSN connection strings (`postgres://`, `postgresql://`, `pgsql://`, `mysql://`, `mariadb://`, `redis://`, `rediss://`, `amqp://`, `amqps://`, `mongodb://`, `mongodb+srv://`, and `http(s)://user:pass@host`) while preserving scheme and host for diagnostics (`postgres://[REDACTED]@host:5432/db`).
+  - Added redaction patterns for webhook signing secrets (`whsec_*`), GitHub fine-grained PATs (`github_pat_*`), and AWS access key IDs (`AKIA*`).
+
 ## [1.1.2] - 2026-11-21
 
 ### Fixed & Improved
