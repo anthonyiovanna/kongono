@@ -1,0 +1,16 @@
+{
+  "name": "kongono/mail",
+  "description": "Kongono v1 zero-dependency transactional email (SMTP STARTTLS, Resend HTTPS API, Memory/Log transports, and .kgn.html email templates).",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.5.0",
+    "ext-curl": "*",
+    "psr/log": "^3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Kongono\\Mail\\": "src/"
+    }
+  }
+}

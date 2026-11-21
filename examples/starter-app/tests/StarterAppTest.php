@@ -6,6 +6,8 @@ namespace StarterApp\Tests;
 
 use Kongono\Http\App;
 use Kongono\Http\Request;
+use Kongono\Http\Response;
+use Kongono\Http\Testing\TestClient;
 use Kongono\Http\UploadedFile;
 use PHPUnit\Framework\TestCase;
 
@@ -123,6 +125,51 @@ final class StarterAppTest extends TestCase
         $freshApp = $this->bootApp();
         $listAfterRestart = $freshApp->handle(Request::create('GET', '/api/notes', ['Accept' => 'application/json']));
         self::assertStringContainsString('Persistent Note', (string) $listAfterRestart->getBody());
+    }
+
+    public function testAuthFlowOpenApiAndSseEndToEnd(): void
+    {
+        $app = $this->bootApp();
+        $client = new TestClient($app);
+
+        // Unauthenticated /api/auth/me fails closed 401
+        $client->get('/api/auth/me', ['Accept' => 'application/json'])->assertStatus(401);
+
+        // Register creates user, sends compiled welcome email, returns signed bearer token
+        $reg = $client->postJson('/api/auth/register', [
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@kongono.dev',
+            'password' => 'super-secure-pass-123',
+        ])->assertCreated()->assertJsonPath('user.email', 'ada@kongono.dev');
+
+        $token = $reg->json()['token'] ?? '';
+        self::assertIsString($token);
+        self::assertNotSame('', $token);
+
+        // Login verifies Argon2id password and returns token
+        $client->postJson('/api/auth/login', [
+            'email' => 'ada@kongono.dev',
+            'password' => 'super-secure-pass-123',
+        ])->assertOk()->assertJsonPath('user.name', 'Ada Lovelace');
+
+        // Authenticated /api/auth/me injects verified Principal
+        $client->withBearerToken($token)
+            ->get('/api/auth/me', ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('kind', 'human');
+
+        // Live OpenAPI 3.1 spec auto-generated from PHP 8.5 controllers & DTOs
+        $client->get('/openapi.json')
+            ->assertOk()
+            ->assertJsonPath('openapi', '3.1.0')
+            ->assertSee('RegisterInput')
+            ->assertSee('CreateNoteInput');
+
+        // Live Server-Sent Events stream
+        $sse = $app->handle(Request::create('GET', '/api/events'));
+        self::assertInstanceOf(Response::class, $sse);
+        self::assertStringContainsString('text/event-stream', $sse->getHeaderLine('Content-Type'));
+        self::assertStringContainsString('event: ready', $sse->bodyString());
     }
 
     private function removeDir(string $dir): void

@@ -66,6 +66,12 @@ final class CompanionsAndCliTest extends TestCase
         [$sCode, $schedOut] = $cli->run(['schedule:run', '--app=' . $this->starterAppRoot]);
         self::assertSame(0, $sCode);
         self::assertStringContainsString('[OK] heartbeat', $schedOut);
+
+        [$oaCode, $oaOut] = $cli->run(['openapi', '--app=' . $this->starterAppRoot]);
+        self::assertSame(0, $oaCode);
+        $oa = json_decode($oaOut, true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($oa);
+        self::assertSame('3.1.0', $oa['openapi']);
     }
 
     public function testKongoNewScaffoldsRunnableApp(): void

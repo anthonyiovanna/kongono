@@ -15,6 +15,7 @@ use Kongono\Database\ConnectionInterface;
 use Kongono\Database\MigrationInterface;
 use Kongono\Database\Migrator;
 use Kongono\Http\App;
+use Kongono\Http\OpenApi\OpenApiGenerator;
 use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
 use Throwable;
@@ -48,6 +49,7 @@ final readonly class KongoCli
                 'version', '-v', '--version' => [0, 'Kongono Framework v1.0.0-alpha (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot),
                 'graph' => $this->cmdGraph($appRoot),
+                'openapi' => $this->cmdOpenApi($appRoot),
                 'serve' => $this->cmdServe($appRoot, $options),
                 'new' => $this->cmdNew($rest, $options),
                 'work' => $this->cmdWork($appRoot, $options),
@@ -105,6 +107,21 @@ final readonly class KongoCli
         }
 
         return [0, $context->graph->toJson(pretty: true) . "\n"];
+    }
+
+    /** @return array{0: int, 1: string} */
+    private function cmdOpenApi(string $appRoot): array
+    {
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (!is_file($bootstrap)) {
+            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+        $app = require $bootstrap;
+        if (!$app instanceof App) {
+            return [1, "app/bootstrap.php did not return a Kongono\\Http\\App instance.\n"];
+        }
+
+        return [0, (new OpenApiGenerator())->generateJson($app) . "\n"];
     }
 
     /**
@@ -591,6 +608,7 @@ Core Commands:
   make:migration <Name> [--app=path]                    Generate a Schema::create() migration
   routes [--app=path]                                   List all registered routes
   graph [--app=path]                                    Print live ApplicationGraph JSON
+  openapi [--app=path]                                  Generate OpenAPI 3.1 JSON spec from routes & DTOs
   check                                                 Run full CS + PHPStan + PHPUnit suite
   test                                                  Run PHPUnit test suite
   version                                               Show Kongono & PHP version

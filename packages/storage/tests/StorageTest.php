@@ -6,6 +6,7 @@ namespace Kongono\Storage\Tests;
 
 use Kongono\Storage\LocalStorage;
 use Kongono\Storage\MemoryStorage;
+use Kongono\Storage\S3Storage;
 use Kongono\Storage\StorageException;
 use Kongono\Storage\StorageInterface;
 use Kongono\Storage\StorageOutcome;
@@ -37,6 +38,56 @@ final class StorageTest extends TestCase
     public function testMemoryStorageMatchesExactContract(): void
     {
         $this->assertStorageContract(new MemoryStorage());
+    }
+
+    public function testS3StorageSignsSigV4ConditionalWritesListsXmlAndPresignsUrls(): void
+    {
+        $calls = [];
+        $s3 = new S3Storage(
+            bucket: 'my-bucket',
+            accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+            secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            region: 'us-east-1',
+            endpoint: 'https://r2.example.com',
+            httpSender: static function (string $method, string $url, array $headers, string $body) use (&$calls): array {
+                $calls[] = ['method' => $method, 'url' => $url, 'headers' => $headers, 'body' => $body];
+                if ('PUT' === $method && isset($headers['if-none-match'])) {
+                    return ['status' => 412, 'headers' => [], 'body' => ''];
+                }
+                if ('PUT' === $method) {
+                    return ['status' => 200, 'headers' => ['etag' => '"abc123"'], 'body' => ''];
+                }
+                if ('GET' === $method && str_contains($url, 'list-type=2')) {
+                    return [
+                        'status' => 200,
+                        'headers' => [],
+                        'body' => '<ListBucketResult><Contents><Key>docs/a.txt</Key><Size>5</Size><ETag>"e1"</ETag><LastModified>2026-11-20T00:00:00Z</LastModified></Contents></ListBucketResult>',
+                    ];
+                }
+                if ('GET' === $method) {
+                    return ['status' => 200, 'headers' => ['content-type' => 'text/plain'], 'body' => 'cloud bytes'];
+                }
+
+                return ['status' => 204, 'headers' => [], 'body' => ''];
+            },
+        );
+
+        $put = $s3->put('docs/a.txt', 'cloud bytes', 'text/plain');
+        self::assertSame(StorageOutcome::Created, $put->outcome);
+        self::assertSame('abc123', $put->meta?->version);
+        self::assertStringStartsWith('AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/', $calls[0]['headers']['authorization']);
+
+        $dup = $s3->putIfAbsent('docs/a.txt', 'dup');
+        self::assertSame(StorageOutcome::AlreadyExists, $dup->outcome);
+
+        self::assertSame('cloud bytes', $s3->get('docs/a.txt'));
+        $listed = $s3->list('docs/');
+        self::assertCount(1, $listed);
+        self::assertSame('docs/a.txt', $listed[0]->key);
+
+        $presigned = $s3->presignedGetUrl('docs/a.txt', expiresSeconds: 300, timestamp: 1700000000);
+        self::assertStringContainsString('X-Amz-Algorithm=AWS4-HMAC-SHA256', $presigned);
+        self::assertStringContainsString('X-Amz-Signature=', $presigned);
     }
 
     private function assertStorageContract(StorageInterface $storage): void

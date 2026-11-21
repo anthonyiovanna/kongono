@@ -9,6 +9,7 @@ use Kongono\Database\ConnectionInterface;
 use Kongono\Database\DatabaseException;
 use Kongono\Database\Dialect;
 use Kongono\Database\QueryBuilder;
+use Kongono\Database\Repository;
 use Kongono\Database\Schema\Blueprint;
 use Kongono\Database\Schema\Schema;
 use PHPUnit\Framework\TestCase;
@@ -165,5 +166,16 @@ final class QueryBuilderTest extends TestCase
         ]);
         self::assertSame('INSERT INTO "articles" ("title", "views") VALUES (?, ?), (?, ?)', $batch->query);
         self::assertSame(['A', 1, 'B', 2], $batch->bindings);
+
+        $repo = new readonly class ($fakeDb) extends Repository {
+            public function __construct(ConnectionInterface $db)
+            {
+                parent::__construct($db, 'articles', NoteRowDto::class);
+            }
+        };
+        $found = $repo->findOrFail(1);
+        self::assertInstanceOf(NoteRowDto::class, $found);
+        self::assertSame('First', $found->title);
+        self::assertSame(5, $repo->count());
     }
 }

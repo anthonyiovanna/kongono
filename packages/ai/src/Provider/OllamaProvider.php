@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Ai\Provider;
 
+use Closure;
 use JsonException;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
@@ -14,10 +15,11 @@ use Kongono\Ai\ToolCall;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Ai\Transport\CurlTransport;
 use Kongono\Ai\Transport\HttpTransportInterface;
+use Kongono\Ai\Transport\StreamingHttpTransportInterface;
 use Kongono\Core\Diagnostics\SecretScrubber;
 
-/** Local / self-hosted Ollama chat provider (zero API key required). */
-final readonly class OllamaProvider implements AiProviderInterface
+/** Local / self-hosted Ollama chat provider with native NDJSON streaming (zero API key required). */
+final readonly class OllamaProvider implements StreamingAiProviderInterface
 {
     private HttpTransportInterface $transport;
 
@@ -129,5 +131,70 @@ final readonly class OllamaProvider implements AiProviderInterface
             usage: $usage,
             finishReason: is_string($decoded['done_reason'] ?? null) ? $decoded['done_reason'] : 'stop',
         );
+    }
+
+    public function chatStream(ChatRequest $request, Closure $onDelta): ChatResponse
+    {
+        if (!$this->transport instanceof StreamingHttpTransportInterface) {
+            $response = $this->chat($request);
+            if ('' !== $response->text) {
+                $onDelta($response->text);
+            }
+
+            return $response;
+        }
+
+        $model = $request->model ?? $this->model;
+        $payload = [
+            'model' => $model,
+            'stream' => true,
+            'messages' => array_map(
+                static fn(Message $m): array => ['role' => $m->role->value, 'content' => $m->content],
+                $request->messages,
+            ),
+        ];
+
+        $url = rtrim($this->host, '/') . '/api/chat';
+        $buffer = '';
+        $fullText = '';
+        $resolvedModel = $model;
+        $finishReason = 'stop';
+
+        $status = $this->transport->postJsonStream(
+            $url,
+            [],
+            json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+            static function (string $chunk) use (&$buffer, &$fullText, &$resolvedModel, &$finishReason, $onDelta): void {
+                $buffer .= str_replace("\r\n", "\n", $chunk);
+                while (false !== ($pos = strpos($buffer, "\n"))) {
+                    $line = trim(substr($buffer, 0, $pos));
+                    $buffer = substr($buffer, $pos + 1);
+                    if ('' === $line) {
+                        continue;
+                    }
+                    $frame = json_decode($line, true);
+                    if (!is_array($frame)) {
+                        continue;
+                    }
+                    if (is_string($frame['model'] ?? null)) {
+                        $resolvedModel = $frame['model'];
+                    }
+                    if (is_string($frame['done_reason'] ?? null)) {
+                        $finishReason = $frame['done_reason'];
+                    }
+                    $msg = is_array($frame['message'] ?? null) ? $frame['message'] : [];
+                    if (is_string($msg['content'] ?? null) && '' !== $msg['content']) {
+                        $fullText .= $msg['content'];
+                        $onDelta($msg['content']);
+                    }
+                }
+            },
+        );
+
+        if ($status < 200 || $status >= 300) {
+            throw new AiException(sprintf('Ollama streaming API returned HTTP %d.', $status));
+        }
+
+        return new ChatResponse($fullText, $resolvedModel, $this->name(), finishReason: $finishReason);
     }
 }

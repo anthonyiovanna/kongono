@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 use Kongono\Core\Cache\CacheInterface;
 use Kongono\Core\Cache\FileCache;
+use Kongono\Core\Config;
 use Kongono\Core\EnvLoader;
 use Kongono\Core\Log\Logger;
 use Kongono\Core\Telemetry\Metrics;
 use Kongono\Http\App;
 use Kongono\Http\Middleware\StaticFilesMiddleware;
+use Kongono\Http\Routing\Router;
 use Kongono\Http\Session\CacheSessionStore;
 use Kongono\Http\Session\SessionMiddleware;
 use Kongono\Jobs\Job;
@@ -17,13 +19,24 @@ use Kongono\Jobs\MemoryQueueDriver;
 use Kongono\Jobs\Queue;
 use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
+use Kongono\Mail\Address;
+use Kongono\Mail\LogTransport;
+use Kongono\Mail\Mailer;
+use Kongono\Security\Middleware\BearerAuthMiddleware;
 use Kongono\Security\Middleware\CorsMiddleware;
 use Kongono\Security\Middleware\RateLimitMiddleware;
 use Kongono\Security\Middleware\SecurityHeadersMiddleware;
+use Kongono\Security\PasswordHasher;
+use Kongono\Security\Principal;
+use Kongono\Security\PrincipalKind;
+use Kongono\Security\TokenSigner;
 use Kongono\Storage\LocalStorage;
 use Kongono\Storage\StorageInterface;
+use Kongono\View\ViewEngine;
 use Psr\Log\LoggerInterface;
 use StarterApp\Domain\NoteStore;
+use StarterApp\Domain\UserStore;
+use StarterApp\Http\AuthController;
 use StarterApp\Http\NoteController;
 use StarterApp\Http\RequestTimingMiddleware;
 
@@ -36,6 +49,9 @@ $logger = new Logger('starter-app', retainInMemory: true);
 $metrics = new Metrics();
 $queueDriver = new MemoryQueueDriver();
 $queue = new Queue($queueDriver);
+$signer = new TokenSigner(Config::env('APP_KEY') ?? 'kongono-starter-dev-key-change-in-prod');
+$hasher = new PasswordHasher();
+
 $scheduler = new Scheduler();
 $scheduler->call('heartbeat', static function () use ($logger): void {
     $logger->info('Scheduled heartbeat ran.');
@@ -49,7 +65,10 @@ $app = App::create($baseDir, name: 'Kongono Starter App')
     ->instance(LoggerInterface::class, $logger)
     ->instance(Metrics::class, $metrics)
     ->instance(Scheduler::class, $scheduler)
+    ->instance(TokenSigner::class, $signer)
+    ->instance(PasswordHasher::class, $hasher)
     ->singleton(NoteStore::class, NoteStore::class)
+    ->singleton(UserStore::class, UserStore::class)
     ->instance(Queue::class, $queue)
     ->middleware(
         new StaticFilesMiddleware($baseDir . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets', '/assets/'),
@@ -59,7 +78,29 @@ $app = App::create($baseDir, name: 'Kongono Starter App')
         new SessionMiddleware(new CacheSessionStore($cache)),
         new RequestTimingMiddleware($metrics),
     )
-    ->controller(NoteController::class);
+    ->controller(NoteController::class)
+    ->controller(AuthController::class)
+    ->routes(static function (Router $r) use ($signer): void {
+        $bearer = new BearerAuthMiddleware(static function (string $token) use ($signer): ?Principal {
+            $claims = $signer->verify($token);
+            if (null === $claims || !is_string($claims['sub'] ?? null)) {
+                return null;
+            }
+
+            return new Principal($claims['sub'], PrincipalKind::Human, ['notes.read', 'notes.write'], $claims);
+        });
+
+        $r->get('/api/auth/me', [AuthController::class, 'me'])
+            ->name('api.auth.me')
+            ->middleware($bearer);
+    });
+
+$mailer = new Mailer(
+    new LogTransport($logger),
+    new Address('no-reply@kongono.local', 'Kongono Starter'),
+    $app->container()->make(ViewEngine::class),
+);
+$app->instance(Mailer::class, $mailer);
 
 $worker = (new Worker($queueDriver, $app->kernel(), $app->container()))
     ->register('note.indexed', static function (Job $job) use ($logger): JobOutcome {

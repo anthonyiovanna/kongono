@@ -236,5 +236,29 @@ final class AiProvidersAndAgentTest extends TestCase
         self::assertSame(['Hello ', 'Kongono!'], $deltas);
         self::assertSame('Hello Kongono!', $res->text);
         self::assertSame('stop', $res->finishReason);
+
+        // Verify Ollama native NDJSON streaming as well
+        $ollamaStream = new class implements StreamingHttpTransportInterface {
+            public function postJson(string $url, array $headers, string $jsonBody, int $timeoutSeconds = 60): HttpResponse
+            {
+                return new HttpResponse(200, '{}');
+            }
+
+            public function postJsonStream(string $url, array $headers, string $jsonBody, Closure $onChunk, int $timeoutSeconds = 120): int
+            {
+                $onChunk("{\"model\":\"qwen2.5-coder:7b\",\"message\":{\"content\":\"Local \"}}\n");
+                $onChunk("{\"model\":\"qwen2.5-coder:7b\",\"message\":{\"content\":\"AI!\"},\"done\":true,\"done_reason\":\"stop\"}\n");
+
+                return 200;
+            }
+        };
+
+        $ollamaClient = new AiClient(new OllamaProvider(transport: $ollamaStream));
+        $oDeltas = [];
+        $oRes = $ollamaClient->chatStream(new ChatRequest([Message::user('Hi')]), static function (string $d) use (&$oDeltas): void {
+            $oDeltas[] = $d;
+        });
+        self::assertSame(['Local ', 'AI!'], $oDeltas);
+        self::assertSame('Local AI!', $oRes->text);
     }
 }

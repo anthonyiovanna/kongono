@@ -8,18 +8,31 @@ use Kongono\Core\Cache\MemoryCache;
 use Kongono\Http\App;
 use Kongono\Http\Cookie;
 use Kongono\Http\Middleware\StaticFilesMiddleware;
+use Kongono\Http\OpenApi\OpenApiGenerator;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Http\Routing\Get;
+use Kongono\Http\Routing\Post;
 use Kongono\Http\Routing\Router;
 use Kongono\Http\Session\CacheSessionStore;
 use Kongono\Http\Session\Session;
 use Kongono\Http\Session\SessionMiddleware;
+use Kongono\Http\SseEvent;
 use Kongono\Http\Testing\TestClient;
 use Kongono\Http\UploadedFile;
+use Kongono\Validation\Attributes\Email;
+use Kongono\Validation\Attributes\Required;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use stdClass;
+
+final readonly class SubscribeInput
+{
+    public function __construct(
+        #[Required, Email]
+        public string $email,
+    ) {}
+}
 
 final readonly class AttributeDemoController
 {
@@ -27,6 +40,12 @@ final readonly class AttributeDemoController
     public function show(int $id): Response
     {
         return Response::json(['id' => $id]);
+    }
+
+    #[Post('/subscribe', name: 'subscribe')]
+    public function subscribe(SubscribeInput $input): Response
+    {
+        return Response::json(['email' => $input->email], 201);
     }
 }
 
@@ -203,5 +222,30 @@ final class HttpAppTest extends TestCase
             ->assertStatus(500)
             ->assertDontSee('Source Context')
             ->assertSee('An internal server error occurred.');
+    }
+
+    public function testSseResponseAndAutomaticOpenApi31Generation(): void
+    {
+        $app = App::create(__DIR__, name: 'OpenAPI Demo')
+            ->controller(AttributeDemoController::class)
+            ->routes(static function (Router $r): void {
+                $r->get('/sse', static fn(): Response => Response::sse(static function (): iterable {
+                    yield SseEvent::json(['ping' => 1], event: 'tick', id: '1');
+                }));
+            });
+
+        $sse = $app->handle(Request::create('GET', '/sse'));
+        self::assertInstanceOf(Response::class, $sse);
+        self::assertStringContainsString('text/event-stream', $sse->getHeaderLine('Content-Type'));
+        self::assertSame("id: 1\nevent: tick\ndata: {\"ping\":1}\n\n", $sse->bodyString());
+
+        $spec = (new OpenApiGenerator())->generate($app);
+        self::assertSame('3.1.0', $spec['openapi']);
+        self::assertIsArray($spec['paths']);
+        self::assertArrayHasKey('/items/{id}', $spec['paths']);
+        self::assertArrayHasKey('/subscribe', $spec['paths']);
+        self::assertIsArray($spec['components']);
+        self::assertArrayHasKey('SubscribeInput', $spec['components']['schemas']);
+        self::assertSame('email', $spec['components']['schemas']['SubscribeInput']['properties']['email']['format']);
     }
 }

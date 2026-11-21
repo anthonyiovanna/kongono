@@ -1,0 +1,238 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kongono\Http\OpenApi;
+
+use Closure;
+use Kongono\Http\App;
+use Kongono\Http\Request;
+use Kongono\Http\Routing\Route;
+use Kongono\Validation\Attributes\Email;
+use Kongono\Validation\Attributes\In;
+use Kongono\Validation\Attributes\Max;
+use Kongono\Validation\Attributes\Min;
+use Kongono\Validation\Attributes\Required;
+use Kongono\Validation\Attributes\Url;
+use Psr\Http\Message\ServerRequestInterface;
+use ReflectionClass;
+use ReflectionFunction;
+use ReflectionMethod;
+use ReflectionNamedType;
+use ReflectionParameter;
+
+/**
+ * Generates a live OpenAPI 3.1.0 specification directly from Kongono routes,
+ * PHP 8.5 controller types, and validation attributes — zero Swagger annotations required.
+ */
+final class OpenApiGenerator
+{
+    /** @return array<string, mixed> */
+    public function generate(App $app, string $version = '1.0.0'): array
+    {
+        $graph = $app->graph();
+        $paths = [];
+        $schemas = [];
+
+        foreach ($app->router()->routes() as $route) {
+            $openApiPath = (string) preg_replace('/\{([a-zA-Z_][a-zA-Z0-9_]*)(?::[^}]+)?\}/', '{$1}', $route->path);
+            foreach ($route->methods as $method) {
+                if ('HEAD' === $method) {
+                    continue;
+                }
+                $lower = strtolower($method);
+                $operation = $this->buildOperation($route, $schemas);
+                $paths[$openApiPath][$lower] = $operation;
+            }
+        }
+
+        $spec = [
+            'openapi' => '3.1.0',
+            'info' => [
+                'title' => $graph->appName,
+                'version' => $version,
+            ],
+            'paths' => $paths,
+        ];
+
+        if ([] !== $schemas) {
+            $spec['components'] = ['schemas' => $schemas];
+        }
+
+        return $spec;
+    }
+
+    public function generateJson(App $app, string $version = '1.0.0', bool $pretty = true): string
+    {
+        $flags = JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES;
+        if ($pretty) {
+            $flags |= JSON_PRETTY_PRINT;
+        }
+
+        return json_encode($this->generate($app, $version), $flags);
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $schemas
+     * @return array<string, mixed>
+     */
+    private function buildOperation(Route $route, array &$schemas): array
+    {
+        $operation = [
+            'operationId' => $route->routeName() ?? strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', '_', $route->path)),
+            'responses' => [
+                '200' => ['description' => 'Successful response'],
+            ],
+        ];
+
+        $parameters = [];
+        if (1 <= (int) preg_match_all('/\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([^}]+))?\}/', $route->path, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $isInt = isset($m[2]) && '\\d+' === $m[2];
+                $parameters[] = [
+                    'name' => $m[1],
+                    'in' => 'path',
+                    'required' => true,
+                    'schema' => ['type' => $isInt ? 'integer' : 'string'],
+                ];
+            }
+        }
+
+        $reflection = $route->handler instanceof Closure
+            ? new ReflectionFunction($route->handler)
+            : new ReflectionMethod($route->handler[0], $route->handler[1]);
+
+        foreach ($reflection->getParameters() as $param) {
+            $type = $param->getType();
+            if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
+                continue;
+            }
+            $typeName = $type->getName();
+            if (Request::class === $typeName || ServerRequestInterface::class === $typeName || !class_exists($typeName)) {
+                continue;
+            }
+            if ($this->isInputDto($typeName)) {
+                $shortName = (new ReflectionClass($typeName))->getShortName();
+                $schemas[$shortName] = $this->buildDtoSchema($typeName);
+                $operation['requestBody'] = [
+                    'required' => true,
+                    'content' => [
+                        'application/json' => [
+                            'schema' => ['$ref' => '#/components/schemas/' . $shortName],
+                        ],
+                    ],
+                ];
+                $operation['responses']['422'] = ['description' => 'Validation failed'];
+            }
+        }
+
+        if ([] !== $parameters) {
+            $operation['parameters'] = $parameters;
+        }
+
+        return $operation;
+    }
+
+    /** @param class-string $className */
+    private function isInputDto(string $className): bool
+    {
+        $ref = new ReflectionClass($className);
+        if (!$ref->isInstantiable()) {
+            return false;
+        }
+        $ctor = $ref->getConstructor();
+        if (null === $ctor || 0 === $ctor->getNumberOfParameters()) {
+            return false;
+        }
+        foreach ($ctor->getParameters() as $p) {
+            $type = $p->getType();
+            if ($type instanceof ReflectionNamedType && $type->isBuiltin()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param class-string $className
+     * @return array<string, mixed>
+     */
+    private function buildDtoSchema(string $className): array
+    {
+        $ref = new ReflectionClass($className);
+        $ctor = $ref->getConstructor();
+        $properties = [];
+        $required = [];
+
+        if (null !== $ctor) {
+            foreach ($ctor->getParameters() as $param) {
+                $name = $param->getName();
+                $propSchema = $this->buildParameterSchema($ref, $param, $required);
+                $properties[$name] = $propSchema;
+            }
+        }
+
+        $schema = [
+            'type' => 'object',
+            'properties' => $properties,
+        ];
+        if ([] !== $required) {
+            $schema['required'] = $required;
+        }
+
+        return $schema;
+    }
+
+    /**
+     * @param ReflectionClass<object> $class
+     * @param list<string>            $required
+     * @return array<string, mixed>
+     */
+    private function buildParameterSchema(ReflectionClass $class, ReflectionParameter $param, array &$required): array
+    {
+        $name = $param->getName();
+        $type = $param->getType();
+        $jsonType = match ($type instanceof ReflectionNamedType ? $type->getName() : 'string') {
+            'int' => 'integer',
+            'float' => 'number',
+            'bool' => 'boolean',
+            'array' => 'array',
+            default => 'string',
+        };
+        $schema = ['type' => $jsonType];
+
+        $attrs = [];
+        foreach ($param->getAttributes() as $a) {
+            $attrs[] = $a->newInstance();
+        }
+        if ($class->hasProperty($name)) {
+            foreach ($class->getProperty($name)->getAttributes() as $a) {
+                $attrs[] = $a->newInstance();
+            }
+        }
+
+        $isRequired = !$param->isDefaultValueAvailable() && !$param->allowsNull();
+        foreach ($attrs as $attr) {
+            if ($attr instanceof Required) {
+                $isRequired = true;
+            } elseif ($attr instanceof Min) {
+                $schema['string' === $jsonType ? 'minLength' : 'minimum'] = $attr->value;
+            } elseif ($attr instanceof Max) {
+                $schema['string' === $jsonType ? 'maxLength' : 'maximum'] = $attr->value;
+            } elseif ($attr instanceof Email) {
+                $schema['format'] = 'email';
+            } elseif ($attr instanceof Url) {
+                $schema['format'] = 'uri';
+            } elseif ($attr instanceof In) {
+                $schema['enum'] = $attr->allowed;
+            }
+        }
+
+        if ($isRequired && !in_array($name, $required, true)) {
+            $required[] = $name;
+        }
+
+        return $schema;
+    }
+}

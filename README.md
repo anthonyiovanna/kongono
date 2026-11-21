@@ -49,20 +49,21 @@ To enable live AI responses for Oshie, Chie, and Hantei, set any one environment
 
 ---
 
-## Complete 10-Package Architecture
+## Complete 11-Package Architecture
 
 | # | Package | Namespace | Purpose |
 | --- | --- | --- | --- |
-| 1 | `packages/core` | `Kongono\Core\` | Persistent `Kernel`, PSR-11 `Container`, `Config`, nondisclosing `Diagnostics`, `EventDispatcher`, `ApplicationGraph` |
-| 2 | `packages/http` | `Kongono\Http\` | PSR-7/15 `Request`/`Response`, streaming, multipart uploads, fluent + Attribute `Router`, persistent-runtime `App` |
-| 3 | `packages/view` | `Kongono\View\` | Compiled `.kgn.html` templates, layouts, loops, `<x-component>` tags, automatic XSS escaping |
+| 1 | `packages/core` | `Kongono\Core\` | Persistent `Kernel`, PSR-11 `Container`, `Config`, `EnvLoader`, PSR-3 `Logger`, `MemoryCache`/`FileCache`, `Metrics`/`Tracer`, `Diagnostics`, `EventDispatcher`, `ApplicationGraph` |
+| 2 | `packages/http` | `Kongono\Http\` | PSR-7/15 `Request`/`Response`/`Cookie`, `Session`, `StaticFilesMiddleware`, `SseEvent`, `OpenApiGenerator`, `DevErrorRenderer`, fluent `TestClient`, attribute + fluent `Router`, persistent `App` |
+| 3 | `packages/view` | `Kongono\View\` | Compiled `.kgn.html` templates, layouts, loops, `<x-component>` slots, `@json`, automatic XSS escaping |
 | 4 | `packages/validation` | `Kongono\Validation\` | PHP 8.5 attribute-driven typed DTO validation |
-| 5 | `packages/database` | `Kongono\Database\` | Parameterized `QueryBuilder` (`JOIN`, `GROUP BY`, `HAVING`, `RETURNING`), strict PDO connections, `Migrator` |
-| 6 | `packages/security` | `Kongono\Security\` | `Principal` (Human/Service/Agent), `Gate`, Argon2id `PasswordHasher`, `TokenSigner`, CSRF/CORS/Bearer/SecurityHeaders middleware, SSRF-hardened `SafeHttpClient` |
-| 7 | `packages/storage` | `Kongono\Storage\` | Contained, atomic, versioned object storage (`LocalStorage` + `MemoryStorage`) with optimistic concurrency |
-| 8 | `packages/jobs` | `Kongono\Jobs\` | Background `Queue` + persistent `Worker`, `PostgresQueueDriver` (`FOR UPDATE SKIP LOCKED`) + `MemoryQueueDriver`, fencing tokens & `Uncertain` preservation |
-| 9 | `packages/ai` | `Kongono\Ai\` | Multi-provider `AiClient` (OpenAI, Anthropic, Gemini, Ollama) & governed `AgentPrincipal` / `AgentRunner` |
-| 10 | `packages/cli` | `Kongono\Cli\` | Unified `kongo` CLI (`new`, `serve`, `work`, `routes`, `graph`) + built-in **Oshie**, **Chie**, and **Hantei** |
+| 5 | `packages/database` | `Kongono\Database\` | Parameterized `QueryBuilder` (`JOIN`, `GROUP BY`, `HAVING`, `RETURNING`, `paginate()`, `getAs()`, `insertMany()`), `Schema`/`Blueprint`, `Repository`, strict PDO connections, `Migrator` |
+| 6 | `packages/security` | `Kongono\Security\` | `Principal` (Human/Service/Agent), `Gate`, Argon2id `PasswordHasher`, HMAC `TokenSigner`, CSRF/CORS/Bearer/RateLimit/SecurityHeaders middleware, SSRF-hardened `SafeHttpClient` |
+| 7 | `packages/storage` | `Kongono\Storage\` | Contained atomic `LocalStorage`, pure PHP 8.5 AWS SigV4 `S3Storage` (S3/R2/MinIO + presigned URLs), and `MemoryStorage` |
+| 8 | `packages/jobs` | `Kongono\Jobs\` | Background `Queue`, persistent `Worker`, `PostgresQueueDriver` (`FOR UPDATE SKIP LOCKED` + fencing tokens), `MemoryQueueDriver`, and cron `Scheduler` |
+| 9 | `packages/mail` | `Kongono\Mail\` | Zero-dependency transactional email (`SmtpTransport` STARTTLS, `ResendTransport`, `LogTransport`, `MemoryTransport`, `.kgn.html` email views) |
+| 10 | `packages/ai` | `Kongono\Ai\` | Multi-provider `AiClient` (OpenAI, Anthropic, Gemini, Ollama) with live SSE streaming, `structured()` DTO extraction, and governed `AgentPrincipal`/`AgentRunner` |
+| 11 | `packages/cli` | `Kongono\Cli\` | Unified `kongo` CLI (`new`, `serve`, `work`, `schedule:run`, `migrate`, `make:*`, `routes`, `graph`, `openapi`, `check`, `test`) + built-in **Oshie**, **Chie**, and **Hantei** |
 
 *(Historical Phase 0–23 architecture archives remain preserved on the `main` and `archive/phase-23c-wip` branches.)*
 

@@ -115,6 +115,25 @@ final class Response implements ResponseInterface
         return $response;
     }
 
+    /**
+     * Create a first-class Server-Sent Events (SSE) response streaming SseEvent frames.
+     *
+     * @param Closure(): iterable<SseEvent>      $producer
+     * @param array<string, string|list<string>> $headers
+     */
+    public static function sse(Closure $producer, array $headers = []): self
+    {
+        $headers['Content-Type'] = 'text/event-stream; charset=utf-8';
+        $headers['Cache-Control'] ??= 'no-cache, no-transform';
+        $headers['X-Accel-Buffering'] ??= 'no';
+
+        return self::stream(static function () use ($producer): iterable {
+            foreach ($producer() as $event) {
+                yield $event->format();
+            }
+        }, 200, $headers);
+    }
+
     /** @return (Closure(): iterable<string>)|null */
     public function streamProducer(): ?Closure
     {

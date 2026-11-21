@@ -33,6 +33,7 @@
       "Kongono\\Security\\": "packages/security/src/",
       "Kongono\\Storage\\": "packages/storage/src/",
       "Kongono\\Jobs\\": "packages/jobs/src/",
+      "Kongono\\Mail\\": "packages/mail/src/",
       "Kongono\\Ai\\": "packages/ai/src/",
       "Kongono\\Cli\\": "packages/cli/src/"
     }
@@ -47,6 +48,7 @@
       "Kongono\\Security\\Tests\\": "packages/security/tests/",
       "Kongono\\Storage\\Tests\\": "packages/storage/tests/",
       "Kongono\\Jobs\\Tests\\": "packages/jobs/tests/",
+      "Kongono\\Mail\\Tests\\": "packages/mail/tests/",
       "Kongono\\Ai\\Tests\\": "packages/ai/tests/",
       "Kongono\\Cli\\Tests\\": "packages/cli/tests/",
       "StarterApp\\": "examples/starter-app/src/",

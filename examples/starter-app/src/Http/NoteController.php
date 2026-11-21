@@ -7,12 +7,14 @@ namespace StarterApp\Http;
 use Kongono\Core\Telemetry\Metrics;
 use Kongono\Http\App;
 use Kongono\Http\HttpException;
+use Kongono\Http\OpenApi\OpenApiGenerator;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Http\Routing\Delete;
 use Kongono\Http\Routing\Get;
 use Kongono\Http\Routing\Post;
 use Kongono\Http\Session\Session;
+use Kongono\Http\SseEvent;
 use Kongono\Jobs\Queue;
 use Kongono\Jobs\Worker;
 use Kongono\Storage\StorageInterface;
@@ -169,5 +171,22 @@ final readonly class NoteController
         return Response::text($this->metrics->toPrometheus(), 200, [
             'Content-Type' => 'text/plain; version=0.0.4; charset=utf-8',
         ]);
+    }
+
+    #[Get('/openapi.json', name: 'openapi')]
+    public function openApi(): Response
+    {
+        return Response::json((new OpenApiGenerator())->generate($this->app));
+    }
+
+    #[Get('/api/events', name: 'api.events')]
+    public function events(): Response
+    {
+        $noteCount = count($this->store->all());
+
+        return Response::sse(static function () use ($noteCount): iterable {
+            yield SseEvent::json(['status' => 'connected', 'notes' => $noteCount], event: 'ready', id: '1');
+            yield SseEvent::json(['framework' => 'Kongono v1', 'php' => PHP_VERSION], event: 'info', id: '2');
+        });
     }
 }

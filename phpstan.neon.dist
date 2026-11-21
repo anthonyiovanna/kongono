@@ -12,6 +12,7 @@ parameters:
         - packages/security/src
         - packages/storage/src
         - packages/jobs/src
+        - packages/mail/src
         - packages/ai/src
         - packages/cli/src
         - examples/starter-app/src
