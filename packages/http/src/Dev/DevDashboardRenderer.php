@@ -23,7 +23,7 @@ final class DevDashboardRenderer
         $safeBase = htmlspecialchars(rtrim($basePath, '/'), ENT_QUOTES, 'UTF-8');
         $phpVersion = htmlspecialchars(PHP_VERSION, ENT_QUOTES, 'UTF-8');
 
-        return <<<HTML
+        $head = <<<HTML
 <!doctype html>
 <html lang="en">
 <head>
@@ -63,6 +63,8 @@ final class DevDashboardRenderer
     .stat { background: #111827; border: 1px solid #1e293b; border-radius: 10px; padding: 0.85rem 1rem; }
     .stat .k { color: #94a3b8; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.04em; }
     .stat .v { font-size: 1.45rem; font-weight: 700; color: #f8fafc; margin-top: 0.25rem; }
+    .sql-list { margin: 0.35rem 0 0; padding: 0.55rem 0.7rem; background: #020617; border-radius: 6px; border: 1px solid #1e293b; font-size: 0.76rem; color: #94a3b8; }
+    .sql-list div { margin-bottom: 0.25rem; }
   </style>
 </head>
 <body>
@@ -174,6 +176,9 @@ final class DevDashboardRenderer
     const GRAPH = {$graphJson};
     let traces = {$tracesJson};
 
+HTML;
+
+        $script = <<<'JS'
     function esc(s) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
@@ -188,12 +193,18 @@ final class DevDashboardRenderer
     function renderTraces() {
       const tb = document.getElementById('traceRows');
       if (!traces.length) {
-        tb.innerHTML = '<tr><td colspan="6" style="color:#64748b">No requests captured yet. Visit / or /api/notes then click Refresh.</td></tr>';
+        tb.innerHTML = '<tr><td colspan="6" style="color:#64748b">No requests captured yet. Visit / or an API endpoint then click Refresh.</td></tr>';
         return;
       }
       tb.innerHTML = traces.map(t => {
         const cls = t.status >= 500 ? 'b-err' : (t.status >= 400 ? 'b-warn' : 'b-ok');
-        return '<tr><td>' + t.id + '</td><td><span class="badge b-method">' + esc(t.method) + '</span></td><td><code>' + esc(t.path) + '</code></td><td><span class="badge ' + cls + '">' + t.status + '</span></td><td>' + t.duration_ms + ' ms</td><td>' + (t.queries || []).length + '</td></tr>';
+        const queries = t.queries || [];
+        const qHtml = queries.length
+          ? '<details><summary>' + queries.length + ' SQL</summary><div class="sql-list">' +
+            queries.map(q => '<div><code>' + esc(q.sql) + '</code> (' + q.ms + ' ms)</div>').join('') +
+            '</div></details>'
+          : '0';
+        return '<tr><td>' + t.id + '</td><td><span class="badge b-method">' + esc(t.method) + '</span></td><td><code>' + esc(t.path) + '</code></td><td><span class="badge ' + cls + '">' + t.status + '</span></td><td>' + t.duration_ms + ' ms</td><td>' + qHtml + '</td></tr>';
       }).join('');
     }
     renderTraces();
@@ -285,6 +296,8 @@ final class DevDashboardRenderer
   </script>
 </body>
 </html>
-HTML;
+JS;
+
+        return $head . $script;
     }
 }

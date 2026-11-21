@@ -450,6 +450,32 @@ final class HttpAppTest extends TestCase
             @rmdir($tempDir);
         }
     }
+
+    public function testApiDocsAndDevStudioEmitValidInlineJavaScriptAndTestClientSupportsStreams(): void
+    {
+        $app = App::create(__DIR__, name: 'JS Safety App')
+            ->debug(true)
+            ->routes(static function (Router $r): void {
+                $r->get('/stream', static fn(): Response => Response::sse(static function (): iterable {
+                    yield SseEvent::json(['ok' => true], event: 'ping', id: '1');
+                }));
+                $r->post('/form', static fn(Request $req): Response => Response::json(['name' => $req->input('name')]));
+                $r->patch('/item', static fn(Request $req): Response => Response::json(['patched' => $req->input('v')]));
+            });
+
+        $docsHtml = (new ApiDocsRenderer())->render($app);
+        self::assertStringContainsString("'\\n'", $docsHtml);
+        self::assertStringNotContainsString("'\n'", $docsHtml);
+
+        $studioHtml = (new \Kongono\Http\Dev\DevDashboardRenderer())->render($app, new DevInspector());
+        self::assertStringContainsString("join('\\n')", $studioHtml);
+        self::assertStringNotContainsString("join('\n')", $studioHtml);
+
+        $client = new TestClient($app);
+        $client->get('/stream')->assertOk()->assertSee('event: ping');
+        $client->postForm('/form', ['name' => 'Ada'])->assertOk()->assertJsonPath('name', 'Ada');
+        $client->patchJson('/item', ['v' => 42])->assertOk()->assertJsonPath('patched', 42);
+    }
 }
 
 final readonly class CachedDemoController

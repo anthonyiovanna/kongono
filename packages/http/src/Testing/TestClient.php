@@ -47,6 +47,15 @@ final class TestClient
         return $this->send(Request::create('GET', $uri, [...$this->defaultHeaders, ...$headers]));
     }
 
+    /**
+     * @param array<string, mixed>  $fields
+     * @param array<string, string> $headers
+     */
+    public function postForm(string $uri, array $fields, array $headers = []): TestResponse
+    {
+        return $this->send(Request::create('POST', $uri, [...$this->defaultHeaders, ...$headers], parsedBody: $fields));
+    }
+
     /** @param array<string, string> $headers */
     public function postJson(string $uri, mixed $payload, array $headers = []): TestResponse
     {
@@ -57,6 +66,12 @@ final class TestClient
     public function putJson(string $uri, mixed $payload, array $headers = []): TestResponse
     {
         return $this->send(Request::json('PUT', $uri, $payload, [...$this->defaultHeaders, ...$headers]));
+    }
+
+    /** @param array<string, string> $headers */
+    public function patchJson(string $uri, mixed $payload, array $headers = []): TestResponse
+    {
+        return $this->send(Request::json('PATCH', $uri, $payload, [...$this->defaultHeaders, ...$headers]));
     }
 
     /** @param array<string, string> $headers */

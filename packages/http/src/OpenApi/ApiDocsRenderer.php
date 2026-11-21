@@ -20,7 +20,7 @@ final class ApiDocsRenderer
         $specJson = json_encode($spec, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
         $safeSpecUrl = htmlspecialchars($specUrl, ENT_QUOTES, 'UTF-8');
 
-        return <<<HTML
+        $head = <<<HTML
 <!doctype html>
 <html lang="en">
 <head>
@@ -61,11 +61,15 @@ final class ApiDocsRenderer
   <div id="endpoints"></div>
   <script>
     const spec = {$specJson};
+
+HTML;
+
+        $script = <<<'JS'
     const root = document.getElementById('endpoints');
     const schemas = (spec.components && spec.components.schemas) || {};
     function sampleFor(schemaRef) {
-      if (!schemaRef || !schemaRef.\$ref) return {};
-      const name = schemaRef.\$ref.split('/').pop();
+      if (!schemaRef || !schemaRef.$ref) return {};
+      const name = schemaRef.$ref.split('/').pop();
       const s = schemas[name];
       if (!s || !s.properties) return {};
       const out = {};
@@ -103,6 +107,8 @@ final class ApiDocsRenderer
   </script>
 </body>
 </html>
-HTML;
+JS;
+
+        return $head . $script;
     }
 }

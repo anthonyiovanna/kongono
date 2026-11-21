@@ -6,6 +6,7 @@ namespace Kongono\Http\Testing;
 
 use JsonException;
 use Kongono\Core\CoreException;
+use Kongono\Http\Response;
 use Psr\Http\Message\ResponseInterface;
 
 /** Expressive fluent assertion wrapper around any PSR-7 ResponseInterface. */
@@ -16,7 +17,9 @@ final readonly class TestResponse
     public function __construct(
         public ResponseInterface $response,
     ) {
-        $this->rawBody = (string) $response->getBody();
+        $this->rawBody = $response instanceof Response
+            ? $response->bodyString()
+            : (string) $response->getBody();
     }
 
     public function status(): int
