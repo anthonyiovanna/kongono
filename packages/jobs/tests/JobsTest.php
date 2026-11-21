@@ -163,7 +163,8 @@ final class JobsTest extends TestCase
 
     public function testRedisQueueDriverPushesReservesAndAcknowledgesOverResp(): void
     {
-        $pair = stream_socket_pair(STREAM_PF_INET, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        $domain = '\\' === DIRECTORY_SEPARATOR ? STREAM_PF_INET : STREAM_PF_UNIX;
+        $pair = stream_socket_pair($domain, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
         self::assertIsArray($pair);
         [$clientSock, $serverSock] = $pair;
 
