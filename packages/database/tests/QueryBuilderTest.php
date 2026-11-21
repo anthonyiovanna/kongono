@@ -146,5 +146,24 @@ final class QueryBuilderTest extends TestCase
         self::assertCount(2, $dtos);
         self::assertSame('First', $dtos[0]->title);
         self::assertSame('2026-11-20T00:00:00Z', $dtos[0]->createdAt);
+
+        self::assertTrue($fakeDb->table('articles')->exists());
+        self::assertSame(['First', 'Second'], $fakeDb->table('articles')->pluck('title'));
+
+        $distinctSql = (new QueryBuilder('articles', Dialect::Postgres))
+            ->distinct()
+            ->select('category')
+            ->whereLike('title', '%kongono%')
+            ->whereBetween('views', 10, 100)
+            ->toSelectSql();
+        self::assertStringContainsString('SELECT DISTINCT "category" FROM "articles" WHERE "title" ILIKE ? AND "views" BETWEEN ? AND ?', $distinctSql->query);
+        self::assertSame(['%kongono%', 10, 100], $distinctSql->bindings);
+
+        $batch = (new QueryBuilder('articles', Dialect::Postgres))->toInsertManySql([
+            ['title' => 'A', 'views' => 1],
+            ['title' => 'B', 'views' => 2],
+        ]);
+        self::assertSame('INSERT INTO "articles" ("title", "views") VALUES (?, ?), (?, ?)', $batch->query);
+        self::assertSame(['A', 1, 'B', 2], $batch->bindings);
     }
 }

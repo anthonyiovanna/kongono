@@ -49,6 +49,12 @@ final class StarterAppTest extends TestCase
         $css = $app->handle(Request::create('GET', '/assets/app.css'));
         self::assertSame(200, $css->getStatusCode());
         self::assertStringContainsString('text/css', $css->getHeaderLine('Content-Type'));
+
+        // Server-Timing & Prometheus /metrics endpoint
+        self::assertStringContainsString('app;dur=', $res->getHeaderLine('Server-Timing'));
+        $metricsRes = $app->handle(Request::create('GET', '/metrics'));
+        self::assertSame(200, $metricsRes->getStatusCode());
+        self::assertStringContainsString('kongono_http_requests_total', (string) $metricsRes->getBody());
     }
 
     public function testNotesJsonCrudValidationStorageAndJobs(): void

@@ -62,6 +62,10 @@ final class CompanionsAndCliTest extends TestCase
         [$wCode, $workOut] = $cli->run(['work', '--app=' . $this->starterAppRoot]);
         self::assertSame(0, $wCode);
         self::assertStringContainsString('Worker finished queue "default"', $workOut);
+
+        [$sCode, $schedOut] = $cli->run(['schedule:run', '--app=' . $this->starterAppRoot]);
+        self::assertSame(0, $sCode);
+        self::assertStringContainsString('[OK] heartbeat', $schedOut);
     }
 
     public function testKongoNewScaffoldsRunnableApp(): void
@@ -157,6 +161,7 @@ final class CompanionsAndCliTest extends TestCase
         [$cCode, $chieOut] = $cli->run(['chie', 'Add a /health endpoint', '--app=' . $this->starterAppRoot]);
         self::assertSame(0, $cCode);
         self::assertStringContainsString('[PREVIEW]', $chieOut);
+        self::assertStringContainsString('+++ b/src/Http/HealthController.php', $chieOut);
         self::assertStringContainsString('HealthController.php', $chieOut);
 
         [$hCode, $hanteiOut] = $cli->run(['hantei', 'debug', 'KGN-VALIDATION-422 on POST /api/notes', '--app=' . $this->starterAppRoot]);

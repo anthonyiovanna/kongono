@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Jobs\Tests;
 
 use Closure;
+use DateTimeImmutable;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\Dialect;
 use Kongono\Database\QueryBuilder;
@@ -13,6 +14,8 @@ use Kongono\Jobs\JobOutcome;
 use Kongono\Jobs\MemoryQueueDriver;
 use Kongono\Jobs\PostgresQueueDriver;
 use Kongono\Jobs\Queue;
+use Kongono\Jobs\Scheduler\CronExpression;
+use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
 use PHPUnit\Framework\TestCase;
 
@@ -128,5 +131,31 @@ final class JobsTest extends TestCase
         self::assertStringContainsString('CREATE TABLE IF NOT EXISTS "kongono_jobs"', $executedSql[0]);
         self::assertStringContainsString('INSERT INTO "kongono_jobs"', $executedSql[1]);
         self::assertStringContainsString('FOR UPDATE SKIP LOCKED', $executedSql[2]);
+    }
+
+    public function testCronExpressionAndSchedulerExecuteDueTasksAndQueueJobs(): void
+    {
+        self::assertTrue((new CronExpression('*/5 * * * *'))->isDue(new DateTimeImmutable('2026-11-20 14:15:00')));
+        self::assertFalse((new CronExpression('*/5 * * * *'))->isDue(new DateTimeImmutable('2026-11-20 14:17:00')));
+        self::assertTrue((new CronExpression('30 2 * * *'))->isDue(new DateTimeImmutable('2026-11-20 02:30:00')));
+
+        $driver = new MemoryQueueDriver();
+        $queue = new Queue($driver);
+        $ran = [];
+
+        $scheduler = new Scheduler();
+        $scheduler->call('cleanup', static function () use (&$ran): void {
+            $ran[] = 'cleanup';
+        })->everyFiveMinutes();
+        $scheduler->dispatch($queue, 'reports.daily')->dailyAt('02:30');
+        $scheduler->call('midnight_only', static function () use (&$ran): void {
+            $ran[] = 'midnight';
+        })->daily();
+
+        $report = $scheduler->runDue(new DateTimeImmutable('2026-11-20 02:30:00'));
+        self::assertSame(['cleanup', 'job:reports.daily'], $report['ran']);
+        self::assertSame([], $report['failed']);
+        self::assertSame(['cleanup'], $ran);
+        self::assertSame(1, $queue->stats()['pending']);
     }
 }

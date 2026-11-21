@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Ai\Provider;
 
+use Closure;
 use JsonException;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
@@ -15,14 +16,15 @@ use Kongono\Ai\ToolCall;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Ai\Transport\CurlTransport;
 use Kongono\Ai\Transport\HttpTransportInterface;
+use Kongono\Ai\Transport\StreamingHttpTransportInterface;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use SensitiveParameter;
 
 /**
  * OpenAI & OpenAI-compatible provider (OpenAI, OpenRouter, Groq, vLLM, LM Studio).
- * Forward-compatible JSON decoding: ignores unknown extra fields cleanly.
+ * Forward-compatible JSON decoding and live SSE token streaming.
  */
-final readonly class OpenAiProvider implements AiProviderInterface
+final readonly class OpenAiProvider implements StreamingAiProviderInterface
 {
     private HttpTransportInterface $transport;
 
@@ -146,6 +148,90 @@ final readonly class OpenAiProvider implements AiProviderInterface
             provider: $this->name(),
             toolCalls: $toolCalls,
             usage: $usage,
+            finishReason: $finishReason,
+        );
+    }
+
+    public function chatStream(ChatRequest $request, Closure $onDelta): ChatResponse
+    {
+        if (!$this->transport instanceof StreamingHttpTransportInterface) {
+            $response = $this->chat($request);
+            if ('' !== $response->text) {
+                $onDelta($response->text);
+            }
+
+            return $response;
+        }
+
+        $model = $request->model ?? $this->model;
+        $payload = [
+            'model' => $model,
+            'stream' => true,
+            'messages' => array_map($this->encodeMessage(...), $request->messages),
+        ];
+        if (null !== $request->temperature) {
+            $payload['temperature'] = $request->temperature;
+        }
+        if (null !== $request->maxTokens) {
+            $payload['max_tokens'] = $request->maxTokens;
+        }
+
+        $headers = '' !== $this->apiKey ? ['Authorization' => 'Bearer ' . $this->apiKey] : [];
+        $url = rtrim($this->baseUrl, '/') . '/chat/completions';
+
+        $buffer = '';
+        $fullText = '';
+        $resolvedModel = $model;
+        $finishReason = null;
+
+        $status = $this->transport->postJsonStream(
+            $url,
+            $headers,
+            json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+            static function (string $chunk) use (&$buffer, &$fullText, &$resolvedModel, &$finishReason, $onDelta): void {
+                $buffer .= str_replace("\r\n", "\n", $chunk);
+                while (false !== ($pos = strpos($buffer, "\n"))) {
+                    $line = trim(substr($buffer, 0, $pos));
+                    $buffer = substr($buffer, $pos + 1);
+                    if (!str_starts_with($line, 'data:')) {
+                        continue;
+                    }
+                    $data = trim(substr($line, 5));
+                    if ('' === $data || '[DONE]' === $data) {
+                        continue;
+                    }
+                    $frame = json_decode($data, true);
+                    if (!is_array($frame)) {
+                        continue;
+                    }
+                    if (is_string($frame['model'] ?? null)) {
+                        $resolvedModel = $frame['model'];
+                    }
+                    $choices = $frame['choices'] ?? null;
+                    if (!is_array($choices) || !isset($choices[0]) || !is_array($choices[0])) {
+                        continue;
+                    }
+                    $choice = $choices[0];
+                    if (is_string($choice['finish_reason'] ?? null)) {
+                        $finishReason = $choice['finish_reason'];
+                    }
+                    $delta = is_array($choice['delta'] ?? null) ? $choice['delta'] : [];
+                    if (is_string($delta['content'] ?? null) && '' !== $delta['content']) {
+                        $fullText .= $delta['content'];
+                        $onDelta($delta['content']);
+                    }
+                }
+            },
+        );
+
+        if ($status < 200 || $status >= 300) {
+            throw new AiException(sprintf('OpenAI streaming API returned HTTP %d.', $status));
+        }
+
+        return new ChatResponse(
+            text: $fullText,
+            model: $resolvedModel,
+            provider: $this->name(),
             finishReason: $finishReason,
         );
     }

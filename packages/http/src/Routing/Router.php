@@ -167,6 +167,41 @@ final class Router
         );
     }
 
+    /**
+     * Generate a URL path from a named route, substituting parameters and optional query string.
+     *
+     * @param array<string, string|int> $params
+     * @param array<string, string|int> $query
+     */
+    public function url(string $name, array $params = [], array $query = []): string
+    {
+        foreach ($this->routes as $route) {
+            if ($route->routeName() !== $name) {
+                continue;
+            }
+            $built = preg_replace_callback(
+                '/\{([a-zA-Z_][a-zA-Z0-9_]*)(?::[^}]+)?\}/',
+                static function (array $m) use ($name, $params): string {
+                    $key = $m[1];
+                    if (!array_key_exists($key, $params)) {
+                        throw new HttpException(500, sprintf('Missing required route parameter "%s" for route "%s".', $key, $name));
+                    }
+
+                    return rawurlencode((string) $params[$key]);
+                },
+                $route->path,
+            );
+            $url = is_string($built) ? $built : $route->path;
+            if ([] !== $query) {
+                $url .= '?' . http_build_query($query);
+            }
+
+            return $url;
+        }
+
+        throw new HttpException(500, sprintf('Named route "%s" does not exist.', $name));
+    }
+
     private function normalizePath(string $path): string
     {
         $clean = '/' . trim($path, '/');

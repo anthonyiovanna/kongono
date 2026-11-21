@@ -15,6 +15,8 @@ final class QueryBuilder
     /** @var list<string> */
     private array $columns = ['*'];
 
+    private bool $distinct = false;
+
     /** @var list<array{type: string, table: string, left: string, operator: string, right: string}> */
     private array $joins = [];
 
@@ -43,6 +45,13 @@ final class QueryBuilder
     public function select(string ...$columns): self
     {
         $this->columns = [] !== $columns ? array_values($columns) : ['*'];
+
+        return $this;
+    }
+
+    public function distinct(bool $enabled = true): self
+    {
+        $this->distinct = $enabled;
 
         return $this;
     }
@@ -123,6 +132,22 @@ final class QueryBuilder
         return $this;
     }
 
+    public function whereLike(string $column, string $pattern): self
+    {
+        return $this->where($column, Dialect::Postgres === $this->dialect ? 'ILIKE' : 'LIKE', $pattern);
+    }
+
+    public function whereBetween(string $column, mixed $min, mixed $max): self
+    {
+        $this->wheres[] = [
+            'boolean' => 'AND',
+            'sql' => sprintf('%s BETWEEN ? AND ?', $this->dialect->quoteIdentifier($column)),
+            'bindings' => [$min, $max],
+        ];
+
+        return $this;
+    }
+
     public function groupBy(string ...$columns): self
     {
         array_push($this->groups, ...$columns);
@@ -182,7 +207,8 @@ final class QueryBuilder
             $from .= ' AS ' . $this->dialect->quoteIdentifier($this->alias);
         }
 
-        $parts = [sprintf('SELECT %s FROM %s', $select, $from)];
+        $selectKeyword = $this->distinct ? 'SELECT DISTINCT' : 'SELECT';
+        $parts = [sprintf('%s %s FROM %s', $selectKeyword, $select, $from)];
 
         foreach ($this->joins as $join) {
             $parts[] = sprintf(
@@ -234,6 +260,40 @@ final class QueryBuilder
         }
 
         return new Sql(implode(' ', $parts), $bindings);
+    }
+
+    /**
+     * Compile a batch multi-row parameterized INSERT statement.
+     *
+     * @param non-empty-list<array<string, mixed>> $rows
+     */
+    public function toInsertManySql(array $rows): Sql
+    {
+        $columns = array_keys($rows[0]);
+        if ([] === $columns) {
+            throw new DatabaseException('Cannot compile batch INSERT with empty columns.');
+        }
+
+        $quotedColumns = array_map($this->dialect->quoteIdentifier(...), $columns);
+        $rowPlaceholder = '(' . implode(', ', array_fill(0, count($columns), '?')) . ')';
+        $groups = [];
+        $bindings = [];
+
+        foreach ($rows as $row) {
+            $groups[] = $rowPlaceholder;
+            foreach ($columns as $col) {
+                $bindings[] = $row[$col] ?? null;
+            }
+        }
+
+        $sql = sprintf(
+            'INSERT INTO %s (%s) VALUES %s',
+            $this->dialect->quoteIdentifier($this->table),
+            implode(', ', $quotedColumns),
+            implode(', ', $groups),
+        );
+
+        return new Sql($sql, $bindings);
     }
 
     /**
@@ -363,6 +423,43 @@ final class QueryBuilder
         return is_array($row) && is_numeric($row['aggregate_count'] ?? null)
             ? (int) $row['aggregate_count']
             : 0;
+    }
+
+    /** Check whether at least one row matches the current query. */
+    public function exists(): bool
+    {
+        return $this->count() > 0;
+    }
+
+    /**
+     * Extract a single column's values across all matching rows.
+     *
+     * @return list<mixed>
+     */
+    public function pluck(string $column): array
+    {
+        $clone = clone $this;
+        $rows = $clone->select($column)->get();
+        $values = [];
+        foreach ($rows as $row) {
+            if (array_key_exists($column, $row)) {
+                $values[] = $row[$column];
+            }
+        }
+
+        return $values;
+    }
+
+    /**
+     * Execute a batch multi-row parameterized INSERT.
+     *
+     * @param non-empty-list<array<string, mixed>> $rows
+     */
+    public function insertMany(array $rows): int
+    {
+        $sql = $this->toInsertManySql($rows);
+
+        return $this->requireConnection()->execute($sql->query, $sql->bindings);
     }
 
     /**

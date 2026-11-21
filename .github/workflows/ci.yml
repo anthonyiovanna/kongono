@@ -1,0 +1,41 @@
+name: Kongono CI
+
+on:
+  push:
+    branches: [v1, main]
+  pull_request:
+    branches: [v1, main]
+
+jobs:
+  quality:
+    name: PHP 8.5 Quality Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: curl, json, mbstring, pdo, pdo_pgsql
+          tools: composer:v2
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Validate Composer Manifests
+        run: |
+          composer validate --no-check-publish --strict
+          for dir in packages/*; do
+            composer --working-dir="$dir" validate --no-check-publish --strict
+          done
+
+      - name: Code Style (PHP-CS-Fixer)
+        run: composer cs
+
+      - name: Static Analysis (PHPStan Level 9 + Strict)
+        run: composer analyse
+
+      - name: Test Suite (PHPUnit 13)
+        run: composer test

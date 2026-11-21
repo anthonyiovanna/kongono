@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kongono\Cli\Companions;
 
 use Kongono\Ai\AiClient;
+use Kongono\Ai\ChatRequest;
+use Kongono\Ai\Message;
 use Kongono\Cli\Context\ProjectContext;
 
 /**
@@ -234,5 +236,31 @@ PROMPT;
         );
 
         return $this->ai->ask($prompt, self::SYSTEM_PROMPT, temperature: 0.3);
+    }
+
+    /**
+     * Run one turn of a multi-turn tutoring conversation, updating the message history.
+     *
+     * @param list<Message> $history
+     * @return array{reply: string, history: list<Message>}
+     */
+    public function converse(string $userInput, array $history, ProjectContext $context): array
+    {
+        if (null === $this->ai) {
+            return [
+                'reply' => 'Interactive Oshie requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST).',
+                'history' => $history,
+            ];
+        }
+
+        if ([] === $history) {
+            $history[] = Message::system(self::SYSTEM_PROMPT . "\n\nCurrent project context:\n" . $context->promptSummary());
+        }
+
+        $history[] = Message::user($userInput);
+        $response = $this->ai->chat(new ChatRequest($history, temperature: 0.3));
+        $history[] = Message::assistant($response->text);
+
+        return ['reply' => $response->text, 'history' => $history];
     }
 }

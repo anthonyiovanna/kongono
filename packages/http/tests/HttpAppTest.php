@@ -15,8 +15,10 @@ use Kongono\Http\Routing\Router;
 use Kongono\Http\Session\CacheSessionStore;
 use Kongono\Http\Session\Session;
 use Kongono\Http\Session\SessionMiddleware;
+use Kongono\Http\Testing\TestClient;
 use Kongono\Http\UploadedFile;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use stdClass;
 
 final readonly class AttributeDemoController
@@ -165,5 +167,41 @@ final class HttpAppTest extends TestCase
             @unlink($assetsDir . DIRECTORY_SEPARATOR . 'site.css');
             @rmdir($assetsDir);
         }
+    }
+
+    public function testDevErrorPageNamedUrlsAndFluentTestClient(): void
+    {
+        $app = App::create(__DIR__)
+            ->debug(true)
+            ->routes(static function (Router $r): void {
+                $r->get('/users/{id:\d+}', static fn(int $id): array => ['user' => ['id' => $id]])->name('users.show');
+                $r->get('/boom', static function (): Response {
+                    throw new RuntimeException('Boom with Bearer secret-token-123456789');
+                });
+            });
+
+        self::assertSame('/users/99?tab=posts', $app->router()->url('users.show', ['id' => 99], ['tab' => 'posts']));
+
+        $client = new TestClient($app);
+        $client->get('/users/7')
+            ->assertOk()
+            ->assertJsonPath('user.id', 7);
+
+        $devErr = $client->withHeader('Authorization', 'Bearer top-secret-xyz')->get('/boom')
+            ->assertStatus(500)
+            ->assertSee('Kongono Dev Exception')
+            ->assertSee('Source Context')
+            ->assertSee('kongo hantei debug')
+            ->assertDontSee('top-secret-xyz')
+            ->assertDontSee('secret-token-123456789');
+
+        self::assertStringContainsString('[REDACTED]', $devErr->body());
+
+        // Production mode hides error internals completely
+        $app->debug(false);
+        $client->get('/boom')
+            ->assertStatus(500)
+            ->assertDontSee('Source Context')
+            ->assertSee('An internal server error occurred.');
     }
 }

@@ -71,8 +71,16 @@ final class TemplateCompiler
 
         $output = $this->replaceCallback('/@elseif\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php elseif (%s): ?>', $m[1]), $output);
         $output = $this->replaceCallback('/@if\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php if (%s): ?>', $m[1]), $output);
+        $output = $this->replaceCallback('/@unless\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php if (!(%s)): ?>', $m[1]), $output);
+        $output = str_replace('@endunless', '<?php endif; ?>', $output);
+        $output = $this->replaceCallback('/@isset\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php if (isset(%s)): ?>', $m[1]), $output);
+        $output = str_replace('@endisset', '<?php endif; ?>', $output);
         $output = str_replace('@else', '<?php else: ?>', $output);
         $output = str_replace('@endif', '<?php endif; ?>', $output);
+
+        // 6b. @json($value) safe JSON encoding & @php ... @endphp escape hatch
+        $output = $this->replaceCallback('/@json\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php echo json_encode(%s, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>', $m[1]), $output);
+        $output = str_replace(['@php', '@endphp'], ['<?php', '?>'], $output);
 
         // 7. Raw echo {!! $expr !!}
         $output = $this->replaceCallback('/\{!!\s*(.+?)\s*!!\}/s', static fn(array $m): string => sprintf('<?php echo (string) (%s); ?>', $m[1]), $output);

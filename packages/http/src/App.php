@@ -576,11 +576,12 @@ final class App
             return Response::json($payload, 500);
         }
 
+        if ($this->debug) {
+            return Response::html((new DevErrorRenderer())->render($request, $e), 500);
+        }
+
         return Response::html(
-            sprintf(
-                '<!doctype html><html><body><h1>500 Internal Server Error</h1><p>%s</p></body></html>',
-                htmlspecialchars($safeMessage, ENT_QUOTES, 'UTF-8'),
-            ),
+            '<!doctype html><html><body><h1>500 Internal Server Error</h1><p>An internal server error occurred.</p></body></html>',
             500,
         );
     }

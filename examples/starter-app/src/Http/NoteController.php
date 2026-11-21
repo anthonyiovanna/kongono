@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace StarterApp\Http;
 
+use Kongono\Core\Telemetry\Metrics;
 use Kongono\Http\App;
 use Kongono\Http\HttpException;
 use Kongono\Http\Request;
@@ -27,6 +28,7 @@ final readonly class NoteController
         private StorageInterface $storage,
         private Queue $queue,
         private Worker $worker,
+        private Metrics $metrics,
         private App $app,
     ) {}
 
@@ -159,5 +161,13 @@ final readonly class NoteController
     public function apiGraph(): Response
     {
         return Response::json($this->app->graph()->toArray());
+    }
+
+    #[Get('/metrics', name: 'metrics')]
+    public function metrics(): Response
+    {
+        return Response::text($this->metrics->toPrometheus(), 200, [
+            'Content-Type' => 'text/plain; version=0.0.4; charset=utf-8',
+        ]);
     }
 }

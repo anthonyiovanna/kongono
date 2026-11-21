@@ -6,6 +6,7 @@ use Kongono\Core\Cache\CacheInterface;
 use Kongono\Core\Cache\FileCache;
 use Kongono\Core\EnvLoader;
 use Kongono\Core\Log\Logger;
+use Kongono\Core\Telemetry\Metrics;
 use Kongono\Http\App;
 use Kongono\Http\Middleware\StaticFilesMiddleware;
 use Kongono\Http\Session\CacheSessionStore;
@@ -14,6 +15,7 @@ use Kongono\Jobs\Job;
 use Kongono\Jobs\JobOutcome;
 use Kongono\Jobs\MemoryQueueDriver;
 use Kongono\Jobs\Queue;
+use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
 use Kongono\Security\Middleware\CorsMiddleware;
 use Kongono\Security\Middleware\RateLimitMiddleware;
@@ -31,8 +33,13 @@ EnvLoader::load($baseDir . DIRECTORY_SEPARATOR . '.env');
 $cache = new FileCache($baseDir . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'app');
 $storage = new LocalStorage($baseDir . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'storage');
 $logger = new Logger('starter-app', retainInMemory: true);
+$metrics = new Metrics();
 $queueDriver = new MemoryQueueDriver();
 $queue = new Queue($queueDriver);
+$scheduler = new Scheduler();
+$scheduler->call('heartbeat', static function () use ($logger): void {
+    $logger->info('Scheduled heartbeat ran.');
+})->everyMinute();
 
 $app = App::create($baseDir, name: 'Kongono Starter App')
     ->config(['app' => ['debug' => true]])
@@ -40,6 +47,8 @@ $app = App::create($baseDir, name: 'Kongono Starter App')
     ->instance(CacheInterface::class, $cache)
     ->instance(StorageInterface::class, $storage)
     ->instance(LoggerInterface::class, $logger)
+    ->instance(Metrics::class, $metrics)
+    ->instance(Scheduler::class, $scheduler)
     ->singleton(NoteStore::class, NoteStore::class)
     ->instance(Queue::class, $queue)
     ->middleware(
@@ -48,7 +57,7 @@ $app = App::create($baseDir, name: 'Kongono Starter App')
         new CorsMiddleware(allowedOrigins: ['*']),
         new RateLimitMiddleware($cache, maxRequests: 120, windowSeconds: 60),
         new SessionMiddleware(new CacheSessionStore($cache)),
-        new RequestTimingMiddleware(),
+        new RequestTimingMiddleware($metrics),
     )
     ->controller(NoteController::class);
 

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Kongono\Ai;
 
+use Closure;
 use JsonException;
 use Kongono\Ai\Provider\AiProviderInterface;
 use Kongono\Ai\Provider\AnthropicProvider;
 use Kongono\Ai\Provider\GeminiProvider;
 use Kongono\Ai\Provider\OllamaProvider;
 use Kongono\Ai\Provider\OpenAiProvider;
+use Kongono\Ai\Provider\StreamingAiProviderInterface;
 use Kongono\Ai\Transport\HttpTransportInterface;
 use Kongono\Core\Config;
 use Kongono\Validation\Validator;
@@ -80,6 +82,24 @@ final readonly class AiClient
     public function chat(ChatRequest $request): ChatResponse
     {
         return $this->provider->chat($request);
+    }
+
+    /**
+     * Stream token deltas to $onDelta as they arrive (falls back to single-chunk delivery if provider does not stream).
+     *
+     * @param Closure(string): void $onDelta
+     */
+    public function chatStream(ChatRequest $request, Closure $onDelta): ChatResponse
+    {
+        if ($this->provider instanceof StreamingAiProviderInterface) {
+            return $this->provider->chatStream($request, $onDelta);
+        }
+        $response = $this->provider->chat($request);
+        if ('' !== $response->text) {
+            $onDelta($response->text);
+        }
+
+        return $response;
     }
 
     /** Convenience one-shot helper for simple prompts. */

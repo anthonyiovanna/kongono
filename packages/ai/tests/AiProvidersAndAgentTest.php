@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kongono\Ai\Tests;
 
+use Closure;
 use Kongono\Ai\Agent\AgentPrincipal;
 use Kongono\Ai\Agent\AgentRunner;
 use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
+use Kongono\Ai\ChatRequest;
 use Kongono\Ai\Message;
 use Kongono\Ai\Provider\AnthropicProvider;
 use Kongono\Ai\Provider\GeminiProvider;
@@ -17,6 +19,7 @@ use Kongono\Ai\ToolCall;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Ai\Transport\HttpResponse;
 use Kongono\Ai\Transport\HttpTransportInterface;
+use Kongono\Ai\Transport\StreamingHttpTransportInterface;
 use Kongono\Validation\Attributes\In;
 use Kongono\Validation\Attributes\Required;
 use PHPUnit\Framework\TestCase;
@@ -202,5 +205,36 @@ final class AiProvidersAndAgentTest extends TestCase
 
         self::assertSame('positive', $result->sentiment);
         self::assertSame('Developers love zero-legacy PHP 8.5 DX.', $result->summary);
+    }
+
+    public function testOpenAiProviderStreamsSseTokenDeltas(): void
+    {
+        $streamingTransport = new class implements StreamingHttpTransportInterface {
+            public function postJson(string $url, array $headers, string $jsonBody, int $timeoutSeconds = 60): HttpResponse
+            {
+                return new HttpResponse(200, '{}');
+            }
+
+            public function postJsonStream(string $url, array $headers, string $jsonBody, Closure $onChunk, int $timeoutSeconds = 120): int
+            {
+                $onChunk("data: {\"model\":\"gpt-4.1-mini\",\"choices\":[{\"delta\":{\"content\":\"Hello \"}}]}\n\n");
+                $onChunk("data: {\"model\":\"gpt-4.1-mini\",\"choices\":[{\"delta\":{\"content\":\"Kongono!\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n");
+
+                return 200;
+            }
+        };
+
+        $client = new AiClient(new OpenAiProvider('sk-test', transport: $streamingTransport));
+        $deltas = [];
+        $res = $client->chatStream(
+            new ChatRequest([Message::user('Greet')]),
+            static function (string $delta) use (&$deltas): void {
+                $deltas[] = $delta;
+            },
+        );
+
+        self::assertSame(['Hello ', 'Kongono!'], $deltas);
+        self::assertSame('Hello Kongono!', $res->text);
+        self::assertSame('stop', $res->finishReason);
     }
 }

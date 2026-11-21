@@ -77,6 +77,30 @@ HTML,
         $engine->render('../secret');
     }
 
+    public function testSupportsUnlessIssetJsonAndPhpDirectives(): void
+    {
+        file_put_contents(
+            $this->tempDir . '/views/extras.kgn.html',
+            <<<'HTML'
+@unless ($disabled)
+<span>Active</span>
+@endunless
+@isset($meta)
+<script>const data = @json($meta);</script>
+@endisset
+@php $sum = 2 + 3; @endphp
+<p>{{ $sum }}</p>
+HTML,
+        );
+
+        $engine = new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache');
+        $html = $engine->render('extras', ['disabled' => false, 'meta' => ['ok' => true]]);
+
+        self::assertStringContainsString('<span>Active</span>', $html);
+        self::assertStringContainsString('{"ok":true}', $html);
+        self::assertStringContainsString('<p>5</p>', $html);
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {

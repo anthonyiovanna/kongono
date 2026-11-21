@@ -7,6 +7,7 @@ namespace Kongono\Cli;
 use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
 use Kongono\Cli\Companions\ChieBuilder;
+use Kongono\Cli\Companions\DiffRenderer;
 use Kongono\Cli\Companions\HanteiDebugger;
 use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
@@ -14,6 +15,7 @@ use Kongono\Database\ConnectionInterface;
 use Kongono\Database\MigrationInterface;
 use Kongono\Database\Migrator;
 use Kongono\Http\App;
+use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
 use Throwable;
 
@@ -49,10 +51,12 @@ final readonly class KongoCli
                 'serve' => $this->cmdServe($appRoot, $options),
                 'new' => $this->cmdNew($rest, $options),
                 'work' => $this->cmdWork($appRoot, $options),
+                'schedule:run' => $this->cmdScheduleRun($appRoot),
                 'migrate' => $this->cmdMigrate($appRoot),
                 'make:controller' => $this->cmdMake('controller', $appRoot, $rest),
                 'make:dto' => $this->cmdMake('dto', $appRoot, $rest),
                 'make:migration' => $this->cmdMake('migration', $appRoot, $rest),
+                'check' => $this->cmdCheck($appRoot),
                 'test' => $this->cmdHantei($appRoot, ['test'], $options),
                 'oshie' => $this->cmdOshie($appRoot, $rest, $options),
                 'chie' => $this->cmdChie($appRoot, $rest, $options),
@@ -192,6 +196,67 @@ final readonly class KongoCli
         )];
     }
 
+    /** @return array{0: int, 1: string} */
+    private function cmdScheduleRun(string $appRoot): array
+    {
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (!is_file($bootstrap)) {
+            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $app = require $bootstrap;
+        if (!$app instanceof App || !$app->container()->has(Scheduler::class)) {
+            return [1, "No Kongono\\Jobs\\Scheduler\\Scheduler registered in this application's container.\n"];
+        }
+
+        $scheduler = $app->container()->make(Scheduler::class);
+        $report = $scheduler->runDue();
+        $lines = [
+            sprintf('Scheduler evaluated %d task(s): ran=%d failed=%d', count($scheduler->tasks()), count($report['ran']), count($report['failed'])),
+        ];
+        foreach ($report['ran'] as $name) {
+            $lines[] = '  [OK] ' . $name;
+        }
+        foreach ($report['failed'] as $name => $err) {
+            $lines[] = sprintf('  [FAIL] %s: %s', $name, $err);
+        }
+
+        return [[] === $report['failed'] ? 0 : 1, implode("\n", $lines) . "\n"];
+    }
+
+    /** @return array{0: int, 1: string} */
+    private function cmdCheck(string $appRoot): array
+    {
+        $context = ProjectContext::discover($appRoot);
+        $hantei = new HanteiDebugger($this->tryAiClient());
+        $rootContext = new ProjectContext($this->workingDirectory, $context->graph);
+
+        $gates = [
+            'cs' => [PHP_BINARY, $this->workingDirectory . '/vendor/bin/php-cs-fixer', 'fix', '--config=.php-cs-fixer.dist.php', '--dry-run', '--diff'],
+            'analyse' => [PHP_BINARY, '-d', 'memory_limit=512M', $this->workingDirectory . '/vendor/bin/phpstan', 'analyse', '--configuration=phpstan.neon.dist', '--no-progress'],
+            'test' => [PHP_BINARY, '-d', 'memory_limit=512M', $this->workingDirectory . '/vendor/bin/phpunit', '--configuration', 'phpunit.xml.dist'],
+        ];
+
+        $lines = ['Kongono Quality Suite:'];
+        $failed = false;
+
+        foreach ($gates as $name => $cmd) {
+            $res = $hantei->runCheck($cmd, $rootContext);
+            $status = 0 === $res['exit_code'] ? 'PASS' : 'FAIL';
+            $lines[] = sprintf('  [%-4s] %s', $status, $name);
+            if (0 !== $res['exit_code']) {
+                $failed = true;
+                $lines[] = $res['output'];
+                if (null !== $res['diagnosis']) {
+                    $lines[] = "--- Hantei AI Diagnosis ---\n" . $res['diagnosis'];
+                }
+                break;
+            }
+        }
+
+        return [$failed ? 1 : 0, implode("\n", $lines) . "\n"];
+    }
+
     /**
      * @param 'controller'|'dto'|'migration' $kind
      * @param list<string>                   $args
@@ -266,6 +331,10 @@ final readonly class KongoCli
         $context = ProjectContext::discover($appRoot);
         $oshie = new OshieTutor($this->tryAiClient());
 
+        if (isset($options['interactive'])) {
+            return $this->runOshieRepl($oshie, $context);
+        }
+
         if (isset($options['lessons'])) {
             $lines = ['Kongono Oshie — Built-in Lessons:'];
             foreach ($oshie->listLessons() as $id => $meta) {
@@ -316,6 +385,16 @@ final readonly class KongoCli
         foreach ($result['changes'] as $change) {
             $status = $apply ? 'WRITTEN' : 'PREVIEW';
             $lines[] = sprintf('[%s] (%s) %s — %s', $status, $change['action'], $change['path'], $change['explanation']);
+            if (!$apply) {
+                $before = null;
+                try {
+                    $before = $context->readFileSafe($change['path']);
+                } catch (Throwable) {
+                    $before = null;
+                }
+                $lines[] = DiffRenderer::render($change['path'], $before, $change['content']);
+                $lines[] = '';
+            }
         }
         if (!$apply && [] !== $result['changes']) {
             $lines[] = "\nRe-run with --apply to write these files to disk.";
@@ -450,6 +529,49 @@ final readonly class KongoCli
         return ['positional' => $positional, 'options' => $options];
     }
 
+    /** @return array{0: int, 1: string} */
+    private function runOshieRepl(OshieTutor $oshie, ProjectContext $context): array
+    {
+        fwrite(STDOUT, "Oshie Interactive AI Tutor — type a question, /lessons, /graph, /reset, or /exit\n");
+        $history = [];
+
+        while (true) {
+            fwrite(STDOUT, "\noshie> ");
+            $line = fgets(STDIN);
+            if (false === $line) {
+                break;
+            }
+            $input = trim($line);
+            if ('' === $input) {
+                continue;
+            }
+            if ('/exit' === $input || '/quit' === $input) {
+                break;
+            }
+            if ('/reset' === $input) {
+                $history = [];
+                fwrite(STDOUT, "Conversation history cleared.\n");
+                continue;
+            }
+            if ('/lessons' === $input) {
+                foreach ($oshie->listLessons() as $id => $meta) {
+                    fwrite(STDOUT, sprintf("  %-12s %s\n", $id, $meta['title']));
+                }
+                continue;
+            }
+            if ('/graph' === $input) {
+                fwrite(STDOUT, (null !== $context->graph ? $context->graph->toJson() : '{"graph":null}') . "\n");
+                continue;
+            }
+
+            $turn = $oshie->converse($input, $history, $context);
+            $history = $turn['history'];
+            fwrite(STDOUT, "\n" . $turn['reply'] . "\n");
+        }
+
+        return [0, "Goodbye from Oshie.\n"];
+    }
+
     private function helpText(): string
     {
         return <<<'TEXT'
@@ -462,18 +584,21 @@ Core Commands:
   new <dir> [--name="My App"]                           Scaffold a brand-new Kongono v1 project
   serve [--app=path] [--host=127.0.0.1] [--port=8000]   Start local PHP 8.5 dev server
   work [--app=path] [--queue=default] [--max-jobs=50]   Process queued background jobs
+  schedule:run [--app=path]                             Execute due scheduled cron tasks
   migrate [--app=path]                                  Run pending database migrations
   make:controller <Name> [--app=path]                   Generate a PHP 8.5 attribute controller
   make:dto <Name> [--app=path]                          Generate a validated readonly input DTO
   make:migration <Name> [--app=path]                    Generate a Schema::create() migration
   routes [--app=path]                                   List all registered routes
   graph [--app=path]                                    Print live ApplicationGraph JSON
+  check                                                 Run full CS + PHPStan + PHPUnit suite
   test                                                  Run PHPUnit test suite
   version                                               Show Kongono & PHP version
 
 Built-in AI Companions (OpenAI, Anthropic, Gemini, or local Ollama):
   oshie --lessons                                       List built-in learning lessons
   oshie --lesson <id>                                   Study a lesson (AI-tailored when configured)
+  oshie --interactive                                   Start multi-turn interactive AI tutor REPL
   oshie "<question>"                                    Ask Oshie anything about Kongono or your app
   chie "<what to build>" [--apply]                      Generate idiomatic Kongono code (preview by default)
   hantei check                                          Run tests & diagnose failures with AI

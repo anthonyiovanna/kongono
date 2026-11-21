@@ -1,0 +1,14 @@
+{
+	frankenphp {
+		worker {
+			file /app/examples/starter-app/public/worker.php
+			num 4
+		}
+	}
+}
+
+:8080 {
+	root * /app/examples/starter-app/public
+	encode zstd br gzip
+	php_server
+}
