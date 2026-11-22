@@ -14,6 +14,7 @@ use Kongono\Mail\Email;
 use Kongono\Mail\Mailer;
 use Kongono\Security\Attributes\Can;
 use Kongono\Security\Middleware\BearerAuthMiddleware;
+use Kongono\Security\Middleware\RateLimitMiddleware;
 use Kongono\Security\Principal;
 use Kongono\Security\TokenSigner;
 use StarterApp\Domain\UserStore;
@@ -28,6 +29,7 @@ final readonly class AuthController
     ) {}
 
     #[Post('/register', name: 'api.auth.register')]
+    #[Middleware(RateLimitMiddleware::class)]
     public function register(RegisterInput $input): Response
     {
         if (null !== $this->users->findByEmail($input->email)) {
@@ -45,6 +47,7 @@ final readonly class AuthController
     }
 
     #[Post('/login', name: 'api.auth.login')]
+    #[Middleware(RateLimitMiddleware::class)]
     public function login(LoginInput $input): Response
     {
         $user = $this->users->verifyCredentials($input->email, $input->password);

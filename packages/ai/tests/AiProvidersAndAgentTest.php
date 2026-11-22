@@ -560,9 +560,25 @@ final class AiProvidersAndAgentTest extends TestCase
             'usage' => ['prompt_tokens' => 30, 'completion_tokens' => 20],
         ], JSON_THROW_ON_ERROR)));
 
+        try {
+            (new AgentRunner(new AiClient(new OpenAiProvider('sk-test', transport: $tightTransport)), $tightPrincipal))
+                ->run([Message::user('Hi')], [], static fn(): string => '');
+            self::fail('Expected token budget failure.');
+        } catch (AiException $e) {
+            self::assertStringContainsString('exceeded its token budget', $e->getMessage());
+        }
+
+        // Enforce USD cost budget fail-closed
+        $costPrincipal = new AgentPrincipal(id: 'cost-agent', role: 'support', maxCostUsd: 0.01);
+        $costTransport = new FakeTransport(new HttpResponse(200, json_encode([
+            'model' => 'gpt-4.1-mini',
+            'choices' => [['message' => ['role' => 'assistant', 'content' => 'Done']]],
+            'usage' => ['prompt_tokens' => 5000, 'completion_tokens' => 2000],
+        ], JSON_THROW_ON_ERROR)));
+
         $this->expectException(AiException::class);
-        $this->expectExceptionMessage('exceeded its token budget');
-        (new AgentRunner(new AiClient(new OpenAiProvider('sk-test', transport: $tightTransport)), $tightPrincipal))
+        $this->expectExceptionMessage('exceeded its USD cost budget');
+        (new AgentRunner(new AiClient(new OpenAiProvider('sk-test', transport: $costTransport)), $costPrincipal))
             ->run([Message::user('Hi')], [], static fn(): string => '');
     }
 

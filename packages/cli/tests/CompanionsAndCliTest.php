@@ -161,7 +161,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.4.1', $vOut);
+            self::assertStringContainsString('v1.4.2', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -391,8 +391,9 @@ final class CompanionsAndCliTest extends TestCase
     {
         $cli = new KongoCli(dirname(__DIR__, 3));
 
-        [$code, $out] = $cli->run(['audit', '--attack', '--app=' . $this->starterAppRoot]);
+        [$code, $out] = $cli->run(['audit', '--attack', '--strict', '--app=' . $this->starterAppRoot]);
         self::assertSame(0, $code);
+        self::assertStringContainsString('Score: 100/100 (PASS)', $out);
         self::assertStringContainsString('Red-Team Attack Simulation:', $out);
         self::assertStringContainsString('ssrf_egress_defense', $out);
         self::assertStringContainsString('prompt_guard_canary', $out);

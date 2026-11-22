@@ -25,6 +25,8 @@ final readonly class AgentRunner
     public function __construct(
         private AiClient $client,
         private AgentPrincipal $principal,
+        private float $inputCostPer1kTokens = 0.005,
+        private float $outputCostPer1kTokens = 0.015,
     ) {}
 
     /**
@@ -60,6 +62,17 @@ final readonly class AgentRunner
                     $this->principal->id,
                     $totalInput + $totalOutput,
                     $this->principal->maxTokens,
+                ));
+            }
+
+            $estimatedCostUsd = (($totalInput / 1000.0) * $this->inputCostPer1kTokens)
+                + (($totalOutput / 1000.0) * $this->outputCostPer1kTokens);
+            if ($this->principal->exceedsCostBudget($estimatedCostUsd)) {
+                throw new AiException(sprintf(
+                    'Agent "%s" exceeded its USD cost budget ($%.4f > $%.4f).',
+                    $this->principal->id,
+                    $estimatedCostUsd,
+                    $this->principal->maxCostUsd,
                 ));
             }
 

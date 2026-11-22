@@ -67,6 +67,9 @@ HTML;
         $script = <<<'JS'
     const root = document.getElementById('endpoints');
     const schemas = (spec.components && spec.components.schemas) || {};
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
     function sampleFor(schemaRef) {
       if (!schemaRef || !schemaRef.$ref) return {};
       const name = schemaRef.$ref.split('/').pop();
@@ -83,9 +86,10 @@ HTML;
         const card = document.createElement('section');
         card.className = 'op';
         const reqSchema = op.requestBody && op.requestBody.content && op.requestBody.content['application/json'] && op.requestBody.content['application/json'].schema;
-        const bodyHtml = reqSchema ? '<label class="meta">JSON Body</label><textarea rows="4">' + JSON.stringify(sampleFor(reqSchema), null, 2) + '</textarea>' : '';
+        const bodyHtml = reqSchema ? '<label class="meta">JSON Body</label><textarea rows="4">' + esc(JSON.stringify(sampleFor(reqSchema), null, 2)) + '</textarea>' : '';
+        const safeMethod = esc(method);
         card.innerHTML =
-          '<div class="op-head"><span class="method m-' + method + '">' + method + '</span><span class="path">' + path + '</span><span class="op-id">' + (op.operationId || '') + '</span></div>' +
+          '<div class="op-head"><span class="method m-' + safeMethod + '">' + safeMethod + '</span><span class="path">' + esc(path) + '</span><span class="op-id">' + esc(op.operationId || '') + '</span></div>' +
           '<div class="op-body">' + bodyHtml + '<button class="try-btn">Send Request</button><pre class="out"></pre></div>';
         card.querySelector('.op-head').addEventListener('click', () => card.classList.toggle('open'));
         card.querySelector('.try-btn').addEventListener('click', async () => {
