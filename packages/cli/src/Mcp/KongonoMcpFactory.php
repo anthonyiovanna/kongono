@@ -62,7 +62,7 @@ final class KongonoMcpFactory
 
         $server = new McpServer(
             serverName: 'kongono-framework',
-            serverVersion: '1.6.0',
+            serverVersion: '1.6.1',
             principal: $principal,
         );
 
