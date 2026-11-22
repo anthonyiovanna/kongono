@@ -1,4 +1,4 @@
-# Kongono Framework (v1.1.3)
+# Kongono Framework (v1.3.0)
 
 > **Build what comes next.**
 
@@ -8,7 +8,7 @@
 ![Zero Symfony](https://img.shields.io/badge/Symfony-0%20runtime%20deps-16a34a)
 ![License MIT](https://img.shields.io/badge/License-MIT-0284c7)
 
-Kongono is a modern, zero-legacy **PHP 8.5+** application framework built from the ground up — **no Symfony dependency, no PHP 7/8.1 shims, no magic global facades** — designed for persistent runtimes and featuring **three built-in AI companions**:
+Kongono is a modern, zero-legacy **PHP 8.5+** application framework built from the ground up — **no Symfony dependency, no PHP 7/8.1 shims, no magic global facades** — designed for persistent runtimes, hardened against autonomous AI attacks, and featuring **three built-in AI companions**:
 
 - **Oshie (`kongo oshie`)** — Interactive AI tutor that teaches Kongono grounded in your live app.
 - **Chie (`kongo chie`)** — Project-aware AI builder & scaffolder that reads your `ApplicationGraph` and proposes clean PHP 8.5 code.
@@ -19,10 +19,15 @@ Kongono is a modern, zero-legacy **PHP 8.5+** application framework built from t
 ## Why Kongono?
 
 - **Pure PHP 8.5+**: Strict types, `final readonly` classes, attributes, enums, zero legacy baggage.
-- **Joyful, Zero-Magic DX**: Fluent + Attribute routing (`#[Get]`, `#[Post]`), automatic typed DTO validation (`#[Required]`, `#[Min]`, `#[Email]`), compiled `.kgn.html` views with `<x-component>` tags and automatic XSS escaping, full parameterized SQL QueryBuilder (`JOIN`, `GROUP BY`, `HAVING`, `RETURNING`).
-- **Persistent-Runtime First**: Explicit `Kernel` operation scopes and automatic scoped DI container reset — works identically on PHP-FPM, `kongo serve`, FrankenPHP, and RoadRunner.
-- **Hardened by Default**: Capability-based `Principal` (Human/Service/Agent/System), Argon2id password hashing, AEAD XChaCha20-Poly1305 `Encryptor` with key rotation (`ext-sodium`), constant-time HMAC `TokenSigner` & expiring `SignedUrl`, CSRF/CORS/SecurityHeaders/BearerAuth/RateLimit middleware, **SSRF-hardened `SafeHttpClient`** (DNS IP pinning + private IP blocking), **contained atomic `LocalStorage`** + AWS SigV4 `S3Storage`, and **fencing-token `PostgresQueueDriver`** + persistent `Worker` preserving `Uncertain` outcomes.
-- **Multi-Provider AI & MCP Native**: `kongono/ai` speaks **OpenAI**, **Anthropic Claude**, **Google Gemini**, and local **Ollama** (all with live streaming) over pure PHP `ext-curl`, plus a built-in **Model Context Protocol (MCP) Server** (`kongo mcp` / `POST /mcp`) so Antigravity, Cursor, Claude Code, and Codex can inspect your live `ApplicationGraph` and OpenAPI 3.1 spec safely.
+- **One Backend, Every Platform (`kongo sdk:generate`)**: Generate typed **TypeScript** (React/Next.js/React Native), **Swift 6** (iOS/macOS), **Kotlin** (Android), and **Dart** (Flutter) client SDKs straight from your PHP 8.5 attribute routes and readonly DTOs.
+- **Persistent-Runtime Speed (`Async::all()` + AOT Router)**: Native PHP 8.5 Fiber concurrency (`Async::all`, `Async::race`, `Async::map`, `Async::allSettled`), parallel SSRF-pinned `SafeHttpClient::requestMany()` (`curl_multi`), $O(1)$ static route dispatch + pre-compiled regexes, and `kongo optimize` emitting OPcache-ready `var/cache/routes.compiled.php`.
+- **Zero-Build Hypermedia & SSE Reactivity (`Kongono\Live`)**: ~3 KB strict-CSP-compliant runtime (`LiveMiddleware`, `@liveScript`, `Request::isLive()`, `Response::fragment()`) with declarative `kgn-get`/`kgn-post`/`kgn-target`/`kgn-swap`/`kgn-stream` live DOM updates and automatic CSRF forwarding.
+- **Hardened Against Autonomous AI Attacks**:
+  - **`AiThreatShieldMiddleware`** — recon honeypot traps (`/.env`, `/wp-login.php`, `/actuator/env`), hidden form field traps, 404 probe burst auto-banning, and cost-aware compute budget limiting.
+  - **`PromptGuard` & `UntrustedInput`** — structural `<untrusted_data>` isolation, prompt-injection detection, and cryptographic Canary Token leakage fail-closed blocking.
+  - **`kongo audit --attack`** — graph-driven security audit + automated in-process red-team simulations (SSRF, PromptGuard canary, path traversal, security headers, error nondisclosure).
+  - **Fail-Closed Row-Level Multi-Tenancy (`TenantContext` + `QueryBuilder::forTenant()`)**, **Human-in-the-Loop AI Approval & Token/Cost Budgets (`RequiresApproval`, `AgentPrincipal`)**, Argon2id, XChaCha20-Poly1305 AEAD `Encryptor`, `SafeHttpClient`, RFC 6238 `Totp`, and `WebhookSigner`.
+- **Multi-Provider AI & MCP Native**: `kongono/ai` speaks **OpenAI**, **Anthropic Claude**, **Google Gemini**, and local **Ollama** (all with live streaming) over pure PHP `ext-curl`, plus a built-in **Model Context Protocol (MCP) Server** (`kongo mcp` / `POST /mcp`) exposing `kongono_graph`, `kongono_openapi`, `kongono_sdk_generate`, `kongono_audit`, `kongono_test_route`, and `kongono_deploy_preview` safely to AI coding agents.
 
 ---
 
@@ -47,8 +52,15 @@ Or run directly from this repository:
 # Run the full starter app locally (includes /_kongono Dev Studio, /docs API Explorer, /health, /openapi.json, /metrics, /mcp)
 php bin/kongo serve --app=examples/starter-app --port=8000
 
-# Verify environment & live app health, generate APP_KEY, inspect routes/graph/OpenAPI/MCP
+# Verify environment, run red-team security audit, generate typed mobile/web SDKs & deploy blueprints
 php bin/kongo doctor --app=examples/starter-app
+php bin/kongo audit --attack --app=examples/starter-app
+php bin/kongo sdk:generate --lang=ts --app=examples/starter-app --out=sdk/client.ts
+php bin/kongo sdk:generate --lang=swift --app=examples/starter-app --out=sdk/Client.swift
+php bin/kongo sdk:generate --lang=kotlin --app=examples/starter-app --out=sdk/Client.kt
+php bin/kongo sdk:generate --lang=dart --app=examples/starter-app --out=sdk/client.dart
+php bin/kongo deploy:init --app=examples/starter-app --domain=app.example.com
+php bin/kongo optimize --app=examples/starter-app
 php bin/kongo key:generate
 php bin/kongo routes --app=examples/starter-app
 php bin/kongo graph --app=examples/starter-app
@@ -76,17 +88,17 @@ To enable live AI responses for Oshie, Chie, and Hantei, set any one environment
 
 | # | Package | Namespace | Purpose |
 | --- | --- | --- | --- |
-| 1 | `packages/core` | `Kongono\Core\` | Persistent `Kernel`, PSR-11 `Container`, `Config`, `EnvLoader`, PSR-3 `Logger`, `MemoryCache`/`FileCache`/pure-PHP `RedisClient`+`RedisCache`, `FeatureManager`, `NotificationDispatcher`, `Retry`/`CircuitBreaker`, `Metrics`/`Tracer`, `HealthCheck`, `I18n\Translator`, `Diagnostics`, `EventDispatcher`, `ApplicationGraph` |
-| 2 | `packages/http` | `Kongono\Http\` | PSR-7/15 `Request`/`Response`/`Cookie`, `Session`, `StaticFilesMiddleware`, `CompressionMiddleware`, `#[CacheControl]`/`HttpCacheMiddleware`, `#[Idempotent]`/`IdempotencyMiddleware`, `#[Feature]`, `SseEvent` + `EventBus`, `OpenApiGenerator`, `/docs` `ApiDocsRenderer`, `/_kongono` `DevDashboardMiddleware` (with live Oshie/Hantei Studio), `DevErrorRenderer`, fluent `TestClient`, `#[Prefix]`/`#[Middleware]`/`#[Get]` `Router`, persistent `App` |
-| 3 | `packages/view` | `Kongono\View\` | Compiled `.kgn.html` closure templates (`warmCache()`, production `autoReload: false`), `@vite(...)`, layouts, loops, `<x-component>` slots, `@t(...)` i18n, `@json`, automatic XSS escaping |
+| 1 | `packages/core` | `Kongono\Core\` | Persistent `Kernel`, PSR-11 `Container`, Fiber `Async` (`all`/`race`/`map`/`allSettled`), `Config`, `EnvLoader`, PSR-3 `Logger`, `MemoryCache`/`FileCache`/pure-PHP `RedisClient`+`RedisCache`, `FeatureManager`, `NotificationDispatcher`, `Retry`/`CircuitBreaker`, `Metrics`/`Tracer`, `HealthCheck`, `I18n\Translator`, `Diagnostics`/`SecretScrubber`, `EventDispatcher`, `ApplicationGraph` |
+| 2 | `packages/http` | `Kongono\Http\` | PSR-7/15 `Request`/`Response`/`Cookie`, `Kongono\Live` (`LiveMiddleware`, `Request::isLive()`, `Response::fragment()`), `Session`, `StaticFilesMiddleware`, `CompressionMiddleware`, `#[CacheControl]`/`HttpCacheMiddleware`, `#[Idempotent]`/`IdempotencyMiddleware`, `#[Feature]`, `SseEvent` + `EventBus`, `OpenApiGenerator`, `/docs` `ApiDocsRenderer`, `/_kongono` `DevDashboardMiddleware`, `DevErrorRenderer`, fluent `TestClient`, $O(1)$ static + AOT compiled `Router`, persistent `App` |
+| 3 | `packages/view` | `Kongono\View\` | Compiled `.kgn.html` closure templates (`warmCache()`, production `autoReload: false`), `@liveScript`, `@vite(...)`, layouts, loops, `<x-component>` slots, `@t(...)` i18n, `@json`, automatic XSS escaping |
 | 4 | `packages/validation` | `Kongono\Validation\` | PHP 8.5 attribute-driven typed DTO validation (nested DTOs, `BackedEnum`, `#[Uuid]`, `#[Between]`, `#[Confirmed]`, `#[Email]`, `#[Min]`/`#[Max]`, `#[In]`, `#[Regex]`) |
-| 5 | `packages/database` | `Kongono\Database\` | Parameterized `QueryBuilder` (`JOIN`, `whereGroup()`, `upsert()`, `GROUP BY`, `HAVING`, `RETURNING`, `paginate()`, `getAs()`, `insertMany()`), `Schema`/`Blueprint`, `Repository`, `PdoConnection::onQuery()`, `Migrator` (`migrate` + `rollback`), `SeederInterface` |
-| 6 | `packages/security` | `Kongono\Security\` | `Principal` (Human/Service/Agent), `Gate`, `#[Can]` + `AuthorizeMiddleware`, RFC 6238 `Totp` 2FA/MFA, `WebhookSigner` + `WebhookDispatcher` + `#[VerifyWebhook]`, Argon2id `PasswordHasher`, AEAD `Encryptor` (XChaCha20-Poly1305 + key rotation), HMAC `TokenSigner` & `SignedUrl`, CSRF/CORS/Bearer/RateLimit/SecurityHeaders middleware, SSRF-hardened `SafeHttpClient` |
+| 5 | `packages/database` | `Kongono\Database\` | Parameterized `QueryBuilder` (fail-closed `forTenant()`/`TenantContext`, `JOIN`, `whereGroup()`, `upsert()`, `GROUP BY`, `HAVING`, `RETURNING`, `paginate()`, `getAs()`, `insertMany()`), `Schema`/`Blueprint`, `Repository`, `PdoConnection::onQuery()`, `Migrator` (`migrate` + `rollback`), `SeederInterface` |
+| 6 | `packages/security` | `Kongono\Security\` | `AiThreatShieldMiddleware` (honeypots + recon burst banning + cost budgets), `Principal` (Human/Service/Agent), `Gate`, `#[Can]` + `AuthorizeMiddleware`, RFC 6238 `Totp` 2FA/MFA, `WebhookSigner` + `WebhookDispatcher` + `#[VerifyWebhook]`, Argon2id `PasswordHasher`, AEAD `Encryptor` (XChaCha20-Poly1305 + key rotation), HMAC `TokenSigner` & `SignedUrl`, CSRF/CORS/Bearer/RateLimit/SecurityHeaders middleware, SSRF-hardened `SafeHttpClient` (+ parallel `requestMany()`) |
 | 7 | `packages/storage` | `Kongono\Storage\` | Contained atomic `LocalStorage`, pure PHP 8.5 AWS SigV4 `S3Storage` (S3/R2/MinIO + presigned URLs), and `MemoryStorage` |
 | 8 | `packages/jobs` | `Kongono\Jobs\` | Background `Queue`, persistent `Worker`, `PostgresQueueDriver` (`FOR UPDATE SKIP LOCKED` + fencing tokens), pure-PHP `RedisQueueDriver`, `MemoryQueueDriver`, and cron `Scheduler` |
 | 9 | `packages/mail` | `Kongono\Mail\` | Zero-dependency transactional email (`SmtpTransport` STARTTLS, `ResendTransport`, `LogTransport`, `MemoryTransport`, `MailNotificationChannel`, `.kgn.html` email views) |
-| 10 | `packages/ai` | `Kongono\Ai\` | Multi-provider `AiClient` (OpenAI, Anthropic, Gemini, Ollama) with live streaming, vector embeddings (`MemoryVectorStore` + `PgVectorStore`), 5-line RAG `KnowledgeBase`, `structured()` DTO extraction, governed `AgentPrincipal`/`AgentRunner`, and native `McpServer` (JSON-RPC 2.0) |
-| 11 | `packages/cli` | `Kongono\Cli\` | Unified `kongo` CLI (`new`, `serve`, `doctor`, `env:check`, `optimize`, `cache:clear`, `key:generate`, `work`, `schedule:run`, `migrate`, `migrate:rollback`, `db:seed`, `make:*`, `routes`, `graph`, `openapi`, `mcp`, `check`, `test`) + built-in **Oshie**, **Chie**, and **Hantei** |
+| 10 | `packages/ai` | `Kongono\Ai\` | Multi-provider `AiClient` (OpenAI, Anthropic, Gemini, Ollama) with live streaming, `PromptGuard` + `UntrustedInput` (canary tokens + injection detection), vector embeddings (`MemoryVectorStore` + `PgVectorStore`), 5-line RAG `KnowledgeBase`, `structured()` DTO extraction, governed `AgentPrincipal`/`RequiresApproval`/`AgentRunner` (human approval + token/USD budgets), and native `McpServer` (JSON-RPC 2.0) |
+| 11 | `packages/cli` | `Kongono\Cli\` | Unified `kongo` CLI (`new`, `serve`, `tinker`, `doctor`, `audit [--attack]`, `sdk:generate`, `deploy:init`, `env:check`, `optimize`, `cache:clear`, `key:generate`, `work`, `schedule:run`, `migrate`, `migrate:rollback`, `db:seed`, `make:*`, `routes`, `graph`, `openapi`, `mcp`, `check`, `test`) + built-in **Oshie**, **Chie**, and **Hantei** |
 
 *(Historical Phase 0–23 architecture archives remain preserved on the `main` and `archive/phase-23c-wip` branches.)*
 

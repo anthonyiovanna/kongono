@@ -222,6 +222,16 @@ HTML,
         self::assertSame('<span>Preloaded</span>', $engine->render('warm', ['label' => 'Preloaded']));
     }
 
+    public function testLiveScriptDirectiveCompilesDefaultAndCustomPaths(): void
+    {
+        file_put_contents($this->tempDir . '/views/live-default.kgn.html', '<head>@liveScript</head>');
+        file_put_contents($this->tempDir . '/views/live-custom.kgn.html', '<head>@liveScript("/assets/kgn-live.js")</head>');
+
+        $engine = new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache');
+        self::assertSame('<head><script src="/_kongono/live.js" defer></script></head>', $engine->render('live-default'));
+        self::assertSame('<head><script src="/assets/kgn-live.js" defer></script></head>', $engine->render('live-custom'));
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {

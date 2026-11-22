@@ -74,6 +74,31 @@ final class Response implements ResponseInterface
         return new self($status, $headers, Stream::fromString($html));
     }
 
+    /**
+     * Create a Kongono\Live HTML fragment response for partial DOM swaps.
+     *
+     * @param array<string, string|list<string>> $headers
+     */
+    public static function fragment(
+        string $html,
+        int $status = 200,
+        array $headers = [],
+        ?string $pushUrl = null,
+        ?string $redirect = null,
+    ): self {
+        $headers['Content-Type'] ??= 'text/html; charset=utf-8';
+        $headers['Vary'] ??= 'X-Kongono-Live';
+        $headers['X-Kongono-Live'] = 'fragment';
+        if (null !== $pushUrl && '' !== $pushUrl) {
+            $headers['X-Kongono-Push-Url'] = $pushUrl;
+        }
+        if (null !== $redirect && '' !== $redirect) {
+            $headers['X-Kongono-Redirect'] = $redirect;
+        }
+
+        return new self($status, $headers, Stream::fromString($html));
+    }
+
     /** @param array<string, string|list<string>> $headers */
     public static function json(mixed $data, int $status = 200, array $headers = []): self
     {

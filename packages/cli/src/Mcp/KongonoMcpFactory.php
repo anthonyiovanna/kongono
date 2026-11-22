@@ -11,6 +11,7 @@ use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Deploy\DeployBlueprintGenerator;
+use Kongono\Cli\Sdk\SdkGenerator;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Http\App;
 use Kongono\Http\OpenApi\OpenApiGenerator;
@@ -31,6 +32,7 @@ final class KongonoMcpFactory
     public const array DEFAULT_TOOLS = [
         'kongono_graph',
         'kongono_openapi',
+        'kongono_sdk_generate',
         'kongono_routes',
         'kongono_audit',
         'kongono_test_route',
@@ -55,7 +57,7 @@ final class KongonoMcpFactory
 
         $server = new McpServer(
             serverName: 'kongono-framework',
-            serverVersion: '1.2.0',
+            serverVersion: '1.3.0',
             principal: $principal,
         );
 
@@ -97,6 +99,38 @@ final class KongonoMcpFactory
 
         $server->registerTool(
             new ToolDefinition(
+                name: 'kongono_sdk_generate',
+                description: 'Generate a typed TypeScript (ts), Swift (swift), Kotlin (kotlin), or Dart (dart) client SDK directly from this Kongono app routes and DTOs.',
+                parametersSchema: [
+                    'type' => 'object',
+                    'required' => ['language'],
+                    'properties' => [
+                        'language' => [
+                            'type' => 'string',
+                            'description' => 'Target language: ts, swift, kotlin, or dart.',
+                        ],
+                        'client_name' => [
+                            'type' => 'string',
+                            'description' => 'Optional generated API client class name (default KongonoClient).',
+                        ],
+                    ],
+                ],
+            ),
+            static function (array $args) use ($app): string {
+                if (null === $app) {
+                    return '{"error":"No runnable Kongono App instance loaded."}';
+                }
+                $lang = is_string($args['language'] ?? null) ? $args['language'] : 'ts';
+                $clientName = is_string($args['client_name'] ?? null) && '' !== trim($args['client_name'])
+                    ? trim($args['client_name'])
+                    : 'KongonoClient';
+
+                return (new SdkGenerator())->generate($app, $lang, $clientName);
+            },
+        );
+
+        $server->registerTool(
+            new ToolDefinition(
                 name: 'kongono_routes',
                 description: 'List all registered HTTP routes (methods, paths, route names, and handlers).',
                 parametersSchema: [
@@ -126,14 +160,19 @@ final class KongonoMcpFactory
         $server->registerTool(
             new ToolDefinition(
                 name: 'kongono_audit',
-                description: 'Run the graph-driven Kongono security & architecture audit (0-Symfony supply chain, auth rate limits, payment idempotency, raw HTML sinks, .env hygiene).',
+                description: 'Run the graph-driven Kongono security & architecture audit (0-Symfony supply chain, auth rate limits, payment idempotency, raw HTML sinks, .env hygiene, plus optional in-process red-team --attack probes).',
                 parametersSchema: [
                     'type' => 'object',
-                    'properties' => (object) [],
+                    'properties' => [
+                        'attack' => [
+                            'type' => 'boolean',
+                            'description' => 'Run in-process red-team attack simulations (SSRF, PromptGuard canary, path traversal, headers).',
+                        ],
+                    ],
                 ],
             ),
-            static function () use ($appRoot, $app): string {
-                $report = (new SecurityAuditor())->audit($appRoot, $app);
+            static function (array $args) use ($appRoot, $app): string {
+                $report = (new SecurityAuditor())->audit($appRoot, $app, attack: (bool) ($args['attack'] ?? false));
 
                 return json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
             },

@@ -14,6 +14,7 @@ use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Deploy\DeployBlueprintGenerator;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
+use Kongono\Cli\Sdk\SdkGenerator;
 use Kongono\Core\Graph\RouteNode;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\MigrationInterface;
@@ -53,10 +54,11 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.2.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.3.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
+                'sdk:generate' => $this->cmdSdkGenerate($appRoot, $options),
                 'mcp' => $this->cmdMcp($appRoot),
                 'audit' => $this->cmdAudit($appRoot, $options),
                 'deploy:init' => $this->cmdDeployInit($appRoot, $options),
@@ -152,6 +154,44 @@ final readonly class KongoCli
         }
 
         return [0, (new OpenApiGenerator())->generateJson($app) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdSdkGenerate(string $appRoot, array $options): array
+    {
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (!is_file($bootstrap)) {
+            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+        $app = require $bootstrap;
+        if (!$app instanceof App) {
+            return [1, "app/bootstrap.php did not return a Kongono\\Http\\App instance.\n"];
+        }
+
+        $lang = is_string($options['lang'] ?? null) && '' !== trim($options['lang']) ? trim($options['lang']) : 'ts';
+        $clientName = is_string($options['name'] ?? null) && '' !== trim($options['name']) ? trim($options['name']) : 'KongonoClient';
+
+        $generator = new SdkGenerator();
+        $code = $generator->generate($app, $lang, $clientName);
+
+        if (is_string($options['out'] ?? null) && '' !== trim($options['out'])) {
+            $outPath = trim($options['out']);
+            $dest = str_starts_with($outPath, '/') || (strlen($outPath) > 1 && ':' === $outPath[1])
+                ? $outPath
+                : $appRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $outPath);
+            $dir = dirname($dest);
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0o775, true);
+            }
+            file_put_contents($dest, $code);
+
+            return [0, sprintf("Generated %s SDK (%d bytes) -> %s\n", strtoupper($generator->normalizeLanguage($lang)), strlen($code), $dest)];
+        }
+
+        return [0, $code];
     }
 
     /** @return array{0: int, 1: string} */
@@ -363,9 +403,10 @@ final readonly class KongoCli
 
         file_put_contents($cacheDir . DIRECTORY_SEPARATOR . 'graph.json', $app->graph()->toJson(pretty: true), LOCK_EX);
         file_put_contents($cacheDir . DIRECTORY_SEPARATOR . 'openapi.json', (new OpenApiGenerator())->generateJson($app), LOCK_EX);
+        file_put_contents($cacheDir . DIRECTORY_SEPARATOR . 'routes.compiled.php', $app->router()->exportCompiledPhp(), LOCK_EX);
 
         return [0, sprintf(
-            "Optimized \"%s\":\n  + Precompiled %d template(s)\n  + Cached var/cache/graph.json\n  + Cached var/cache/openapi.json\n",
+            "Optimized \"%s\":\n  + Precompiled %d template(s)\n  + Compiled var/cache/routes.compiled.php\n  + Cached var/cache/graph.json\n  + Cached var/cache/openapi.json\n",
             $app->graph()->appName,
             $compiledViews,
         )];
@@ -946,7 +987,8 @@ final readonly class KongoCli
             }
         }
 
-        $report = (new SecurityAuditor())->audit($appRoot, $app);
+        $attack = isset($options['attack']);
+        $report = (new SecurityAuditor())->audit($appRoot, $app, $attack);
         $strict = isset($options['strict']);
         $failed = !$report['passed'] || ($strict && $report['counts']['warning'] > 0);
 
@@ -975,6 +1017,13 @@ final readonly class KongoCli
         }
         if ([] === $report['findings']) {
             $lines[] = '  [OK      ] Zero security or supply-chain findings.';
+        }
+
+        if ([] !== $report['attack_probes']) {
+            $lines[] = '  Red-Team Attack Simulation:';
+            foreach ($report['attack_probes'] as $probe) {
+                $lines[] = sprintf('    [%-4s] %s — %s', $probe['passed'] ? 'PASS' : 'FAIL', $probe['probe'], $probe['detail']);
+            }
         }
 
         return [$failed ? 1 : 0, implode("\n", $lines) . "\n"];
@@ -1091,7 +1140,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -1174,12 +1223,13 @@ Core Commands:
   make:test <Name> [--app=path]                         Generate a PHPUnit 13 TestClient test
   key:generate                                          Generate a 256-bit APP_KEY for .env
   doctor [--app=path]                                   Verify PHP 8.5, extensions, AI provider & app health
-  audit [--app=path] [--json] [--strict]                Run graph-driven automated security & supply-chain audit
+  audit [--app=path] [--attack] [--json] [--strict]     Run security audit (+ optional --attack red-team probes)
   deploy:init [--app=path] --domain=app.example.com     Generate zero-downtime FrankenPHP Dockerfile, Caddyfile & VPS scripts
   env:check [--app=path]                                Verify required keys from .env.example exist in .env
   routes [--app=path] [--json]                          List all registered routes
   graph [--app=path]                                    Print live ApplicationGraph JSON
   openapi [--app=path]                                  Generate OpenAPI 3.1 JSON spec from routes & DTOs
+  sdk:generate --lang=ts|swift|kotlin|dart [--out=file] Generate typed Web/iOS/Android/Flutter client SDK
   mcp [--app=path]                                      Run Model Context Protocol (MCP) JSON-RPC stdio server
   check                                                 Run full CS + PHPStan + PHPUnit suite
   test                                                  Run PHPUnit test suite

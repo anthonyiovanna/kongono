@@ -67,6 +67,7 @@ final class Request implements ServerRequestInterface
      * @param array<string, mixed>                 $query
      * @param array<string, UploadedFileInterface> $files
      * @param array<string, mixed>|null            $parsedBody
+     * @param array<string, mixed>                 $serverParams
      */
     public static function create(
         string $method,
@@ -76,6 +77,7 @@ final class Request implements ServerRequestInterface
         array $query = [],
         array $files = [],
         ?array $parsedBody = null,
+        array $serverParams = [],
     ): self {
         $parsedUri = Uri::parse($uri);
         if ([] === $query && '' !== $parsedUri->getQuery()) {
@@ -90,6 +92,7 @@ final class Request implements ServerRequestInterface
             uri: $parsedUri,
             headers: $headers,
             body: Stream::fromString($body),
+            serverParams: $serverParams,
             queryParams: $query,
             uploadedFiles: $files,
             parsedBody: $parsedBody,
@@ -567,5 +570,11 @@ final class Request implements ServerRequestInterface
         unset($clone->attributes[$name]);
 
         return $clone;
+    }
+
+    /** Returns true when invoked by the Kongono\Live browser runtime (`X-Kongono-Live: true`). */
+    public function isLive(): bool
+    {
+        return 'true' === strtolower(trim($this->getHeaderLine('X-Kongono-Live')));
     }
 }

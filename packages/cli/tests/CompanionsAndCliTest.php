@@ -131,6 +131,8 @@ final class CompanionsAndCliTest extends TestCase
             [$optCode, $optOut] = $cli->run(['optimize', '--app=' . $this->starterAppRoot]);
             self::assertSame(0, $optCode);
             self::assertStringContainsString('Precompiled', $optOut);
+            self::assertStringContainsString('routes.compiled.php', $optOut);
+            self::assertFileExists($this->starterAppRoot . '/var/cache/routes.compiled.php');
             self::assertFileExists($this->starterAppRoot . '/var/cache/graph.json');
             self::assertFileExists($this->starterAppRoot . '/var/cache/openapi.json');
 
@@ -159,7 +161,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.2.0', $vOut);
+            self::assertStringContainsString('v1.3.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -312,5 +314,79 @@ final class CompanionsAndCliTest extends TestCase
         self::assertIsArray($deployPrev);
         self::assertFalse($deployPrev['result']['isError']);
         self::assertStringContainsString('prod.kongono.dev', $deployPrev['result']['content'][0]['text']);
+
+        // v1.3.0 MCP tool: kongono_sdk_generate
+        $sdkMcp = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"kongono_sdk_generate","arguments":{"language":"swift","client_name":"StarterApi"}}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($sdkMcp);
+        self::assertFalse($sdkMcp['result']['isError']);
+        self::assertStringContainsString('public final class StarterApi: Sendable', $sdkMcp['result']['content'][0]['text']);
+        self::assertStringContainsString('public struct CreateNoteInput: Codable, Sendable', $sdkMcp['result']['content'][0]['text']);
+    }
+
+    public function testSdkGenerateOutputsTypedSdksForAllFourTargets(): void
+    {
+        $cli = new KongoCli(dirname(__DIR__, 3));
+
+        // TypeScript
+        [$tsCode, $tsOut] = $cli->run(['sdk:generate', '--lang=ts', '--name=NotesClient', '--app=' . $this->starterAppRoot]);
+        self::assertSame(0, $tsCode);
+        self::assertStringContainsString('export interface CreateNoteInput {', $tsOut);
+        self::assertStringContainsString('export class NotesClient {', $tsOut);
+        self::assertStringContainsString('Idempotency-Key', $tsOut);
+        self::assertStringContainsString('body: CreateNoteInput', $tsOut);
+
+        // Swift (iOS/macOS)
+        [$swCode, $swOut] = $cli->run(['sdk:generate', '--lang=swift', '--app=' . $this->starterAppRoot]);
+        self::assertSame(0, $swCode);
+        self::assertStringContainsString('public struct CreateNoteInput: Codable, Sendable', $swOut);
+        self::assertStringContainsString('async throws -> Data', $swOut);
+
+        // Kotlin (Android)
+        [$ktCode, $ktOut] = $cli->run(['sdk:generate', '--lang=kotlin', '--app=' . $this->starterAppRoot]);
+        self::assertSame(0, $ktCode);
+        self::assertStringContainsString('data class CreateNoteInput(', $ktOut);
+        self::assertStringContainsString('class KongonoClient(', $ktOut);
+        self::assertStringContainsString('fun toJson(): String', $ktOut);
+
+        // Dart (Flutter) + --out write
+        $outFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono_sdk_' . bin2hex(random_bytes(4)) . '.dart';
+        try {
+            [$dtCode, $dtOut] = $cli->run(['sdk:generate', '--lang=dart', '--out=' . $outFile, '--app=' . $this->starterAppRoot]);
+            self::assertSame(0, $dtCode);
+            self::assertStringContainsString('Generated DART SDK', $dtOut);
+            self::assertFileExists($outFile);
+            $dartCode = (string) file_get_contents($outFile);
+            self::assertStringContainsString('final class CreateNoteInput {', $dartCode);
+            self::assertStringContainsString('Map<String, dynamic> toJson()', $dartCode);
+            self::assertStringContainsString('final class KongonoClient {', $dartCode);
+        } finally {
+            @unlink($outFile);
+        }
+
+        // Unsupported language fails closed
+        [$badCode, $badOut] = $cli->run(['sdk:generate', '--lang=cobol', '--app=' . $this->starterAppRoot]);
+        self::assertSame(1, $badCode);
+        self::assertStringContainsString('Unsupported SDK language', $badOut);
+    }
+
+    public function testAuditAttackModeRunsInProcessRedTeamProbes(): void
+    {
+        $cli = new KongoCli(dirname(__DIR__, 3));
+
+        [$code, $out] = $cli->run(['audit', '--attack', '--app=' . $this->starterAppRoot]);
+        self::assertSame(0, $code);
+        self::assertStringContainsString('Red-Team Attack Simulation:', $out);
+        self::assertStringContainsString('ssrf_egress_defense', $out);
+        self::assertStringContainsString('prompt_guard_canary', $out);
+        self::assertStringContainsString('path_traversal_env_exposure', $out);
+        self::assertStringContainsString('security_headers_baseline', $out);
+        self::assertStringContainsString('error_nondisclosure', $out);
+
+        [$jCode, $jsonOut] = $cli->run(['audit', '--attack', '--json', '--app=' . $this->starterAppRoot]);
+        self::assertSame(0, $jCode);
+        $decoded = json_decode($jsonOut, true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+        self::assertTrue($decoded['passed']);
+        self::assertCount(5, $decoded['attack_probes']);
     }
 }

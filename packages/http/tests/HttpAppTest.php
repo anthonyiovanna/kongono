@@ -10,6 +10,8 @@ use Kongono\Http\App;
 use Kongono\Http\Cookie;
 use Kongono\Http\Dev\DevDashboardMiddleware;
 use Kongono\Http\Dev\DevInspector;
+use Kongono\Http\HttpException;
+use Kongono\Http\Live\LiveMiddleware;
 use Kongono\Http\Middleware\CompressionMiddleware;
 use Kongono\Http\Middleware\StaticFilesMiddleware;
 use Kongono\Http\OpenApi\ApiDocsRenderer;
@@ -475,6 +477,84 @@ final class HttpAppTest extends TestCase
         $client->get('/stream')->assertOk()->assertSee('event: ping');
         $client->postForm('/form', ['name' => 'Ada'])->assertOk()->assertJsonPath('name', 'Ada');
         $client->patchJson('/item', ['v' => 42])->assertOk()->assertJsonPath('patched', 42);
+    }
+
+    public function testAotCompiledRouterTableExportsAndHydratesWithoutReflection(): void
+    {
+        $router = new Router();
+        $router->controller(CachedDemoController::class);
+        $router->get('/items/{id:\d+}', [CachedDemoController::class, 'feed'])->name('items.show');
+        $router->get('/inline-closure', static fn(): Response => Response::text('hi'));
+
+        $compiled = $router->exportCompiledTable();
+        self::assertSame(1, $compiled['version']);
+        self::assertSame(1, $compiled['skipped_closures']);
+        self::assertArrayHasKey('/cached-feed', $compiled['static']);
+        self::assertArrayHasKey('GET', $compiled['static']['/cached-feed']);
+        self::assertCount(1, $compiled['dynamic']);
+        self::assertSame('#\A/items/(?P<id>\d+)\z#', $compiled['dynamic'][0]['regex']);
+
+        $phpCode = $router->exportCompiledPhp();
+        self::assertStringStartsWith("<?php\n\ndeclare(strict_types=1);", $phpCode);
+
+        // Hydrate a fresh Router purely from the compiled table and verify O(1) static + dynamic + 405 matching
+        $hydrated = (new Router())->loadCompiledTable($compiled);
+        $staticMatch = $hydrated->match('GET', '/cached-feed');
+        self::assertSame('cached.feed', $staticMatch->route->routeName());
+        self::assertSame([], $staticMatch->params);
+
+        $dynamicMatch = $hydrated->match('GET', '/items/42');
+        self::assertSame('items.show', $dynamicMatch->route->routeName());
+        self::assertSame(['id' => '42'], $dynamicMatch->params);
+
+        // Wrong HTTP method on static route throws 405 with Allow header
+        try {
+            $hydrated->match('DELETE', '/cached-feed');
+            self::fail('Expected 405 Method Not Allowed.');
+        } catch (HttpException $e) {
+            self::assertSame(405, $e->statusCode);
+            self::assertStringContainsString('GET', $e->headers['Allow'] ?? '');
+        }
+    }
+
+    public function testKongonoLiveMiddlewareServesCspSafeRuntimeAndFragmentHelpers(): void
+    {
+        $app = App::create(__DIR__)
+            ->middleware(new LiveMiddleware())
+            ->routes(static function (Router $r): void {
+                $r->post('/counter', static function (Request $req): Response {
+                    if ($req->isLive()) {
+                        return Response::fragment('<span>Count: 2</span>', pushUrl: '/counter?v=2');
+                    }
+
+                    return Response::html('<html><body><span>Count: 2</span></body></html>');
+                });
+            });
+
+        $client = new TestClient($app);
+
+        // /_kongono/live.js returns strict-CSP JS runtime with ETag + 304 support
+        $js = $client->get('/_kongono/live.js')->assertOk();
+        self::assertStringContainsString('application/javascript', $js->header('Content-Type'));
+        self::assertSame('nosniff', $js->header('X-Content-Type-Options'));
+        self::assertStringContainsString('X-Kongono-Live', $js->body());
+        self::assertStringContainsString('kgn-stream', $js->body());
+        self::assertStringContainsString('EventSource', $js->body());
+        self::assertStringNotContainsString('eval(', $js->body());
+        $etag = $js->header('ETag');
+        self::assertStringStartsWith('W/"', $etag);
+
+        $client->withHeader('If-None-Match', $etag)->get('/_kongono/live.js')->assertStatus(304);
+
+        // Request::isLive() + Response::fragment() partial swap vs full HTML fallback
+        $liveRes = $client->withHeader('X-Kongono-Live', 'true')->postForm('/counter', [])->assertOk();
+        self::assertSame('<span>Count: 2</span>', $liveRes->body());
+        self::assertSame('fragment', $liveRes->header('X-Kongono-Live'));
+        self::assertSame('/counter?v=2', $liveRes->header('X-Kongono-Push-Url'));
+        self::assertSame('X-Kongono-Live', $liveRes->header('Vary'));
+
+        $fullRes = $client->postForm('/counter', [])->assertOk();
+        self::assertStringContainsString('<html><body>', $fullRes->body());
     }
 }
 
