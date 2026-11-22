@@ -71,8 +71,18 @@ final readonly class StaticFilesMiddleware implements MiddlewareInterface
         }
 
         // Never expose dotfiles/hidden directories (e.g. .env, .git, .htaccess)
-        foreach (explode('/', $decodedRelative) as $segment) {
+        $rawSegments = explode('/', $decodedRelative);
+        foreach ($rawSegments as $segment) {
             if ('' === $segment || str_starts_with($segment, '.')) {
+                return $handler->handle($request);
+            }
+        }
+
+        // Reject any intermediate or leaf symlink before resolving
+        $walk = $this->root;
+        foreach ($rawSegments as $segment) {
+            $walk .= DIRECTORY_SEPARATOR . $segment;
+            if (is_link($walk)) {
                 return $handler->handle($request);
             }
         }
@@ -81,8 +91,16 @@ final readonly class StaticFilesMiddleware implements MiddlewareInterface
         $real = realpath($candidate);
         $prefix = rtrim($this->root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
-        if (false === $real || !is_file($real) || is_link($candidate) || !str_starts_with($real, $prefix)) {
+        if (false === $real || !is_file($real) || !str_starts_with($real, $prefix)) {
             return $handler->handle($request);
+        }
+
+        // Re-verify dotfile exclusion on the canonical post-realpath relative path (defeats Windows 8.3 short names)
+        $resolvedRelative = str_replace('\\', '/', substr($real, strlen($prefix)));
+        foreach (explode('/', $resolvedRelative) as $segment) {
+            if ('' === $segment || str_starts_with($segment, '.')) {
+                return $handler->handle($request);
+            }
         }
 
         $ext = strtolower(pathinfo($real, PATHINFO_EXTENSION));

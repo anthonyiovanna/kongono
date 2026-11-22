@@ -9,6 +9,9 @@ use SensitiveParameter;
 /** Pure PHP 8.5 SMTP client supporting STARTTLS and AUTH PLAIN (zero Symfony Mailer). */
 final readonly class SmtpTransport implements MailTransportInterface
 {
+    private const int MAX_RESPONSE_LINES = 128;
+    private const int MAX_RESPONSE_BYTES = 65_536;
+
     public function __construct(
         private string $host,
         private int $port = 587,
@@ -17,7 +20,29 @@ final readonly class SmtpTransport implements MailTransportInterface
         private ?string $password = null,
         private bool $startTls = true,
         private int $timeoutSeconds = 15,
-    ) {}
+    ) {
+        if ('' === trim($host) || 1 === preg_match('/[\s\r\n\0]/', $host)) {
+            throw new MailException('Invalid SMTP host.');
+        }
+        if ($port < 1 || $port > 65535) {
+            throw new MailException(sprintf('Invalid SMTP port %d.', $port));
+        }
+    }
+
+    /**
+     * Canonicalize line endings and dot-stuff per RFC 5321 Section 4.5.2 to block SMTP smuggling (CVE-2023-51764 class).
+     */
+    public static function prepareDataPayload(string $mime): string
+    {
+        if (str_contains($mime, "\0")) {
+            throw new MailException('SMTP message payload cannot contain NUL bytes.');
+        }
+
+        // Canonicalize CRLF, bare CR, and bare LF to CRLF before dot-stuffing every leading dot
+        $normalized = (string) preg_replace('/\r\n|\r|\n/', "\r\n", $mime);
+
+        return (string) preg_replace('/^\./m', '..', $normalized);
+    }
 
     public function send(Email $email): string
     {
@@ -26,11 +51,24 @@ final readonly class SmtpTransport implements MailTransportInterface
         }
 
         $mime = $email->toMimeString();
+        $stuffed = self::prepareDataPayload($mime);
+
+        $context = stream_context_create([
+            'ssl' => [
+                'verify_peer' => true,
+                'verify_peer_name' => true,
+                'allow_self_signed' => false,
+                'peer_name' => $this->host,
+                'crypto_method' => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT,
+            ],
+        ]);
         $socket = @stream_socket_client(
             sprintf('tcp://%s:%d', $this->host, $this->port),
             $errno,
             $errstr,
             $this->timeoutSeconds,
+            STREAM_CLIENT_CONNECT,
+            $context,
         );
         if (false === $socket) {
             throw new MailException(sprintf('SMTP connection failed (%d): %s', $errno, $errstr));
@@ -62,9 +100,7 @@ final readonly class SmtpTransport implements MailTransportInterface
             }
 
             $this->command($socket, 'DATA', 354);
-            // Dot-stuff per RFC 5321 Section 4.5.2
-            $stuffed = str_replace("\r\n.", "\r\n..", $mime);
-            fwrite($socket, $stuffed . "\r\n.\r\n");
+            $this->writeAll($socket, $stuffed . "\r\n.\r\n");
             $this->expectCode($socket, 250);
             $this->command($socket, 'QUIT', 221);
 
@@ -80,23 +116,53 @@ final readonly class SmtpTransport implements MailTransportInterface
         if (false !== strpbrk($line, "\r\n\0")) {
             throw new MailException('SMTP command injection rejected: command contains CR, LF, or NUL.');
         }
-        fwrite($socket, $line . "\r\n");
+        $this->writeAll($socket, $line . "\r\n");
         $this->expectCode($socket, $expectedCode);
+    }
+
+    /** @param resource $socket */
+    private function writeAll(mixed $socket, string $data): void
+    {
+        $total = strlen($data);
+        $written = 0;
+        while ($written < $total) {
+            $n = @fwrite($socket, substr($data, $written));
+            if (false === $n || 0 === $n) {
+                throw new MailException('SMTP stream write failed.');
+            }
+            $written += $n;
+        }
     }
 
     /** @param resource $socket */
     private function expectCode(mixed $socket, int $expectedCode): void
     {
-        $response = '';
+        $linesRead = 0;
+        $bytesRead = 0;
+        $finalCode = null;
+
         while (false !== ($line = fgets($socket, 1024))) {
-            $response .= $line;
-            if (strlen($line) >= 4 && ' ' === $line[3]) {
+            ++$linesRead;
+            $bytesRead += strlen($line);
+            if ($linesRead > self::MAX_RESPONSE_LINES || $bytesRead > self::MAX_RESPONSE_BYTES) {
+                throw new MailException('SMTP server response exceeded maximum safe size.');
+            }
+            if (strlen($line) < 4 || !ctype_digit(substr($line, 0, 3))) {
+                throw new MailException('Malformed SMTP server response line.');
+            }
+            $lineCode = (int) substr($line, 0, 3);
+            $sep = $line[3];
+            if (' ' === $sep) {
+                $finalCode = $lineCode;
                 break;
             }
+            if ('-' !== $sep) {
+                throw new MailException('Malformed SMTP multi-line response separator.');
+            }
         }
-        $code = (int) substr($response, 0, 3);
-        if ($code !== $expectedCode) {
-            throw new MailException(sprintf('Unexpected SMTP response (expected %d, got %d).', $expectedCode, $code));
+
+        if (null === $finalCode || $finalCode !== $expectedCode) {
+            throw new MailException(sprintf('Unexpected SMTP response (expected %d, got %d).', $expectedCode, $finalCode ?? 0));
         }
     }
 }

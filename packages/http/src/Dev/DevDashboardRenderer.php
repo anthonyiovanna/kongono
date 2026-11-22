@@ -232,7 +232,7 @@ HTML;
       renderTraces();
     });
     document.getElementById('clearBtn').addEventListener('click', async () => {
-      await fetch(BASE + '/api/clear', { method: 'POST' });
+      await fetch(BASE + '/api/clear', { method: 'POST', headers: { 'X-Kongono-Dev': '1' } });
       traces = [];
       renderTraces();
     });
@@ -243,7 +243,7 @@ HTML;
       out.textContent = 'Asking Oshie...';
       const res = await fetch(BASE + '/api/oshie', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Kongono-Dev': '1' },
         body: JSON.stringify({ question, lesson }),
       });
       const json = await res.json();
@@ -256,7 +256,7 @@ HTML;
       out.textContent = 'Running Hantei diagnosis...';
       const res = await fetch(BASE + '/api/hantei', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Kongono-Dev': '1' },
         body: JSON.stringify({ diagnostic }),
       });
       const json = await res.json();
@@ -269,7 +269,7 @@ HTML;
       out.textContent = 'Asking Chie for a safe diff preview...';
       const res = await fetch(BASE + '/api/chie', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Kongono-Dev': '1' },
         body: JSON.stringify({ instruction }),
       });
       const json = await res.json();

@@ -92,6 +92,8 @@ final class DevInspector
 
         $nPlusOne = $this->detectNPlusOne($this->currentQueries);
 
+        $scrubbedBody = $this->scrubBody($body);
+
         $this->traces[] = [
             'id' => ++$this->sequence,
             'timestamp' => gmdate(DATE_ATOM),
@@ -99,7 +101,7 @@ final class DevInspector
             'path' => SecretScrubber::scrub($path),
             'query' => SecretScrubber::scrub($query),
             'headers' => $safeHeaders,
-            'body' => substr(SecretScrubber::scrub($body), 0, 8192),
+            'body' => substr($scrubbedBody, 0, 8192),
             'status' => $status,
             'duration_ms' => round($durationMs, 2),
             'queries' => $this->currentQueries,
@@ -193,5 +195,26 @@ final class DevInspector
         }
 
         return $warnings;
+    }
+
+    private function scrubBody(string $body): string
+    {
+        if ('' === $body) {
+            return '';
+        }
+
+        $trimmed = ltrim($body);
+        if (str_starts_with($trimmed, '{') || str_starts_with($trimmed, '[')) {
+            $decoded = json_decode($body, true);
+            if (is_array($decoded)) {
+                $scrubbed = SecretScrubber::scrubArray($decoded);
+                $reencoded = json_encode($scrubbed, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+                if (is_string($reencoded)) {
+                    return $reencoded;
+                }
+            }
+        }
+
+        return SecretScrubber::scrub($body);
     }
 }

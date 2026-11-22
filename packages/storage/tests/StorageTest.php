@@ -7,6 +7,7 @@ namespace Kongono\Storage\Tests;
 use Kongono\Storage\LocalStorage;
 use Kongono\Storage\MemoryStorage;
 use Kongono\Storage\S3Storage;
+use Kongono\Storage\SigV4Signer;
 use Kongono\Storage\StorageException;
 use Kongono\Storage\StorageInterface;
 use Kongono\Storage\StorageOutcome;
@@ -155,6 +156,39 @@ final class StorageTest extends TestCase
         $this->expectException(StorageException::class);
         $this->expectExceptionMessage('Unsupported S3 endpoint scheme');
         new S3Storage('my-bucket', 'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY', endpoint: 'gopher://127.0.0.1:6379/');
+    }
+
+    public function testRound3LocalStorageSidecarsWindowsDevicesAndS3EtagCrlfHardening(): void
+    {
+        $local = new LocalStorage($this->tempDir);
+        foreach (['file.KGNMETA.JSON', 'file.kgnmeta.json.', 'file.tmp', '.kgnlocks/a', 'docs/CON.txt', 'docs/NUL', '.'] as $badKey) {
+            try {
+                $local->put($badKey, 'evil');
+                self::fail('Expected rejected storage key: ' . $badKey);
+            } catch (StorageException) {
+                self::addToAssertionCount(1);
+            }
+        }
+
+        // S3Storage rejects ETag wildcard/quote injection in If-Match
+        $s3 = new S3Storage(
+            bucket: 'my-bucket',
+            accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+            secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            httpSender: static fn(): array => ['status' => 200, 'headers' => [], 'body' => ''],
+        );
+        try {
+            $s3->replaceIfVersion('docs/a.txt', 'a", *, "b', 'overwritten');
+            self::fail('Expected ETag injection to be rejected.');
+        } catch (StorageException $e) {
+            self::assertStringContainsString('Invalid S3 ETag', $e->getMessage());
+        }
+
+        // SigV4Signer rejects CRLF headers even with custom httpSender
+        $signer = new SigV4Signer('AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY');
+        $this->expectException(StorageException::class);
+        $this->expectExceptionMessage('Unsafe header');
+        $signer->signHeaders('GET', 's3.amazonaws.com', '/k', headers: ['x-custom' => "ok\r\nX-Injected: 1"]);
     }
 
     private function removeDir(string $dir): void

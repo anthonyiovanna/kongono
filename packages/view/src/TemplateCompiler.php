@@ -37,7 +37,7 @@ final class TemplateCompiler
         }, $output);
 
         $output = $this->replaceCallback('/@section\s*\(\s*[\'"]([^\'"]+)[\'"]\s*,\s*(.+?)\s*\)/', static function (array $m): string {
-            return sprintf('<?php $__env->setSection(%s, (string) (%s)); ?>', var_export($m[1], true), $m[2]);
+            return sprintf('<?php $__env->setSection(%s, $__env->escape(%s)); ?>', var_export($m[1], true), $m[2]);
         }, $output);
 
         $output = $this->replaceCallback('/@section\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)/', static function (array $m): string {
@@ -47,9 +47,9 @@ final class TemplateCompiler
         $output = str_replace('@endsection', '<?php $__env->endSection(); ?>', $output);
 
         $output = $this->replaceCallback('/@yield\s*\(\s*[\'"]([^\'"]+)[\'"](?:\s*,\s*(.+?))?\s*\)/', static function (array $m): string {
-            $default = isset($m[2]) && '' !== $m[2] ? $m[2] : "''";
+            $default = isset($m[2]) && '' !== $m[2] ? sprintf('$__env->escape(%s)', $m[2]) : "''";
 
-            return sprintf('<?php echo $__env->yieldSection(%s, (string) (%s)); ?>', var_export($m[1], true), $default);
+            return sprintf('<?php echo $__env->yieldSection(%s, %s); ?>', var_export($m[1], true), $default);
         }, $output);
 
         // 5. Includes

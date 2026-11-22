@@ -256,12 +256,12 @@ final class StarterAppTest extends TestCase
             ->postJson('/api/notes', ['title' => 'Different', 'body' => 'Conflict'])
             ->assertStatus(409);
 
-        // #[Feature('beta_insights')] gates /api/insights cleanly
+        // #[Feature('beta_insights')] gates /api/insights cleanly and rejects spoofed client X-Feature-Scope headers
         $client->get('/api/insights')->assertStatus(404);
-        $client->withHeader('X-Feature-Scope', 'beta-tester')
-            ->get('/api/insights')
-            ->assertOk()
-            ->assertJsonPath('feature', 'beta_insights');
+        $client->withHeader('X-Feature-Scope', 'beta-tester')->get('/api/insights')->assertStatus(404);
+        $scopedInsights = $app->handle(Request::create('GET', '/api/insights')->withAttribute('_feature_scope', 'beta-tester'));
+        self::assertSame(200, $scopedInsights->getStatusCode());
+        self::assertStringContainsString('"feature":"beta_insights"', (string) $scopedInsights->getBody());
 
         // Live Browser Oshie & Hantei AI Studio endpoints inside /_kongono
         $client->postJson('/_kongono/api/oshie', ['lesson' => 'routing'])

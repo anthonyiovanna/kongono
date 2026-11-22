@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kongono\Cli;
 
 use Kongono\Core\CoreException;
-use Kongono\Security\Encryptor;
 
 /** Scaffolds a fresh, runnable Kongono v1 application via `kongo new <dir>`. */
 final class AppScaffolder
@@ -22,21 +21,29 @@ final class AppScaffolder
             throw new CoreException(sprintf('Unable to create project directory "%s".', $targetDir));
         }
 
-        $safeName = str_replace("'", "\\'", $appName);
-        $generatedKey = Encryptor::generateKey();
+        $cleanName = trim((string) preg_replace('/[\x00-\x1f\x7f]/', '', $appName));
+        if ('' === $cleanName) {
+            $cleanName = 'My Kongono App';
+        }
+        $cleanName = substr($cleanName, 0, 120);
+        $exportedName = var_export($cleanName, true);
+        $slugName = trim(strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', '-', $cleanName)), '-');
+        if ('' === $slugName) {
+            $slugName = 'kongono-app';
+        }
         $files = [
             'composer.json' => json_encode([
-                'name' => 'app/' . strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', '-', trim($appName))),
+                'name' => 'app/' . $slugName,
                 'type' => 'project',
                 'require' => [
                     'php' => '>=8.5.0',
-                    'kongono/framework' => '^1.0',
+                    'kongono/framework' => '^1.4',
                 ],
                 'autoload' => [
                     'psr-4' => ['App\\' => 'src/'],
                 ],
             ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
-            '.env.example' => "APP_ENV=local\nAPP_DEBUG=true\nAPP_KEY={$generatedKey}\n# Set any one AI provider for Oshie, Chie & Hantei:\n# OPENAI_API_KEY=\n# ANTHROPIC_API_KEY=\n# GEMINI_API_KEY=\n# OLLAMA_HOST=http://127.0.0.1:11434\n",
+            '.env.example' => "APP_ENV=local\nAPP_DEBUG=true\n# Run `php vendor/bin/kongo key:generate` and place the generated key in your untracked .env file:\nAPP_KEY=REPLACE_WITH_kongo_key_generate\n# Set any one AI provider for Oshie, Chie & Hantei:\n# OPENAI_API_KEY=\n# ANTHROPIC_API_KEY=\n# GEMINI_API_KEY=\n# OLLAMA_HOST=http://127.0.0.1:11434\n",
             'app/bootstrap.php' => <<<PHP
 <?php
 
@@ -58,7 +65,7 @@ EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
 \$inspector = new DevInspector();
 \$health = (new HealthCheck())->check('runtime', static fn(): bool => true);
 
-\$app = App::create(\$baseDir, name: '{$safeName}')
+\$app = App::create(\$baseDir, name: {$exportedName})
     ->config(['app' => ['debug' => \$debug]])
     ->views(autoReload: \$debug)
     ->instance(HealthCheck::class, \$health)
@@ -108,6 +115,7 @@ if (function_exists('frankenphp_handle_request')) {
 PHP,
             'Caddyfile' => "{\n    frankenphp {\n        worker ./public/worker.php\n    }\n}\n\n:8080 {\n    root * ./public\n    encode zstd br gzip\n    php_server\n}\n",
             'Dockerfile' => "FROM dunglas/frankenphp:php8.5\nWORKDIR /app\nCOPY . /app\nEXPOSE 8080\nCMD [\"frankenphp\", \"run\", \"--config\", \"/app/Caddyfile\"]\n",
+            '.dockerignore' => ".git\n.env\n.env.*\n!.env.example\n/var\n/tests\n/vendor\n",
             'src/Http/HomeController.php' => <<<PHP
 <?php
 
@@ -135,7 +143,7 @@ final readonly class HomeController
     public function index(): Response
     {
         return Response::html(\$this->views->render('home', [
-            'title' => '{$safeName}',
+            'title' => {$exportedName},
             'phpVersion' => PHP_VERSION,
         ]));
     }

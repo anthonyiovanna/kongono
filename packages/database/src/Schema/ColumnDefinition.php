@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Database\Schema;
 
+use Kongono\Database\DatabaseException;
 use Kongono\Database\Dialect;
 
 /** Column definition builder inside Schema::create(). */
@@ -19,7 +20,11 @@ final class ColumnDefinition
         public readonly string $name,
         public readonly string $type,
         public readonly bool $autoIncrement = false,
-    ) {}
+    ) {
+        if ('' === trim($type) || 1 !== preg_match('/\A[A-Za-z][A-Za-z0-9_ ]*(?:\(\d+(?:,\s*\d+)?\))?\z/', trim($type))) {
+            throw new DatabaseException(sprintf('Unsafe SQL column type "%s" rejected.', $type));
+        }
+    }
 
     public function nullable(bool $value = true): self
     {
@@ -70,13 +75,13 @@ final class ColumnDefinition
             $sql .= ' UNIQUE';
         }
         if ($this->hasDefault) {
-            $sql .= ' DEFAULT ' . $this->formatDefault($this->default);
+            $sql .= ' DEFAULT ' . $this->formatDefault($this->default, $dialect);
         }
 
         return $sql;
     }
 
-    private function formatDefault(mixed $value): string
+    private function formatDefault(mixed $value, Dialect $dialect): string
     {
         if (null === $value) {
             return 'NULL';
@@ -84,11 +89,25 @@ final class ColumnDefinition
         if (is_bool($value)) {
             return $value ? 'TRUE' : 'FALSE';
         }
-        if (is_int($value) || is_float($value)) {
+        if (is_int($value)) {
+            return (string) $value;
+        }
+        if (is_float($value)) {
+            if (!is_finite($value)) {
+                throw new DatabaseException('Non-finite float cannot be used as SQL column default.');
+            }
+
             return (string) $value;
         }
         if (is_string($value)) {
-            return "'" . str_replace("'", "''", $value) . "'";
+            if (str_contains($value, "\0")) {
+                throw new DatabaseException('SQL column default string cannot contain NUL bytes.');
+            }
+            $escaped = Dialect::Mysql === $dialect
+                ? str_replace(['\\', "'"], ['\\\\', "''"], $value)
+                : str_replace("'", "''", $value);
+
+            return "'" . $escaped . "'";
         }
 
         return 'NULL';

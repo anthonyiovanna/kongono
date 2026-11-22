@@ -46,7 +46,8 @@ final class ViewEngine
             throw new ViewException(sprintf('Views directory does not exist: "%s".', $viewsPath));
         }
         $this->viewsPath = $resolvedViews;
-        $this->cachePath = $cachePath ?? (sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-views-' . hash('xxh128', $resolvedViews));
+        $userScope = function_exists('posix_geteuid') ? (string) posix_geteuid() : get_current_user();
+        $this->cachePath = $cachePath ?? (sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-views-' . $userScope . '-' . hash('xxh128', $resolvedViews));
         $this->compiler = new TemplateCompiler();
     }
 
@@ -227,7 +228,14 @@ final class ViewEngine
 
     private function ensureCompiled(string $template, string $sourcePath, bool $checkFreshness = true): string
     {
+        if (is_link($this->cachePath)) {
+            throw new ViewException('View cache directory cannot be a symbolic link.');
+        }
+
         $cacheFile = $this->cachePath . DIRECTORY_SEPARATOR . hash('sha256', self::CACHE_VERSION . '|' . $template . '|' . $sourcePath) . '.php';
+        if (is_link($cacheFile)) {
+            throw new ViewException(sprintf('Compiled view cache file for "%s" cannot be a symbolic link.', $template));
+        }
 
         $needsCompile = !is_file($cacheFile);
         if (!$needsCompile && $checkFreshness) {
@@ -237,18 +245,29 @@ final class ViewEngine
         }
 
         if ($needsCompile) {
-            if (!is_dir($this->cachePath) && !@mkdir($this->cachePath, 0o775, true) && !is_dir($this->cachePath)) {
+            if (!is_dir($this->cachePath) && !@mkdir($this->cachePath, 0o700, true) && !is_dir($this->cachePath)) {
                 throw new ViewException(sprintf('Unable to create view cache directory "%s".', $this->cachePath));
             }
+            $this->assertSafeCacheDirectory();
 
             $source = file_get_contents($sourcePath);
             if (false === $source) {
                 throw new ViewException(sprintf('Failed to read template "%s".', $template));
             }
             $compiled = $this->compiler->compile($source);
-            $tmp = $cacheFile . '.' . bin2hex(random_bytes(4)) . '.tmp';
-            if (false === file_put_contents($tmp, $compiled, LOCK_EX)) {
-                throw new ViewException(sprintf('Failed to write compiled template cache for "%s".', $template));
+            $tmp = $cacheFile . '.' . bin2hex(random_bytes(12)) . '.tmp';
+            $handle = @fopen($tmp, 'xb');
+            if (false === $handle) {
+                throw new ViewException(sprintf('Failed to create temporary compiled template cache for "%s".', $template));
+            }
+            try {
+                @chmod($tmp, 0o600);
+                $written = fwrite($handle, $compiled);
+                if (false === $written || $written !== strlen($compiled)) {
+                    throw new ViewException(sprintf('Failed to write compiled template cache for "%s".', $template));
+                }
+            } finally {
+                fclose($handle);
             }
             if (!@rename($tmp, $cacheFile)) {
                 @unlink($cacheFile);
@@ -260,14 +279,36 @@ final class ViewEngine
             if (function_exists('opcache_invalidate')) {
                 @opcache_invalidate($cacheFile, true);
             }
+        } else {
+            $this->assertSafeCacheDirectory();
         }
 
         return $cacheFile;
     }
 
+    private function assertSafeCacheDirectory(): void
+    {
+        if (is_link($this->cachePath) || !is_dir($this->cachePath)) {
+            throw new ViewException('View cache directory is invalid or a symbolic link.');
+        }
+        if (function_exists('posix_geteuid') && '\\' !== DIRECTORY_SEPARATOR) {
+            $owner = @fileowner($this->cachePath);
+            $perms = @fileperms($this->cachePath);
+            if (false === $owner || $owner !== posix_geteuid()) {
+                throw new ViewException('View cache directory is not owned by the current process user.');
+            }
+            if (false === $perms || 0 !== ($perms & 0o022)) {
+                throw new ViewException('View cache directory must not be group- or world-writable.');
+            }
+        }
+    }
+
     /** @return Closure(array<string, mixed>, RenderState): void */
     private function loadCompiledRenderer(string $compiledPath, string $template): Closure
     {
+        if (is_link($compiledPath)) {
+            throw new ViewException(sprintf('Refusing to require symbolic link template cache for "%s".', $template));
+        }
         $renderer = require $compiledPath;
         if (!$renderer instanceof Closure) {
             throw new ViewException(sprintf('Compiled template cache for "%s" is invalid.', $template));

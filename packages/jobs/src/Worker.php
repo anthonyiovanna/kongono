@@ -99,7 +99,8 @@ final class Worker
                     ++$stale;
                 }
             } elseif (JobOutcome::Retry === $resultOutcome && $job->attempt < $job->maxAttempts) {
-                $backoff = $baseBackoffSeconds * (2 ** max(0, $job->attempt - 1));
+                $shift = min(20, max(0, $job->attempt - 1));
+                $backoff = min(86400, max(0, $baseBackoffSeconds) * (1 << $shift));
                 if ($this->driver->releaseForRetry($job, $backoff, $error, $now)) {
                     ++$retried;
                 } else {

@@ -9,7 +9,12 @@ final class Session
 {
     private bool $dirty = false;
     private bool $regenerated = false;
+    private bool $invalidated = false;
+    private bool $idAccessed = false;
     private ?string $previousId = null;
+
+    /** @var list<string> */
+    private array $previousIds = [];
 
     /** @var array<string, mixed> */
     private array $flashIncoming = [];
@@ -21,6 +26,7 @@ final class Session
     public function __construct(
         private string $id,
         private array $data = [],
+        private readonly bool $persisted = false,
     ) {
         if (isset($this->data['_flash']) && is_array($this->data['_flash'])) {
             foreach ($this->data['_flash'] as $k => $v) {
@@ -33,6 +39,8 @@ final class Session
 
     public function id(): string
     {
+        $this->idAccessed = true;
+
         return $this->id;
     }
 
@@ -41,9 +49,30 @@ final class Session
         return $this->previousId;
     }
 
+    /** @return list<string> */
+    public function previousIds(): array
+    {
+        return $this->previousIds;
+    }
+
     public function wasRegenerated(): bool
     {
         return $this->regenerated;
+    }
+
+    public function isInvalidated(): bool
+    {
+        return $this->invalidated;
+    }
+
+    public function isPersisted(): bool
+    {
+        return $this->persisted;
+    }
+
+    public function wasIdAccessed(): bool
+    {
+        return $this->idAccessed;
     }
 
     public function isDirty(): bool
@@ -95,12 +124,27 @@ final class Session
     /** Rotate session ID (call on login/privilege change to prevent session fixation). */
     public function regenerate(): string
     {
-        $this->previousId = $this->id;
+        $this->previousId ??= $this->id;
+        $this->previousIds[] = $this->id;
         $this->id = bin2hex(random_bytes(24));
         $this->regenerated = true;
+        $this->invalidated = false;
         $this->dirty = true;
 
         return $this->id;
+    }
+
+    /** Destroy the session on logout (destroys stored session & expires the client cookie). */
+    public function invalidate(): void
+    {
+        $this->previousId ??= $this->id;
+        $this->previousIds[] = $this->id;
+        $this->data = [];
+        $this->flashIncoming = [];
+        $this->flashOutgoing = [];
+        $this->invalidated = true;
+        $this->regenerated = false;
+        $this->dirty = false;
     }
 
     /** @return array<string, mixed> */

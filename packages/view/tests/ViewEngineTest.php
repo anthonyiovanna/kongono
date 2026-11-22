@@ -240,6 +240,29 @@ HTML,
         (new ViteManifest($pub))->tags('resources/js/app.js');
     }
 
+    public function testRound3InlineSectionAndYieldDefaultAutoEscapeHtml(): void
+    {
+        file_put_contents(
+            $this->tempDir . '/views/layouts/xss.kgn.html',
+            '<title>@yield("title", $fallback)</title><div>@yield("missing", $fallback)</div>',
+        );
+        file_put_contents(
+            $this->tempDir . '/views/xss-page.kgn.html',
+            "@extends('layouts/xss')\n@section('title', \$pageTitle)\n",
+        );
+
+        $engine = new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache');
+        $html = $engine->render('xss-page', [
+            'pageTitle' => '</title><script>alert(1)</script>',
+            'fallback' => '<img src=x onerror=alert(2)>',
+        ]);
+
+        self::assertStringNotContainsString('<script>', $html);
+        self::assertStringNotContainsString('<img src=x', $html);
+        self::assertStringContainsString('&lt;/title&gt;&lt;script&gt;alert(1)&lt;/script&gt;', $html);
+        self::assertStringContainsString('&lt;img src=x onerror=alert(2)&gt;', $html);
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {

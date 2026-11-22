@@ -11,5 +11,6 @@ final readonly class ToolDefinition
         public string $name,
         public string $description,
         public array $parametersSchema = ['type' => 'object', 'properties' => []],
+        public bool $requiresApproval = false,
     ) {}
 }

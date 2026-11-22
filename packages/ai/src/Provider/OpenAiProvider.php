@@ -122,11 +122,16 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
                 $rawArgs = $rawCall['function']['arguments'] ?? '{}';
                 $args = [];
                 if (is_string($rawArgs) && '' !== trim($rawArgs)) {
-                    $parsedArgs = json_decode($rawArgs, true);
-                    if (is_array($parsedArgs)) {
-                        /** @var array<string, mixed> $args */
-                        $args = $parsedArgs;
+                    try {
+                        $parsedArgs = json_decode($rawArgs, true, 32, JSON_THROW_ON_ERROR);
+                    } catch (JsonException $e) {
+                        throw new AiException(sprintf('OpenAI tool call "%s" returned malformed JSON arguments.', $fnName), previous: $e);
                     }
+                    if (!is_array($parsedArgs)) {
+                        throw new AiException(sprintf('OpenAI tool call "%s" arguments must decode to a JSON object.', $fnName));
+                    }
+                    /** @var array<string, mixed> $args */
+                    $args = $parsedArgs;
                 } elseif (is_array($rawArgs)) {
                     /** @var array<string, mixed> $args */
                     $args = $rawArgs;
@@ -191,6 +196,9 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
             json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
             static function (string $chunk) use (&$buffer, &$fullText, &$resolvedModel, &$finishReason, $onDelta): void {
                 $buffer .= str_replace("\r\n", "\n", $chunk);
+                if (strlen($buffer) > 1_048_576) {
+                    throw new AiException('OpenAI streaming line buffer exceeded maximum bound.');
+                }
                 while (false !== ($pos = strpos($buffer, "\n"))) {
                     $line = trim(substr($buffer, 0, $pos));
                     $buffer = substr($buffer, $pos + 1);
@@ -218,6 +226,9 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
                     }
                     $delta = is_array($choice['delta'] ?? null) ? $choice['delta'] : [];
                     if (is_string($delta['content'] ?? null) && '' !== $delta['content']) {
+                        if (strlen($fullText) + strlen($delta['content']) > 4_194_304) {
+                            throw new AiException('OpenAI streaming output exceeded maximum bound.');
+                        }
                         $fullText .= $delta['content'];
                         $onDelta($delta['content']);
                     }

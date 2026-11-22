@@ -52,49 +52,81 @@ final readonly class RedisQueueDriver implements QueueDriverInterface
     public function reserve(string $queue, int $leaseSeconds = 60, ?int $now = null): ?Job
     {
         $ts = $now ?? time();
-        $candidateId = null;
 
-        $due = $this->redis->zRangeByScore($this->key($queue, 'pending'), '-inf', (string) $ts, 1);
-        if ([] !== $due) {
-            $candidateId = $due[0];
-            $this->redis->zRem($this->key($queue, 'pending'), $candidateId);
-        } else {
-            $expired = $this->redis->zRangeByScore($this->key($queue, 'reserved'), '-inf', (string) $ts, 1);
-            if ([] !== $expired) {
-                $candidateId = $expired[0];
-                $this->redis->zRem($this->key($queue, 'reserved'), $candidateId);
+        for ($scan = 0; $scan < 32; ++$scan) {
+            $candidateId = null;
+
+            $due = $this->redis->zRangeByScore($this->key($queue, 'pending'), '-inf', (string) $ts, 1);
+            if ([] !== $due) {
+                $id = $due[0];
+                // Atomic ZREM ownership claim: only the winning worker receives 1
+                if (1 === $this->redis->zRem($this->key($queue, 'pending'), $id)) {
+                    $candidateId = $id;
+                } else {
+                    continue;
+                }
+            } else {
+                $expired = $this->redis->zRangeByScore($this->key($queue, 'reserved'), '-inf', (string) $ts, 1);
+                if ([] === $expired) {
+                    return null;
+                }
+                $id = $expired[0];
+                if (1 === $this->redis->zRem($this->key($queue, 'reserved'), $id)) {
+                    $candidateId = $id;
+                } else {
+                    continue;
+                }
             }
+
+            $current = $this->loadJob($queue, $candidateId);
+            if (null === $current) {
+                continue;
+            }
+
+            // Defend against poison-pill infinite retry loops when expired leases exhaust maxAttempts
+            if ($current->attempt >= $current->maxAttempts) {
+                $dead = new Job(
+                    id: $current->id,
+                    queue: $current->queue,
+                    type: $current->type,
+                    payload: $current->payload,
+                    attempt: $current->attempt,
+                    maxAttempts: $current->maxAttempts,
+                    generation: $current->generation + 1,
+                    leaseToken: null,
+                    availableAt: $current->availableAt,
+                    leaseUntil: null,
+                    status: JobStatus::Dead,
+                    lastError: $current->lastError ?? 'Job exceeded maxAttempts after lease expiration.',
+                );
+                $this->saveJob($queue, $dead);
+                $this->redis->zAdd($this->key($queue, 'terminal'), (float) $ts, $dead->id);
+                continue;
+            }
+
+            $leaseUntil = $ts + max(1, $leaseSeconds);
+            $reserved = new Job(
+                id: $current->id,
+                queue: $current->queue,
+                type: $current->type,
+                payload: $current->payload,
+                attempt: $current->attempt + 1,
+                maxAttempts: $current->maxAttempts,
+                generation: $current->generation + 1,
+                leaseToken: bin2hex(random_bytes(12)),
+                availableAt: $current->availableAt,
+                leaseUntil: $leaseUntil,
+                status: JobStatus::Reserved,
+                lastError: $current->lastError,
+            );
+
+            $this->saveJob($queue, $reserved);
+            $this->redis->zAdd($this->key($queue, 'reserved'), (float) $leaseUntil, $reserved->id);
+
+            return $reserved;
         }
 
-        if (null === $candidateId) {
-            return null;
-        }
-
-        $current = $this->loadJob($queue, $candidateId);
-        if (null === $current) {
-            return null;
-        }
-
-        $leaseUntil = $ts + max(1, $leaseSeconds);
-        $reserved = new Job(
-            id: $current->id,
-            queue: $current->queue,
-            type: $current->type,
-            payload: $current->payload,
-            attempt: $current->attempt + 1,
-            maxAttempts: $current->maxAttempts,
-            generation: $current->generation + 1,
-            leaseToken: bin2hex(random_bytes(12)),
-            availableAt: $current->availableAt,
-            leaseUntil: $leaseUntil,
-            status: JobStatus::Reserved,
-            lastError: $current->lastError,
-        );
-
-        $this->saveJob($queue, $reserved);
-        $this->redis->zAdd($this->key($queue, 'reserved'), (float) $leaseUntil, $reserved->id);
-
-        return $reserved;
+        return null;
     }
 
     public function acknowledge(Job $job): bool

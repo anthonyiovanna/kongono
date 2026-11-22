@@ -186,16 +186,8 @@ final class Validator
             'string' => is_string($value)
                 ? [trim($value), null]
                 : [null, sprintf('The %s field must be a string.', $name)],
-            'int' => is_int($value)
-                ? [$value, null]
-                : (is_string($value) && 1 === preg_match('/\A-?\d+\z/', trim($value))
-                    ? [(int) trim($value), null]
-                    : [null, sprintf('The %s field must be an integer.', $name)]),
-            'float' => is_int($value) || is_float($value)
-                ? [(float) $value, null]
-                : (is_string($value) && is_numeric(trim($value))
-                    ? [(float) trim($value), null]
-                    : [null, sprintf('The %s field must be a number.', $name)]),
+            'int' => $this->coerceInt($value, $name),
+            'float' => $this->coerceFloat($value, $name),
             'bool' => is_bool($value)
                 ? [$value, null]
                 : (is_string($value) && in_array(strtolower(trim($value)), ['1', '0', 'true', 'false', 'yes', 'no', 'on', 'off'], true)
@@ -268,15 +260,35 @@ final class Validator
 
         foreach ($attributes as $attribute) {
             if ($attribute instanceof Min) {
-                if (is_string($value) && mb_strlen($value) < $attribute->value) {
-                    $errors[] = $attribute->message ?? sprintf('The %s field must be at least %s characters.', $name, (string) $attribute->value);
-                } elseif ((is_int($value) || is_float($value)) && $value < $attribute->value) {
+                if (is_string($value)) {
+                    if (mb_strlen($value) < $attribute->value) {
+                        $errors[] = $attribute->message ?? sprintf('The %s field must be at least %s characters.', $name, (string) $attribute->value);
+                    }
+                } elseif (is_int($value) || is_float($value)) {
+                    if ((is_float($value) && !is_finite($value)) || $value < $attribute->value) {
+                        $errors[] = $attribute->message ?? sprintf('The %s field must be at least %s.', $name, (string) $attribute->value);
+                    }
+                } elseif (is_array($value)) {
+                    if (count($value) < $attribute->value) {
+                        $errors[] = $attribute->message ?? sprintf('The %s field must contain at least %s items.', $name, (string) $attribute->value);
+                    }
+                } else {
                     $errors[] = $attribute->message ?? sprintf('The %s field must be at least %s.', $name, (string) $attribute->value);
                 }
             } elseif ($attribute instanceof Max) {
-                if (is_string($value) && mb_strlen($value) > $attribute->value) {
-                    $errors[] = $attribute->message ?? sprintf('The %s field must be at most %s characters.', $name, (string) $attribute->value);
-                } elseif ((is_int($value) || is_float($value)) && $value > $attribute->value) {
+                if (is_string($value)) {
+                    if (mb_strlen($value) > $attribute->value) {
+                        $errors[] = $attribute->message ?? sprintf('The %s field must be at most %s characters.', $name, (string) $attribute->value);
+                    }
+                } elseif (is_int($value) || is_float($value)) {
+                    if ((is_float($value) && !is_finite($value)) || $value > $attribute->value) {
+                        $errors[] = $attribute->message ?? sprintf('The %s field must be at most %s.', $name, (string) $attribute->value);
+                    }
+                } elseif (is_array($value)) {
+                    if (count($value) > $attribute->value) {
+                        $errors[] = $attribute->message ?? sprintf('The %s field must contain at most %s items.', $name, (string) $attribute->value);
+                    }
+                } else {
                     $errors[] = $attribute->message ?? sprintf('The %s field must be at most %s.', $name, (string) $attribute->value);
                 }
             } elseif ($attribute instanceof Between) {
@@ -286,9 +298,16 @@ final class Validator
                         $errors[] = $attribute->message ?? sprintf('The %s field must be between %s and %s characters.', $name, (string) $attribute->min, (string) $attribute->max);
                     }
                 } elseif (is_int($value) || is_float($value)) {
-                    if ($value < $attribute->min || $value > $attribute->max) {
+                    if ((is_float($value) && !is_finite($value)) || $value < $attribute->min || $value > $attribute->max) {
                         $errors[] = $attribute->message ?? sprintf('The %s field must be between %s and %s.', $name, (string) $attribute->min, (string) $attribute->max);
                     }
+                } elseif (is_array($value)) {
+                    $count = count($value);
+                    if ($count < $attribute->min || $count > $attribute->max) {
+                        $errors[] = $attribute->message ?? sprintf('The %s field must contain between %s and %s items.', $name, (string) $attribute->min, (string) $attribute->max);
+                    }
+                } else {
+                    $errors[] = $attribute->message ?? sprintf('The %s field must be between %s and %s.', $name, (string) $attribute->min, (string) $attribute->max);
                 }
             } elseif ($attribute instanceof Email) {
                 if (!is_string($value) || false === filter_var($value, FILTER_VALIDATE_EMAIL)) {
@@ -328,5 +347,46 @@ final class Validator
         }
 
         return $errors;
+    }
+
+    /** @return array{0: mixed, 1: ?string} */
+    private function coerceInt(mixed $value, string $name): array
+    {
+        if (is_int($value)) {
+            return [$value, null];
+        }
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if (1 === preg_match('/\A-?\d+\z/', $trimmed)) {
+                $validated = filter_var($trimmed, FILTER_VALIDATE_INT);
+                if (false !== $validated) {
+                    return [$validated, null];
+                }
+            }
+        }
+
+        return [null, sprintf('The %s field must be an integer.', $name)];
+    }
+
+    /** @return array{0: mixed, 1: ?string} */
+    private function coerceFloat(mixed $value, string $name): array
+    {
+        if (is_int($value)) {
+            return [(float) $value, null];
+        }
+        if (is_float($value)) {
+            return is_finite($value)
+                ? [$value, null]
+                : [null, sprintf('The %s field must be a finite number.', $name)];
+        }
+        if (is_string($value) && is_numeric(trim($value))) {
+            $floatVal = (float) trim($value);
+
+            return is_finite($floatVal)
+                ? [$floatVal, null]
+                : [null, sprintf('The %s field must be a finite number.', $name)];
+        }
+
+        return [null, sprintf('The %s field must be a number.', $name)];
     }
 }

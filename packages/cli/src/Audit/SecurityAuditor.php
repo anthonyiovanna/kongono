@@ -102,7 +102,14 @@ final readonly class SecurityAuditor
                 continue;
             }
             [$k, $v] = explode('=', $trimmed, 2);
-            $env[trim($k)] = trim($v, " \t\n\r\"'");
+            $rawVal = trim($v);
+            if (
+                !(strlen($rawVal) >= 2 && (('"' === $rawVal[0] && str_ends_with($rawVal, '"')) || ("'" === $rawVal[0] && str_ends_with($rawVal, "'"))))
+                && false !== ($hashPos = strpos($rawVal, ' #'))
+            ) {
+                $rawVal = trim(substr($rawVal, 0, $hashPos));
+            }
+            $env[trim($k)] = trim($rawVal, " \t\n\r\"'");
         }
 
         $isProd = 'production' === strtolower($env['APP_ENV'] ?? '');
@@ -117,11 +124,13 @@ final readonly class SecurityAuditor
         }
 
         $appKey = $env['APP_KEY'] ?? '';
-        if ('' !== $appKey && strlen($appKey) < 16) {
+        $keyBody = str_starts_with(strtolower($appKey), 'base64:') ? substr($appKey, 7) : $appKey;
+        $isPlaceholder = 1 === preg_match('/\A(?:replace_with|change_me|your[_-]|changeme|example)/i', $keyBody);
+        if (($isProd && '' === $appKey) || ('' !== $appKey && (strlen($keyBody) < 16 || $isPlaceholder))) {
             $findings[] = [
                 'severity' => 'critical',
                 'code' => 'KGN-AUDIT-WEAK-KEY',
-                'message' => 'APP_KEY is shorter than 16 bytes. Run `kongo key:generate` to create a 256-bit key.',
+                'message' => 'APP_KEY is missing, a placeholder, or shorter than 16 bytes. Run `kongo key:generate` to create a 256-bit key.',
                 'location' => '.env',
             ];
         }
@@ -153,7 +162,7 @@ final readonly class SecurityAuditor
             if (false === $contents) {
                 continue;
             }
-            if (1 === preg_match_all('/\{!!\s*(.+?)\s*!!\}/', $contents, $matches)) {
+            if (preg_match_all('/\{!!\s*(.+?)\s*!!\}/s', $contents, $matches) > 0) {
                 foreach ($matches[1] as $expr) {
                     if ('$slot' === trim($expr)) {
                         continue;

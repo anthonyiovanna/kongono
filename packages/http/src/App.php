@@ -308,9 +308,16 @@ final class App
     /** Standard SAPI / PHP-FPM / built-in dev server entry point. */
     public function run(): void
     {
-        $request = Request::fromGlobals();
-        $response = $this->handle($request);
-        (new ResponseEmitter())->emit($response);
+        $emitter = new ResponseEmitter();
+        try {
+            $request = Request::fromGlobals();
+            $response = $this->handle($request);
+        } catch (HttpException $e) {
+            $response = Response::json(['error' => ['status' => $e->statusCode, 'message' => $e->getMessage()]], $e->statusCode, $e->headers);
+        } catch (Throwable) {
+            $response = Response::json(['error' => ['status' => 400, 'message' => 'Malformed HTTP request.']], 400);
+        }
+        $emitter->emit($response);
         $this->shutdown();
     }
 
@@ -327,8 +334,14 @@ final class App
 
         try {
             $handler = function () use ($emitter): void {
-                $request = Request::fromGlobals();
-                $response = $this->handle($request);
+                try {
+                    $request = Request::fromGlobals();
+                    $response = $this->handle($request);
+                } catch (HttpException $e) {
+                    $response = Response::json(['error' => ['status' => $e->statusCode, 'message' => $e->getMessage()]], $e->statusCode, $e->headers);
+                } catch (Throwable) {
+                    $response = Response::json(['error' => ['status' => 400, 'message' => 'Malformed HTTP request.']], 400);
+                }
                 $emitter->emit($response);
             };
 
@@ -473,9 +486,10 @@ final class App
                 return $this->container->get($typeName);
             }
 
-            // Check if this is an input DTO class (concrete class with scalar/validated constructor params)
+            // Check if this is an input DTO class (concrete userland class with scalar/validated constructor params)
+            // Authoritative route parameters ALWAYS take precedence over query/body input (prevents route-param shadowing IDOR)
             if (class_exists($typeName) && $this->looksLikeInputDto($typeName)) {
-                return $this->validator->validate($typeName, [...$routeParams, ...$request->allInput()]);
+                return $this->validator->validate($typeName, [...$request->allInput(), ...$routeParams]);
             }
 
             // Fall back to container autowiring for services/repositories
@@ -498,30 +512,54 @@ final class App
     private function looksLikeInputDto(string $className): bool
     {
         $ref = new \ReflectionClass($className);
-        if (!$ref->isInstantiable()) {
+        if (!$ref->isInstantiable() || $ref->isInternal()) {
             return false;
         }
         $ctor = $ref->getConstructor();
         if (null === $ctor || 0 === $ctor->getNumberOfParameters()) {
             return false;
         }
+
+        $hasRequiredOrValidatedField = false;
         foreach ($ctor->getParameters() as $param) {
             $type = $param->getType();
-            if ($type instanceof ReflectionNamedType) {
-                if ($type->isBuiltin()) {
-                    return true;
-                }
+            if (!$type instanceof ReflectionNamedType) {
+                return false;
+            }
+
+            $isDtoFieldType = false;
+            if ($type->isBuiltin()) {
+                $isDtoFieldType = true;
+            } else {
                 $paramTypeName = $type->getName();
                 if (enum_exists($paramTypeName)) {
-                    return true;
+                    $isDtoFieldType = true;
+                } elseif (
+                    class_exists($paramTypeName)
+                    && !array_key_exists($paramTypeName, $this->container->registeredBindings())
+                    && $this->looksLikeInputDto($paramTypeName)
+                ) {
+                    $isDtoFieldType = true;
                 }
-                if (class_exists($paramTypeName) && !$this->container->has($paramTypeName) && $this->looksLikeInputDto($paramTypeName)) {
-                    return true;
+            }
+
+            if (!$isDtoFieldType) {
+                return false;
+            }
+
+            if (!$param->isDefaultValueAvailable()) {
+                $hasRequiredOrValidatedField = true;
+            } else {
+                foreach ($param->getAttributes() as $attr) {
+                    if (str_starts_with($attr->getName(), 'Kongono\\Validation\\Attributes\\')) {
+                        $hasRequiredOrValidatedField = true;
+                        break;
+                    }
                 }
             }
         }
 
-        return false;
+        return $hasRequiredOrValidatedField;
     }
 
     private function coerceRouteParam(string $value, string $typeName, string $name): mixed

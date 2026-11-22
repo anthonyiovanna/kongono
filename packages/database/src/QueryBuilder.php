@@ -195,6 +195,11 @@ final class QueryBuilder
      */
     public function whereGroup(Closure $callback, string $boolean = 'AND'): self
     {
+        $bool = strtoupper(trim($boolean));
+        if ('AND' !== $bool && 'OR' !== $bool) {
+            throw new DatabaseException(sprintf('Unsupported WHERE boolean "%s".', $boolean));
+        }
+
         $nested = new self($this->table, $this->dialect, $this->connection, $this->alias);
         $callback($nested);
         if ([] === $nested->wheres) {
@@ -210,7 +215,7 @@ final class QueryBuilder
         }
 
         $this->wheres[] = [
-            'boolean' => $boolean,
+            'boolean' => $bool,
             'sql' => '(' . implode(' ', $clauses) . ')',
             'bindings' => $bindings,
         ];
@@ -345,7 +350,12 @@ final class QueryBuilder
      */
     public function toInsertManySql(array $rows): Sql
     {
-        $columns = array_keys($rows[0]);
+        $scopedRows = [];
+        foreach ($rows as $row) {
+            $scopedRows[] = $this->applyTenantToWriteRow($row, 'INSERT');
+        }
+
+        $columns = array_keys($scopedRows[0]);
         if ([] === $columns) {
             throw new DatabaseException('Cannot compile batch INSERT with empty columns.');
         }
@@ -355,7 +365,7 @@ final class QueryBuilder
         $groups = [];
         $bindings = [];
 
-        foreach ($rows as $row) {
+        foreach ($scopedRows as $row) {
             $groups[] = $rowPlaceholder;
             foreach ($columns as $col) {
                 $bindings[] = $row[$col] ?? null;
@@ -383,6 +393,16 @@ final class QueryBuilder
     {
         $base = $this->toInsertManySql($rows);
 
+        if (null !== $this->tenantConstraint && [] !== $updateColumns) {
+            $tenantCol = $this->tenantConstraint['column'];
+            if (in_array($tenantCol, $updateColumns, true)) {
+                throw new DatabaseException(sprintf('Refusing UPSERT on "%s": cannot overwrite tenant column "%s".', $this->table, $tenantCol));
+            }
+            if (Dialect::Mysql === $this->dialect && !in_array($tenantCol, $conflictColumns, true)) {
+                throw new DatabaseException(sprintf('Refusing MySQL UPSERT on "%s": tenant column "%s" must be included in conflictColumns to prevent cross-tenant overwrite.', $this->table, $tenantCol));
+            }
+        }
+
         if (Dialect::Mysql === $this->dialect) {
             if ([] === $updateColumns) {
                 $ignoreSql = (string) preg_replace('/\AINSERT INTO /', 'INSERT IGNORE INTO ', $base->query, 1);
@@ -408,7 +428,18 @@ final class QueryBuilder
             $updateColumns,
         );
 
-        return new Sql(sprintf('%s ON CONFLICT (%s) DO UPDATE SET %s', $base->query, $conflict, implode(', ', $updates)), $base->bindings);
+        $sql = sprintf('%s ON CONFLICT (%s) DO UPDATE SET %s', $base->query, $conflict, implode(', ', $updates));
+        $bindings = $base->bindings;
+        if (null !== $this->tenantConstraint) {
+            $sql .= sprintf(
+                ' WHERE %s.%s = ?',
+                $this->dialect->quoteIdentifier($this->table),
+                $this->dialect->quoteIdentifier($this->tenantConstraint['column']),
+            );
+            $bindings[] = $this->tenantConstraint['value'];
+        }
+
+        return new Sql($sql, $bindings);
     }
 
     /**
@@ -423,8 +454,10 @@ final class QueryBuilder
             throw new DatabaseException('Cannot compile INSERT with empty values.');
         }
 
-        $columns = array_map($this->dialect->quoteIdentifier(...), array_keys($values));
-        $placeholders = implode(', ', array_fill(0, count($values), '?'));
+        $scopedValues = $this->applyTenantToWriteRow($values, 'INSERT');
+
+        $columns = array_map($this->dialect->quoteIdentifier(...), array_keys($scopedValues));
+        $placeholders = implode(', ', array_fill(0, count($scopedValues), '?'));
         $sql = sprintf(
             'INSERT INTO %s (%s) VALUES (%s)',
             $this->dialect->quoteIdentifier($this->table),
@@ -436,7 +469,7 @@ final class QueryBuilder
             $sql .= ' RETURNING ' . implode(', ', array_map($this->dialect->quoteIdentifier(...), $returning));
         }
 
-        return new Sql($sql, array_values($values));
+        return new Sql($sql, array_values($scopedValues));
     }
 
     /**
@@ -741,7 +774,54 @@ final class QueryBuilder
         $clean = strtolower(trim($column));
         $target = strtolower(trim($required));
 
-        return $clean === $target || str_ends_with($clean, '.' . $target);
+        if (str_contains($target, '.')) {
+            return $clean === $target;
+        }
+
+        if ($clean === $target || $clean === strtolower($this->table) . '.' . $target) {
+            return true;
+        }
+
+        return null !== $this->alias && $clean === strtolower($this->alias) . '.' . $target;
+    }
+
+    /**
+     * Enforce tenant scope on INSERT / UPSERT rows.
+     *
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    private function applyTenantToWriteRow(array $row, string $operation): array
+    {
+        if (null !== $this->tenantConstraint) {
+            $col = $this->tenantConstraint['column'];
+            $expected = $this->tenantConstraint['value'];
+            if (array_key_exists($col, $row) && $row[$col] !== $expected) {
+                throw new DatabaseException(sprintf(
+                    'Refusing cross-tenant %s on "%s": row value for "%s" conflicts with active forTenant() scope.',
+                    $operation,
+                    $this->table,
+                    $col,
+                ));
+            }
+            $row[$col] = $expected;
+
+            return $row;
+        }
+
+        if (null !== $this->requiredTenantColumn) {
+            $col = $this->requiredTenantColumn;
+            if (!array_key_exists($col, $row) || null === $row[$col] || '' === $row[$col]) {
+                throw new DatabaseException(sprintf(
+                    'Refusing cross-tenant %s on "%s": missing required tenant column "%s".',
+                    $operation,
+                    $this->table,
+                    $col,
+                ));
+            }
+        }
+
+        return $row;
     }
 
     /** @param 'AND'|'OR' $boolean */

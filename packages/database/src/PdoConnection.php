@@ -46,6 +46,7 @@ final class PdoConnection implements ConnectionInterface
     ): self {
         self::assertSafeDsnPart($host, 'host');
         self::assertSafeDsnPart($database, 'database');
+        self::assertValidPort($port);
         $dsn = sprintf('pgsql:host=%s;port=%d;dbname=%s', $host, $port, $database);
 
         return new self(new PDO($dsn, $username, $password), Dialect::Postgres);
@@ -81,9 +82,11 @@ final class PdoConnection implements ConnectionInterface
         }
 
         if ('mysql' === $scheme) {
+            $mysqlPort = $parts['port'] ?? 3306;
             self::assertSafeDsnPart($host, 'host');
             self::assertSafeDsnPart($dbName, 'database');
-            $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $parts['port'] ?? 3306, $dbName);
+            self::assertValidPort($mysqlPort);
+            $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $mysqlPort, $dbName);
 
             return new self(new PDO($dsn, $user, $pass), Dialect::Mysql);
         }
@@ -189,8 +192,18 @@ final class PdoConnection implements ConnectionInterface
 
     private static function assertSafeDsnPart(string $value, string $field): void
     {
-        if ('' === $value || false !== strpbrk($value, ";\r\n\0")) {
+        $pattern = 'host' === $field
+            ? '/\A[a-zA-Z0-9._:\-\[\]]+\z/'
+            : '/\A[^\s;\'"\\\\=\x00-\x1f\x7f]+\z/';
+        if ('' === $value || 1 !== preg_match($pattern, $value)) {
             throw new DatabaseException(sprintf('Unsafe DSN %s parameter rejected.', $field));
+        }
+    }
+
+    private static function assertValidPort(int $port): void
+    {
+        if ($port < 1 || $port > 65535) {
+            throw new DatabaseException(sprintf('Invalid database port %d.', $port));
         }
     }
 }

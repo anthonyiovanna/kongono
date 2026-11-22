@@ -32,6 +32,13 @@ final readonly class TestExporter
         $body = $trace['body'] ?? '';
 
         $fnName = $testMethodName ?? self::deriveMethodName($method, $path, $trace['id']);
+        if (1 !== preg_match('/\A[a-zA-Z_][a-zA-Z0-9_]*\z/', $fnName)) {
+            throw new \InvalidArgumentException(sprintf('Invalid PHPUnit test method name "%s".', $fnName));
+        }
+
+        // Neutralize PHP open/close tags and newlines so single-line comments cannot break out into executable PHP
+        $safeCommentMethod = self::sanitizeComment($method);
+        $safeCommentUri = self::sanitizeComment($fullUri);
 
         $lines = [
             '<?php',
@@ -40,7 +47,7 @@ final readonly class TestExporter
             '',
             'use Kongono\\Http\\Testing\\TestClient;',
             '',
-            sprintf('// Auto-exported from Kongono Dev Studio trace #%d (%s %s -> HTTP %d)', $trace['id'], $method, $fullUri, $status),
+            sprintf('// Auto-exported from Kongono Dev Studio trace #%d (%s %s -> HTTP %d)', $trace['id'], $safeCommentMethod, $safeCommentUri, $status),
             sprintf('public function %s(): void', $fnName),
             '{',
             '    $client = new TestClient($this->app);',
@@ -100,11 +107,22 @@ final readonly class TestExporter
 
     private static function deriveMethodName(string $method, string $path, int $id): string
     {
+        $cleanMethod = (string) preg_replace('/[^a-zA-Z0-9]+/', '', $method);
+        if ('' === $cleanMethod) {
+            $cleanMethod = 'Request';
+        }
         $slug = (string) preg_replace('/[^a-zA-Z0-9]+/', ' ', trim($path, '/'));
         $parts = array_values(array_filter(explode(' ', $slug), static fn(string $p): bool => '' !== $p));
         $camel = implode('', array_map(static fn(string $p): string => ucfirst(strtolower($p)), $parts));
 
-        return 'testReplay' . ucfirst(strtolower($method)) . ('' !== $camel ? $camel : 'Root') . 'Trace' . $id;
+        return 'testReplay' . ucfirst(strtolower($cleanMethod)) . ('' !== $camel ? $camel : 'Root') . 'Trace' . abs($id);
+    }
+
+    private static function sanitizeComment(string $value): string
+    {
+        $noControls = (string) preg_replace('/[\x00-\x1f\x7f]/', ' ', $value);
+
+        return str_replace(['?>', '<?'], ['?_>', '<_?'], $noControls);
     }
 
     /** @param array<array-key, mixed> $value */

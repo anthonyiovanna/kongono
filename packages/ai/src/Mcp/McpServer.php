@@ -7,8 +7,10 @@ namespace Kongono\Ai\Mcp;
 use Closure;
 use JsonException;
 use Kongono\Ai\Agent\AgentPrincipal;
+use Kongono\Ai\Agent\RequiresApproval;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Core\Diagnostics\SecretScrubber;
+use ReflectionFunction;
 use Throwable;
 
 /**
@@ -22,8 +24,10 @@ final class McpServer
     public const string PROTOCOL_VERSION = '2025-03-26';
     public const int MAX_PAYLOAD_BYTES = 1_048_576;
 
-    /** @var array<string, array{definition: ToolDefinition, handler: Closure(array<string, mixed>): string}> */
+    /** @var array<string, array{definition: ToolDefinition, handler: Closure(array<string, mixed>): string, requiresApproval: bool}> */
     private array $tools = [];
+
+    private int $toolCallsExecuted = 0;
 
     public function __construct(
         private readonly string $serverName = 'kongono-mcp',
@@ -42,9 +46,11 @@ final class McpServer
             return $this;
         }
 
+        $handlerAttr = [] !== (new ReflectionFunction($handler))->getAttributes(RequiresApproval::class);
         $this->tools[$definition->name] = [
             'definition' => $definition,
             'handler' => $handler,
+            'requiresApproval' => $definition->requiresApproval || $handlerAttr,
         ];
 
         return $this;
@@ -125,8 +131,24 @@ final class McpServer
             return;
         }
 
-        while (false !== ($line = fgets($in))) {
-            $trimmed = trim($line);
+        while (!feof($in)) {
+            $chunk = fgets($in, self::MAX_PAYLOAD_BYTES + 2);
+            if (false === $chunk) {
+                break;
+            }
+            if (strlen($chunk) > self::MAX_PAYLOAD_BYTES && !str_ends_with($chunk, "\n")) {
+                // Drain remainder of oversized line without buffering it into RAM
+                while (!feof($in)) {
+                    $discard = fgets($in, 65536);
+                    if (false === $discard || str_ends_with($discard, "\n")) {
+                        break;
+                    }
+                }
+                fwrite($out, $this->encodeError(null, -32600, sprintf('Request payload exceeds maximum bound of %d bytes.', self::MAX_PAYLOAD_BYTES)) . "\n");
+                fflush($out);
+                continue;
+            }
+            $trimmed = trim($chunk);
             if ('' === $trimmed) {
                 continue;
             }
@@ -150,9 +172,14 @@ final class McpServer
             return $this->encodeError($id, -32001, sprintf('Capability denied for tool "%s".', $name));
         }
 
-        if (null !== $this->principal && $this->principal->requiresApproval($name)) {
+        if ($this->tools[$name]['requiresApproval'] || (null !== $this->principal && $this->principal->requiresApproval($name))) {
             return $this->encodeError($id, -32002, sprintf('Tool "%s" requires explicit human approval before execution.', $name));
         }
+
+        if (null !== $this->principal && $this->toolCallsExecuted >= $this->principal->maxToolCalls) {
+            return $this->encodeError($id, -32003, sprintf('MCP tool call budget exceeded (%d max calls).', $this->principal->maxToolCalls));
+        }
+        ++$this->toolCallsExecuted;
 
         /** @var array<string, mixed> $arguments */
         $arguments = [];
@@ -190,7 +217,7 @@ final class McpServer
             'jsonrpc' => '2.0',
             'id' => $id,
             'result' => $result,
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     private function encodeError(int|string|null $id, int $code, string $message): string
@@ -202,6 +229,6 @@ final class McpServer
                 'code' => $code,
                 'message' => $message,
             ],
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 }

@@ -119,8 +119,10 @@ final class Request implements ServerRequestInterface
         return self::create($method, $uri, $headers, $encoded);
     }
 
+    public const int DEFAULT_MAX_BODY_BYTES = 10_485_760;
+
     /** Capture a ServerRequest from standard PHP SAPI / CGI / FrankenPHP globals. */
-    public static function fromGlobals(): self
+    public static function fromGlobals(int $maxBodyBytes = self::DEFAULT_MAX_BODY_BYTES): self
     {
         /** @var array<string, mixed> $server */
         $server = $_SERVER;
@@ -130,11 +132,25 @@ final class Request implements ServerRequestInterface
         $rawHost = is_string($server['HTTP_HOST'] ?? null)
             ? trim($server['HTTP_HOST'])
             : (is_string($server['SERVER_NAME'] ?? null) ? trim($server['SERVER_NAME']) : 'localhost');
-        // Defend against Host header injection (allow only RFC 3986 host[:port] or IPv6 literal)
-        $host = 1 === preg_match('/\A(?:\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(?::\d{1,5})?\z/', $rawHost)
-            ? $rawHost
-            : 'localhost';
+        // Defend against Host header injection (allow only RFC 3986 host[:port] with port 1..65535 or IPv6 literal)
+        $host = 'localhost';
+        if (1 === preg_match('/\A(\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(?::(\d{1,5}))?\z/', $rawHost, $hm)) {
+            $portValid = !isset($hm[2]) || ((int) $hm[2] >= 1 && (int) $hm[2] <= 65535);
+            if ($portValid) {
+                $host = $rawHost;
+            }
+        }
+
+        // Normalize REQUEST_URI strictly to origin-form so absolute-form or `@evil.com` can never hijack host
         $rawUri = is_string($server['REQUEST_URI'] ?? null) ? $server['REQUEST_URI'] : '/';
+        if (1 === preg_match('/\Ahttps?:\/\//i', $rawUri)) {
+            $absParts = parse_url($rawUri);
+            $absPath = is_array($absParts) && is_string($absParts['path'] ?? null) ? $absParts['path'] : '/';
+            $absQuery = is_array($absParts) && is_string($absParts['query'] ?? null) ? '?' . $absParts['query'] : '';
+            $rawUri = (str_starts_with($absPath, '/') ? $absPath : '/' . $absPath) . $absQuery;
+        } elseif (!str_starts_with($rawUri, '/')) {
+            $rawUri = '/' . $rawUri;
+        }
         $uri = Uri::parse(sprintf('%s://%s%s', $scheme, $host, $rawUri));
 
         $headers = [];
@@ -151,8 +167,7 @@ final class Request implements ServerRequestInterface
             }
         }
 
-        $rawBody = file_get_contents('php://input');
-        $body = Stream::fromString(false === $rawBody ? '' : $rawBody);
+        $body = self::readBoundedPhpInput($maxBodyBytes);
 
         /** @var array<string, string> $cookies */
         $cookies = [];
@@ -586,5 +601,32 @@ final class Request implements ServerRequestInterface
     public function isLive(): bool
     {
         return 'true' === strtolower(trim($this->getHeaderLine('X-Kongono-Live')));
+    }
+
+    private static function readBoundedPhpInput(int $maxBodyBytes): Stream
+    {
+        $input = @fopen('php://input', 'rb');
+        if (false === $input) {
+            return Stream::fromString('');
+        }
+
+        $cap = max(0, $maxBodyBytes);
+        $buf = '';
+        try {
+            while (!feof($input)) {
+                $chunk = fread($input, 65536);
+                if (false === $chunk || '' === $chunk) {
+                    break;
+                }
+                if (strlen($buf) + strlen($chunk) > $cap) {
+                    throw new HttpException(413, sprintf('Request body exceeds maximum allowed size of %d bytes.', $cap));
+                }
+                $buf .= $chunk;
+            }
+        } finally {
+            fclose($input);
+        }
+
+        return Stream::fromString($buf);
     }
 }

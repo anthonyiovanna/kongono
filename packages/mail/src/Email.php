@@ -7,6 +7,11 @@ namespace Kongono\Mail;
 /** Immutable email message builder (header-injection safe, supports text, HTML, and attachments). */
 final readonly class Email
 {
+    public string $subject;
+
+    /** @var list<array{filename: string, contentType: string, bytes: string}> */
+    public array $attachments;
+
     /**
      * @param list<Address>                                                     $to
      * @param list<Address>                                                     $cc
@@ -19,11 +24,22 @@ final readonly class Email
         public array $cc = [],
         public array $bcc = [],
         public ?Address $replyTo = null,
-        public string $subject = '',
+        string $subject = '',
         public ?string $textBody = null,
         public ?string $htmlBody = null,
-        public array $attachments = [],
-    ) {}
+        array $attachments = [],
+    ) {
+        $this->subject = self::sanitizeSubject($subject);
+        $cleanAttachments = [];
+        foreach ($attachments as $att) {
+            $cleanAttachments[] = [
+                'filename' => self::sanitizeFilename($att['filename']),
+                'contentType' => self::sanitizeContentType($att['contentType']),
+                'bytes' => $att['bytes'],
+            ];
+        }
+        $this->attachments = $cleanAttachments;
+    }
 
     public static function create(): self
     {
@@ -57,9 +73,7 @@ final readonly class Email
 
     public function subject(string $subject): self
     {
-        $clean = trim(str_replace(["\r", "\n"], ' ', $subject));
-
-        return new self($this->from, $this->to, $this->cc, $this->bcc, $this->replyTo, $clean, $this->textBody, $this->htmlBody, $this->attachments);
+        return new self($this->from, $this->to, $this->cc, $this->bcc, $this->replyTo, $subject, $this->textBody, $this->htmlBody, $this->attachments);
     }
 
     public function text(string $body): self
@@ -74,14 +88,39 @@ final readonly class Email
 
     public function attach(string $filename, string $bytes, string $contentType = 'application/octet-stream'): self
     {
-        $cleanFilename = basename(str_replace(["\r", "\n", "\0", '"'], '', $filename));
-        $cleanType = trim(str_replace(["\r", "\n", "\0"], '', $contentType));
-        if ('' === $cleanType) {
-            $cleanType = 'application/octet-stream';
-        }
-        $attachments = [...$this->attachments, ['filename' => $cleanFilename, 'contentType' => $cleanType, 'bytes' => $bytes]];
+        $attachments = [...$this->attachments, [
+            'filename' => self::sanitizeFilename($filename),
+            'contentType' => self::sanitizeContentType($contentType),
+            'bytes' => $bytes,
+        ]];
 
         return new self($this->from, $this->to, $this->cc, $this->bcc, $this->replyTo, $this->subject, $this->textBody, $this->htmlBody, $attachments);
+    }
+
+    private static function sanitizeSubject(string $subject): string
+    {
+        $noCrLf = str_replace(["\r", "\n"], ' ', $subject);
+
+        return trim((string) preg_replace('/[\x00-\x1f\x7f]/', '', $noCrLf));
+    }
+
+    private static function sanitizeFilename(string $filename): string
+    {
+        $normalized = str_replace('\\', '/', $filename);
+        $base = basename($normalized);
+        $clean = trim((string) preg_replace('/[\x00-\x1f\x7f"\\\\\/;]/', '', $base));
+
+        return '' !== $clean ? $clean : 'attachment.bin';
+    }
+
+    private static function sanitizeContentType(string $contentType): string
+    {
+        $clean = trim((string) preg_replace('/[\x00-\x1f\x7f]/', '', $contentType));
+        if (1 !== preg_match('/\A[a-zA-Z0-9!#$&^_.+-]+\/[a-zA-Z0-9!#$&^_.+-]+\z/', $clean)) {
+            throw new MailException(sprintf('Unsafe MIME content type "%s" rejected.', $contentType));
+        }
+
+        return strtolower($clean);
     }
 
     /** Render an RFC 5322 / MIME wire message suitable for SMTP transmission. */

@@ -15,6 +15,7 @@ use Kongono\Mail\MailException;
 use Kongono\Mail\MailNotificationChannel;
 use Kongono\Mail\MemoryTransport;
 use Kongono\Mail\ResendTransport;
+use Kongono\Mail\SmtpTransport;
 use Kongono\View\ViewEngine;
 use PHPUnit\Framework\TestCase;
 
@@ -105,5 +106,55 @@ final class MailTest extends TestCase
         self::assertTrue($res['mail']['ok']);
         self::assertCount(1, $memory->sent());
         self::assertSame('Welcome!', $memory->sent()[0]->subject);
+    }
+
+    public function testRound3SmtpSmugglingMimeBreakoutAndResendTransportHardening(): void
+    {
+        // 1. CVE-2023-51764: bare LF / bare CR dot-smuggling sequences are canonicalized & dot-stuffed
+        $smuggled = "Subject: Hi\n\nBody\n.\nMAIL FROM:<evil@attacker.test>\r.\rDATA";
+        $prepared = SmtpTransport::prepareDataPayload($smuggled);
+        self::assertStringNotContainsString("\r\n.\r\n", $prepared);
+        self::assertStringContainsString("\r\n..\r\nMAIL FROM:", $prepared);
+        self::assertStringContainsString("\r\n..\r\nDATA", $prepared);
+
+        // NUL bytes in SMTP DATA rejected
+        try {
+            SmtpTransport::prepareDataPayload("Hello\0World");
+            self::fail('Expected NUL byte in SMTP payload to be rejected.');
+        } catch (MailException $e) {
+            self::assertStringContainsString('NUL', $e->getMessage());
+        }
+
+        // 2. Address::format() escapes backslash BEFORE quote so `Support\` cannot break out of quotes
+        $addr = new Address('support@example.com', 'Support\\');
+        self::assertSame('"Support\\\\" <support@example.com>', $addr->format());
+
+        // 3. Direct Email::__construct() strips CRLF in subject and validates attachment MIME types & filenames
+        $direct = new Email(
+            to: [new Address('ada@example.com')],
+            subject: "Hello\r\nBcc: evil@attacker.test",
+            textBody: 'ok',
+        );
+        self::assertStringNotContainsString("\r", $direct->subject);
+        self::assertStringNotContainsString("\n", $direct->subject);
+
+        try {
+            Email::create()->to('ada@example.com')->subject('Hi')->attach('a.txt', 'x', "text/plain\r\nX-Evil: 1");
+            self::fail('Expected invalid MIME content type to be rejected.');
+        } catch (MailException $e) {
+            self::assertStringContainsString('Unsafe MIME content type', $e->getMessage());
+        }
+
+        // 4. ResendTransport rejects plaintext HTTP endpoint and CRLF in API key
+        try {
+            new ResendTransport('re_test_123', endpoint: 'http://api.resend.com/emails');
+            self::fail('Expected non-HTTPS Resend endpoint to be rejected.');
+        } catch (MailException $e) {
+            self::assertStringContainsString('https://', $e->getMessage());
+        }
+
+        $this->expectException(MailException::class);
+        $this->expectExceptionMessage('CR, LF, or NUL');
+        new ResendTransport("re_test_123\r\nX-Injected: 1");
     }
 }

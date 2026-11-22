@@ -8,8 +8,17 @@ use Kongono\Ai\AiClient;
 use Kongono\Ai\Provider\OpenAiProvider;
 use Kongono\Ai\Transport\HttpResponse;
 use Kongono\Ai\Transport\HttpTransportInterface;
+use Kongono\Cli\AppScaffolder;
+use Kongono\Cli\Audit\SecurityAuditor;
+use Kongono\Cli\CodeGenerator;
+use Kongono\Cli\Companions\HanteiDebugger;
+use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Database\MigrationLinter;
+use Kongono\Cli\Deploy\DeployBlueprintGenerator;
 use Kongono\Cli\KongoCli;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
+use Kongono\Cli\Sdk\SdkGenerator;
+use Kongono\Core\CoreException;
 use PHPUnit\Framework\TestCase;
 
 final class ScriptedTransport implements HttpTransportInterface
@@ -161,7 +170,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.4.4', $vOut);
+            self::assertStringContainsString('v1.5.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -503,6 +512,137 @@ PHP);
             self::assertSame(0, $cCode);
             self::assertStringContainsString('1/1 passed (100.0%)', $cOut);
             self::assertStringContainsString('smoke_eval', $cOut);
+        } finally {
+            $this->removeDir($tmp);
+        }
+    }
+
+    public function testRound3CliScaffolderProjectContextMcpAuditorDeployLinterAndSdkHardening(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-cli-r3-' . bin2hex(random_bytes(5));
+        mkdir($tmp, 0o777, true);
+
+        try {
+            // 1. AppScaffolder escapes backslash-quote injection in app name and creates .dockerignore
+            $appDir = $tmp . DIRECTORY_SEPARATOR . 'scaffolded';
+            (new AppScaffolder())->scaffold($appDir, "MyApp\\';system('id');//");
+            self::assertFileExists($appDir . DIRECTORY_SEPARATOR . '.dockerignore');
+            $appPhp = (string) file_get_contents($appDir . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php');
+            // Verify PHP tokenizer finds zero injected `system` identifier tokens in generated bootstrap.php
+            $systemCalls = array_filter(\PhpToken::tokenize($appPhp), static fn(\PhpToken $t): bool => T_STRING === $t->id && 'system' === strtolower($t->text));
+            self::assertSame([], $systemCalls);
+            $envExample = (string) file_get_contents($appDir . DIRECTORY_SEPARATOR . '.env.example');
+            self::assertStringContainsString('APP_KEY=REPLACE_WITH_kongo_key_generate', $envExample);
+
+            // 2. CodeGenerator rejects injected PHP namespace strings
+            $ctx = ProjectContext::discover($appDir);
+            try {
+                (new CodeGenerator())->makeController($ctx, 'Order', "App\\Http; system('id'); //");
+                self::fail('Expected invalid PHP namespace to fail.');
+            } catch (CoreException $e) {
+                self::assertStringContainsString('Unsafe PHP namespace', $e->getMessage());
+            }
+
+            // 3. ProjectContext blocks reading secret files & writing into .git / .env / vendor
+            file_put_contents($appDir . DIRECTORY_SEPARATOR . 'auth.json', '{"token":"secret"}');
+            try {
+                $ctx->readFileSafe('auth.json');
+                self::fail('Expected ProjectContext::readFileSafe to block auth.json.');
+            } catch (CoreException $e) {
+                self::assertStringContainsString('forbidden', $e->getMessage());
+            }
+            try {
+                $ctx->writeFileContained('.git/hooks/pre-commit', '#!/bin/sh');
+                self::fail('Expected ProjectContext::writeFileContained to block .git/hooks.');
+            } catch (CoreException $e) {
+                self::assertStringContainsString('forbidden', $e->getMessage());
+            }
+
+            // 4. HanteiDebugger refuses non-PHP file extensions for test generation
+            $hantei = new HanteiDebugger(
+                new AiClient(new OpenAiProvider('sk-test', transport: new ScriptedTransport())),
+            );
+            try {
+                $hantei->generateTests('composer.json', $ctx);
+                self::fail('Expected HanteiDebugger::generateTests to reject non-PHP path.');
+            } catch (CoreException $e) {
+                self::assertStringContainsString('.php', $e->getMessage());
+            }
+
+            // 5. KongonoMcpFactory blocks /mcp/ recursion and mutating POST in kongono_test_route
+            $mcp = KongonoMcpFactory::forApp($this->starterAppRoot);
+            $mcpLoop = json_decode((string) $mcp->handleJson('{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"kongono_test_route","arguments":{"method":"GET","path":"//mcp/"}}}'), true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($mcpLoop);
+            self::assertTrue($mcpLoop['result']['isError']);
+            $mcpPost = json_decode((string) $mcp->handleJson('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"kongono_test_route","arguments":{"method":"POST","path":"/notes"}}}'), true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($mcpPost);
+            self::assertTrue($mcpPost['result']['isError']);
+
+            // 6. SecurityAuditor catches templates containing 2+ unescaped {!! ... !!} tags & weak APP_KEY
+            if (!is_dir($appDir . DIRECTORY_SEPARATOR . 'views')) {
+                mkdir($appDir . DIRECTORY_SEPARATOR . 'views', 0o777, true);
+            }
+            file_put_contents($appDir . '/views/unsafe.kgn.html', '{!! $a !!} {!! $b !!}');
+            file_put_contents($appDir . '/.env', "APP_ENV=production\nAPP_KEY=base64:CHANGE_ME # comment\n");
+            $auditReport = (new SecurityAuditor())->audit($appDir);
+            $auditCodes = array_column($auditReport['findings'], 'code');
+            self::assertContains('KGN-AUDIT-RAW-HTML', $auditCodes);
+            self::assertContains('KGN-AUDIT-WEAK-KEY', $auditCodes);
+
+            // 7. DeployBlueprintGenerator blocks leading-hyphen git branch injection & generates .dockerignore
+            $deployGen = new DeployBlueprintGenerator();
+            $blueprints = $deployGen->generate('demo', 'demo.kongono.dev');
+            self::assertArrayHasKey('.dockerignore', $blueprints);
+            self::assertStringContainsString('POSTGRES_PASSWORD:?', $blueprints['docker-compose.prod.yml']);
+            try {
+                $deployGen->generate('demo', 'demo.kongono.dev', gitBranch: '--upload-pack=id');
+                self::fail('Expected leading-hyphen git branch to be rejected.');
+            } catch (\InvalidArgumentException $e) {
+                self::assertStringContainsString('Unsafe Git branch', $e->getMessage());
+            }
+
+            // 8. MigrationLinter catches hazards in up() even when down() precedes up()
+            mkdir($tmp . '/migs', 0o777, true);
+            file_put_contents($tmp . '/migs/001_order.php', <<<'PHP'
+<?php
+// function down($db) {} comment must not disable linting
+class M {
+    public function down($db): void { $db->execute('DROP TABLE safe_rollback'); }
+    public function up($db): void { $db->execute('TRUNCATE TABLE users;'); }
+}
+PHP);
+            $migReport = (new MigrationLinter())->lintDirectory($tmp . '/migs');
+            self::assertFalse($migReport['passed']);
+            self::assertSame(['KGN-MIG-TRUNCATE'], array_column($migReport['findings'], 'code'));
+
+            // 9. SdkGenerator escapes hostile paths/descriptions and emits Swift encodePart() + Kotlin escapeJsonString()
+            $sdkSpec = [
+                'info' => ['title' => "Demo */ system('id'); /*", 'version' => '1.0.0'],
+                'components' => [
+                    'schemas' => [
+                        'NoteInput' => [
+                            'type' => 'object',
+                            'required' => ['title'],
+                            'properties' => [
+                                'title' => ['type' => 'string'],
+                                'tags' => ['type' => 'array', 'items' => ['type' => 'string']],
+                            ],
+                        ],
+                    ],
+                ],
+                'paths' => [
+                    '/notes/{id}' => [
+                        'get' => ['operationId' => 'notes.show', 'summary' => "Show\n*/ alert(1) /*"],
+                    ],
+                ],
+            ];
+            $sdkGen = new SdkGenerator();
+            $tsSdk = $sdkGen->generateFromSpec($sdkSpec, 'ts');
+            self::assertStringNotContainsString("*/ system('id')", $tsSdk);
+            $swiftSdk = $sdkGen->generateFromSpec($sdkSpec, 'swift');
+            self::assertStringContainsString('encodePart(', $swiftSdk);
+            $kotlinSdk = $sdkGen->generateFromSpec($sdkSpec, 'kotlin');
+            self::assertStringContainsString('escapeJsonString(', $kotlinSdk);
         } finally {
             $this->removeDir($tmp);
         }

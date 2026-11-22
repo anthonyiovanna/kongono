@@ -148,10 +148,14 @@ PROMPT;
 
     private function deriveTestPath(string $sourceRelativePath): string
     {
-        $normalized = str_replace('\\', '/', $sourceRelativePath);
-        $replaced = preg_replace('#\Asrc/#', 'tests/', $normalized);
-        $base = is_string($replaced) ? $replaced : 'tests/' . basename($normalized);
-        if (str_ends_with($base, '.php') && !str_ends_with($base, 'Test.php')) {
+        $normalized = ltrim(str_replace('\\', '/', trim($sourceRelativePath)), '/');
+        if (!str_ends_with(strtolower($normalized), '.php') || str_contains($normalized, '..')) {
+            throw new AiException(sprintf('Hantei test generation requires a valid .php source file path (got "%s").', $sourceRelativePath));
+        }
+
+        $relative = str_starts_with($normalized, 'src/') ? substr($normalized, 4) : basename($normalized);
+        $base = 'tests/' . ltrim($relative, '/');
+        if (!str_ends_with($base, 'Test.php')) {
             return substr($base, 0, -4) . 'Test.php';
         }
 

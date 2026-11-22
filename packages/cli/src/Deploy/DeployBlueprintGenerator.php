@@ -37,6 +37,7 @@ final readonly class DeployBlueprintGenerator
 
         return [
             'Dockerfile' => $this->dockerfile($safeThreads),
+            '.dockerignore' => ".git\n.env\n.env.*\n!.env.example\n!.env.production.example\n/var\n/tests\n/vendor\n",
             'Caddyfile' => $this->caddyfile($cleanDomain, $safeThreads),
             'docker-compose.prod.yml' => $this->composeFile($cleanSlug, $cleanDomain, $postgres, $redis, $worker),
             'deploy/provision.sh' => $this->provisionScript($cleanSlug),
@@ -72,7 +73,7 @@ final readonly class DeployBlueprintGenerator
     private function validateGitBranch(string $branch): string
     {
         $clean = trim($branch);
-        if ('' === $clean || str_contains($clean, '..') || 1 !== preg_match('/\A[a-zA-Z0-9._\/-]+\z/', $clean)) {
+        if ('' === $clean || str_starts_with($clean, '-') || str_contains($clean, '..') || 1 !== preg_match('/\A[a-zA-Z0-9._\/-]+\z/', $clean)) {
             throw new InvalidArgumentException(sprintf('Unsafe Git branch name "%s" rejected.', $branch));
         }
 
@@ -194,7 +195,7 @@ YAML;
     environment:
       POSTGRES_DB: {$slug}
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:-change_me_strong_password}
+      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
       - pg_data:/var/lib/postgresql/data
     networks:
@@ -209,7 +210,7 @@ YAML;
     image: redis:7-alpine
     container_name: {$slug}_redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "\${REDIS_PASSWORD:?REDIS_PASSWORD must be set}"]
     volumes:
       - redis_data:/data
     networks:
@@ -267,10 +268,10 @@ set -euo pipefail
 
 APP_DIR="/srv/kongono/{$slug}"
 if [ ! -d "\${APP_DIR}/.git" ]; then
-  git clone --branch "{$branch}" "{$repo}" "\${APP_DIR}"
+  git clone --branch "{$branch}" -- "{$repo}" "\${APP_DIR}"
 fi
 cd "\${APP_DIR}"
-git fetch origin "{$branch}" --depth=1
+git fetch origin -- "{$branch}" --depth=1
 git reset --hard "origin/{$branch}"
 
 docker compose -f docker-compose.prod.yml build --pull web

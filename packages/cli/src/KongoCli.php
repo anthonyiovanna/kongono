@@ -18,6 +18,8 @@ use Kongono\Cli\Database\MigrationLinter;
 use Kongono\Cli\Deploy\DeployBlueprintGenerator;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Cli\Sdk\SdkGenerator;
+use Kongono\Core\CoreException;
+use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Core\Graph\RouteNode;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\MigrationInterface;
@@ -57,7 +59,7 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.4.4 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.5.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
@@ -94,7 +96,7 @@ final readonly class KongoCli
                 default => [1, sprintf("Unknown command \"%s\". Run `kongo help` for usage.\n", $command)],
             };
         } catch (Throwable $e) {
-            return [1, sprintf("Error: %s\n", $e->getMessage())];
+            return [1, sprintf("Error: %s\n", SecretScrubber::scrub($e->getMessage()))];
         }
     }
 
@@ -421,30 +423,47 @@ final readonly class KongoCli
     private function cmdCacheClear(string $appRoot): array
     {
         $cacheDir = $appRoot . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'cache';
-        if (!is_dir($cacheDir)) {
+        if (is_link($cacheDir)) {
+            throw new CoreException('Refusing to clear cache directory: var/cache cannot be a symbolic link.');
+        }
+        $realCache = realpath($cacheDir);
+        if (false === $realCache || !is_dir($realCache)) {
             return [0, "Cache directory is already empty.\n"];
         }
 
-        $removed = $this->deleteDirectoryFiles($cacheDir);
+        $removed = $this->deleteDirectoryFiles($realCache, $realCache);
 
         return [0, sprintf("Cleared %d cached file(s) under %s.\n", $removed, $cacheDir)];
     }
 
-    private function deleteDirectoryFiles(string $dir): int
+    private function deleteDirectoryFiles(string $dir, string $rootBoundary): int
     {
         $count = 0;
         $entries = scandir($dir);
         if (false === $entries) {
             return 0;
         }
+        $prefix = rtrim($rootBoundary, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
         foreach ($entries as $entry) {
             if ('.' === $entry || '..' === $entry) {
                 continue;
             }
             $path = $dir . DIRECTORY_SEPARATOR . $entry;
+            // Never traverse symbolic links when deleting directories (prevents arbitrary external deletion)
+            if (is_link($path)) {
+                if (@unlink($path)) {
+                    ++$count;
+                }
+                continue;
+            }
             if (is_dir($path)) {
-                $count += $this->deleteDirectoryFiles($path);
-                @rmdir($path);
+                $realChild = realpath($path);
+                if (false === $realChild || !str_starts_with($realChild, $prefix)) {
+                    continue;
+                }
+                $count += $this->deleteDirectoryFiles($realChild, $rootBoundary);
+                @rmdir($realChild);
             } elseif (@unlink($path)) {
                 ++$count;
             }

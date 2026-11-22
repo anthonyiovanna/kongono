@@ -20,13 +20,24 @@ use SplFileInfo;
 final readonly class LocalStorage implements StorageInterface
 {
     private const string META_SUFFIX = '.kgnmeta.json';
+    private const string LOCK_DIR = '.kgnlocks';
+
+    /** @var list<string> */
+    private const array WINDOWS_RESERVED = [
+        'con', 'prn', 'aux', 'nul',
+        'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
+        'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9',
+    ];
 
     private string $root;
 
     public function __construct(string $rootDirectory, bool $createIfMissing = true)
     {
+        if (is_link($rootDirectory)) {
+            throw new StorageException(sprintf('Storage root directory cannot be a symlink: "%s".', $rootDirectory));
+        }
         if (!is_dir($rootDirectory)) {
-            if (!$createIfMissing || (!@mkdir($rootDirectory, 0o775, true) && !is_dir($rootDirectory))) {
+            if (!$createIfMissing || (!@mkdir($rootDirectory, 0o750, true) && !is_dir($rootDirectory))) {
                 throw new StorageException(sprintf('Storage root directory does not exist: "%s".', $rootDirectory));
             }
         }
@@ -40,47 +51,41 @@ final readonly class LocalStorage implements StorageInterface
     public function put(string $key, string $contents, string $contentType = 'application/octet-stream', array $metadata = []): WriteResult
     {
         $cleanKey = $this->normalizeKey($key);
-        $path = $this->objectPath($cleanKey);
-        $existed = is_file($path);
 
-        $meta = new ObjectMeta(
-            key: $cleanKey,
-            size: strlen($contents),
-            sha256: hash('sha256', $contents),
-            version: bin2hex(random_bytes(16)),
-            contentType: $contentType,
-            updatedAt: gmdate(DATE_ATOM),
-            metadata: $metadata,
-        );
-
-        $this->atomicWrite($path, $contents);
-        $this->atomicWrite($this->metaPath($cleanKey), json_encode($meta->toArray(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
-
-        return new WriteResult($existed ? StorageOutcome::Replaced : StorageOutcome::Created, $meta);
+        return $this->withKeyLock($cleanKey, fn(): WriteResult => $this->putUnlocked($cleanKey, $contents, $contentType, $metadata));
     }
 
     public function putIfAbsent(string $key, string $contents, string $contentType = 'application/octet-stream', array $metadata = []): WriteResult
     {
         $cleanKey = $this->normalizeKey($key);
-        if (is_file($this->objectPath($cleanKey))) {
-            return new WriteResult(StorageOutcome::AlreadyExists, $this->meta($cleanKey));
-        }
 
-        return $this->put($cleanKey, $contents, $contentType, $metadata);
+        return $this->withKeyLock($cleanKey, function () use ($cleanKey, $contents, $contentType, $metadata): WriteResult {
+            $path = $this->objectPath($cleanKey);
+            if (is_file($path)) {
+                $this->assertContainedExisting($path);
+
+                return new WriteResult(StorageOutcome::AlreadyExists, $this->metaUnlocked($cleanKey));
+            }
+
+            return $this->putUnlocked($cleanKey, $contents, $contentType, $metadata);
+        });
     }
 
     public function replaceIfVersion(string $key, string $expectedVersion, string $contents, string $contentType = 'application/octet-stream', array $metadata = []): WriteResult
     {
         $cleanKey = $this->normalizeKey($key);
-        $current = $this->meta($cleanKey);
-        if (null === $current) {
-            return new WriteResult(StorageOutcome::Absent);
-        }
-        if (!hash_equals($current->version, $expectedVersion)) {
-            return new WriteResult(StorageOutcome::Conflict, $current);
-        }
 
-        return $this->put($cleanKey, $contents, $contentType, $metadata);
+        return $this->withKeyLock($cleanKey, function () use ($cleanKey, $expectedVersion, $contents, $contentType, $metadata): WriteResult {
+            $current = $this->metaUnlocked($cleanKey);
+            if (null === $current) {
+                return new WriteResult(StorageOutcome::Absent);
+            }
+            if (!hash_equals($current->version, $expectedVersion)) {
+                return new WriteResult(StorageOutcome::Conflict, $current);
+            }
+
+            return $this->putUnlocked($cleanKey, $contents, $contentType, $metadata);
+        });
     }
 
     public function get(string $key): ?string
@@ -101,7 +106,109 @@ final readonly class LocalStorage implements StorageInterface
 
     public function meta(string $key): ?ObjectMeta
     {
+        return $this->metaUnlocked($this->normalizeKey($key));
+    }
+
+    public function exists(string $key): bool
+    {
+        $path = $this->objectPath($this->normalizeKey($key));
+        if (!is_file($path)) {
+            return false;
+        }
+        $this->assertContainedExisting($path);
+
+        return true;
+    }
+
+    public function delete(string $key, ?string $expectedVersion = null): StorageOutcome
+    {
         $cleanKey = $this->normalizeKey($key);
+
+        return $this->withKeyLock($cleanKey, function () use ($cleanKey, $expectedVersion): StorageOutcome {
+            $path = $this->objectPath($cleanKey);
+            if (!is_file($path)) {
+                return StorageOutcome::Absent;
+            }
+            $this->assertContainedExisting($path);
+
+            if (null !== $expectedVersion) {
+                $current = $this->metaUnlocked($cleanKey);
+                if (null === $current || !hash_equals($current->version, $expectedVersion)) {
+                    return StorageOutcome::Conflict;
+                }
+            }
+
+            if (!@unlink($path)) {
+                return StorageOutcome::Uncertain;
+            }
+            $metaPath = $this->metaPath($cleanKey);
+            if (is_file($metaPath)) {
+                $this->assertContainedExisting($metaPath);
+                @unlink($metaPath);
+            }
+
+            return StorageOutcome::Deleted;
+        });
+    }
+
+    public function list(string $prefix = ''): array
+    {
+        $cleanPrefix = ltrim(str_replace('\\', '/', trim($prefix)), '/');
+        $objects = [];
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->root));
+
+        foreach ($iterator as $file) {
+            if (!$file instanceof SplFileInfo || !$file->isFile() || $file->isLink()) {
+                continue;
+            }
+            $full = $file->getPathname();
+            $lowerFull = strtolower($full);
+            if (str_ends_with($lowerFull, self::META_SUFFIX) || str_ends_with($lowerFull, '.tmp') || str_ends_with($lowerFull, '.lock')) {
+                continue;
+            }
+            $relative = str_replace('\\', '/', substr($full, strlen($this->root) + 1));
+            if (str_starts_with(strtolower($relative), self::LOCK_DIR . '/')) {
+                continue;
+            }
+            if ('' !== $cleanPrefix && !str_starts_with($relative, $cleanPrefix)) {
+                continue;
+            }
+            $meta = $this->metaUnlocked($relative);
+            if (null !== $meta) {
+                $objects[] = $meta;
+            }
+        }
+
+        usort($objects, static fn(ObjectMeta $a, ObjectMeta $b): int => strcmp($a->key, $b->key));
+
+        return $objects;
+    }
+
+    /** @param array<string, string> $metadata */
+    private function putUnlocked(string $cleanKey, string $contents, string $contentType, array $metadata): WriteResult
+    {
+        $path = $this->objectPath($cleanKey);
+        $this->assertNoSymlinksInPath($path);
+        $existed = is_file($path);
+
+        $meta = new ObjectMeta(
+            key: $cleanKey,
+            size: strlen($contents),
+            sha256: hash('sha256', $contents),
+            version: bin2hex(random_bytes(16)),
+            contentType: $contentType,
+            updatedAt: gmdate(DATE_ATOM),
+            metadata: $metadata,
+        );
+
+        $this->atomicWrite($path, $contents);
+        $this->atomicWrite($this->metaPath($cleanKey), json_encode($meta->toArray(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+
+        return new WriteResult($existed ? StorageOutcome::Replaced : StorageOutcome::Created, $meta);
+    }
+
+    private function metaUnlocked(string $cleanKey): ?ObjectMeta
+    {
         $path = $this->objectPath($cleanKey);
         if (!is_file($path)) {
             return null;
@@ -110,6 +217,7 @@ final readonly class LocalStorage implements StorageInterface
 
         $metaFile = $this->metaPath($cleanKey);
         if (is_file($metaFile)) {
+            $this->assertContainedExisting($metaFile);
             $raw = file_get_contents($metaFile);
             if (is_string($raw)) {
                 try {
@@ -154,88 +262,44 @@ final readonly class LocalStorage implements StorageInterface
         );
     }
 
-    public function exists(string $key): bool
-    {
-        $path = $this->objectPath($this->normalizeKey($key));
-        if (!is_file($path)) {
-            return false;
-        }
-        $this->assertContainedExisting($path);
-
-        return true;
-    }
-
-    public function delete(string $key, ?string $expectedVersion = null): StorageOutcome
-    {
-        $cleanKey = $this->normalizeKey($key);
-        $path = $this->objectPath($cleanKey);
-        if (!is_file($path)) {
-            return StorageOutcome::Absent;
-        }
-        $this->assertContainedExisting($path);
-
-        if (null !== $expectedVersion) {
-            $current = $this->meta($cleanKey);
-            if (null === $current || !hash_equals($current->version, $expectedVersion)) {
-                return StorageOutcome::Conflict;
-            }
-        }
-
-        if (!@unlink($path)) {
-            return StorageOutcome::Uncertain;
-        }
-        $metaPath = $this->metaPath($cleanKey);
-        if (is_file($metaPath)) {
-            @unlink($metaPath);
-        }
-
-        return StorageOutcome::Deleted;
-    }
-
-    public function list(string $prefix = ''): array
-    {
-        $cleanPrefix = ltrim(str_replace('\\', '/', trim($prefix)), '/');
-        $objects = [];
-        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->root));
-
-        foreach ($iterator as $file) {
-            if (!$file instanceof SplFileInfo || !$file->isFile()) {
-                continue;
-            }
-            $full = $file->getPathname();
-            if (str_ends_with($full, self::META_SUFFIX) || str_ends_with($full, '.tmp')) {
-                continue;
-            }
-            $relative = str_replace('\\', '/', substr($full, strlen($this->root) + 1));
-            if ('' !== $cleanPrefix && !str_starts_with($relative, $cleanPrefix)) {
-                continue;
-            }
-            $meta = $this->meta($relative);
-            if (null !== $meta) {
-                $objects[] = $meta;
-            }
-        }
-
-        usort($objects, static fn(ObjectMeta $a, ObjectMeta $b): int => strcmp($a->key, $b->key));
-
-        return $objects;
-    }
-
     private function normalizeKey(string $key): string
     {
         $clean = ltrim(str_replace('\\', '/', trim($key)), '/');
         if (
             '' === $clean
-            || str_contains($clean, '..')
             || str_contains($clean, "\0")
             || str_contains($clean, ':')
             || 1 === preg_match('/[\x00-\x1f\x7f]/', $clean)
-            || str_ends_with($clean, self::META_SUFFIX)
         ) {
             throw new StorageException(sprintf('Invalid storage key "%s".', $key));
         }
 
-        return $clean;
+        $segments = explode('/', $clean);
+        foreach ($segments as $index => $segment) {
+            if ('' === $segment || '.' === $segment || '..' === $segment || str_contains($segment, '..')) {
+                throw new StorageException(sprintf('Invalid storage key "%s".', $key));
+            }
+            if (str_ends_with($segment, '.') || str_ends_with($segment, ' ')) {
+                throw new StorageException(sprintf('Invalid storage key "%s".', $key));
+            }
+            $lower = strtolower($segment);
+            if (0 === $index && self::LOCK_DIR === $lower) {
+                throw new StorageException(sprintf('Reserved storage key "%s".', $key));
+            }
+            if (
+                str_ends_with($lower, self::META_SUFFIX)
+                || str_ends_with($lower, '.tmp')
+                || str_ends_with($lower, '.lock')
+            ) {
+                throw new StorageException(sprintf('Reserved storage metadata suffix in key "%s".', $key));
+            }
+            $stem = explode('.', $lower, 2)[0];
+            if (in_array($stem, self::WINDOWS_RESERVED, true)) {
+                throw new StorageException(sprintf('Reserved device name in storage key "%s".', $key));
+            }
+        }
+
+        return implode('/', $segments);
     }
 
     private function objectPath(string $cleanKey): string
@@ -248,11 +312,29 @@ final readonly class LocalStorage implements StorageInterface
         return $this->objectPath($cleanKey) . self::META_SUFFIX;
     }
 
+    private function assertNoSymlinksInPath(string $targetPath): void
+    {
+        $prefix = rtrim($this->root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (!str_starts_with($targetPath, $prefix)) {
+            throw new StorageException('Storage target path escapes the configured storage root.');
+        }
+
+        $relative = substr($targetPath, strlen($prefix));
+        $current = $this->root;
+        foreach (explode(DIRECTORY_SEPARATOR, $relative) as $segment) {
+            if ('' === $segment) {
+                continue;
+            }
+            $current .= DIRECTORY_SEPARATOR . $segment;
+            if (is_link($current)) {
+                throw new StorageException('Symlinks are not permitted inside contained storage.');
+            }
+        }
+    }
+
     private function assertContainedExisting(string $path): void
     {
-        if (is_link($path)) {
-            throw new StorageException('Symlinks are not permitted inside contained storage.');
-        }
+        $this->assertNoSymlinksInPath($path);
         $real = realpath($path);
         $prefix = rtrim($this->root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         if (false === $real || !str_starts_with($real, $prefix)) {
@@ -262,20 +344,81 @@ final readonly class LocalStorage implements StorageInterface
 
     private function atomicWrite(string $targetPath, string $bytes): void
     {
+        $this->assertNoSymlinksInPath($targetPath);
         $dir = dirname($targetPath);
-        if (!is_dir($dir) && !@mkdir($dir, 0o775, true) && !is_dir($dir)) {
+        if (!is_dir($dir) && !@mkdir($dir, 0o750, true) && !is_dir($dir)) {
             throw new StorageException(sprintf('Unable to create storage subdirectory "%s".', $dir));
         }
-        $tmp = $targetPath . '.' . bin2hex(random_bytes(6)) . '.tmp';
-        if (false === file_put_contents($tmp, $bytes, LOCK_EX)) {
-            throw new StorageException('Failed to write temporary storage file.');
+
+        $realDir = realpath($dir);
+        $prefix = rtrim($this->root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (false === $realDir || ($realDir !== $this->root && !str_starts_with($realDir . DIRECTORY_SEPARATOR, $prefix))) {
+            throw new StorageException('Storage target directory escapes the configured storage root.');
         }
+        if (is_link($targetPath)) {
+            throw new StorageException('Symlinks are not permitted inside contained storage.');
+        }
+
+        $tmp = $targetPath . '.' . bin2hex(random_bytes(12)) . '.tmp';
+        $handle = @fopen($tmp, 'xb');
+        if (false === $handle) {
+            throw new StorageException('Failed to create temporary storage file.');
+        }
+
+        try {
+            @chmod($tmp, 0o600);
+            $written = fwrite($handle, $bytes);
+            if (false === $written || $written !== strlen($bytes)) {
+                throw new StorageException('Failed to write temporary storage file.');
+            }
+        } finally {
+            fclose($handle);
+        }
+
         if (!@rename($tmp, $targetPath)) {
             @unlink($targetPath);
             if (!@rename($tmp, $targetPath)) {
                 @unlink($tmp);
                 throw new StorageException('Failed to atomically publish storage file.');
             }
+        }
+    }
+
+    /**
+     * @template T
+     * @param \Closure(): T $fn
+     * @return T
+     */
+    private function withKeyLock(string $cleanKey, \Closure $fn): mixed
+    {
+        $lockDir = $this->root . DIRECTORY_SEPARATOR . self::LOCK_DIR;
+        if (is_link($lockDir)) {
+            throw new StorageException('Storage lock directory cannot be a symlink.');
+        }
+        if (!is_dir($lockDir) && !@mkdir($lockDir, 0o700, true) && !is_dir($lockDir)) {
+            throw new StorageException('Unable to create storage lock directory.');
+        }
+
+        $lockFile = $lockDir . DIRECTORY_SEPARATOR . hash('sha256', $cleanKey) . '.lock';
+        if (is_link($lockFile)) {
+            throw new StorageException('Storage lock file cannot be a symlink.');
+        }
+
+        $handle = @fopen($lockFile, 'c+b');
+        if (false === $handle) {
+            throw new StorageException('Unable to open storage lock file.');
+        }
+        @chmod($lockFile, 0o600);
+
+        try {
+            if (!flock($handle, LOCK_EX)) {
+                throw new StorageException('Unable to acquire storage key lock.');
+            }
+
+            return $fn();
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
         }
     }
 }

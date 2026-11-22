@@ -12,6 +12,7 @@ final class CodeGenerator
 {
     public function makeController(ProjectContext $context, string $name, string $namespace = 'App\\Http'): string
     {
+        $validNs = $this->validateNamespace($namespace);
         $className = $this->studly($name);
         if (!str_ends_with($className, 'Controller')) {
             $className .= 'Controller';
@@ -24,7 +25,7 @@ final class CodeGenerator
 
 declare(strict_types=1);
 
-namespace {$namespace};
+namespace {$validNs};
 
 use Kongono\Http\Request;
 use Kongono\Http\Response;
@@ -47,6 +48,7 @@ PHP;
 
     public function makeDto(ProjectContext $context, string $name, string $namespace = 'App\\Http'): string
     {
+        $validNs = $this->validateNamespace($namespace);
         $className = $this->studly($name);
         $path = 'src/Http/' . $className . '.php';
 
@@ -55,7 +57,7 @@ PHP;
 
 declare(strict_types=1);
 
-namespace {$namespace};
+namespace {$validNs};
 
 use Kongono\Validation\Attributes\Max;
 use Kongono\Validation\Attributes\Min;
@@ -126,6 +128,7 @@ PHP;
 
     public function makeTest(ProjectContext $context, string $name, string $namespace = 'App\\Tests'): string
     {
+        $validNs = $this->validateNamespace($namespace);
         $className = $this->studly($name);
         if (!str_ends_with($className, 'Test')) {
             $className .= 'Test';
@@ -137,7 +140,7 @@ PHP;
 
 declare(strict_types=1);
 
-namespace {$namespace};
+namespace {$validNs};
 
 use Kongono\Http\App;
 use Kongono\Http\Testing\TestClient;
@@ -199,5 +202,15 @@ PHP;
         }
 
         return $studly;
+    }
+
+    private function validateNamespace(string $namespace): string
+    {
+        $trimmed = trim($namespace);
+        if (1 !== preg_match('/\A[a-zA-Z_][a-zA-Z0-9_]*(?:\\\\[a-zA-Z_][a-zA-Z0-9_]*)*\z/', $trimmed)) {
+            throw new CoreException(sprintf('Unsafe PHP namespace "%s" rejected.', $namespace));
+        }
+
+        return $trimmed;
     }
 }

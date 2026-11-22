@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Http\Middleware;
 
 use Closure;
+use Kongono\Core\Cache\AtomicCacheInterface;
 use Kongono\Core\Cache\CacheInterface;
 use Kongono\Http\HttpException;
 use Kongono\Http\Response;
@@ -53,8 +54,16 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
 
         $actorScope = $this->resolveActorScope($request);
         $body = (string) $request->getBody();
-        $path = $request->getUri()->getPath();
-        $fingerprint = hash('sha256', $method . '|' . $path . '|' . $body);
+        if ('' === $body) {
+            $parsedBody = $request->getParsedBody();
+            if (is_array($parsedBody) && [] !== $parsedBody) {
+                $encodedParsed = json_encode($parsedBody, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+                $body = is_string($encodedParsed) ? $encodedParsed : '';
+            }
+        }
+        $path = self::canonicalizePath($request->getUri()->getPath());
+        $query = $request->getUri()->getQuery();
+        $fingerprint = hash('sha256', $method . '|' . $path . '|' . $query . '|' . $body);
         $cacheKey = $this->cachePrefix . hash('sha256', $actorScope . '|' . $method . '|' . $path . '|' . $idempotencyKey);
         $lockKey = $cacheKey . ':lock';
 
@@ -79,11 +88,17 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
             );
         }
 
-        if ($this->cache->has($lockKey)) {
-            throw new HttpException(409, 'A request with this Idempotency-Key is currently in progress.');
+        // Atomic in-flight lock prevents concurrent double-spend races
+        if ($this->cache instanceof AtomicCacheInterface) {
+            if (!$this->cache->add($lockKey, true, 60)) {
+                throw new HttpException(409, 'A request with this Idempotency-Key is currently in progress.');
+            }
+        } else {
+            if ($this->cache->has($lockKey)) {
+                throw new HttpException(409, 'A request with this Idempotency-Key is currently in progress.');
+            }
+            $this->cache->set($lockKey, true, 60);
         }
-
-        $this->cache->set($lockKey, true, 60);
 
         try {
             $response = $handler->handle($request);
@@ -107,7 +122,7 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
     }
 
     /**
-     * Partition idempotency keys per authenticated actor (Principal, Bearer token, or session cookie)
+     * Partition idempotency keys per authenticated actor (Principal, Bearer token, X-API-Key, or session cookie)
      * so two different users or tenants can NEVER replay or probe each other's responses.
      */
     private function resolveActorScope(ServerRequestInterface $request): string
@@ -116,9 +131,19 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
             return ($this->scopeResolver)($request);
         }
 
+        $principal = $request->getAttribute('Kongono\\Security\\Principal');
+        if (is_object($principal) && property_exists($principal, 'id') && is_string($principal->id) && '' !== $principal->id) {
+            return 'principal:' . hash('sha256', $principal->id);
+        }
+
         $auth = trim($request->getHeaderLine('Authorization'));
         if ('' !== $auth) {
             return 'auth:' . hash('sha256', $auth);
+        }
+
+        $apiKey = trim($request->getHeaderLine('X-API-Key'));
+        if ('' !== $apiKey) {
+            return 'apikey:' . hash('sha256', $apiKey);
         }
 
         $cookies = $request->getCookieParams();
@@ -128,6 +153,17 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
             return 'cookie:' . hash('sha256', json_encode($cookies, JSON_THROW_ON_ERROR));
         }
 
-        return 'anon';
+        $server = $request->getServerParams();
+        $ip = is_string($server['REMOTE_ADDR'] ?? null) ? $server['REMOTE_ADDR'] : 'local';
+
+        return 'anon:' . hash('sha256', $ip);
+    }
+
+    private static function canonicalizePath(string $rawPath): string
+    {
+        $clean = '/' . trim($rawPath, '/');
+        $collapsed = preg_replace('#/+#', '/', $clean);
+
+        return is_string($collapsed) ? $collapsed : '/';
     }
 }

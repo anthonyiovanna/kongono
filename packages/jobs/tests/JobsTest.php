@@ -287,4 +287,52 @@ final class JobsTest extends TestCase
         self::assertSame(WorkflowStatus::Completed, $s5->status);
         self::assertSame(1, $chargeCount);
     }
+
+    public function testRound3WorkerBackoffOverflowCapAndWorkflowHijackSignalGuards(): void
+    {
+        // 1. Worker high-attempt backoff never overflows int bit-shift into float TypeError
+        $driver = new MemoryQueueDriver();
+        $queue = new Queue($driver);
+        $job = $queue->dispatch('high.retry', ['n' => 1], maxAttempts: 100);
+        $worker = (new Worker($driver))->register('high.retry', static fn(): JobOutcome => JobOutcome::Retry);
+
+        // Simulate 66 consecutive retries (previously crashed at attempt 63 with float TypeError)
+        $now = time() + 1;
+        for ($i = 0; $i < 66; ++$i) {
+            $rep = $worker->run(maxJobs: 1, now: $now);
+            self::assertSame(1, $rep->retried);
+            $now += 90_000;
+        }
+        self::assertSame(1, $driver->stats('default')['pending']);
+
+        // 2. WorkflowEngine rejects cross-workflow runId hijacking and unauthorized signal pre-seeding/overwrite
+        $engine = new WorkflowEngine(new CacheWorkflowStore(new MemoryCache()));
+        $engine->run('wf-sec-1', 'billing.approve', static function (WorkflowContext $wf): string {
+            $wf->waitForEvent('manager.approved');
+
+            return 'ok';
+        }, now: 1000);
+
+        // Re-running same runId under a DIFFERENT workflow name fails closed
+        try {
+            $engine->run('wf-sec-1', 'evil.workflow', static fn(): string => 'hijack', now: 1005);
+            self::fail('Expected cross-workflow runId hijack to fail.');
+        } catch (JobException $e) {
+            self::assertStringContainsString('belongs to "billing.approve"', $e->getMessage());
+        }
+
+        // Signaling an event the workflow is NOT waiting for fails closed
+        try {
+            $engine->signal('wf-sec-1', 'wrong.event', ['approved' => true]);
+            self::fail('Expected signal for non-awaited event to fail.');
+        } catch (JobException $e) {
+            self::assertStringContainsString('is not waiting for event', $e->getMessage());
+        }
+
+        // Valid signal succeeds once, duplicate overwrite fails closed
+        $engine->signal('wf-sec-1', 'manager.approved', ['by' => 'ada']);
+        $this->expectException(JobException::class);
+        $this->expectExceptionMessage('is not waiting for event "manager.approved"');
+        $engine->signal('wf-sec-1', 'manager.approved', ['by' => 'mallory']);
+    }
 }

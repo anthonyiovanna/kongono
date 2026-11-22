@@ -216,6 +216,9 @@ final readonly class AnthropicProvider implements StreamingAiProviderInterface
             json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
             static function (string $chunk) use (&$buffer, &$fullText, &$finishReason, $onDelta): void {
                 $buffer .= str_replace("\r\n", "\n", $chunk);
+                if (strlen($buffer) > 1_048_576) {
+                    throw new AiException('Anthropic streaming line buffer exceeded maximum bound.');
+                }
                 while (false !== ($pos = strpos($buffer, "\n"))) {
                     $line = trim(substr($buffer, 0, $pos));
                     $buffer = substr($buffer, $pos + 1);
@@ -229,6 +232,9 @@ final readonly class AnthropicProvider implements StreamingAiProviderInterface
                     $type = $frame['type'] ?? null;
                     if ('content_block_delta' === $type && is_array($frame['delta'] ?? null) && is_string($frame['delta']['text'] ?? null)) {
                         $delta = $frame['delta']['text'];
+                        if (strlen($fullText) + strlen($delta) > 4_194_304) {
+                            throw new AiException('Anthropic streaming output exceeded maximum bound.');
+                        }
                         $fullText .= $delta;
                         $onDelta($delta);
                     } elseif ('message_delta' === $type && is_array($frame['delta'] ?? null) && is_string($frame['delta']['stop_reason'] ?? null)) {

@@ -14,6 +14,9 @@ use SensitiveParameter;
  */
 final readonly class S3Storage implements StorageInterface
 {
+    private const int MAX_RESPONSE_BYTES = 67_108_864;
+    private const int MAX_RESPONSE_HEADERS = 256;
+
     private SigV4Signer $signer;
     private string $scheme;
     private string $host;
@@ -58,7 +61,7 @@ final readonly class S3Storage implements StorageInterface
 
     public function replaceIfVersion(string $key, string $expectedVersion, string $contents, string $contentType = 'application/octet-stream', array $metadata = []): WriteResult
     {
-        return $this->doPut($key, $contents, $contentType, $metadata, ['if-match' => '"' . trim($expectedVersion, '"') . '"']);
+        return $this->doPut($key, $contents, $contentType, $metadata, ['if-match' => $this->formatIfMatchEtag($expectedVersion)]);
     }
 
     public function get(string $key): ?string
@@ -107,7 +110,7 @@ final readonly class S3Storage implements StorageInterface
     public function delete(string $key, ?string $expectedVersion = null): StorageOutcome
     {
         $clean = $this->normalizeKey($key);
-        $extra = null !== $expectedVersion ? ['if-match' => '"' . trim($expectedVersion, '"') . '"'] : [];
+        $extra = null !== $expectedVersion ? ['if-match' => $this->formatIfMatchEtag($expectedVersion)] : [];
         $res = $this->send('DELETE', $this->objectUri($clean), [], $extra);
 
         return match (true) {
@@ -247,10 +250,12 @@ final readonly class S3Storage implements StorageInterface
         }
 
         $respHeaders = [];
+        $respBody = '';
+        $overflowed = false;
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => $upper,
             CURLOPT_HTTPHEADER => $headerLines,
-            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_PROTOCOLS_STR => $this->scheme,
             CURLOPT_REDIR_PROTOCOLS_STR => $this->scheme,
@@ -260,11 +265,21 @@ final readonly class S3Storage implements StorageInterface
             CURLOPT_TIMEOUT => 30,
             CURLOPT_HEADERFUNCTION => static function (mixed $_ch, string $line) use (&$respHeaders): int {
                 $parts = explode(':', $line, 2);
-                if (2 === count($parts)) {
+                if (2 === count($parts) && count($respHeaders) < self::MAX_RESPONSE_HEADERS) {
                     $respHeaders[strtolower(trim($parts[0]))] = trim($parts[1]);
                 }
 
                 return strlen($line);
+            },
+            CURLOPT_WRITEFUNCTION => static function (mixed $_ch, string $chunk) use (&$respBody, &$overflowed): int {
+                if (strlen($respBody) + strlen($chunk) > self::MAX_RESPONSE_BYTES) {
+                    $overflowed = true;
+
+                    return 0;
+                }
+                $respBody .= $chunk;
+
+                return strlen($chunk);
             },
         ]);
 
@@ -272,15 +287,28 @@ final readonly class S3Storage implements StorageInterface
             curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
         }
 
-        $raw = curl_exec($ch);
+        $ok = curl_exec($ch);
         $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $err = curl_error($ch);
 
-        if (!is_string($raw)) {
+        if ($overflowed) {
+            throw new StorageException(sprintf('S3 response exceeded maximum bound of %d bytes.', self::MAX_RESPONSE_BYTES));
+        }
+        if (false === $ok) {
             throw new StorageException('S3 transport failed: ' . SecretScrubber::scrub($err));
         }
 
-        return ['status' => $status, 'headers' => $respHeaders, 'body' => $raw];
+        return ['status' => $status, 'headers' => $respHeaders, 'body' => $respBody];
+    }
+
+    private function formatIfMatchEtag(string $expectedVersion): string
+    {
+        $clean = trim($expectedVersion, "\" \t");
+        if ('' === $clean || 1 !== preg_match('/\A[A-Za-z0-9._\-:\/+=]{1,128}\z/', $clean)) {
+            throw new StorageException('Invalid S3 ETag version token for If-Match.');
+        }
+
+        return '"' . $clean . '"';
     }
 
     private function normalizeKey(string $key): string

@@ -37,6 +37,7 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         private ?Closure $oshieHandler = null,
         private ?Closure $hanteiHandler = null,
         private ?Closure $chieHandler = null,
+        private bool $loopbackOnly = true,
     ) {
         $this->renderer = new DevDashboardRenderer();
     }
@@ -50,6 +51,16 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         $path = '/' . trim($request->getUri()->getPath(), '/');
         $base = '/' . trim($this->prefix, '/');
         $method = strtoupper($request->getMethod());
+        $isDevRoute = $path === $base || str_starts_with($path, $base . '/');
+
+        if ($isDevRoute) {
+            if ($this->loopbackOnly && !$this->isLoopbackClient($request)) {
+                return Response::json(['error' => 'Kongono Dev Studio is restricted to loopback clients.'], 403);
+            }
+            if ('POST' === $method && !$this->isSameOriginMutatingRequest($request)) {
+                return Response::json(['error' => 'Cross-site Dev Studio mutation blocked (requires same-origin JSON or X-Kongono-Dev header).'], 403);
+            }
+        }
 
         if ($path === $base && 'GET' === $method) {
             return Response::html($this->renderer->render($this->app, $this->inspector, $base));
@@ -185,5 +196,43 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             'duration_ms' => $durationMs,
             'body' => substr(SecretScrubber::scrub($rawBody), 0, 4000),
         ]);
+    }
+
+    private function isLoopbackClient(ServerRequestInterface $request): bool
+    {
+        $server = $request->getServerParams();
+        $remote = $server['REMOTE_ADDR'] ?? null;
+        if (!is_string($remote) || '' === trim($remote)) {
+            // In-process TestClient / CLI calls without a network socket
+            return true;
+        }
+
+        return in_array(strtolower(trim($remote)), ['127.0.0.1', '::1', 'localhost', '::ffff:127.0.0.1'], true);
+    }
+
+    private function isSameOriginMutatingRequest(ServerRequestInterface $request): bool
+    {
+        $fetchSite = strtolower(trim($request->getHeaderLine('Sec-Fetch-Site')));
+        if ('' !== $fetchSite && !in_array($fetchSite, ['same-origin', 'none'], true)) {
+            return false;
+        }
+
+        $origin = trim($request->getHeaderLine('Origin'));
+        if ('' !== $origin) {
+            $parsed = parse_url($origin);
+            $originHost = is_array($parsed) && is_string($parsed['host'] ?? null) ? strtolower($parsed['host']) : '';
+            $reqHost = strtolower($request->getUri()->getHost());
+            $allowedHosts = array_unique(array_filter([$reqHost, '127.0.0.1', 'localhost', '::1'], static fn(string $h): bool => '' !== $h));
+            if ('' === $originHost || !in_array($originHost, $allowedHosts, true)) {
+                return false;
+            }
+        }
+
+        // Require either custom X-Kongono-Dev header or application/json Content-Type (forces CORS preflight, defeats simple <form>/text/plain CSRF)
+        if ('1' === trim($request->getHeaderLine('X-Kongono-Dev'))) {
+            return true;
+        }
+
+        return str_contains(strtolower($request->getHeaderLine('Content-Type')), 'application/json');
     }
 }

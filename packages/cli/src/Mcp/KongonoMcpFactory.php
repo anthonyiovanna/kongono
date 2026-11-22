@@ -57,11 +57,12 @@ final class KongonoMcpFactory
             id: 'kongono-mcp-client',
             role: 'mcp-reader',
             allowedTools: self::DEFAULT_TOOLS,
+            maxToolCalls: 64,
         );
 
         $server = new McpServer(
             serverName: 'kongono-framework',
-            serverVersion: '1.4.4',
+            serverVersion: '1.5.0',
             principal: $principal,
         );
 
@@ -238,23 +239,36 @@ final class KongonoMcpFactory
                 ],
             ),
             static function (array $args) use ($app): string {
+                static $inFlight = false;
                 if (null === $app) {
                     return '{"error":"No runnable Kongono App instance loaded."}';
                 }
+                if ($inFlight) {
+                    throw new \InvalidArgumentException('Recursive kongono_test_route invocation is forbidden.');
+                }
                 $method = strtoupper(is_string($args['method'] ?? null) ? trim($args['method']) : 'GET');
+                if (!in_array($method, ['GET', 'HEAD', 'OPTIONS'], true)) {
+                    throw new \InvalidArgumentException(sprintf('Mutating HTTP method "%s" is forbidden under mcp-reader role (read-only GET/HEAD/OPTIONS only).', $method));
+                }
                 $path = is_string($args['path'] ?? null) ? trim($args['path']) : '/';
                 if ('' === $path || !str_starts_with($path, '/')) {
                     throw new \InvalidArgumentException('Parameter "path" must start with "/".');
                 }
-                $pathOnly = explode('?', $path, 2)[0];
-                if ('/mcp' === strtolower($pathOnly)) {
-                    throw new \InvalidArgumentException('Recursive calls to /mcp via kongono_test_route are forbidden.');
+                $pathOnly = explode('#', explode('?', $path, 2)[0], 2)[0];
+                $decoded = str_replace(["\0", '\\'], ['', '/'], rawurldecode(rawurldecode($pathOnly)));
+                $collapsed = (string) preg_replace('#/+#', '/', '/' . trim($decoded, '/'));
+                $lowerCanonical = strtolower($collapsed);
+                if ('/mcp' === $lowerCanonical || str_starts_with($lowerCanonical, '/mcp/') || '/_kongono' === $lowerCanonical || str_starts_with($lowerCanonical, '/_kongono/')) {
+                    throw new \InvalidArgumentException('Recursive or internal Dev Studio calls via kongono_test_route are forbidden.');
                 }
 
-                $req = is_array($args['json_body'] ?? null)
-                    ? Request::json($method, $path, $args['json_body'])
-                    : Request::create($method, $path);
-                $res = $app->handle($req);
+                $inFlight = true;
+                try {
+                    $req = Request::create($method, $path);
+                    $res = $app->handle($req);
+                } finally {
+                    $inFlight = false;
+                }
                 $headers = [];
                 foreach ($res->getHeaders() as $name => $values) {
                     $headers[$name] = SecretScrubber::scrub(implode(', ', $values));
@@ -345,17 +359,6 @@ final class KongonoMcpFactory
                 $path = is_string($args['path'] ?? null) ? trim($args['path']) : '';
                 if ('' === $path) {
                     throw new \InvalidArgumentException('Parameter "path" is required.');
-                }
-                $normalizedPath = ltrim(str_replace('\\', '/', $path), '/');
-                $lowerPath = strtolower($normalizedPath);
-                $base = strtolower(basename($normalizedPath));
-                $forbiddenExt = (bool) preg_match('/\.(pem|key|p12|pfx|jks|kdbx|sqlite3?)\z/', $base);
-                $forbiddenName = (str_starts_with($base, '.env') && '.env.example' !== $base)
-                    || in_array($base, ['id_rsa', 'id_ed25519', 'id_ecdsa', '.netrc', '.npmrc', '.pypirc', 'credentials.json', 'service-account.json'], true)
-                    || str_starts_with($lowerPath, '.git/')
-                    || str_contains($lowerPath, '/.git/');
-                if ($forbiddenExt || $forbiddenName) {
-                    throw new \InvalidArgumentException('Reading sensitive secret/credential files via MCP is forbidden.');
                 }
 
                 return $context->readFileSafe($path);

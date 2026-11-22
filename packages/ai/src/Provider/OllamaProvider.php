@@ -29,7 +29,7 @@ final readonly class OllamaProvider implements EmbeddingProviderInterface, Strea
         private string $host = 'http://127.0.0.1:11434',
         ?HttpTransportInterface $transport = null,
     ) {
-        $this->transport = $transport ?? new CurlTransport();
+        $this->transport = $transport ?? new CurlTransport(allowPlainHttp: true, allowPrivateNetworks: true);
     }
 
     public function name(): string
@@ -167,6 +167,9 @@ final readonly class OllamaProvider implements EmbeddingProviderInterface, Strea
             json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
             static function (string $chunk) use (&$buffer, &$fullText, &$resolvedModel, &$finishReason, $onDelta): void {
                 $buffer .= str_replace("\r\n", "\n", $chunk);
+                if (strlen($buffer) > 1_048_576) {
+                    throw new AiException('Ollama streaming line buffer exceeded maximum bound.');
+                }
                 while (false !== ($pos = strpos($buffer, "\n"))) {
                     $line = trim(substr($buffer, 0, $pos));
                     $buffer = substr($buffer, $pos + 1);
@@ -185,6 +188,9 @@ final readonly class OllamaProvider implements EmbeddingProviderInterface, Strea
                     }
                     $msg = is_array($frame['message'] ?? null) ? $frame['message'] : [];
                     if (is_string($msg['content'] ?? null) && '' !== $msg['content']) {
+                        if (strlen($fullText) + strlen($msg['content']) > 4_194_304) {
+                            throw new AiException('Ollama streaming output exceeded maximum bound.');
+                        }
                         $fullText .= $msg['content'];
                         $onDelta($msg['content']);
                     }

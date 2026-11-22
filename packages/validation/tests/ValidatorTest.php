@@ -71,6 +71,17 @@ final readonly class WebhookTargetDto
     ) {}
 }
 
+final readonly class BoundedPayloadDto
+{
+    /** @param list<string> $tags */
+    public function __construct(
+        #[Min(1), Max(3)]
+        public array $tags,
+        public int $count,
+        public float $ratio,
+    ) {}
+}
+
 final class ValidatorTest extends TestCase
 {
     public function testValidatesAndCoercesTypedDto(): void
@@ -165,6 +176,32 @@ final class ValidatorTest extends TestCase
             } catch (ValidationException $e) {
                 self::assertArrayHasKey('endpoint', $e->errors);
             }
+        }
+    }
+
+    public function testRound3RejectsArraySizeOverflowNonFiniteFloatsAndIntOverflow(): void
+    {
+        $validator = new Validator();
+        $ok = $validator->validate(BoundedPayloadDto::class, [
+            'tags' => ['a', 'b'],
+            'count' => '42',
+            'ratio' => '0.5',
+        ]);
+        self::assertSame(['a', 'b'], $ok->tags);
+        self::assertSame(42, $ok->count);
+        self::assertSame(0.5, $ok->ratio);
+
+        try {
+            $validator->validate(BoundedPayloadDto::class, [
+                'tags' => ['a', 'b', 'c', 'd'],
+                'count' => '999999999999999999999999999999',
+                'ratio' => '1e999',
+            ]);
+            self::fail('Expected array Max, integer overflow, and INF float to fail validation.');
+        } catch (ValidationException $e) {
+            self::assertArrayHasKey('tags', $e->errors);
+            self::assertArrayHasKey('count', $e->errors);
+            self::assertArrayHasKey('ratio', $e->errors);
         }
     }
 }

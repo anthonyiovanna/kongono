@@ -195,6 +195,9 @@ final readonly class GeminiProvider implements EmbeddingProviderInterface, Strea
             json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
             static function (string $chunk) use (&$buffer, &$fullText, &$finishReason, $onDelta): void {
                 $buffer .= str_replace("\r\n", "\n", $chunk);
+                if (strlen($buffer) > 1_048_576) {
+                    throw new AiException('Gemini streaming line buffer exceeded maximum bound.');
+                }
                 while (false !== ($pos = strpos($buffer, "\n"))) {
                     $line = trim(substr($buffer, 0, $pos));
                     $buffer = substr($buffer, $pos + 1);
@@ -213,6 +216,9 @@ final readonly class GeminiProvider implements EmbeddingProviderInterface, Strea
                     $parts = is_array($content['parts'] ?? null) ? $content['parts'] : [];
                     foreach ($parts as $part) {
                         if (is_array($part) && is_string($part['text'] ?? null) && '' !== $part['text']) {
+                            if (strlen($fullText) + strlen($part['text']) > 4_194_304) {
+                                throw new AiException('Gemini streaming output exceeded maximum bound.');
+                            }
                             $fullText .= $part['text'];
                             $onDelta($part['text']);
                         }

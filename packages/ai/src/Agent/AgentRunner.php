@@ -9,19 +9,24 @@ use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
 use Kongono\Ai\Message;
+use Kongono\Ai\Security\PromptGuard;
+use Kongono\Ai\Security\UntrustedInput;
 use Kongono\Ai\TokenUsage;
 use Kongono\Ai\ToolCall;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Core\Diagnostics\SecretScrubber;
+use ReflectionFunction;
 
 /**
  * Bounded, capability-governed agent loop.
  *
- * Enforces explicit AgentPrincipal allowlists, human-in-the-loop approval gates,
- * finite step/tool/token budgets, and nondisclosing audit receipts on every tool execution.
+ * Enforces explicit AgentPrincipal allowlists, human-in-the-loop approval gates (#[RequiresApproval] & principal policy),
+ * PromptGuard untrusted boundaries on tool outputs, finite step/tool/token/USD budgets, and secret-scrubbed receipts.
  */
 final readonly class AgentRunner
 {
+    private const int MAX_TOOL_OUTPUT_BYTES = 32_768;
+
     public function __construct(
         private AiClient $client,
         private AgentPrincipal $principal,
@@ -40,6 +45,13 @@ final readonly class AgentRunner
             $tools,
             fn(ToolDefinition $t): bool => $this->principal->allowsTool($t->name),
         ));
+        /** @var array<string, ToolDefinition> $toolIndex */
+        $toolIndex = [];
+        foreach ($admittedTools as $t) {
+            $toolIndex[$t->name] = $t;
+        }
+        $executorRequiresApproval = [] !== (new ReflectionFunction($toolExecutor))->getAttributes(RequiresApproval::class);
+        $guard = new PromptGuard();
 
         $messages = $initialMessages;
         $steps = 0;
@@ -81,7 +93,7 @@ final readonly class AgentRunner
                     principalId: $this->principal->id,
                     provider: $response->provider,
                     model: $lastModel,
-                    finalText: $response->text,
+                    finalText: SecretScrubber::scrub($response->text),
                     steps: $steps,
                     toolCallsExecuted: $toolCallsExecuted,
                     toolAudit: $audit,
@@ -102,12 +114,15 @@ final readonly class AgentRunner
                     continue;
                 }
 
-                if ($this->principal->requiresApproval($call->name)) {
+                $defRequiresApproval = isset($toolIndex[$call->name]) && $toolIndex[$call->name]->requiresApproval;
+                if ($this->principal->requiresApproval($call->name) || $defRequiresApproval || $executorRequiresApproval) {
                     $audit[] = [
                         'tool' => $call->name,
                         'allowed' => false,
                         'summary' => 'Paused awaiting explicit human approval.',
                     ];
+                    /** @var array<string, mixed> $scrubbedArgs */
+                    $scrubbedArgs = SecretScrubber::scrubArray($call->arguments);
 
                     return new AgentReceipt(
                         principalId: $this->principal->id,
@@ -119,7 +134,7 @@ final readonly class AgentRunner
                         toolAudit: $audit,
                         usage: new TokenUsage($totalInput, $totalOutput),
                         status: 'awaiting_approval',
-                        pendingApproval: $call,
+                        pendingApproval: new ToolCall($call->id, $call->name, $scrubbedArgs),
                     );
                 }
 
@@ -133,13 +148,14 @@ final readonly class AgentRunner
 
                 ++$toolCallsExecuted;
                 $result = $toolExecutor($call);
-                $scrubbed = SecretScrubber::scrub($result);
+                $scrubbed = substr(SecretScrubber::scrub($result), 0, self::MAX_TOOL_OUTPUT_BYTES);
                 $audit[] = [
                     'tool' => $call->name,
                     'allowed' => true,
                     'summary' => substr($scrubbed, 0, 160),
                 ];
-                $messages[] = Message::tool($call->id, $scrubbed);
+                $wrappedOutput = $guard->wrapUntrusted(new UntrustedInput($scrubbed, source: 'tool:' . $call->name));
+                $messages[] = Message::tool($call->id, $wrappedOutput);
             }
         }
 

@@ -16,6 +16,7 @@ use Kongono\Database\QueryBuilder;
 use Kongono\Database\QueryGuard;
 use Kongono\Database\Repository;
 use Kongono\Database\Schema\Blueprint;
+use Kongono\Database\Schema\ColumnDefinition;
 use Kongono\Database\Schema\Schema;
 use PDO;
 use PDOStatement;
@@ -493,5 +494,93 @@ final class QueryBuilderTest extends TestCase
         $this->expectException(DatabaseException::class);
         $this->expectExceptionMessage('Unsafe DSN host');
         PdoConnection::pgsql('127.0.0.1;sslmode=disable', 5432, 'app', 'user', 'pass');
+    }
+
+    public function testRound3DatabaseTenantWriteGuardsWhereGroupAndDdlHardening(): void
+    {
+        // 1. whereGroup() rejects SQLi in $boolean and normalizes lowercase 'or' to prevent tenant bypass
+        try {
+            (new QueryBuilder('invoices', Dialect::Postgres))
+                ->whereGroup(static fn(QueryBuilder $q): QueryBuilder => $q->where('id', '=', 1), 'AND 1=1 OR');
+            self::fail('Expected invalid whereGroup boolean to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('Unsupported WHERE boolean', $e->getMessage());
+        }
+
+        // Lowercase 'or' whereGroup on requireTenant() MUST fail closed
+        try {
+            (new QueryBuilder('invoices', Dialect::Postgres))
+                ->requireTenant('workspace_id')
+                ->where('workspace_id', '=', 7)
+                ->whereGroup(static fn(QueryBuilder $q): QueryBuilder => $q->where('id', '=', 99), 'or')
+                ->toSelectSql();
+            self::fail('Expected lowercase or whereGroup to be blocked on requireTenant.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('top-level OR clause', $e->getMessage());
+        }
+
+        // 2. matchesTenantColumn() rejects joined-table tenant column satisfying requireTenant()
+        try {
+            (new QueryBuilder('invoices', Dialect::Postgres))
+                ->requireTenant('workspace_id')
+                ->leftJoin('other', 'other.id', '=', 'invoices.id')
+                ->where('other.workspace_id', '=', 7)
+                ->toSelectSql();
+            self::fail('Expected joined-table column not to satisfy requireTenant().');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('Refusing cross-tenant SELECT', $e->getMessage());
+        }
+
+        // 3. forTenant() & requireTenant() enforced on INSERT, INSERT MANY, and UPSERT
+        $ins = (new QueryBuilder('invoices', Dialect::Postgres))
+            ->forTenant(42)
+            ->toInsertSql(['title' => 'Q4']);
+        self::assertSame('INSERT INTO "invoices" ("title", "workspace_id") VALUES (?, ?)', $ins->query);
+        self::assertSame(['Q4', 42], $ins->bindings);
+
+        // Overriding tenant column with mismatched tenant fails closed
+        try {
+            (new QueryBuilder('invoices', Dialect::Postgres))
+                ->forTenant(42)
+                ->toInsertSql(['workspace_id' => 999, 'title' => 'Hijack']);
+            self::fail('Expected mismatched tenant on insert to throw.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('conflicts with active forTenant() scope', $e->getMessage());
+        }
+
+        // Postgres UPSERT appends tenant WHERE guard on DO UPDATE SET so attacker cannot overwrite another tenant's row
+        $upsert = (new QueryBuilder('invoices', Dialect::Postgres))
+            ->forTenant(42)
+            ->toUpsertSql([['id' => 10, 'title' => 'Safe']], ['id'], ['title']);
+        self::assertStringContainsString('ON CONFLICT ("id") DO UPDATE SET "title" = EXCLUDED."title" WHERE "invoices"."workspace_id" = ?', $upsert->query);
+        self::assertSame([10, 'Safe', 42, 42], $upsert->bindings);
+
+        // Unscoped INSERT on requireTenant() fails closed
+        try {
+            (new QueryBuilder('invoices', Dialect::Postgres))
+                ->requireTenant('workspace_id')
+                ->toInsertSql(['title' => 'NoTenant']);
+            self::fail('Expected unscoped insert with requireTenant to throw.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('Refusing cross-tenant INSERT', $e->getMessage());
+        }
+
+        // 4. PostgreSQL libpq space/quote DSN injection rejected
+        try {
+            PdoConnection::pgsql('127.0.0.1 sslmode=disable', 5432, 'app', 'user', 'pass');
+            self::fail('Expected space-delimited libpq DSN injection to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('Unsafe DSN host', $e->getMessage());
+        }
+
+        // 5. ColumnDefinition rejects unsafe SQL types and escapes backslashes for MySQL defaults
+        $bp = new Blueprint('notes', Dialect::Mysql);
+        $bp->string('note')->default("abc\\'; DROP TABLE users;--");
+        $mysqlSql = $bp->toSqlStatements();
+        self::assertStringContainsString("DEFAULT 'abc\\\\''; DROP TABLE users;--'", $mysqlSql[0]);
+
+        $this->expectException(DatabaseException::class);
+        $this->expectExceptionMessage('Unsafe SQL column type');
+        (new ColumnDefinition('evil', 'INT; DROP TABLE users'))->toSql(Dialect::Postgres);
     }
 }

@@ -18,6 +18,21 @@ use SplFileInfo;
  */
 final readonly class ProjectContext
 {
+    /** @var list<string> */
+    private const array FORBIDDEN_SECRET_FILES = [
+        'id_rsa',
+        'id_ed25519',
+        'id_ecdsa',
+        '.netrc',
+        '.npmrc',
+        '.pypirc',
+        '.htpasswd',
+        '.pgpass',
+        'auth.json',
+        'credentials.json',
+        'service-account.json',
+    ];
+
     public string $rootPath;
 
     public function __construct(
@@ -92,13 +107,23 @@ final readonly class ProjectContext
     }
 
     /**
-     * Read one contained file safely, scrubbing common secret patterns before sharing with an AI.
+     * Read one contained file safely, blocking sensitive secret/credential files post-realpath
+     * and scrubbing common secret patterns before sharing with an AI.
      *
      * @param int<1, max> $maxBytes
      */
     public function readFileSafe(string $relativePath, int $maxBytes = 32768): string
     {
+        // Pre-check requested path before touching filesystem to avoid file-existence oracles on secrets
+        $requestedRelative = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
+        if ('' !== $requestedRelative) {
+            $this->assertReadablePath($requestedRelative);
+        }
+
         $fullPath = $this->resolveContainedPath($relativePath, mustExist: true);
+        $canonicalRelative = str_replace('\\', '/', substr($fullPath, strlen($this->rootPath) + 1));
+        $this->assertReadablePath($canonicalRelative);
+
         $raw = file_get_contents($fullPath, length: $maxBytes);
         if (false === $raw) {
             throw new CoreException(sprintf('Unable to read "%s".', $relativePath));
@@ -107,13 +132,19 @@ final readonly class ProjectContext
         return SecretScrubber::scrub($raw);
     }
 
-    /** Write a file strictly within the project root (rejects path traversal). */
+    /** Write a file strictly within the project root (rejects path traversal, symlinks, and sensitive write targets). */
     public function writeFileContained(string $relativePath, string $content): string
     {
         $fullPath = $this->resolveContainedPath($relativePath, mustExist: false);
+        $canonicalRelative = str_replace('\\', '/', substr($fullPath, strlen($this->rootPath) + 1));
+        $this->assertWritablePath($canonicalRelative);
+
         $dir = dirname($fullPath);
         if (!is_dir($dir) && !@mkdir($dir, 0o775, true) && !is_dir($dir)) {
             throw new CoreException(sprintf('Unable to create directory for "%s".', $relativePath));
+        }
+        if (is_link($fullPath)) {
+            throw new CoreException(sprintf('Refusing to write through symbolic link "%s".', $relativePath));
         }
         if (false === file_put_contents($fullPath, $content, LOCK_EX)) {
             throw new CoreException(sprintf('Unable to write file "%s".', $relativePath));
@@ -145,13 +176,22 @@ final readonly class ProjectContext
             throw new CoreException(sprintf('Path "%s" is invalid or attempts directory traversal.', $relativePath));
         }
 
+        // Reject symlinks on EVERY intermediate segment AND on the target leaf itself (blocks both read & write escapes)
+        $walk = $this->rootPath;
+        foreach (explode('/', $normalized) as $segment) {
+            if ('' === $segment || '.' === $segment) {
+                throw new CoreException(sprintf('Path "%s" contains invalid segment.', $relativePath));
+            }
+            $walk .= DIRECTORY_SEPARATOR . $segment;
+            if (is_link($walk)) {
+                throw new CoreException(sprintf('Symlink "%s" is not permitted.', $relativePath));
+            }
+        }
+
         $candidate = $this->rootPath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalized);
         $prefix = rtrim($this->rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
         if ($mustExist) {
-            if (is_link($candidate)) {
-                throw new CoreException(sprintf('Symlink "%s" is not permitted.', $relativePath));
-            }
             $real = realpath($candidate);
             if (false === $real || !is_file($real) || !str_starts_with($real, $prefix)) {
                 throw new CoreException(sprintf('File "%s" does not exist within project root.', $relativePath));
@@ -160,7 +200,7 @@ final readonly class ProjectContext
             return $real;
         }
 
-        // Verify nearest existing ancestor directory is strictly contained inside rootPath (blocks symlink escape)
+        // Verify nearest existing ancestor directory is strictly contained inside rootPath
         $probeDir = dirname($candidate);
         while (!file_exists($probeDir) && $probeDir !== dirname($probeDir)) {
             $probeDir = dirname($probeDir);
@@ -171,5 +211,42 @@ final readonly class ProjectContext
         }
 
         return $candidate;
+    }
+
+    private function assertReadablePath(string $canonicalRelative): void
+    {
+        $lower = strtolower($canonicalRelative);
+        $base = strtolower(basename($canonicalRelative));
+
+        $forbiddenExt = (bool) preg_match('/\.(pem|key|p12|pfx|jks|kdbx|ppk|pk8|db|sqlite3?(?:-(?:wal|shm))?)\z/', $base);
+        $forbiddenName = (str_starts_with($base, '.env') && '.env.example' !== $base)
+            || in_array($base, self::FORBIDDEN_SECRET_FILES, true)
+            || str_starts_with($lower, '.git/')
+            || str_contains($lower, '/.git/')
+            || str_starts_with($lower, 'var/cache/')
+            || str_starts_with($lower, 'var/storage/')
+            || str_contains($lower, '/.docker/config.json');
+
+        if ($forbiddenExt || $forbiddenName) {
+            throw new CoreException(sprintf('Reading sensitive secret/credential file "%s" is forbidden.', $canonicalRelative));
+        }
+    }
+
+    private function assertWritablePath(string $canonicalRelative): void
+    {
+        $lower = strtolower($canonicalRelative);
+        $base = strtolower(basename($canonicalRelative));
+
+        $forbiddenExt = (bool) preg_match('/\.(pem|key|p12|pfx|ppk|pk8)\z/', $base);
+        $forbiddenTarget = (str_starts_with($base, '.env') && '.env.example' !== $base)
+            || str_starts_with($lower, '.git/')
+            || str_contains($lower, '/.git/')
+            || str_starts_with($lower, 'vendor/')
+            || 'composer.lock' === $lower
+            || in_array($base, self::FORBIDDEN_SECRET_FILES, true);
+
+        if ($forbiddenExt || $forbiddenTarget) {
+            throw new CoreException(sprintf('Writing to protected sensitive path "%s" is forbidden.', $canonicalRelative));
+        }
     }
 }

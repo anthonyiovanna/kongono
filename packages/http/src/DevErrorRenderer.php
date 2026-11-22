@@ -31,8 +31,10 @@ final class DevErrorRenderer
         $traceHtml = $this->renderTrace($exception);
         $requestHtml = $this->renderRequestSummary($request);
 
-        $hanteiArg = str_replace('"', '\\"', sprintf('%s: %s at %s:%d', $exception::class, substr($safeMessage, 0, 160), basename($file), $line));
-        $hanteiCmd = $this->esc(sprintf('php bin/kongo hantei debug "%s"', $hanteiArg));
+        $rawHantei = sprintf('%s: %s at %s:%d', $exception::class, substr($safeMessage, 0, 160), basename($file), $line);
+        // Strip shell metacharacters and control characters so copy-pasting cannot execute injected shell commands
+        $cleanHantei = trim((string) preg_replace('/[\x00-\x1f\x7f`$\\\\"\';|&<>(){}]/', ' ', $rawHantei));
+        $hanteiCmd = $this->esc(sprintf("php bin/kongo hantei debug '%s'", $cleanHantei));
 
         return <<<HTML
 <!doctype html>

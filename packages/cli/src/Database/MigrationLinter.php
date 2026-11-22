@@ -69,11 +69,7 @@ final readonly class MigrationLinter
      */
     private function lintSource(string $fileName, string $source, array &$findings): void
     {
-        $upSource = $source;
-        $downPos = stripos($source, 'function down(');
-        if (false !== $downPos) {
-            $upSource = substr($source, 0, $downPos);
-        }
+        $upSource = $this->extractUpMethodSource($source);
 
         // 1. ADD COLUMN ... NOT NULL without DEFAULT (locks table + fails on non-empty tables)
         if (1 === preg_match('/\bALTER\s+TABLE\b[^;]*\bADD\s+(?:COLUMN\s+)?[^;]*\bNOT\s+NULL\b/i', $upSource, $m)
@@ -134,5 +130,93 @@ final readonly class MigrationLinter
                 'message' => 'DROP TABLE detected in forward migration — ensure all application references were removed in an earlier deploy.',
             ];
         }
+    }
+
+    /**
+     * Extract the exact PHP body of `function up(...)` using PHP's tokenizer so placing
+     * `down()` before `up()` or mentioning `function down(` in comments cannot bypass linting.
+     *
+     * For procedural migrations without an explicit `function up()`, strips any tokenized
+     * `function down(...) { ... }` rollback helper while preserving all forward statements.
+     */
+    private function extractUpMethodSource(string $source): string
+    {
+        $tokens = \PhpToken::tokenize($source);
+        $count = count($tokens);
+
+        // 1. Prefer explicit `function up(...) { ... }` when declared
+        for ($i = 0; $i < $count; ++$i) {
+            if (T_FUNCTION !== $tokens[$i]->id) {
+                continue;
+            }
+            $j = $i + 1;
+            while ($j < $count && in_array($tokens[$j]->id, [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                ++$j;
+            }
+            if ($j >= $count || T_STRING !== $tokens[$j]->id || 'up' !== strtolower($tokens[$j]->text)) {
+                continue;
+            }
+            while ($j < $count && '{' !== $tokens[$j]->text) {
+                ++$j;
+            }
+            if ($j >= $count) {
+                break;
+            }
+            $depth = 0;
+            $body = '';
+            for ($k = $j; $k < $count; ++$k) {
+                $token = $tokens[$k];
+                if (!in_array($token->id, [T_COMMENT, T_DOC_COMMENT], true)) {
+                    $body .= $token->text;
+                }
+                if ('{' === $token->text || T_CURLY_OPEN === $token->id || T_DOLLAR_OPEN_CURLY_BRACES === $token->id) {
+                    ++$depth;
+                } elseif ('}' === $token->text) {
+                    --$depth;
+                    if (0 === $depth) {
+                        return $body;
+                    }
+                }
+            }
+        }
+
+        // 2. Procedural script without `function up()`: strip comments and any tokenized `function down(...) { ... }`
+        $filtered = '';
+        for ($i = 0; $i < $count; ++$i) {
+            $token = $tokens[$i];
+            if (in_array($token->id, [T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+            if (T_FUNCTION === $token->id) {
+                $j = $i + 1;
+                while ($j < $count && in_array($tokens[$j]->id, [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+                    ++$j;
+                }
+                if ($j < $count && T_STRING === $tokens[$j]->id && 'down' === strtolower($tokens[$j]->text)) {
+                    while ($j < $count && '{' !== $tokens[$j]->text) {
+                        ++$j;
+                    }
+                    if ($j < $count) {
+                        $depth = 0;
+                        for ($k = $j; $k < $count; ++$k) {
+                            $inner = $tokens[$k];
+                            if ('{' === $inner->text || T_CURLY_OPEN === $inner->id || T_DOLLAR_OPEN_CURLY_BRACES === $inner->id) {
+                                ++$depth;
+                            } elseif ('}' === $inner->text) {
+                                --$depth;
+                                if (0 === $depth) {
+                                    $i = $k;
+                                    break;
+                                }
+                            }
+                        }
+                        continue;
+                    }
+                }
+            }
+            $filtered .= $token->text;
+        }
+
+        return $filtered;
     }
 }

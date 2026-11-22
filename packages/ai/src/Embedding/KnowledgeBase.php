@@ -6,6 +6,8 @@ namespace Kongono\Ai\Embedding;
 
 use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
+use Kongono\Ai\Security\PromptGuard;
+use Kongono\Ai\Security\UntrustedInput;
 use Kongono\Core\Diagnostics\SecretScrubber;
 
 /**
@@ -39,13 +41,16 @@ final readonly class KnowledgeBase
             throw new AiException(sprintf('Embedding provider returned %d vectors for %d chunks.', count($vectors), count($chunks)));
         }
 
+        /** @var array<string, mixed> $safeMetadata */
+        $safeMetadata = SecretScrubber::scrubArray($metadata);
+
         foreach ($chunks as $index => $chunk) {
             $chunkId = 1 === count($chunks) ? $documentId : sprintf('%s#chunk-%d', $documentId, $index);
             $this->store->upsert(new VectorDocument(
                 id: $chunkId,
                 content: $chunk,
                 vector: $vectors[$index],
-                metadata: [...$metadata, 'document_id' => $documentId, 'chunk_index' => $index],
+                metadata: [...$safeMetadata, 'document_id' => $documentId, 'chunk_index' => $index],
             ));
         }
 
@@ -92,11 +97,23 @@ final readonly class KnowledgeBase
             ];
         }
 
-        $system = 'Answer the user question accurately using ONLY the provided reference excerpts. Cite sources inline as [1], [2], etc. If the excerpts do not contain the answer, say so clearly.';
-        $prompt = "Reference Excerpts:\n" . implode("\n\n", $contextBlocks) . "\n\nQuestion: " . SecretScrubber::scrub($question);
+        $guard = new PromptGuard();
+        $protected = $guard->buildProtectedSystemPrompt(
+            'Answer the user question accurately using ONLY the provided reference excerpts. Cite sources inline as [1], [2], etc. If the excerpts do not contain the answer, say so clearly.',
+        );
+
+        $wrappedExcerpts = $guard->wrapUntrusted(
+            new UntrustedInput(implode("\n\n", $contextBlocks), source: 'rag_excerpts'),
+        );
+        $wrappedQuestion = $guard->wrapUntrusted(
+            new UntrustedInput(SecretScrubber::scrub($question), source: 'user_question'),
+        );
+        $prompt = "Reference Excerpts:\n" . $wrappedExcerpts . "\n\nQuestion:\n" . $wrappedQuestion;
+        $rawAnswer = $ai->ask($prompt, $protected['prompt']);
+        $inspected = $guard->inspectOutput($rawAnswer, $protected['canary']);
 
         return [
-            'answer' => $ai->ask($prompt, $system),
+            'answer' => SecretScrubber::scrub($inspected['output']),
             'sources' => $sources,
         ];
     }

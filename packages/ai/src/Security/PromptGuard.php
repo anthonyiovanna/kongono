@@ -91,8 +91,8 @@ final readonly class PromptGuard
     }
 
     /**
-     * Inspect an LLM response against the session canary token (raw, case-folded, base64,
-     * URL-encoded, reversed, and hex-encoded) and fail closed on leakage.
+     * Inspect an LLM response against the session canary token (raw, case-folded, base64/unpadded,
+     * ROT13, reversed, hex, percent-encoded, space/delimiter-split, and random suffix) and fail closed on leakage.
      *
      * @return array{safe: bool, leaked_canary: bool, output: string}
      */
@@ -100,17 +100,40 @@ final readonly class PromptGuard
     {
         if ('' !== $canary) {
             $normalizedOut = UntrustedInput::normalizeForInspection($modelOutput);
+            $collapsedOut = (string) preg_replace('/[^a-zA-Z0-9]+/', '', $normalizedOut);
+            $hex = bin2hex($canary);
+            $percentHex = '%' . implode('%', str_split($hex, 2));
+
             $variants = [
                 $canary,
-                strtolower($canary),
-                strtoupper($canary),
-                base64_encode($canary),
+                rtrim(base64_encode($canary), '='),
                 rawurlencode($canary),
                 strrev($canary),
-                bin2hex($canary),
+                str_rot13($canary),
+                $hex,
+                $percentHex,
             ];
+            if (str_starts_with($canary, 'kgn_canary_')) {
+                $suffix = substr($canary, strlen('kgn_canary_'));
+                if (strlen($suffix) >= 12) {
+                    $variants[] = $suffix;
+                    $variants[] = strrev($suffix);
+                }
+            }
+
             foreach ($variants as $variant) {
-                if (str_contains($modelOutput, $variant) || str_contains($normalizedOut, $variant)) {
+                if ('' === $variant) {
+                    continue;
+                }
+                if (false !== stripos($modelOutput, $variant) || false !== stripos($normalizedOut, $variant)) {
+                    return [
+                        'safe' => false,
+                        'leaked_canary' => true,
+                        'output' => self::BLOCKED_OUTPUT,
+                    ];
+                }
+                $collapsedVariant = (string) preg_replace('/[^a-zA-Z0-9]+/', '', $variant);
+                if (strlen($collapsedVariant) >= 12 && false !== stripos($collapsedOut, $collapsedVariant)) {
                     return [
                         'safe' => false,
                         'leaked_canary' => true,

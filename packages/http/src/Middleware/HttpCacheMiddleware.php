@@ -41,7 +41,7 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
         }
 
         $existingCc = strtolower($response->getHeaderLine('Cache-Control'));
-        if (str_contains($existingCc, 'no-store')) {
+        if (str_contains($existingCc, 'no-store') || str_contains($existingCc, 'no-cache') || 1 === preg_match('/\bmax-age\s*=\s*0\b/', $existingCc)) {
             return $response;
         }
 
@@ -50,8 +50,13 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
             return $response->withHeader('Cache-Control', 'private, no-store');
         }
 
-        $hasAuthHeader = '' !== trim($request->getHeaderLine('Authorization'));
-        $isPrivate = !$this->public || $hasAuthHeader || str_contains($existingCc, 'private');
+        $hasAuthHeader = '' !== trim($request->getHeaderLine('Authorization'))
+            || '' !== trim($request->getHeaderLine('Proxy-Authorization'))
+            || '' !== trim($request->getHeaderLine('X-API-Key'));
+        $hasCookies = '' !== trim($request->getHeaderLine('Cookie')) || [] !== $request->getCookieParams();
+        $hasPrincipal = null !== $request->getAttribute('Kongono\\Security\\Principal');
+
+        $isPrivate = !$this->public || $hasAuthHeader || $hasCookies || $hasPrincipal || str_contains($existingCc, 'private');
 
         $directives = [$isPrivate ? 'private' : 'public', 'max-age=' . max(0, $this->maxAge)];
         if (!$isPrivate && null !== $this->staleWhileRevalidate && $this->staleWhileRevalidate > 0) {
@@ -60,10 +65,10 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
         $response = $response->withHeader('Cache-Control', implode(', ', $directives));
 
         if ($hasAuthHeader) {
-            $vary = $response->getHeaderLine('Vary');
-            if (!str_contains(strtolower($vary), 'authorization')) {
-                $response = $response->withHeader('Vary', '' === $vary ? 'Authorization' : $vary . ', Authorization');
-            }
+            $response = $this->appendVary($response, 'Authorization');
+        }
+        if ($hasCookies) {
+            $response = $this->appendVary($response, 'Cookie');
         }
 
         if ($this->etag) {
@@ -94,5 +99,15 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
         }
 
         return false;
+    }
+
+    private function appendVary(ResponseInterface $response, string $token): ResponseInterface
+    {
+        $vary = $response->getHeaderLine('Vary');
+        if (!str_contains(strtolower($vary), strtolower($token))) {
+            return $response->withHeader('Vary', '' === $vary ? $token : $vary . ', ' . $token);
+        }
+
+        return $response;
     }
 }

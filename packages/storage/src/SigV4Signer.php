@@ -39,7 +39,15 @@ final readonly class SigV4Signer
 
         $lowerHeaders = [];
         foreach ($headers as $k => $v) {
-            $lowerHeaders[strtolower(trim($k))] = trim($v);
+            $name = strtolower(trim($k));
+            $val = trim($v);
+            if (1 !== preg_match('/\A[a-z0-9!#$%&\'*+.^_`|~-]+\z/', $name) || false !== strpbrk($val, "\r\n\0")) {
+                throw new StorageException(sprintf('Unsafe header "%s" rejected by SigV4Signer.', $k));
+            }
+            $lowerHeaders[$name] = $val;
+        }
+        if ('' === trim($host) || false !== strpbrk($host, "\r\n\0 ")) {
+            throw new StorageException('Unsafe host rejected by SigV4Signer.');
         }
         $lowerHeaders['host'] = $host;
         $lowerHeaders['x-amz-date'] = $amzDate;

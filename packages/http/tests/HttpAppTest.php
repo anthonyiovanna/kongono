@@ -10,9 +10,12 @@ use Kongono\Http\App;
 use Kongono\Http\Cookie;
 use Kongono\Http\Dev\DevDashboardMiddleware;
 use Kongono\Http\Dev\DevInspector;
+use Kongono\Http\Dev\TestExporter;
+use Kongono\Http\DevErrorRenderer;
 use Kongono\Http\HttpException;
 use Kongono\Http\Live\LiveMiddleware;
 use Kongono\Http\Middleware\CompressionMiddleware;
+use Kongono\Http\Middleware\IdempotencyMiddleware;
 use Kongono\Http\Middleware\StaticFilesMiddleware;
 use Kongono\Http\OpenApi\ApiDocsRenderer;
 use Kongono\Http\OpenApi\OpenApiGenerator;
@@ -414,12 +417,14 @@ final class HttpAppTest extends TestCase
             ->postJson('/orders', ['amount' => 999])
             ->assertStatus(409);
 
-        // #[Feature('beta_api')] fails closed 404 unless scope is enabled
+        // #[Feature('beta_api')] fails closed 404 even when client spoofs X-Feature-Scope header;
+        // activates ONLY when server-side scope attribute (_feature_scope / Principal) matches
         $client->get('/beta')->assertStatus(404);
-        $client->withHeader('X-Feature-Scope', 'vip')
-            ->get('/beta')
-            ->assertOk()
-            ->assertJsonPath('beta', true);
+        $client->withHeader('X-Feature-Scope', 'vip')->get('/beta')->assertStatus(404);
+
+        $scopedRes = $app->handle(Request::create('GET', '/beta')->withAttribute('_feature_scope', 'vip'));
+        self::assertSame(200, $scopedRes->getStatusCode());
+        self::assertStringContainsString('"beta":true', (string) $scopedRes->getBody());
     }
 
     public function testViewsSupportsAutoReloadFlagAndInstanceSync(): void
@@ -487,21 +492,23 @@ final class HttpAppTest extends TestCase
         $router->get('/inline-closure', static fn(): Response => Response::text('hi'));
 
         $compiled = $router->exportCompiledTable();
-        self::assertSame(1, $compiled['version']);
+        self::assertSame(2, $compiled['version']);
         self::assertSame(1, $compiled['skipped_closures']);
         self::assertArrayHasKey('/cached-feed', $compiled['static']);
         self::assertArrayHasKey('GET', $compiled['static']['/cached-feed']);
+        self::assertNotEmpty($compiled['static']['/cached-feed']['GET']['middleware_attributes']);
         self::assertCount(1, $compiled['dynamic']);
         self::assertSame('#\A/items/(?P<id>\d+)\z#', $compiled['dynamic'][0]['regex']);
 
         $phpCode = $router->exportCompiledPhp();
         self::assertStringStartsWith("<?php\n\ndeclare(strict_types=1);", $phpCode);
 
-        // Hydrate a fresh Router purely from the compiled table and verify O(1) static + dynamic + 405 matching
+        // Hydrate a fresh Router purely from the compiled table and verify O(1) static + dynamic + middleware attributes + 405
         $hydrated = (new Router())->loadCompiledTable($compiled);
         $staticMatch = $hydrated->match('GET', '/cached-feed');
         self::assertSame('cached.feed', $staticMatch->route->routeName());
         self::assertSame([], $staticMatch->params);
+        self::assertCount(1, $staticMatch->route->routeMiddlewareAttributes());
 
         $dynamicMatch = $hydrated->match('GET', '/items/42');
         self::assertSame('items.show', $dynamicMatch->route->routeName());
@@ -690,14 +697,23 @@ final class HttpAppTest extends TestCase
             @rmdir($pub);
         }
 
-        // 5. SessionMiddleware automatically sets Secure cookie flag on HTTPS requests
+        // 5. SessionMiddleware lazily avoids emitting Set-Cookie on untouched anonymous requests,
+        // and automatically sets Secure + Cache-Control private when a session is started on HTTPS
         $sessApp = App::create(__DIR__)
             ->middleware(new SessionMiddleware(new CacheSessionStore(new MemoryCache()), secure: false))
             ->routes(static function (Router $r): void {
-                $r->get('/tls', static fn(): Response => Response::text('ok'));
+                $r->get('/anon', static fn(): Response => Response::text('anon'));
+                $r->get('/tls', static function (Session $session): Response {
+                    $session->set('tls', true);
+
+                    return Response::text('ok');
+                });
             });
+        $anonRes = $sessApp->handle(Request::create('GET', 'https://app.kongono.dev/anon'));
+        self::assertFalse($anonRes->hasHeader('Set-Cookie'));
         $tlsRes = $sessApp->handle(Request::create('GET', 'https://app.kongono.dev/tls'));
         self::assertStringContainsString('Secure', $tlsRes->getHeaderLine('Set-Cookie'));
+        self::assertStringContainsString('private', $tlsRes->getHeaderLine('Cache-Control'));
 
         // 6. HttpCacheMiddleware never marks Set-Cookie or Authorization responses as public (CDN cache poisoning guard)
         $cacheApp = App::create(__DIR__)
@@ -719,6 +735,154 @@ final class HttpAppTest extends TestCase
         self::assertStringContainsString("event: pingfake\n", $sse);
         self::assertStringContainsString("data: line1\ndata: event: forged\ndata: data: pwned\n\n", $sse);
     }
+
+    public function testRound3HttpAotRoutesDtoPrecedenceDevStudioBreachIdempotencyAndSessionHardening(): void
+    {
+        // 1. AOT route table v2 preserves #[CacheControl]/#[Middleware] attributes and rejects legacy v1 tables
+        $router = new Router();
+        $router->controller(CachedDemoController::class);
+        $compiled = $router->exportCompiledTable();
+        self::assertSame(2, $compiled['version']);
+
+        $restored = new Router();
+        $restored->loadCompiledTable($compiled);
+        $matched = $restored->match('GET', '/cached-feed');
+        self::assertNotNull($matched);
+        self::assertNotEmpty($matched->route->routeMiddlewareAttributes());
+
+        try {
+            (new Router())->loadCompiledTable(['version' => 1, 'static' => [], 'dynamic' => []]);
+            self::fail('Expected legacy v1 AOT route cache to fail closed.');
+        } catch (\Kongono\Core\CoreException $e) {
+            self::assertStringContainsString('version', $e->getMessage());
+        }
+
+        // 2. TestExporter neutralizes PHP close-tag breakout and weird HTTP methods
+        $exported = TestExporter::exportPhpUnitTest([
+            'id' => 7,
+            'method' => "GET';system('id');//",
+            'path' => '/x?a=' . '?' . '> <' . '?php system("id");',
+            'status' => 200,
+        ]);
+        self::assertStringContainsString('?_> <_?php', $exported);
+        // Verify PHP's own tokenizer finds ZERO T_CLOSE_TAG tokens in the exported PHP file
+        $closeTags = array_filter(\PhpToken::tokenize($exported), static fn(\PhpToken $t): bool => T_CLOSE_TAG === $t->id);
+        self::assertSame([], $closeTags);
+
+        // 3. DevDashboardMiddleware blocks non-loopback & cross-origin/simple POSTs; DevInspector scrubs JSON password
+        $inspector = new DevInspector();
+        $devApp = App::create(__DIR__)
+            ->config(['app' => ['debug' => true]])
+            ->routes(static function (Router $r): void {
+                $r->post('/login', static fn(): Response => Response::json(['ok' => true]));
+            });
+        $devApp->middleware(new DevDashboardMiddleware($devApp, $inspector));
+        // Non-loopback access denied (403)
+        self::assertSame(403, $devApp->handle(Request::create('GET', '/_kongono', serverParams: ['REMOTE_ADDR' => '198.51.100.5']))->getStatusCode());
+        // Cross-site POST to /_kongono/api/clear denied (403)
+        self::assertSame(403, $devApp->handle(Request::create('POST', '/_kongono/api/clear', ['Sec-Fetch-Site' => 'cross-site'], serverParams: ['REMOTE_ADDR' => '127.0.0.1']))->getStatusCode());
+        // Simple form POST without X-Kongono-Dev denied (403)
+        self::assertSame(403, $devApp->handle(Request::create('POST', '/_kongono/api/clear', ['Content-Type' => 'application/x-www-form-urlencoded'], serverParams: ['REMOTE_ADDR' => '127.0.0.1']))->getStatusCode());
+        // Valid same-origin POST with X-Kongono-Dev succeeds (200)
+        self::assertSame(200, $devApp->handle(Request::create('POST', '/_kongono/api/clear', ['X-Kongono-Dev' => '1'], serverParams: ['REMOTE_ADDR' => '127.0.0.1']))->getStatusCode());
+
+        // DevInspector scrubs JSON password body
+        $devApp->handle(Request::create('POST', '/login', ['Content-Type' => 'application/json'], '{"email":"ada@example.com","password":"top_secret_pw"}', ['REMOTE_ADDR' => '127.0.0.1']));
+        $traces = $inspector->traces();
+        self::assertNotEmpty($traces);
+        self::assertStringNotContainsString('top_secret_pw', $traces[0]['body']);
+
+        // 4. DevErrorRenderer strips shell metacharacters from Hantei command
+        $renderedErr = (new DevErrorRenderer())->render(
+            Request::create('GET', '/err'),
+            new RuntimeException('Boom $(touch /tmp/pwn) `id` ; rm -rf /'),
+        );
+        self::assertSame(1, preg_match('#<code>(php bin/kongo hantei debug [^<]+)</code>#', $renderedErr, $hanteiMatch));
+        $hanteiCmd = html_entity_decode($hanteiMatch[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        self::assertStringNotContainsString('$(touch', $hanteiCmd);
+        self::assertStringNotContainsString('`id`', $hanteiCmd);
+        self::assertStringNotContainsString(';', $hanteiCmd);
+
+        // 5. Route param precedence prevents JSON body from shadowing {id} in validated DTO
+        $dtoApp = App::create(__DIR__)->routes(static function (Router $r): void {
+            $r->post('/items/{id}', static fn(RoutePrecedenceInputDto $input): Response => Response::json(['id' => $input->id, 'title' => $input->title]));
+        });
+        $dtoRes = $dtoApp->handle(Request::create('POST', '/items/42', ['Content-Type' => 'application/json'], '{"id":"999","title":"Safe"}'));
+        self::assertSame(200, $dtoRes->getStatusCode());
+        self::assertSame('{"id":"42","title":"Safe"}', (string) $dtoRes->getBody());
+
+        // 6. Response rejects tab/control-obfuscated javascript: URLs and C0 control chars in headers
+        foreach (["java\tscript:alert(1)", "\x01javascript:alert(1)"] as $badRedirect) {
+            try {
+                Response::redirect($badRedirect);
+                self::fail('Expected Response::redirect to reject: ' . $badRedirect);
+            } catch (\InvalidArgumentException) {
+                self::addToAssertionCount(1);
+            }
+        }
+
+        // 7. CompressionMiddleware skips BREACH-sensitive Set-Cookie/Cookie/no-transform responses & respects q=0
+        $compApp = App::create(__DIR__)
+            ->middleware(new CompressionMiddleware(minBytes: 16))
+            ->routes(static function (Router $r): void {
+                $r->get('/pub', static fn(): Response => Response::text(str_repeat('Kongono compressed text ', 20)));
+                $r->get('/secret-html', static fn(): Response => Response::html(str_repeat('<p>csrf-token</p>', 20))->withCookie(new Cookie('sid', '1')));
+                $r->get('/notransform', static fn(): Response => Response::text(str_repeat('raw bytes ', 20))->withHeader('Cache-Control', 'no-transform'));
+            });
+        $pubComp = $compApp->handle(Request::create('GET', '/pub', ['Accept-Encoding' => 'gzip']));
+        self::assertSame('gzip', $pubComp->getHeaderLine('Content-Encoding'));
+        $qZero = $compApp->handle(Request::create('GET', '/pub', ['Accept-Encoding' => 'gzip;q=0']));
+        self::assertSame('', $qZero->getHeaderLine('Content-Encoding'));
+        $breachSkip = $compApp->handle(Request::create('GET', '/secret-html', ['Accept-Encoding' => 'gzip']));
+        self::assertSame('', $breachSkip->getHeaderLine('Content-Encoding'));
+        $noTrans = $compApp->handle(Request::create('GET', '/notransform', ['Accept-Encoding' => 'gzip']));
+        self::assertSame('', $noTrans->getHeaderLine('Content-Encoding'));
+
+        // 8. IdempotencyMiddleware normalizes /pay/ vs /pay and fingerprints query string
+        $idemCalls = 0;
+        $idemApp = App::create(__DIR__)
+            ->middleware(new IdempotencyMiddleware(new MemoryCache()))
+            ->routes(static function (Router $r) use (&$idemCalls): void {
+                $r->post('/pay', static function () use (&$idemCalls): Response {
+                    ++$idemCalls;
+
+                    return Response::json(['n' => $idemCalls], 201);
+                });
+            });
+        $r1 = $idemApp->handle(Request::create('POST', '/pay?amount=10', ['Idempotency-Key' => 'idem-r3-1']));
+        self::assertSame(201, $r1->getStatusCode());
+        // Same path with trailing slash & same query replays cached response
+        $r2 = $idemApp->handle(Request::create('POST', '/pay/?amount=10', ['Idempotency-Key' => 'idem-r3-1']));
+        self::assertSame(201, $r2->getStatusCode());
+        self::assertSame('true', $r2->getHeaderLine('Idempotency-Replayed'));
+        self::assertSame(1, $idemCalls);
+        // Same key with DIFFERENT query string triggers 409 fingerprint mismatch
+        $r3 = $idemApp->handle(Request::create('POST', '/pay?amount=9999', ['Idempotency-Key' => 'idem-r3-1']));
+        self::assertSame(409, $r3->getStatusCode());
+
+        // 9. Session tracks ALL previous IDs across multiple regenerate() calls & supports invalidate()
+        $session = new Session('orig-id', ['u' => 1]);
+        $session->regenerate();
+        $midId = $session->id();
+        $session->regenerate();
+        self::assertContains('orig-id', $session->previousIds());
+        self::assertContains($midId, $session->previousIds());
+        $afterSecond = $session->id();
+        $session->invalidate();
+        self::assertFalse($session->has('u'));
+        self::assertTrue($session->isInvalidated());
+        self::assertContains($afterSecond, $session->previousIds());
+    }
+}
+
+final readonly class RoutePrecedenceInputDto
+{
+    public function __construct(
+        #[Required]
+        public string $id,
+        #[Required]
+        public string $title,
+    ) {}
 }
 
 final readonly class CachedDemoController

@@ -320,7 +320,7 @@ final class Response implements ResponseInterface
     }
 
     /**
-     * Enforce RFC 9110 header name tokens and reject CRLF/NUL header-splitting characters.
+     * Enforce RFC 9110 header name tokens and reject C0/DEL control characters (except HTAB).
      *
      * @param list<string> $values
      */
@@ -330,21 +330,38 @@ final class Response implements ResponseInterface
             throw new InvalidArgumentException(sprintf('Invalid HTTP header name "%s".', $name));
         }
         foreach ($values as $v) {
-            if (false !== strpbrk($v, "\r\n\0")) {
-                throw new InvalidArgumentException(sprintf('HTTP header "%s" value contains forbidden CRLF or NUL characters.', $name));
+            if (1 === preg_match('/[\x00-\x08\x0A-\x1F\x7F]/', $v)) {
+                throw new InvalidArgumentException(sprintf('HTTP header "%s" value contains forbidden CRLF or control characters.', $name));
             }
         }
     }
 
-    /** Reject CRLF/NUL and executable URI schemes (javascript:, data:, vbscript:) in navigation headers. */
+    /**
+     * Strict allowlist navigation URL validator: rejects ALL ASCII control chars (including tabs like `java\tscript:`
+     * and C0 prefixes like `\x01javascript:` stripped by WHATWG browsers), permitting only safe relative paths or http(s) URLs.
+     */
     private static function assertSafeNavigationUrl(string $url, string $context): void
     {
-        if (false !== strpbrk($url, "\r\n\0")) {
-            throw new InvalidArgumentException(sprintf('Unsafe %s URL: contains CRLF or NUL characters.', $context));
+        if ('' === $url || 1 === preg_match('/[\x00-\x1F\x7F]/', $url)) {
+            throw new InvalidArgumentException(sprintf('Unsafe %s URL: contains control characters or is empty.', $context));
         }
-        $trimmed = ltrim($url);
-        if (1 === preg_match('/\A(?:javascript|data|vbscript):/i', $trimmed)) {
-            throw new InvalidArgumentException(sprintf('Unsafe %s URL scheme rejected.', $context));
+
+        $trimmed = trim($url);
+        if (str_starts_with($trimmed, '/')) {
+            if (str_starts_with($trimmed, '//') || str_starts_with($trimmed, '/\\')) {
+                throw new InvalidArgumentException(sprintf('Unsafe %s URL: protocol-relative redirect rejected.', $context));
+            }
+
+            return;
         }
+
+        $parts = parse_url($trimmed);
+        $scheme = is_array($parts) && is_string($parts['scheme'] ?? null) ? strtolower($parts['scheme']) : '';
+        $host = is_array($parts) && is_string($parts['host'] ?? null) ? $parts['host'] : '';
+        if (('http' === $scheme || 'https' === $scheme) && '' !== $host) {
+            return;
+        }
+
+        throw new InvalidArgumentException(sprintf('Unsafe %s URL scheme rejected.', $context));
     }
 }
