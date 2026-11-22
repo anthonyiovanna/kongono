@@ -77,6 +77,9 @@ final readonly class SmtpTransport implements MailTransportInterface
     /** @param resource $socket */
     private function command(mixed $socket, string $line, int $expectedCode): void
     {
+        if (false !== strpbrk($line, "\r\n\0")) {
+            throw new MailException('SMTP command injection rejected: command contains CR, LF, or NUL.');
+        }
         fwrite($socket, $line . "\r\n");
         $this->expectCode($socket, $expectedCode);
     }

@@ -79,7 +79,13 @@ final class Request implements ServerRequestInterface
         ?array $parsedBody = null,
         array $serverParams = [],
     ): self {
-        $parsedUri = Uri::parse($uri);
+        // Prevent scheme-relative path smuggling (e.g. `//.env`) from being misparsed as a host
+        if (str_starts_with($uri, '//')) {
+            $tmpUri = Uri::parse('http://localhost' . $uri);
+            $parsedUri = new Uri(path: $tmpUri->getPath(), query: $tmpUri->getQuery(), fragment: $tmpUri->getFragment());
+        } else {
+            $parsedUri = Uri::parse($uri);
+        }
         if ([] === $query && '' !== $parsedUri->getQuery()) {
             parse_str($parsedUri->getQuery(), $parsedQuery);
             foreach ($parsedQuery as $k => $v) {
@@ -121,9 +127,13 @@ final class Request implements ServerRequestInterface
         $method = is_string($server['REQUEST_METHOD'] ?? null) ? $server['REQUEST_METHOD'] : 'GET';
         $httpsValue = $server['HTTPS'] ?? null;
         $scheme = (is_string($httpsValue) && '' !== $httpsValue && 'off' !== strtolower($httpsValue)) ? 'https' : 'http';
-        $host = is_string($server['HTTP_HOST'] ?? null)
-            ? $server['HTTP_HOST']
-            : (is_string($server['SERVER_NAME'] ?? null) ? $server['SERVER_NAME'] : 'localhost');
+        $rawHost = is_string($server['HTTP_HOST'] ?? null)
+            ? trim($server['HTTP_HOST'])
+            : (is_string($server['SERVER_NAME'] ?? null) ? trim($server['SERVER_NAME']) : 'localhost');
+        // Defend against Host header injection (allow only RFC 3986 host[:port] or IPv6 literal)
+        $host = 1 === preg_match('/\A(?:\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(?::\d{1,5})?\z/', $rawHost)
+            ? $rawHost
+            : 'localhost';
         $rawUri = is_string($server['REQUEST_URI'] ?? null) ? $server['REQUEST_URI'] : '/';
         $uri = Uri::parse(sprintf('%s://%s%s', $scheme, $host, $rawUri));
 

@@ -70,17 +70,19 @@ final readonly class PromptGuard
     }
 
     /**
-     * Deterministically scan untrusted text for known prompt-injection signals.
+     * Deterministically scan untrusted text for known prompt-injection signals
+     * (normalizing invisible zero-width Unicode and fullwidth homoglyph obfuscation first).
      *
      * @return list<string>
      */
     public function detectInjectionSignals(UntrustedInput|string $input): array
     {
         $raw = $input instanceof UntrustedInput ? $input->content : $input;
+        $normalized = UntrustedInput::normalizeForInspection($raw);
         $signals = [];
 
         foreach (self::INJECTION_PATTERNS as $code => $regex) {
-            if (1 === preg_match($regex, $raw)) {
+            if (1 === preg_match($regex, $normalized)) {
                 $signals[] = $code;
             }
         }
@@ -89,22 +91,26 @@ final readonly class PromptGuard
     }
 
     /**
-     * Inspect an LLM response against the session canary token and fail closed on leakage.
+     * Inspect an LLM response against the session canary token (raw, case-folded, base64,
+     * URL-encoded, reversed, and hex-encoded) and fail closed on leakage.
      *
      * @return array{safe: bool, leaked_canary: bool, output: string}
      */
     public function inspectOutput(string $modelOutput, string $canary): array
     {
         if ('' !== $canary) {
+            $normalizedOut = UntrustedInput::normalizeForInspection($modelOutput);
             $variants = [
                 $canary,
                 strtolower($canary),
                 strtoupper($canary),
                 base64_encode($canary),
                 rawurlencode($canary),
+                strrev($canary),
+                bin2hex($canary),
             ];
             foreach ($variants as $variant) {
-                if (str_contains($modelOutput, $variant)) {
+                if (str_contains($modelOutput, $variant) || str_contains($normalizedOut, $variant)) {
                     return [
                         'safe' => false,
                         'leaked_canary' => true,

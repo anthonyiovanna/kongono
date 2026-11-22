@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Http;
 
 use Closure;
+use InvalidArgumentException;
 use Psr\Http\Message\MessageInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
@@ -60,9 +61,11 @@ final class Response implements ResponseInterface
         $this->reasonPhrase = '' !== $reasonPhrase ? $reasonPhrase : (self::REASON_PHRASES[$statusCode] ?? '');
 
         foreach ($headers as $name => $value) {
+            $values = is_array($value) ? $value : [$value];
+            self::assertValidHeader($name, $values);
             $normalized = strtolower($name);
             $this->headerNames[$normalized] = $name;
-            $this->headers[$name] = is_array($value) ? $value : [$value];
+            $this->headers[$name] = $values;
         }
     }
 
@@ -90,9 +93,11 @@ final class Response implements ResponseInterface
         $headers['Vary'] ??= 'X-Kongono-Live';
         $headers['X-Kongono-Live'] = 'fragment';
         if (null !== $pushUrl && '' !== $pushUrl) {
+            self::assertSafeNavigationUrl($pushUrl, 'pushUrl');
             $headers['X-Kongono-Push-Url'] = $pushUrl;
         }
         if (null !== $redirect && '' !== $redirect) {
+            self::assertSafeNavigationUrl($redirect, 'redirect');
             $headers['X-Kongono-Redirect'] = $redirect;
         }
 
@@ -118,6 +123,8 @@ final class Response implements ResponseInterface
 
     public static function redirect(string $location, int $status = 302): self
     {
+        self::assertSafeNavigationUrl($location, 'redirect');
+
         return new self($status, ['Location' => $location]);
     }
 
@@ -236,22 +243,27 @@ final class Response implements ResponseInterface
 
     public function withHeader(string $name, $value): MessageInterface
     {
+        $values = is_array($value) ? array_values($value) : [$value];
+        self::assertValidHeader($name, $values);
+
         $clone = clone $this;
         $normalized = strtolower($name);
         if (isset($clone->headerNames[$normalized])) {
             unset($clone->headers[$clone->headerNames[$normalized]]);
         }
         $clone->headerNames[$normalized] = $name;
-        $clone->headers[$name] = is_array($value) ? array_values($value) : [$value];
+        $clone->headers[$name] = $values;
 
         return $clone;
     }
 
     public function withAddedHeader(string $name, $value): self
     {
+        $values = is_array($value) ? array_values($value) : [$value];
+        self::assertValidHeader($name, $values);
+
         $clone = clone $this;
         $normalized = strtolower($name);
-        $values = is_array($value) ? array_values($value) : [$value];
         if (isset($clone->headerNames[$normalized])) {
             $existing = $clone->headerNames[$normalized];
             $clone->headers[$existing] = [...$clone->headers[$existing], ...$values];
@@ -305,5 +317,34 @@ final class Response implements ResponseInterface
     public function getReasonPhrase(): string
     {
         return $this->reasonPhrase;
+    }
+
+    /**
+     * Enforce RFC 9110 header name tokens and reject CRLF/NUL header-splitting characters.
+     *
+     * @param list<string> $values
+     */
+    private static function assertValidHeader(string $name, array $values): void
+    {
+        if (1 !== preg_match('/\A[a-zA-Z0-9!#$%&\'*+.^_`|~-]+\z/', $name)) {
+            throw new InvalidArgumentException(sprintf('Invalid HTTP header name "%s".', $name));
+        }
+        foreach ($values as $v) {
+            if (false !== strpbrk($v, "\r\n\0")) {
+                throw new InvalidArgumentException(sprintf('HTTP header "%s" value contains forbidden CRLF or NUL characters.', $name));
+            }
+        }
+    }
+
+    /** Reject CRLF/NUL and executable URI schemes (javascript:, data:, vbscript:) in navigation headers. */
+    private static function assertSafeNavigationUrl(string $url, string $context): void
+    {
+        if (false !== strpbrk($url, "\r\n\0")) {
+            throw new InvalidArgumentException(sprintf('Unsafe %s URL: contains CRLF or NUL characters.', $context));
+        }
+        $trimmed = ltrim($url);
+        if (1 === preg_match('/\A(?:javascript|data|vbscript):/i', $trimmed)) {
+            throw new InvalidArgumentException(sprintf('Unsafe %s URL scheme rejected.', $context));
+        }
     }
 }

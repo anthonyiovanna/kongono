@@ -54,12 +54,13 @@ final readonly class SessionMiddleware implements MiddlewareInterface
         }
 
         if ($isNew || $session->wasRegenerated()) {
+            $isHttps = 'https' === strtolower($request->getUri()->getScheme());
             $cookie = new Cookie(
                 name: $this->cookieName,
                 value: $session->id(),
                 maxAge: $this->ttlSeconds,
                 path: '/',
-                secure: $this->secure,
+                secure: $this->secure || $isHttps,
                 httpOnly: true,
                 sameSite: $this->sameSite,
             );

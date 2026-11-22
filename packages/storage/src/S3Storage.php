@@ -126,7 +126,11 @@ final readonly class S3Storage implements StorageInterface
         }
 
         $objects = [];
-        $xml = @simplexml_load_string($res['body']);
+        // Defend against XML Entity Expansion / XXE payloads in upstream responses
+        if (1 === preg_match('/<!(?:DOCTYPE|ENTITY)\b/i', $res['body'])) {
+            throw new StorageException('Unsafe XML DOCTYPE/ENTITY declaration rejected in S3 ListObjectsV2 response.');
+        }
+        $xml = @simplexml_load_string($res['body'], \SimpleXMLElement::class, LIBXML_NONET | LIBXML_NOCDATA);
         if (false !== $xml && isset($xml->Contents)) {
             foreach ($xml->Contents as $item) {
                 $objects[] = new ObjectMeta(

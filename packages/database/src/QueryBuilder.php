@@ -39,6 +39,9 @@ final class QueryBuilder
     private ?string $requiredTenantColumn = null;
     private bool $tenantScoped = false;
 
+    /** @var array{column: string, value: int|string}|null */
+    private ?array $tenantConstraint = null;
+
     public function __construct(
         private readonly string $table,
         private readonly Dialect $dialect = Dialect::Postgres,
@@ -97,6 +100,8 @@ final class QueryBuilder
 
     /**
      * Bind a fail-closed row-level tenant scope (`WHERE <column> = ?`).
+     * Stored independently from user WHERE clauses so top-level `orWhere()` can NEVER
+     * escape tenant isolation via SQL AND/OR operator precedence.
      */
     public function forTenant(TenantContext|int|string $tenant, string $column = 'workspace_id'): self
     {
@@ -105,8 +110,9 @@ final class QueryBuilder
 
         $this->requiredTenantColumn = $col;
         $this->tenantScoped = true;
+        $this->tenantConstraint = ['column' => $col, 'value' => $id];
 
-        return $this->addWhere('AND', $col, '=', $id);
+        return $this;
     }
 
     /**
@@ -296,14 +302,9 @@ final class QueryBuilder
             );
         }
 
-        if ([] !== $this->wheres) {
-            $whereClauses = [];
-            foreach ($this->wheres as $index => $where) {
-                $prefix = 0 === $index ? '' : $where['boolean'] . ' ';
-                $whereClauses[] = $prefix . $where['sql'];
-                array_push($bindings, ...$where['bindings']);
-            }
-            $parts[] = 'WHERE ' . implode(' ', $whereClauses);
+        $whereSql = $this->compileWhereClause($bindings);
+        if (null !== $whereSql) {
+            $parts[] = 'WHERE ' . $whereSql;
         }
 
         if ([] !== $this->groups) {
@@ -450,7 +451,7 @@ final class QueryBuilder
         if ([] === $values) {
             throw new DatabaseException('Cannot compile UPDATE with empty values.');
         }
-        if ([] === $this->wheres && !$allowUnscoped) {
+        if ([] === $this->wheres && null === $this->tenantConstraint && !$allowUnscoped) {
             throw new DatabaseException('Refusing unscoped UPDATE without WHERE clause. Pass $allowUnscoped = true to override.');
         }
 
@@ -462,13 +463,9 @@ final class QueryBuilder
         }
 
         $sql = sprintf('UPDATE %s SET %s', $this->dialect->quoteIdentifier($this->table), implode(', ', $sets));
-        if ([] !== $this->wheres) {
-            $clauses = [];
-            foreach ($this->wheres as $i => $w) {
-                $clauses[] = (0 === $i ? '' : $w['boolean'] . ' ') . $w['sql'];
-                array_push($bindings, ...$w['bindings']);
-            }
-            $sql .= ' WHERE ' . implode(' ', $clauses);
+        $whereSql = $this->compileWhereClause($bindings);
+        if (null !== $whereSql) {
+            $sql .= ' WHERE ' . $whereSql;
         }
 
         if ([] !== $returning && $this->dialect->supportsReturning()) {
@@ -486,19 +483,15 @@ final class QueryBuilder
     public function toDeleteSql(array $returning = [], bool $allowUnscoped = false): Sql
     {
         $this->assertTenantScoped('DELETE');
-        if ([] === $this->wheres && !$allowUnscoped) {
+        if ([] === $this->wheres && null === $this->tenantConstraint && !$allowUnscoped) {
             throw new DatabaseException('Refusing unscoped DELETE without WHERE clause. Pass $allowUnscoped = true to override.');
         }
 
         $bindings = [];
         $sql = sprintf('DELETE FROM %s', $this->dialect->quoteIdentifier($this->table));
-        if ([] !== $this->wheres) {
-            $clauses = [];
-            foreach ($this->wheres as $i => $w) {
-                $clauses[] = (0 === $i ? '' : $w['boolean'] . ' ') . $w['sql'];
-                array_push($bindings, ...$w['bindings']);
-            }
-            $sql .= ' WHERE ' . implode(' ', $clauses);
+        $whereSql = $this->compileWhereClause($bindings);
+        if (null !== $whereSql) {
+            $sql .= ' WHERE ' . $whereSql;
         }
 
         if ([] !== $returning && $this->dialect->supportsReturning()) {
@@ -681,6 +674,66 @@ final class QueryBuilder
                 $this->requiredTenantColumn,
             ));
         }
+
+        // Prevent SQL operator-precedence tenant bypass when requireTenant() is combined with top-level OR
+        if (null !== $this->requiredTenantColumn && null === $this->tenantConstraint) {
+            foreach ($this->wheres as $index => $where) {
+                if ($index > 0 && 'OR' === $where['boolean']) {
+                    throw new DatabaseException(sprintf(
+                        'Refusing cross-tenant %s on "%s": top-level OR clause can bypass requireTenant("%s"). Use forTenant() or wrap OR conditions inside whereGroup().',
+                        $operation,
+                        $this->table,
+                        $this->requiredTenantColumn,
+                    ));
+                }
+            }
+        }
+    }
+
+    /**
+     * Compile combined tenant constraint + user WHERE clauses safely.
+     *
+     * @param list<mixed> $bindings
+     */
+    private function compileWhereClause(array &$bindings): ?string
+    {
+        if (null === $this->tenantConstraint && [] === $this->wheres) {
+            return null;
+        }
+
+        $userSql = '';
+        $userBindings = [];
+        $hasTopLevelOr = false;
+        if ([] !== $this->wheres) {
+            $clauses = [];
+            foreach ($this->wheres as $i => $w) {
+                if ($i > 0 && 'OR' === $w['boolean']) {
+                    $hasTopLevelOr = true;
+                }
+                $clauses[] = (0 === $i ? '' : $w['boolean'] . ' ') . $w['sql'];
+                array_push($userBindings, ...$w['bindings']);
+            }
+            $userSql = implode(' ', $clauses);
+        }
+
+        if (null !== $this->tenantConstraint) {
+            $tenantSql = sprintf('%s = ?', $this->dialect->quoteIdentifier($this->tenantConstraint['column']));
+            $bindings[] = $this->tenantConstraint['value'];
+
+            if ('' === $userSql) {
+                return $tenantSql;
+            }
+
+            array_push($bindings, ...$userBindings);
+
+            return $hasTopLevelOr
+                ? sprintf('%s AND (%s)', $tenantSql, $userSql)
+                : sprintf('%s AND %s', $tenantSql, $userSql);
+        }
+
+        array_push($bindings, ...$userBindings);
+
+        return $userSql;
     }
 
     private function matchesTenantColumn(string $column, string $required): bool

@@ -61,7 +61,7 @@ final class KongonoMcpFactory
 
         $server = new McpServer(
             serverName: 'kongono-framework',
-            serverVersion: '1.4.0',
+            serverVersion: '1.4.1',
             principal: $principal,
         );
 
@@ -346,9 +346,16 @@ final class KongonoMcpFactory
                 if ('' === $path) {
                     throw new \InvalidArgumentException('Parameter "path" is required.');
                 }
-                $base = strtolower(basename(str_replace('\\', '/', $path)));
-                if (str_starts_with($base, '.env') && '.env.example' !== $base) {
-                    throw new \InvalidArgumentException('Reading environment secret files (.env) via MCP is forbidden.');
+                $normalizedPath = ltrim(str_replace('\\', '/', $path), '/');
+                $lowerPath = strtolower($normalizedPath);
+                $base = strtolower(basename($normalizedPath));
+                $forbiddenExt = (bool) preg_match('/\.(pem|key|p12|pfx|jks|kdbx|sqlite3?)\z/', $base);
+                $forbiddenName = (str_starts_with($base, '.env') && '.env.example' !== $base)
+                    || in_array($base, ['id_rsa', 'id_ed25519', 'id_ecdsa', '.netrc', '.npmrc', '.pypirc', 'credentials.json', 'service-account.json'], true)
+                    || str_starts_with($lowerPath, '.git/')
+                    || str_contains($lowerPath, '/.git/');
+                if ($forbiddenExt || $forbiddenName) {
+                    throw new \InvalidArgumentException('Reading sensitive secret/credential files via MCP is forbidden.');
                 }
 
                 return $context->readFileSafe($path);

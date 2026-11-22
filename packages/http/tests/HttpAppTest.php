@@ -604,6 +604,101 @@ final class HttpAppTest extends TestCase
         self::assertStringContainsString('->assertCreated();', $exported);
         self::assertStringNotContainsString('super-secret-jwt-token', $exported);
     }
+
+    public function testHttpSecurityHardeningCrlfRedirectsCrossUserIdempotencyAndStaticSandbox(): void
+    {
+        // 1. Response CRLF header injection & unsafe javascript: redirect schemes fail closed
+        try {
+            Response::text('ok')->withHeader('X-Test', "ok\r\nSet-Cookie: evil=1");
+            self::fail('Expected CRLF header injection to be rejected.');
+        } catch (\InvalidArgumentException $e) {
+            self::assertStringContainsString('CRLF', $e->getMessage());
+        }
+
+        try {
+            Response::redirect('javascript:alert(1)');
+            self::fail('Expected javascript: redirect scheme to be rejected.');
+        } catch (\InvalidArgumentException $e) {
+            self::assertStringContainsString('URL scheme rejected', $e->getMessage());
+        }
+
+        try {
+            Response::fragment('<p>hi</p>', redirect: 'data:text/html,<script>alert(1)</script>');
+            self::fail('Expected data: fragment redirect to be rejected.');
+        } catch (\InvalidArgumentException $e) {
+            self::assertStringContainsString('URL scheme rejected', $e->getMessage());
+        }
+
+        // 2. Cookie strict validation (SameSite=None requires Secure; CRLF/semicolon rejected)
+        try {
+            new Cookie('sid', 'abc', secure: false, sameSite: 'None');
+            self::fail('Expected SameSite=None without Secure to fail.');
+        } catch (\InvalidArgumentException $e) {
+            self::assertStringContainsString('secure: true', $e->getMessage());
+        }
+
+        // 3. Cross-user Idempotency-Key isolation (User B cannot replay User A's cached response!)
+        $cache = new MemoryCache();
+        $calls = new \ArrayObject(['n' => 0]);
+        $app = App::create(__DIR__)
+            ->middleware(new \Kongono\Http\Middleware\IdempotencyMiddleware($cache))
+            ->routes(static function (Router $r) use ($calls): void {
+                $r->post('/checkout', static function (Request $req) use ($calls): Response {
+                    $calls['n'] = ($calls['n'] ?? 0) + 1;
+
+                    return Response::json([
+                        'actor' => $req->header('Authorization'),
+                        'call' => $calls['n'],
+                    ], 201);
+                });
+            });
+
+        $rA = $app->handle(Request::json('POST', '/checkout', ['plan' => 'pro'], [
+            'Authorization' => 'Bearer user-a-token',
+            'Idempotency-Key' => 'shared-key-1',
+        ]));
+        $rB = $app->handle(Request::json('POST', '/checkout', ['plan' => 'pro'], [
+            'Authorization' => 'Bearer user-b-token',
+            'Idempotency-Key' => 'shared-key-1',
+        ]));
+        self::assertSame(201, $rA->getStatusCode());
+        self::assertSame(201, $rB->getStatusCode());
+        self::assertSame('', $rB->getHeaderLine('Idempotency-Replayed'));
+        self::assertStringContainsString('user-b-token', (string) $rB->getBody());
+        self::assertSame(2, $calls['n']);
+
+        // 4. StaticFilesMiddleware blocks dotfiles, adds nosniff, and sandboxes SVG scripts
+        $pub = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-static-sec-' . bin2hex(random_bytes(4));
+        mkdir($pub, 0o777, true);
+        file_put_contents($pub . '/.env.txt', 'APP_KEY=secret');
+        file_put_contents($pub . '/logo.svg', '<svg><script>alert(1)</script></svg>');
+
+        try {
+            $staticApp = App::create(__DIR__)
+                ->middleware(new StaticFilesMiddleware($pub, '/assets/'));
+
+            self::assertSame(404, $staticApp->handle(Request::create('GET', '/assets/.env.txt'))->getStatusCode());
+            self::assertSame(404, $staticApp->handle(Request::create('GET', '/assets/%2e%2e/secret.txt'))->getStatusCode());
+
+            $svg = $staticApp->handle(Request::create('GET', '/assets/logo.svg'));
+            self::assertSame(200, $svg->getStatusCode());
+            self::assertSame('nosniff', $svg->getHeaderLine('X-Content-Type-Options'));
+            self::assertStringContainsString('sandbox', $svg->getHeaderLine('Content-Security-Policy'));
+        } finally {
+            @unlink($pub . '/.env.txt');
+            @unlink($pub . '/logo.svg');
+            @rmdir($pub);
+        }
+
+        // 5. SessionMiddleware automatically sets Secure cookie flag on HTTPS requests
+        $sessApp = App::create(__DIR__)
+            ->middleware(new SessionMiddleware(new CacheSessionStore(new MemoryCache()), secure: false))
+            ->routes(static function (Router $r): void {
+                $r->get('/tls', static fn(): Response => Response::text('ok'));
+            });
+        $tlsRes = $sessApp->handle(Request::create('GET', 'https://app.kongono.dev/tls'));
+        self::assertStringContainsString('Secure', $tlsRes->getHeaderLine('Set-Cookie'));
+    }
 }
 
 final readonly class CachedDemoController

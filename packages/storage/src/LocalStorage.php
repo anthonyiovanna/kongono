@@ -224,7 +224,14 @@ final readonly class LocalStorage implements StorageInterface
     private function normalizeKey(string $key): string
     {
         $clean = ltrim(str_replace('\\', '/', trim($key)), '/');
-        if ('' === $clean || str_contains($clean, '..') || str_contains($clean, "\0") || str_ends_with($clean, self::META_SUFFIX)) {
+        if (
+            '' === $clean
+            || str_contains($clean, '..')
+            || str_contains($clean, "\0")
+            || str_contains($clean, ':')
+            || 1 === preg_match('/[\x00-\x1f\x7f]/', $clean)
+            || str_ends_with($clean, self::META_SUFFIX)
+        ) {
             throw new StorageException(sprintf('Invalid storage key "%s".', $key));
         }
 

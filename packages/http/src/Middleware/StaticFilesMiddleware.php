@@ -57,15 +57,31 @@ final readonly class StaticFilesMiddleware implements MiddlewareInterface
         }
 
         $relative = ltrim(substr($path, strlen($this->urlPrefix)), '/');
-        if ('' === $relative || str_contains($relative, '..') || str_contains($relative, "\0")) {
+        $decodedRelative = rawurldecode($relative);
+        if (
+            '' === $relative
+            || str_contains($relative, '..')
+            || str_contains($decodedRelative, '..')
+            || str_contains($relative, '\\')
+            || str_contains($decodedRelative, '\\')
+            || str_contains($relative, "\0")
+            || str_contains($decodedRelative, "\0")
+        ) {
             return $handler->handle($request);
         }
 
-        $candidate = $this->root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+        // Never expose dotfiles/hidden directories (e.g. .env, .git, .htaccess)
+        foreach (explode('/', $decodedRelative) as $segment) {
+            if ('' === $segment || str_starts_with($segment, '.')) {
+                return $handler->handle($request);
+            }
+        }
+
+        $candidate = $this->root . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $decodedRelative);
         $real = realpath($candidate);
         $prefix = rtrim($this->root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
-        if (false === $real || !is_file($real) || !str_starts_with($real, $prefix)) {
+        if (false === $real || !is_file($real) || is_link($candidate) || !str_starts_with($real, $prefix)) {
             return $handler->handle($request);
         }
 
@@ -84,7 +100,11 @@ final readonly class StaticFilesMiddleware implements MiddlewareInterface
             'Content-Type' => self::MIME_TYPES[$ext],
             'ETag' => $etag,
             'Cache-Control' => $this->cacheControl,
+            'X-Content-Type-Options' => 'nosniff',
         ];
+        if ('svg' === $ext) {
+            $headers['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
+        }
 
         if (trim($request->getHeaderLine('If-None-Match')) === $etag) {
             return new Response(304, $headers);

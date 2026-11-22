@@ -74,8 +74,12 @@ final readonly class Email
 
     public function attach(string $filename, string $bytes, string $contentType = 'application/octet-stream'): self
     {
-        $cleanFilename = basename(str_replace(["\r", "\n", '"'], '', $filename));
-        $attachments = [...$this->attachments, ['filename' => $cleanFilename, 'contentType' => $contentType, 'bytes' => $bytes]];
+        $cleanFilename = basename(str_replace(["\r", "\n", "\0", '"'], '', $filename));
+        $cleanType = trim(str_replace(["\r", "\n", "\0"], '', $contentType));
+        if ('' === $cleanType) {
+            $cleanType = 'application/octet-stream';
+        }
+        $attachments = [...$this->attachments, ['filename' => $cleanFilename, 'contentType' => $cleanType, 'bytes' => $bytes]];
 
         return new self($this->from, $this->to, $this->cc, $this->bcc, $this->replyTo, $this->subject, $this->textBody, $this->htmlBody, $attachments);
     }

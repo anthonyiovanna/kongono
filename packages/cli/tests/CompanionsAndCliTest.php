@@ -161,7 +161,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.4.0', $vOut);
+            self::assertStringContainsString('v1.4.1', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -286,11 +286,18 @@ final class CompanionsAndCliTest extends TestCase
         self::assertFalse($lesson['result']['isError']);
         self::assertStringContainsString('Routing & Controllers', $lesson['result']['content'][0]['text']);
 
-        // Reading .env is explicitly blocked by kongono_read_file
-        $envBlocked = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"kongono_read_file","arguments":{"path":".env"}}}'), true, 32, JSON_THROW_ON_ERROR);
-        self::assertIsArray($envBlocked);
-        self::assertTrue($envBlocked['result']['isError']);
-        self::assertStringContainsString('forbidden', $envBlocked['result']['content'][0]['text']);
+        // Reading .env and private key / .git files is explicitly blocked by kongono_read_file
+        foreach (['.env', 'certs/server.pem', 'keys/id_rsa', '.git/config'] as $idx => $blockedPath) {
+            $blockedRes = json_decode((string) $server->handleJson(json_encode([
+                'jsonrpc' => '2.0',
+                'id' => 50 + $idx,
+                'method' => 'tools/call',
+                'params' => ['name' => 'kongono_read_file', 'arguments' => ['path' => $blockedPath]],
+            ], JSON_THROW_ON_ERROR)), true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($blockedRes);
+            self::assertTrue($blockedRes['result']['isError'], 'Expected MCP read block for ' . $blockedPath);
+            self::assertStringContainsString('forbidden', $blockedRes['result']['content'][0]['text']);
+        }
 
         // Reading regular source file succeeds
         $readOk = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"kongono_read_file","arguments":{"path":"src/Http/NoteController.php"}}}'), true, 32, JSON_THROW_ON_ERROR);

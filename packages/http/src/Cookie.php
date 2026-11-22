@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kongono\Http;
 
+use InvalidArgumentException;
+
 /** Immutable HTTP cookie value object (persistent-runtime safe — never calls PHP setcookie()). */
 final readonly class Cookie
 {
@@ -16,7 +18,23 @@ final readonly class Cookie
         public bool $secure = false,
         public bool $httpOnly = true,
         public string $sameSite = 'Lax',
-    ) {}
+    ) {
+        if (1 !== preg_match('/\A[a-zA-Z0-9!#$%&\'*+.^_`|~-]+\z/', $name)) {
+            throw new InvalidArgumentException(sprintf('Invalid cookie name "%s".', $name));
+        }
+        if (false !== strpbrk($path, "\r\n;\0")) {
+            throw new InvalidArgumentException('Cookie path contains forbidden control or delimiter characters.');
+        }
+        if (null !== $domain && false !== strpbrk($domain, "\r\n;\0 ")) {
+            throw new InvalidArgumentException('Cookie domain contains forbidden characters.');
+        }
+        if ('' !== $sameSite && !in_array($sameSite, ['Strict', 'Lax', 'None'], true)) {
+            throw new InvalidArgumentException(sprintf('Invalid SameSite attribute "%s" (expected Strict, Lax, or None).', $sameSite));
+        }
+        if ('None' === $sameSite && !$secure) {
+            throw new InvalidArgumentException('Cookies with SameSite=None must also set secure: true.');
+        }
+    }
 
     public function toHeaderValue(): string
     {

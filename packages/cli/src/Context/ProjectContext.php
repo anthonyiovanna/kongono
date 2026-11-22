@@ -149,12 +149,25 @@ final readonly class ProjectContext
         $prefix = rtrim($this->rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
         if ($mustExist) {
+            if (is_link($candidate)) {
+                throw new CoreException(sprintf('Symlink "%s" is not permitted.', $relativePath));
+            }
             $real = realpath($candidate);
             if (false === $real || !is_file($real) || !str_starts_with($real, $prefix)) {
                 throw new CoreException(sprintf('File "%s" does not exist within project root.', $relativePath));
             }
 
             return $real;
+        }
+
+        // Verify nearest existing ancestor directory is strictly contained inside rootPath (blocks symlink escape)
+        $probeDir = dirname($candidate);
+        while (!file_exists($probeDir) && $probeDir !== dirname($probeDir)) {
+            $probeDir = dirname($probeDir);
+        }
+        $realDir = realpath($probeDir);
+        if (false === $realDir || ($realDir !== $this->rootPath && !str_starts_with($realDir . DIRECTORY_SEPARATOR, $prefix))) {
+            throw new CoreException(sprintf('Target directory for "%s" escapes project root.', $relativePath));
         }
 
         return $candidate;

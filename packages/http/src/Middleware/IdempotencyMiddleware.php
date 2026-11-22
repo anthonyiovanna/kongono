@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Http\Middleware;
 
+use Closure;
 use Kongono\Core\Cache\CacheInterface;
 use Kongono\Http\HttpException;
 use Kongono\Http\Response;
@@ -26,11 +27,13 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
 {
     private const array MUTATING_METHODS = ['POST', 'PUT', 'PATCH'];
 
+    /** @param (Closure(ServerRequestInterface): string)|null $scopeResolver Optional actor/tenant scope resolver */
     public function __construct(
         private CacheInterface $cache,
         private int $ttlSeconds = 86400,
         private string $headerName = 'Idempotency-Key',
         private string $cachePrefix = 'kongono:idemp:',
+        private ?Closure $scopeResolver = null,
     ) {}
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -48,9 +51,11 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
             throw new HttpException(400, 'Idempotency-Key header must not exceed 128 characters.');
         }
 
+        $actorScope = $this->resolveActorScope($request);
         $body = (string) $request->getBody();
-        $fingerprint = hash('sha256', $method . '|' . $request->getUri()->getPath() . '|' . $body);
-        $cacheKey = $this->cachePrefix . hash('sha256', $idempotencyKey);
+        $path = $request->getUri()->getPath();
+        $fingerprint = hash('sha256', $method . '|' . $path . '|' . $body);
+        $cacheKey = $this->cachePrefix . hash('sha256', $actorScope . '|' . $method . '|' . $path . '|' . $idempotencyKey);
         $lockKey = $cacheKey . ':lock';
 
         $existing = $this->cache->get($cacheKey);
@@ -99,5 +104,30 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
         } finally {
             $this->cache->delete($lockKey);
         }
+    }
+
+    /**
+     * Partition idempotency keys per authenticated actor (Principal, Bearer token, or session cookie)
+     * so two different users or tenants can NEVER replay or probe each other's responses.
+     */
+    private function resolveActorScope(ServerRequestInterface $request): string
+    {
+        if (null !== $this->scopeResolver) {
+            return ($this->scopeResolver)($request);
+        }
+
+        $auth = trim($request->getHeaderLine('Authorization'));
+        if ('' !== $auth) {
+            return 'auth:' . hash('sha256', $auth);
+        }
+
+        $cookies = $request->getCookieParams();
+        if ([] !== $cookies) {
+            ksort($cookies, SORT_STRING);
+
+            return 'cookie:' . hash('sha256', json_encode($cookies, JSON_THROW_ON_ERROR));
+        }
+
+        return 'anon';
     }
 }

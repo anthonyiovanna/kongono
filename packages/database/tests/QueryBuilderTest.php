@@ -452,4 +452,39 @@ final class QueryBuilderTest extends TestCase
         $this->expectExceptionMessage('Potential N+1 query detected');
         $strictGuard->record('SELECT * FROM items WHERE id = 11');
     }
+
+    public function testTenantScopeCannotBeBypassedByTopLevelOrWherePrecedence(): void
+    {
+        // forTenant() + orWhere() MUST parenthesize user OR predicates across SELECT/UPDATE/DELETE
+        $select = (new QueryBuilder('invoices', Dialect::Postgres))
+            ->forTenant(42)
+            ->where('status', '=', 'open')
+            ->orWhere('status', '=', 'overdue')
+            ->toSelectSql();
+        self::assertSame(
+            'SELECT * FROM "invoices" WHERE "workspace_id" = ? AND ("status" = ? OR "status" = ?)',
+            $select->query,
+        );
+        self::assertSame([42, 'open', 'overdue'], $select->bindings);
+
+        $update = (new QueryBuilder('invoices', Dialect::Postgres))
+            ->forTenant(42)
+            ->where('status', '=', 'open')
+            ->orWhere('status', '=', 'overdue')
+            ->toUpdateSql(['status' => 'archived']);
+        self::assertSame(
+            'UPDATE "invoices" SET "status" = ? WHERE "workspace_id" = ? AND ("status" = ? OR "status" = ?)',
+            $update->query,
+        );
+        self::assertSame(['archived', 42, 'open', 'overdue'], $update->bindings);
+
+        // requireTenant() + ungrouped top-level orWhere() MUST fail closed
+        $this->expectException(DatabaseException::class);
+        $this->expectExceptionMessage('top-level OR clause can bypass requireTenant');
+        (new QueryBuilder('invoices', Dialect::Postgres))
+            ->requireTenant('workspace_id')
+            ->where('workspace_id', '=', 42)
+            ->orWhere('status', '=', 'overdue')
+            ->toSelectSql();
+    }
 }

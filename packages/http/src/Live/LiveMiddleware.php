@@ -127,12 +127,12 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     try {
       const res = await fetch(live.url, init);
       const redirect = res.headers.get("X-Kongono-Redirect");
-      if (redirect) {
+      if (redirect && !/^\s*(?:javascript|data|vbscript):/i.test(redirect)) {
         window.location.assign(redirect);
         return;
       }
       const pushUrl = res.headers.get("X-Kongono-Push-Url");
-      if (pushUrl && window.history && window.history.pushState) {
+      if (pushUrl && pushUrl.startsWith("/") && !pushUrl.startsWith("//") && window.history && window.history.pushState) {
         window.history.pushState({}, "", pushUrl);
       }
       const text = await res.text();

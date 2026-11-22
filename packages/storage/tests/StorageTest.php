@@ -125,6 +125,31 @@ final class StorageTest extends TestCase
         self::assertFalse($storage->exists('docs/hello.txt'));
     }
 
+    public function testStorageRejectsAlternateDataStreamsAndS3XxePayloads(): void
+    {
+        $local = new LocalStorage($this->tempDir);
+        try {
+            $local->put('report.txt:hidden_stream', 'evil');
+            self::fail('Expected NTFS ADS / colon storage key to be rejected.');
+        } catch (StorageException $e) {
+            self::assertStringContainsString('Invalid storage key', $e->getMessage());
+        }
+
+        $s3 = new S3Storage(
+            bucket: 'my-bucket',
+            accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+            secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            httpSender: static fn(): array => [
+                'status' => 200,
+                'headers' => [],
+                'body' => '<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><ListBucketResult/>',
+            ],
+        );
+        $this->expectException(StorageException::class);
+        $this->expectExceptionMessage('Unsafe XML DOCTYPE/ENTITY');
+        $s3->list();
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {
