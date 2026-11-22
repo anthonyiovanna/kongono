@@ -47,16 +47,20 @@ final readonly class BridgeMiddleware implements MiddlewareInterface
         if (('GET' === $method || 'HEAD' === $method) && $path === $this->scriptPath) {
             $script = self::scriptSource();
             $etag = 'W/"' . hash('sha256', $script) . '"';
+            $hasVersion = str_contains($request->getUri()->getQuery(), 'v=');
+            $cacheControl = $hasVersion
+                ? sprintf('public, max-age=%d, immutable', max(0, $this->maxAgeSeconds))
+                : 'public, max-age=0, must-revalidate';
             if (trim($request->getHeaderLine('If-None-Match')) === $etag) {
                 return new Response(304, [
                     'ETag' => $etag,
-                    'Cache-Control' => sprintf('public, max-age=%d', max(0, $this->maxAgeSeconds)),
+                    'Cache-Control' => $cacheControl,
                 ]);
             }
 
             return new Response(200, [
                 'Content-Type' => 'application/javascript; charset=utf-8',
-                'Cache-Control' => sprintf('public, max-age=%d', max(0, $this->maxAgeSeconds)),
+                'Cache-Control' => $cacheControl,
                 'ETag' => $etag,
                 'X-Content-Type-Options' => 'nosniff',
             ], 'HEAD' === $method ? null : Stream::fromString($script));

@@ -1141,6 +1141,9 @@ final class HttpAppTest extends TestCase
         // Bridge JS runtime served with ETag, mountIslands, + zero eval
         $jsRes = $app->handle(Request::create('GET', '/_kongono/bridge.js'));
         self::assertSame(200, $jsRes->getStatusCode());
+        self::assertSame('public, max-age=0, must-revalidate', $jsRes->getHeaderLine('Cache-Control'));
+        $jsVer = $app->handle(Request::create('GET', '/_kongono/bridge.js?v=1.10.1'));
+        self::assertStringContainsString('immutable', $jsVer->getHeaderLine('Cache-Control'));
         self::assertStringContainsString('window.KongonoBridge', (string) $jsRes->getBody());
         self::assertStringContainsString('mountIslands', (string) $jsRes->getBody());
         self::assertStringContainsString('kongono:island-props', (string) $jsRes->getBody());

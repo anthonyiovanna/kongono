@@ -82,9 +82,9 @@ final class TemplateCompiler
         $output = $this->replaceCallback('/@t\s*\((.+?)\)/', static fn(array $m): string => sprintf('<?php echo $__env->translate(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/@vite\s*\((.+?)\)/', static fn(array $m): string => sprintf('<?php echo $__env->vite(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/@liveScript\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)/', static fn(array $m): string => sprintf('<script src="%s" defer></script>', htmlspecialchars($m[1], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')), $output);
-        $output = str_replace('@liveScript', '<script src="/_kongono/live.js" defer></script>', $output);
+        $output = str_replace('@liveScript', '<script src="/_kongono/live.js?v=2.5.0" defer></script>', $output);
         $output = $this->replaceCallback('/@bridgeScript\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)/', static fn(array $m): string => sprintf('<script src="%s" defer></script>', htmlspecialchars($m[1], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')), $output);
-        $output = str_replace('@bridgeScript', '<script src="/_kongono/bridge.js" defer></script>', $output);
+        $output = str_replace('@bridgeScript', '<script src="/_kongono/bridge.js?v=1.10.1" defer></script>', $output);
         $output = $this->replaceCallback('/@state\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php echo $__env->stateAttr(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/@island\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php echo $__env->island(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/@safeHtml\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php echo $__env->safeHtml(%s); ?>', $m[1]), $output);

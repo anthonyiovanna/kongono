@@ -229,7 +229,7 @@ HTML,
         file_put_contents($this->tempDir . '/views/live-custom.kgn.html', '<head>@liveScript("/assets/kgn-live.js")</head>');
 
         $engine = new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache');
-        self::assertSame('<head><script src="/_kongono/live.js" defer></script></head>', $engine->render('live-default'));
+        self::assertSame('<head><script src="/_kongono/live.js?v=2.5.0" defer></script></head>', $engine->render('live-default'));
         self::assertSame('<head><script src="/assets/kgn-live.js" defer></script></head>', $engine->render('live-custom'));
 
         // Poisoned public/hot with javascript: scheme fails closed
@@ -318,8 +318,8 @@ HTML,
         self::assertStringContainsString('k-state="', $islandHtml);
         self::assertStringContainsString('id="chart-1" data-k-island="Charts/BidHistory"', $islandHtml);
         self::assertStringContainsString('data-k-hydrate="visible" k-ignore=""', $islandHtml);
-        self::assertStringNotContainsString('</script>', substr($islandHtml, 0, strpos($islandHtml, '<script src="/_kongono/bridge.js"') ?: 0));
-        self::assertStringContainsString('<script src="/_kongono/bridge.js" defer></script>', $islandHtml);
+        self::assertStringNotContainsString('</script>', substr($islandHtml, 0, strpos($islandHtml, '<script src="/_kongono/bridge.js?v=1.10.1"') ?: 0));
+        self::assertStringContainsString('<script src="/_kongono/bridge.js?v=1.10.1" defer></script>', $islandHtml);
 
         // @island rejects traversal component names & invalid hydration strategies
         file_put_contents($this->tempDir . '/views/bad_island.kgn.html', "@island('../Evil', [])");
