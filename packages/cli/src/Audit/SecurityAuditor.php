@@ -26,6 +26,14 @@ use SplFileInfo;
  */
 final readonly class SecurityAuditor
 {
+    /** Minimum patched PHP 8.5 release closing PHP2Shell (CVE-2026-109618/109619) & phpAfterShell (CVE-2026-126714/115560/129289). */
+    public const string MIN_SAFE_PHP_85 = '8.5.13';
+
+    public static function isVulnerablePhpVersion(string $version): bool
+    {
+        return version_compare($version, self::MIN_SAFE_PHP_85, '<');
+    }
+
     /**
      * @return array{
      *     passed: bool,
@@ -38,12 +46,14 @@ final readonly class SecurityAuditor
      *     attack_probes: list<array{probe: string, passed: bool, detail: string}>
      * }
      */
-    public function audit(string $appRoot, ?App $app = null, bool $attack = false): array
+    public function audit(string $appRoot, ?App $app = null, bool $attack = false, ?string $phpVersionOverride = null): array
     {
         /** @var list<array{severity: 'critical'|'warning'|'info', code: string, message: string, location: string}> $findings */
         $findings = [];
         /** @var list<array{probe: string, passed: bool, detail: string}> $attackProbes */
         $attackProbes = [];
+        $this->auditPhpRuntime($findings, $phpVersionOverride);
+
         $symfonyPackages = $this->countSymfonyPackages($appRoot);
         if ($symfonyPackages > 0) {
             $findings[] = [
@@ -79,6 +89,56 @@ final readonly class SecurityAuditor
             'findings' => $findings,
             'attack_probes' => $attackProbes,
         ];
+    }
+
+    /**
+     * Verify the PHP runtime is patched against critical interpreter CVEs (PHP2Shell / phpAfterShell)
+     * and that hardened php.ini directives are configured.
+     *
+     * @param list<array{severity: 'critical'|'warning'|'info', code: string, message: string, location: string}> $findings
+     */
+    private function auditPhpRuntime(array &$findings, ?string $phpVersionOverride = null): void
+    {
+        $version = $phpVersionOverride ?? PHP_VERSION;
+        if (self::isVulnerablePhpVersion($version)) {
+            $findings[] = [
+                'severity' => 'critical',
+                'code' => 'KGN-AUDIT-PHP-CVE',
+                'message' => sprintf(
+                    'Unpatched PHP %s detected (minimum patched release is %s to close PHP2Shell CVE-2026-109618/109619 and phpAfterShell CVE-2026-126714/115560/129289).',
+                    $version,
+                    self::MIN_SAFE_PHP_85,
+                ),
+                'location' => 'php-runtime',
+            ];
+        }
+
+        if (filter_var((string) ini_get('session.upload_progress.enabled'), FILTER_VALIDATE_BOOL)) {
+            $findings[] = [
+                'severity' => 'warning',
+                'code' => 'KGN-AUDIT-PHP-UPLOAD-PROGRESS',
+                'message' => 'php.ini has session.upload_progress.enabled=On; set Off to disable C-layer multipart session writes (CVE-2026-126714/115560 defense-in-depth).',
+                'location' => 'php.ini',
+            ];
+        }
+
+        if (!filter_var((string) ini_get('zend.exception_ignore_args'), FILTER_VALIDATE_BOOL)) {
+            $findings[] = [
+                'severity' => 'warning',
+                'code' => 'KGN-AUDIT-PHP-EXCEPTION-ARGS',
+                'message' => 'php.ini has zend.exception_ignore_args=Off; set On to harden backtraces (CVE-2026-129474 mitigation & secret hygiene).',
+                'location' => 'php.ini',
+            ];
+        }
+
+        if (filter_var((string) ini_get('expose_php'), FILTER_VALIDATE_BOOL)) {
+            $findings[] = [
+                'severity' => 'warning',
+                'code' => 'KGN-AUDIT-PHP-EXPOSE',
+                'message' => 'php.ini has expose_php=On; set Off so PHP version headers are never leaked.',
+                'location' => 'php.ini',
+            ];
+        }
     }
 
     /**

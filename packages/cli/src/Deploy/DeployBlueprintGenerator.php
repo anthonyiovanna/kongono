@@ -99,7 +99,8 @@ FROM dunglas/frankenphp:1-php8.5-alpine
 WORKDIR /app
 
 RUN install-php-extensions dom pdo_pgsql sodium opcache zip \\
-    && adduser -D -u 10001 -H -s /sbin/nologin kongono
+    && adduser -D -u 10001 -H -s /sbin/nologin kongono \\
+    && printf "expose_php=Off\nsession.upload_progress.enabled=Off\nzend.exception_ignore_args=On\nallow_url_include=Off\ndisplay_errors=Off\nlog_errors=On\n" > /usr/local/etc/php/conf.d/99-kongono-security.ini
 
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress

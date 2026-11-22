@@ -624,6 +624,7 @@ final class Request implements ServerRequestInterface
 
         $cap = max(0, $maxBodyBytes);
         $buf = '';
+        $exceeded = false;
         try {
             while (!feof($input)) {
                 $chunk = fread($input, 65536);
@@ -631,12 +632,33 @@ final class Request implements ServerRequestInterface
                     break;
                 }
                 if (strlen($buf) + strlen($chunk) > $cap) {
-                    throw new HttpException(413, sprintf('Request body exceeds maximum allowed size of %d bytes.', $cap));
+                    $exceeded = true;
+                    // On PHP-FPM, drain a bounded tail before closing to mitigate CVE-2026-129289 unread-body smuggling
+                    if ('fpm-fcgi' === PHP_SAPI) {
+                        $drained = strlen($chunk);
+                        $drainCap = 2_097_152;
+                        while (!feof($input) && $drained < $drainCap) {
+                            $extra = fread($input, 65536);
+                            if (false === $extra || '' === $extra) {
+                                break;
+                            }
+                            $drained += strlen($extra);
+                        }
+                    }
+                    break;
                 }
                 $buf .= $chunk;
             }
         } finally {
             fclose($input);
+        }
+
+        if ($exceeded) {
+            throw new HttpException(
+                413,
+                sprintf('Request body exceeds maximum allowed size of %d bytes.', $cap),
+                headers: ['Connection' => 'close'],
+            );
         }
 
         return Stream::fromString($buf);

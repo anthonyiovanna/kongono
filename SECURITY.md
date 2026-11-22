@@ -6,9 +6,18 @@ Kongono is engineered from the ground up for **fail-closed security, persistent-
 
 | Version | Supported | Notes |
 | :--- | :---: | :--- |
-| **1.7.x** | :white_check_mark: | Active security & bugfix releases |
-| **1.6.x** | :white_check_mark: | Security patches only |
-| **< 1.6** | :x: | Upgrade to `^1.7` (`Encryptor` automatically decrypts legacy `v1.` ciphertexts while emitting `v2.`) |
+| **1.8.x** | :white_check_mark: | Active security & performance releases (requires **PHP >= 8.5.13**) |
+| **1.7.x** | :white_check_mark: | Security patches only |
+| **< 1.7** | :x: | Upgrade to `^1.8` and **PHP >= 8.5.13** (`Encryptor` automatically decrypts legacy `v1.` ciphertexts while emitting `v2.`) |
+
+## PHP Runtime Security Requirements (2026 Advisories)
+
+Kongono enforces **`php >= 8.5.13`** (both via `composer.json` and `kongo audit` / `kongo doctor`) to close the critical 2026 PHP interpreter vulnerabilities:
+
+- **PHP2Shell (`CVE-2026-109618`, `CVE-2026-109619`)** — patched in PHP 8.5.12+
+- **phpAfterShell (`CVE-2026-126714`, `CVE-2026-115560`)**, **PHP-FPM Request Smuggling (`CVE-2026-129289`)**, and **Backtrace/Timezone UAFs (`CVE-2026-129474`, `CVE-2026-129496`)** — patched in PHP 8.5.13+
+
+Kongono never uses `session_start()`, `$_SESSION`, `unserialize()`, or `__call`/`__callStatic` magic facades, and all scaffolded/deployed Dockerfiles automatically install `/usr/local/etc/php/conf.d/99-kongono-security.ini` setting `session.upload_progress.enabled=Off`, `zend.exception_ignore_args=On`, `expose_php=Off`, and `allow_url_include=Off`.
 
 ## Reporting a Vulnerability
 

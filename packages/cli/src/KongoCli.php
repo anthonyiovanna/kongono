@@ -59,7 +59,7 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.8.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.8.1 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
@@ -531,13 +531,23 @@ final readonly class KongoCli
         $lines = ['Kongono Environment & Application Doctor:'];
         $allOk = true;
 
-        $phpOk = version_compare(PHP_VERSION, '8.5.0', '>=');
-        $lines[] = sprintf('  [%s] PHP version: %s (requires >= 8.5.0)', $phpOk ? 'OK  ' : 'FAIL', PHP_VERSION);
+        $phpOk = !SecurityAuditor::isVulnerablePhpVersion(PHP_VERSION);
+        $lines[] = sprintf(
+            '  [%s] PHP version: %s (requires >= %s for 2026 PHP CVE patches)',
+            $phpOk ? 'OK  ' : 'FAIL',
+            PHP_VERSION,
+            SecurityAuditor::MIN_SAFE_PHP_85,
+        );
         if (!$phpOk) {
             $allOk = false;
         }
 
-        foreach (['curl', 'json', 'mbstring', 'pdo', 'sodium'] as $ext) {
+        $uploadProgressOff = !filter_var((string) ini_get('session.upload_progress.enabled'), FILTER_VALIDATE_BOOL);
+        $lines[] = sprintf('  [%s] php.ini session.upload_progress.enabled=Off', $uploadProgressOff ? 'OK  ' : 'WARN');
+        $ignoreArgsOn = filter_var((string) ini_get('zend.exception_ignore_args'), FILTER_VALIDATE_BOOL);
+        $lines[] = sprintf('  [%s] php.ini zend.exception_ignore_args=On', $ignoreArgsOn ? 'OK  ' : 'WARN');
+
+        foreach (['curl', 'dom', 'json', 'mbstring', 'pdo', 'sodium'] as $ext) {
             $loaded = extension_loaded($ext);
             $lines[] = sprintf('  [%s] ext-%s', $loaded ? 'OK  ' : 'FAIL', $ext);
             if (!$loaded) {

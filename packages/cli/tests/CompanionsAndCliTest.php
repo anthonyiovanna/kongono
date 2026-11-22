@@ -171,7 +171,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.8.0', $vOut);
+            self::assertStringContainsString('v1.8.1', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -774,6 +774,18 @@ PHP);
             self::assertStringContainsString('TRUSTED_PROXIES=', $bp['.env.production.example']);
             self::assertStringContainsString('"work", "--daemon"', $bp['docker-compose.prod.yml']);
             self::assertStringContainsString('S3_BUCKET=', $bp['.env.production.example']);
+            self::assertStringContainsString('99-kongono-security.ini', $bp['Dockerfile']);
+            self::assertStringContainsString('session.upload_progress.enabled=Off', $bp['Dockerfile']);
+            self::assertStringContainsString('99-kongono-security.ini', $dockerfile);
+
+            // 6. SecurityAuditor flags unpatched PHP < 8.5.13 (PHP2Shell / phpAfterShell) as CRITICAL
+            self::assertTrue(SecurityAuditor::isVulnerablePhpVersion('8.5.9'));
+            self::assertTrue(SecurityAuditor::isVulnerablePhpVersion('8.5.12'));
+            self::assertFalse(SecurityAuditor::isVulnerablePhpVersion('8.5.13'));
+            self::assertFalse(SecurityAuditor::isVulnerablePhpVersion('8.6.0'));
+            $vulnAudit = (new SecurityAuditor())->audit($appDir, phpVersionOverride: '8.5.9');
+            self::assertFalse($vulnAudit['passed']);
+            self::assertContains('KGN-AUDIT-PHP-CVE', array_column($vulnAudit['findings'], 'code'));
         } finally {
             $this->removeDir($tmp);
         }
