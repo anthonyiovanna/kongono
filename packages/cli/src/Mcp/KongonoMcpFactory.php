@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kongono\Cli\Mcp;
 
 use Kongono\Ai\Agent\AgentPrincipal;
+use Kongono\Ai\Eval\EvalRunner;
 use Kongono\Ai\Mcp\McpServer;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Database\MigrationLinter;
 use Kongono\Cli\Deploy\DeployBlueprintGenerator;
 use Kongono\Cli\Sdk\SdkGenerator;
 use Kongono\Core\Diagnostics\SecretScrubber;
@@ -35,6 +37,8 @@ final class KongonoMcpFactory
         'kongono_sdk_generate',
         'kongono_routes',
         'kongono_audit',
+        'kongono_eval',
+        'kongono_migrate_lint',
         'kongono_test_route',
         'kongono_deploy_preview',
         'kongono_list_files',
@@ -57,7 +61,7 @@ final class KongonoMcpFactory
 
         $server = new McpServer(
             serverName: 'kongono-framework',
-            serverVersion: '1.3.0',
+            serverVersion: '1.4.0',
             principal: $principal,
         );
 
@@ -173,6 +177,38 @@ final class KongonoMcpFactory
             ),
             static function (array $args) use ($appRoot, $app): string {
                 $report = (new SecurityAuditor())->audit($appRoot, $app, attack: (bool) ($args['attack'] ?? false));
+
+                return json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            },
+        );
+
+        $server->registerTool(
+            new ToolDefinition(
+                name: 'kongono_eval',
+                description: 'Run the built-in 12-vector adversarial prompt-injection & PromptGuard canary red-team evaluation battery.',
+                parametersSchema: [
+                    'type' => 'object',
+                    'properties' => (object) [],
+                ],
+            ),
+            static function (): string {
+                $report = (new EvalRunner())->runRedTeamBattery();
+
+                return json_encode($report->toArray(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            },
+        );
+
+        $server->registerTool(
+            new ToolDefinition(
+                name: 'kongono_migrate_lint',
+                description: 'Lint database migrations in migrations/*.php for zero-downtime Postgres/SQL deployment hazards (locking indexes, ADD COLUMN NOT NULL without DEFAULT, DROP COLUMN/TABLE).',
+                parametersSchema: [
+                    'type' => 'object',
+                    'properties' => (object) [],
+                ],
+            ),
+            static function () use ($appRoot): string {
+                $report = (new MigrationLinter())->lintDirectory($appRoot . DIRECTORY_SEPARATOR . 'migrations');
 
                 return json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
             },

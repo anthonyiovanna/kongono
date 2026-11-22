@@ -6,11 +6,13 @@ namespace Kongono\Jobs\Tests;
 
 use Closure;
 use DateTimeImmutable;
+use Kongono\Core\Cache\MemoryCache;
 use Kongono\Core\Cache\RedisClient;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\Dialect;
 use Kongono\Database\QueryBuilder;
 use Kongono\Jobs\Job;
+use Kongono\Jobs\JobException;
 use Kongono\Jobs\JobOutcome;
 use Kongono\Jobs\MemoryQueueDriver;
 use Kongono\Jobs\PostgresQueueDriver;
@@ -19,6 +21,10 @@ use Kongono\Jobs\RedisQueueDriver;
 use Kongono\Jobs\Scheduler\CronExpression;
 use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
+use Kongono\Jobs\Workflow\CacheWorkflowStore;
+use Kongono\Jobs\Workflow\WorkflowContext;
+use Kongono\Jobs\Workflow\WorkflowEngine;
+use Kongono\Jobs\Workflow\WorkflowStatus;
 use PHPUnit\Framework\TestCase;
 
 final class JobsTest extends TestCase
@@ -214,5 +220,71 @@ final class JobsTest extends TestCase
         } finally {
             fclose($serverSock);
         }
+    }
+
+    public function testDurableWorkflowMemoizesStepsSurvivesCrashSleepAndHumanApproval(): void
+    {
+        $store = new CacheWorkflowStore(new MemoryCache());
+        $engine = new WorkflowEngine($store);
+
+        $chargeCount = 0;
+        $crashOnce = true;
+
+        $definition = static function (WorkflowContext $wf) use (&$chargeCount, &$crashOnce): array {
+            $chargeId = $wf->step('charge_stripe', static function () use (&$chargeCount): string {
+                ++$chargeCount;
+
+                return 'ch_12345';
+            });
+
+            if ($crashOnce) {
+                $crashOnce = false;
+                throw new JobException('Transient network timeout with sk_live_1234567890abcdef1234');
+            }
+
+            $wf->sleep(3600);
+
+            $approval = $wf->waitForEvent('manager.approved', timeoutSeconds: 86400);
+
+            $receipt = $wf->step('send_receipt', static fn(): string => 'sent:' . $chargeId);
+
+            return ['charge' => $chargeId, 'approval' => $approval, 'receipt' => $receipt];
+        };
+
+        // Attempt 1: step 1 succeeds & is memoized, step 2 crashes (secret scrubbed in error)
+        $s1 = $engine->run('wf-order-1', 'order.fulfill', $definition, now: 1000);
+        self::assertSame(WorkflowStatus::Failed, $s1->status);
+        self::assertSame(1, $chargeCount);
+        self::assertNotNull($s1->error);
+        self::assertStringNotContainsString('sk_live_1234567890abcdef1234', $s1->error);
+        self::assertStringContainsString('[REDACTED]', $s1->error);
+
+        // Attempt 2: resumes WITHOUT re-charging Stripe, pauses durably at sleep(3600)
+        $s2 = $engine->resume('wf-order-1', $definition, now: 1010);
+        self::assertSame(WorkflowStatus::Sleeping, $s2->status);
+        self::assertSame(1, $chargeCount);
+        self::assertSame(4610, $s2->wakeAt);
+
+        // Attempt 3: after sleep expires, advances to waitForEvent('manager.approved')
+        $s3 = $engine->resume('wf-order-1', $definition, now: 5000);
+        self::assertSame(WorkflowStatus::WaitingForEvent, $s3->status);
+        self::assertSame('manager.approved', $s3->waitingEvent);
+        self::assertSame(1, $chargeCount);
+
+        // Human manager approves via signal(), then workflow completes cleanly
+        $engine->signal('wf-order-1', 'manager.approved', ['by' => 'ada@kongono.dev']);
+        $s4 = $engine->resume('wf-order-1', $definition, now: 5010);
+        self::assertSame(WorkflowStatus::Completed, $s4->status);
+        self::assertSame(1, $chargeCount);
+        self::assertSame([
+            'charge' => 'ch_12345',
+            'approval' => ['by' => 'ada@kongono.dev'],
+            'receipt' => 'sent:ch_12345',
+        ], $s4->output);
+
+        // Re-running a completed workflow is idempotent
+        $s5 = $engine->run('wf-order-1', 'order.fulfill', $definition, now: 6000);
+        self::assertSame(WorkflowStatus::Completed, $s5->status);
+        self::assertSame(1, $chargeCount);
     }
 }

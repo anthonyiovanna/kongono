@@ -161,7 +161,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.3.0', $vOut);
+            self::assertStringContainsString('v1.4.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -321,6 +321,17 @@ final class CompanionsAndCliTest extends TestCase
         self::assertFalse($sdkMcp['result']['isError']);
         self::assertStringContainsString('public final class StarterApi: Sendable', $sdkMcp['result']['content'][0]['text']);
         self::assertStringContainsString('public struct CreateNoteInput: Codable, Sendable', $sdkMcp['result']['content'][0]['text']);
+
+        // v1.4.0 MCP tools: kongono_eval & kongono_migrate_lint
+        $evalMcp = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":11,"method":"tools/call","params":{"name":"kongono_eval"}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($evalMcp);
+        self::assertFalse($evalMcp['result']['isError']);
+        self::assertStringContainsString('"pass_rate": 100', $evalMcp['result']['content'][0]['text']);
+
+        $lintMcp = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":12,"method":"tools/call","params":{"name":"kongono_migrate_lint"}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($lintMcp);
+        self::assertFalse($lintMcp['result']['isError']);
+        self::assertStringContainsString('"passed": true', $lintMcp['result']['content'][0]['text']);
     }
 
     public function testSdkGenerateOutputsTypedSdksForAllFourTargets(): void
@@ -388,5 +399,96 @@ final class CompanionsAndCliTest extends TestCase
         self::assertIsArray($decoded);
         self::assertTrue($decoded['passed']);
         self::assertCount(5, $decoded['attack_probes']);
+    }
+
+    public function testMigrateLintCatchesZeroDowntimeHazardsAndPassesCleanMigrations(): void
+    {
+        $cli = new KongoCli(dirname(__DIR__, 3));
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-mig-lint-' . bin2hex(random_bytes(4));
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'migrations', 0o777, true);
+
+        try {
+            // Safe migration (down() DROP TABLE must not trigger false positive!)
+            file_put_contents($tmp . '/migrations/001_safe.php', <<<'PHP'
+<?php
+// up
+$db->execute('CREATE TABLE items (id BIGSERIAL PRIMARY KEY, name TEXT NOT NULL DEFAULT \'\')');
+$db->execute('CREATE INDEX CONCURRENTLY idx_items_name ON items (name)');
+function down($db): void { $db->execute('DROP TABLE items'); }
+PHP);
+
+            [$okCode, $okOut] = $cli->run(['migrate:lint', '--app=' . $tmp]);
+            self::assertSame(0, $okCode);
+            self::assertStringContainsString('All migrations passed zero-downtime safety checks', $okOut);
+
+            // Hazardous migration: locking index + ADD COLUMN NOT NULL without DEFAULT + DROP COLUMN
+            file_put_contents($tmp . '/migrations/002_unsafe.php', <<<'PHP'
+<?php
+$db->execute('ALTER TABLE items ADD COLUMN tenant_id BIGINT NOT NULL;');
+$db->execute('CREATE INDEX idx_items_tenant ON items (tenant_id);');
+$db->execute('ALTER TABLE items DROP COLUMN legacy_code;');
+PHP);
+
+            [$badCode, $badJson] = $cli->run(['migrate:lint', '--json', '--app=' . $tmp]);
+            self::assertSame(1, $badCode);
+            $report = json_decode($badJson, true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($report);
+            self::assertFalse($report['passed']);
+            self::assertSame(1, $report['counts']['critical']);
+            self::assertSame(2, $report['counts']['warning']);
+            $codes = array_column($report['findings'], 'code');
+            self::assertContains('KGN-MIG-NOT-NULL-NO-DEFAULT', $codes);
+            self::assertContains('KGN-MIG-LOCKING-INDEX', $codes);
+            self::assertContains('KGN-MIG-DROP-COLUMN', $codes);
+        } finally {
+            $this->removeDir($tmp);
+        }
+    }
+
+    public function testKongoEvalRunsRedTeamBatteryAndCustomEvalSuite(): void
+    {
+        $cli = new KongoCli(dirname(__DIR__, 3));
+
+        // Offline red-team battery runs out of the box with zero API keys
+        [$code, $out] = $cli->run(['eval', '--redteam', '--app=' . $this->starterAppRoot]);
+        self::assertSame(0, $code);
+        self::assertStringContainsString('12/12 passed (100.0%)', $out);
+        self::assertStringContainsString('xml_untrusted_breakout', $out);
+
+        [$jCode, $json] = $cli->run(['eval', '--redteam', '--json', '--app=' . $this->starterAppRoot]);
+        self::assertSame(0, $jCode);
+        $decoded = json_decode($json, true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($decoded);
+        self::assertTrue($decoded['passed']);
+        self::assertSame(12, $decoded['total']);
+
+        // Custom evals/suite.php with scripted AI client
+        $ai = new AiClient(new OpenAiProvider('sk-test', transport: new ScriptedTransport(
+            new HttpResponse(200, json_encode([
+                'model' => 'gpt-4.1-mini',
+                'choices' => [['message' => ['content' => 'Kongono is built for PHP 8.5+']]],
+                'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 8],
+            ], JSON_THROW_ON_ERROR)),
+        )));
+        $aiCli = new KongoCli(dirname(__DIR__, 3), $ai);
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-eval-' . bin2hex(random_bytes(4));
+        mkdir($tmp . DIRECTORY_SEPARATOR . 'evals', 0o777, true);
+        file_put_contents($tmp . '/evals/suite.php', <<<'PHP'
+<?php
+declare(strict_types=1);
+use Kongono\Ai\Eval\EvalCase;
+return [
+    new EvalCase(name: 'smoke_eval', prompt: 'What PHP version?', expectedSubstrings: ['PHP 8.5'], maxTokens: 50),
+];
+PHP);
+
+        try {
+            [$cCode, $cOut] = $aiCli->run(['eval', '--app=' . $tmp]);
+            self::assertSame(0, $cCode);
+            self::assertStringContainsString('1/1 passed (100.0%)', $cOut);
+            self::assertStringContainsString('smoke_eval', $cOut);
+        } finally {
+            $this->removeDir($tmp);
+        }
     }
 }

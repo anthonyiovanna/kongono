@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kongono\Http\Dev;
 
 use Closure;
+use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Http\App;
+use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -63,6 +65,23 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             return Response::json(['cleared' => true]);
         }
 
+        if (1 === preg_match('#\A' . preg_quote($base, '#') . '/api/replay/(\d+)\z#', $path, $replayMatch) && 'POST' === $method) {
+            return $this->handleReplay((int) $replayMatch[1], $base);
+        }
+
+        if (1 === preg_match('#\A' . preg_quote($base, '#') . '/api/export-test/(\d+)\z#', $path, $exportMatch) && 'GET' === $method) {
+            $trace = $this->inspector->findTrace((int) $exportMatch[1]);
+            if (null === $trace) {
+                return Response::json(['error' => 'Trace not found.'], 404);
+            }
+            $code = TestExporter::exportPhpUnitTest($trace);
+            if (str_contains(strtolower($request->getHeaderLine('Accept')), 'application/json')) {
+                return Response::json(['trace_id' => $trace['id'], 'code' => $code]);
+            }
+
+            return Response::text($code);
+        }
+
         if ($path === $base . '/api/oshie' && 'POST' === $method) {
             if (null === $this->oshieHandler) {
                 return Response::json(['reply' => 'Oshie browser bridge is not configured on DevDashboardMiddleware.'], 501);
@@ -99,17 +118,72 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
 
         $this->inspector->beginRequest();
         $start = hrtime(true);
+        $rawQuery = $request->getUri()->getQuery();
+        $rawHeaders = $request->getHeaders();
+        $rawBody = (string) $request->getBody();
 
         try {
             $response = $handler->handle($request);
             $durationMs = (hrtime(true) - $start) / 1_000_000;
-            $this->inspector->recordRequest($request->getMethod(), $path, $response->getStatusCode(), $durationMs);
+            $this->inspector->recordRequest(
+                method: $request->getMethod(),
+                path: $path,
+                status: $response->getStatusCode(),
+                durationMs: $durationMs,
+                query: $rawQuery,
+                headers: $rawHeaders,
+                body: $rawBody,
+            );
 
             return $response;
         } catch (Throwable $e) {
             $durationMs = (hrtime(true) - $start) / 1_000_000;
-            $this->inspector->recordRequest($request->getMethod(), $path, 500, $durationMs, $e->getMessage());
+            $this->inspector->recordRequest(
+                method: $request->getMethod(),
+                path: $path,
+                status: 500,
+                durationMs: $durationMs,
+                error: $e->getMessage(),
+                query: $rawQuery,
+                headers: $rawHeaders,
+                body: $rawBody,
+            );
             throw $e;
         }
+    }
+
+    private function handleReplay(int $traceId, string $base): Response
+    {
+        $trace = $this->inspector->findTrace($traceId);
+        if (null === $trace) {
+            return Response::json(['error' => 'Trace not found.'], 404);
+        }
+        if (str_starts_with($trace['path'], $base)) {
+            return Response::json(['error' => 'Recursive Dev Studio replay is forbidden.'], 400);
+        }
+
+        $replayHeaders = [];
+        foreach ($trace['headers'] as $name => $val) {
+            if ('[REDACTED]' !== $val) {
+                $replayHeaders[$name] = $val;
+            }
+        }
+        $uri = '' !== $trace['query'] ? $trace['path'] . '?' . $trace['query'] : $trace['path'];
+        $replayedReq = Request::create($trace['method'], $uri, $replayHeaders, $trace['body']);
+
+        $start = hrtime(true);
+        $res = $this->app->handle($replayedReq);
+        $durationMs = round((hrtime(true) - $start) / 1_000_000, 2);
+        $rawBody = $res instanceof Response ? $res->bodyString() : (string) $res->getBody();
+
+        return Response::json([
+            'replayed_id' => $traceId,
+            'method' => $trace['method'],
+            'uri' => $uri,
+            'original_status' => $trace['status'],
+            'replay_status' => $res->getStatusCode(),
+            'duration_ms' => $durationMs,
+            'body' => substr(SecretScrubber::scrub($rawBody), 0, 4000),
+        ]);
     }
 }

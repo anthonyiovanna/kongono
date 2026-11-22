@@ -556,6 +556,54 @@ final class HttpAppTest extends TestCase
         $fullRes = $client->postForm('/counter', [])->assertOk();
         self::assertStringContainsString('<html><body>', $fullRes->body());
     }
+
+    public function testDevStudioTimeTravelReplayTestExportAndNPlusOneCapture(): void
+    {
+        $inspector = new DevInspector(nPlusOneThreshold: 3);
+        $hits = new \ArrayObject(['count' => 0]);
+
+        $app = App::create(__DIR__)->debug(true);
+        $app->middleware(new DevDashboardMiddleware($app, $inspector));
+        $app->routes(static function (Router $r) use ($inspector, $hits): void {
+            $r->post('/echo', static function (Request $req) use ($inspector, $hits): Response {
+                $hits['count'] = ($hits['count'] ?? 0) + 1;
+                for ($i = 1; $i <= 3; ++$i) {
+                    $inspector->recordQuery("SELECT * FROM notes WHERE id = {$i}", 0.4);
+                }
+
+                return Response::json(['received' => $req->input('msg'), 'hit' => $hits['count']], 201);
+            });
+        });
+
+        $client = new TestClient($app);
+
+        // Execute initial request with an Authorization header that MUST be scrubbed
+        $client->withHeader('Authorization', 'Bearer super-secret-jwt-token')
+            ->postJson('/echo?mode=fast', ['msg' => 'hello'])
+            ->assertCreated()
+            ->assertJsonPath('hit', 1);
+
+        $traces = $inspector->traces();
+        self::assertCount(1, $traces);
+        $traceId = $traces[0]['id'];
+        self::assertSame('[REDACTED]', $traces[0]['headers']['Authorization']);
+        self::assertCount(1, $traces[0]['n_plus_one']);
+        self::assertSame(3, $traces[0]['n_plus_one'][0]['count']);
+
+        // Time-travel replay re-runs the captured request in-process!
+        $replay = $client->postJson('/_kongono/api/replay/' . $traceId, [])->assertOk();
+        $replay->assertJsonPath('replayed_id', $traceId)
+            ->assertJsonPath('original_status', 201)
+            ->assertJsonPath('replay_status', 201);
+        self::assertSame(2, $hits['count']);
+
+        // 1-Click Export as PHPUnit 13 regression test (redacted Authorization omitted)
+        $exported = $client->get('/_kongono/api/export-test/' . $traceId)->assertOk()->body();
+        self::assertStringContainsString('public function testReplayPostEchoTrace' . $traceId . '(): void', $exported);
+        self::assertStringContainsString("->postJson('/echo?mode=fast'", $exported);
+        self::assertStringContainsString('->assertCreated();', $exported);
+        self::assertStringNotContainsString('super-secret-jwt-token', $exported);
+    }
 }
 
 final readonly class CachedDemoController

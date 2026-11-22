@@ -8,19 +8,34 @@ use Kongono\Core\Diagnostics\SecretScrubber;
 
 /**
  * Persistent-runtime-safe bounded ring-buffer inspector capturing recent HTTP requests,
- * latency, status codes, SQL query telemetry, and scrubbed error messages for Kongono Dev Studio.
+ * scrubbed replay snapshots (headers/query/body), SQL query telemetry, N+1 alerts, and errors
+ * for Kongono Dev Studio (`/_kongono`).
  */
 final class DevInspector
 {
+    /** @var list<string> */
+    private const array REDACTED_HEADERS = [
+        'authorization',
+        'cookie',
+        'set-cookie',
+        'x-api-key',
+        'x-csrf-token',
+        'proxy-authorization',
+    ];
+
     /**
      * @var list<array{
      *     id: int,
      *     timestamp: string,
      *     method: string,
      *     path: string,
+     *     query: string,
+     *     headers: array<string, string>,
+     *     body: string,
      *     status: int,
      *     duration_ms: float,
      *     queries: list<array{sql: string, ms: float}>,
+     *     n_plus_one: list<array{pattern: string, count: int}>,
      *     error: ?string
      * }>
      */
@@ -34,6 +49,7 @@ final class DevInspector
     /** @param positive-int $maxTraces */
     public function __construct(
         private readonly int $maxTraces = 50,
+        private readonly int $nPlusOneThreshold = 5,
     ) {}
 
     public function beginRequest(): void
@@ -53,16 +69,41 @@ final class DevInspector
         ];
     }
 
-    public function recordRequest(string $method, string $path, int $status, float $durationMs, ?string $error = null): void
-    {
+    /**
+     * @param array<string, string|array<array-key, string>> $headers
+     */
+    public function recordRequest(
+        string $method,
+        string $path,
+        int $status,
+        float $durationMs,
+        ?string $error = null,
+        string $query = '',
+        array $headers = [],
+        string $body = '',
+    ): void {
+        $safeHeaders = [];
+        foreach ($headers as $name => $val) {
+            $joined = is_array($val) ? implode(', ', $val) : $val;
+            $safeHeaders[$name] = in_array(strtolower($name), self::REDACTED_HEADERS, true)
+                ? '[REDACTED]'
+                : SecretScrubber::scrub($joined);
+        }
+
+        $nPlusOne = $this->detectNPlusOne($this->currentQueries);
+
         $this->traces[] = [
             'id' => ++$this->sequence,
             'timestamp' => gmdate(DATE_ATOM),
             'method' => strtoupper($method),
             'path' => SecretScrubber::scrub($path),
+            'query' => SecretScrubber::scrub($query),
+            'headers' => $safeHeaders,
+            'body' => substr(SecretScrubber::scrub($body), 0, 8192),
             'status' => $status,
             'duration_ms' => round($durationMs, 2),
             'queries' => $this->currentQueries,
+            'n_plus_one' => $nPlusOne,
             'error' => null !== $error ? SecretScrubber::scrub($error) : null,
         ];
         $this->currentQueries = [];
@@ -80,9 +121,13 @@ final class DevInspector
      *     timestamp: string,
      *     method: string,
      *     path: string,
+     *     query: string,
+     *     headers: array<string, string>,
+     *     body: string,
      *     status: int,
      *     duration_ms: float,
      *     queries: list<array{sql: string, ms: float}>,
+     *     n_plus_one: list<array{pattern: string, count: int}>,
      *     error: ?string
      * }>
      */
@@ -91,9 +136,62 @@ final class DevInspector
         return array_reverse($this->traces);
     }
 
+    /**
+     * Find a specific captured trace by ID for time-travel replay or PHPUnit test export.
+     *
+     * @return array{
+     *     id: int,
+     *     timestamp: string,
+     *     method: string,
+     *     path: string,
+     *     query: string,
+     *     headers: array<string, string>,
+     *     body: string,
+     *     status: int,
+     *     duration_ms: float,
+     *     queries: list<array{sql: string, ms: float}>,
+     *     n_plus_one: list<array{pattern: string, count: int}>,
+     *     error: ?string
+     * }|null
+     */
+    public function findTrace(int $id): ?array
+    {
+        foreach ($this->traces as $trace) {
+            if ($trace['id'] === $id) {
+                return $trace;
+            }
+        }
+
+        return null;
+    }
+
     public function clear(): void
     {
         $this->traces = [];
         $this->currentQueries = [];
+    }
+
+    /**
+     * @param list<array{sql: string, ms: float}> $queries
+     * @return list<array{pattern: string, count: int}>
+     */
+    private function detectNPlusOne(array $queries): array
+    {
+        $counts = [];
+        foreach ($queries as $q) {
+            $pattern = trim((string) preg_replace('/\s+/', ' ', $q['sql']));
+            $pattern = (string) preg_replace("/'(?:''|[^'])*'/", '?', $pattern);
+            $pattern = (string) preg_replace('/\b\d+(?:\.\d+)?\b/', '?', $pattern);
+            $counts[$pattern] = ($counts[$pattern] ?? 0) + 1;
+        }
+
+        $warnings = [];
+        foreach ($counts as $pattern => $count) {
+            if ($count >= $this->nPlusOneThreshold) {
+                $warnings[] = ['pattern' => $pattern, 'count' => $count];
+            }
+        }
+
+        return $warnings;
     }
 }

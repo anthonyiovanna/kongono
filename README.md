@@ -1,4 +1,4 @@
-# Kongono Framework (v1.3.0)
+# Kongono Framework (v1.4.0)
 
 > **Build what comes next.**
 
@@ -19,12 +19,16 @@ Kongono is a modern, zero-legacy **PHP 8.5+** application framework built from t
 ## Why Kongono?
 
 - **Pure PHP 8.5+**: Strict types, `final readonly` classes, attributes, enums, zero legacy baggage.
+- **Durable Workflows (`Kongono\Jobs\Workflow`)**: Built-in step memoization (`$wf->step()`), multi-day `sleep()`, and external event/human-approval signals (`waitForEvent()` + `signal()`) — Temporal/Inngest ergonomics with zero extra infrastructure.
+- **Zero-Vendor Auth Suite (`Kongono\Security\Auth`)**: Native WebAuthn/FIDO2 Passkeys (`PasskeyVerifier` ES256/Ed25519), single-use HMAC `MagicLinkAuth`, and PKCE S256 `PkceOAuthClient` (GitHub, Google, OIDC over `SafeHttpClient`).
 - **One Backend, Every Platform (`kongo sdk:generate`)**: Generate typed **TypeScript** (React/Next.js/React Native), **Swift 6** (iOS/macOS), **Kotlin** (Android), and **Dart** (Flutter) client SDKs straight from your PHP 8.5 attribute routes and readonly DTOs.
+- **Time-Travel Dev Studio + N+1 Guard + Zero-Downtime `migrate:lint`**: Replay captured requests in-process (`/_kongono/api/replay/{id}`), export 1-click PHPUnit 13 regression tests (`TestExporter`), catch N+1 SQL storms (`QueryGuard` + `BatchLoader`), and lint migrations before deploy (`kongo migrate:lint`).
 - **Persistent-Runtime Speed (`Async::all()` + AOT Router)**: Native PHP 8.5 Fiber concurrency (`Async::all`, `Async::race`, `Async::map`, `Async::allSettled`), parallel SSRF-pinned `SafeHttpClient::requestMany()` (`curl_multi`), $O(1)$ static route dispatch + pre-compiled regexes, and `kongo optimize` emitting OPcache-ready `var/cache/routes.compiled.php`.
 - **Zero-Build Hypermedia & SSE Reactivity (`Kongono\Live`)**: ~3 KB strict-CSP-compliant runtime (`LiveMiddleware`, `@liveScript`, `Request::isLive()`, `Response::fragment()`) with declarative `kgn-get`/`kgn-post`/`kgn-target`/`kgn-swap`/`kgn-stream` live DOM updates and automatic CSRF forwarding.
-- **Hardened Against Autonomous AI Attacks**:
+- **Hardened Against Autonomous AI Attacks + Built-in AI Eval Suite (`kongo eval`)**:
   - **`AiThreatShieldMiddleware`** — recon honeypot traps (`/.env`, `/wp-login.php`, `/actuator/env`), hidden form field traps, 404 probe burst auto-banning, and cost-aware compute budget limiting.
   - **`PromptGuard` & `UntrustedInput`** — structural `<untrusted_data>` isolation, prompt-injection detection, and cryptographic Canary Token leakage fail-closed blocking.
+  - **`kongo eval` (`EvalRunner`)** — "PHPUnit for AI" asserting structured DTO accuracy, token/latency budgets, and a built-in 12-vector adversarial prompt-injection red-team battery.
   - **`kongo audit --attack`** — graph-driven security audit + automated in-process red-team simulations (SSRF, PromptGuard canary, path traversal, security headers, error nondisclosure).
   - **Fail-Closed Row-Level Multi-Tenancy (`TenantContext` + `QueryBuilder::forTenant()`)**, **Human-in-the-Loop AI Approval & Token/Cost Budgets (`RequiresApproval`, `AgentPrincipal`)**, Argon2id, XChaCha20-Poly1305 AEAD `Encryptor`, `SafeHttpClient`, RFC 6238 `Totp`, and `WebhookSigner`.
 - **Multi-Provider AI & MCP Native**: `kongono/ai` speaks **OpenAI**, **Anthropic Claude**, **Google Gemini**, and local **Ollama** (all with live streaming) over pure PHP `ext-curl`, plus a built-in **Model Context Protocol (MCP) Server** (`kongo mcp` / `POST /mcp`) exposing `kongono_graph`, `kongono_openapi`, `kongono_sdk_generate`, `kongono_audit`, `kongono_test_route`, and `kongono_deploy_preview` safely to AI coding agents.
@@ -55,6 +59,8 @@ php bin/kongo serve --app=examples/starter-app --port=8000
 # Verify environment, run red-team security audit, generate typed mobile/web SDKs & deploy blueprints
 php bin/kongo doctor --app=examples/starter-app
 php bin/kongo audit --attack --app=examples/starter-app
+php bin/kongo eval --redteam --app=examples/starter-app
+php bin/kongo migrate:lint --app=examples/starter-app
 php bin/kongo sdk:generate --lang=ts --app=examples/starter-app --out=sdk/client.ts
 php bin/kongo sdk:generate --lang=swift --app=examples/starter-app --out=sdk/Client.swift
 php bin/kongo sdk:generate --lang=kotlin --app=examples/starter-app --out=sdk/Client.kt

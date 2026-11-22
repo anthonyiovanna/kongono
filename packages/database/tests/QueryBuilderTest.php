@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Database\Tests;
 
 use Closure;
+use Kongono\Database\BatchLoader;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\DatabaseException;
 use Kongono\Database\Dialect;
@@ -12,6 +13,7 @@ use Kongono\Database\MigrationInterface;
 use Kongono\Database\Migrator;
 use Kongono\Database\PdoConnection;
 use Kongono\Database\QueryBuilder;
+use Kongono\Database\QueryGuard;
 use Kongono\Database\Repository;
 use Kongono\Database\Schema\Blueprint;
 use Kongono\Database\Schema\Schema;
@@ -403,5 +405,51 @@ final class QueryBuilderTest extends TestCase
             ->requireTenant('workspace_id')
             ->where('status', '=', 'open')
             ->toSelectSql();
+    }
+
+    public function testQueryGuardDetectsNPlusOneAndBatchLoaderDeduplicates(): void
+    {
+        // 1. BatchLoader deduplicates keys and avoids redundant queries
+        /** @var BatchLoader<int, string> $loader */
+        $loader = new BatchLoader();
+        $loader->prime(1, 'Ada');
+        $batchCalls = [];
+
+        $resolved = $loader->loadMany([1, 2, 3, 2], static function (array $missing) use (&$batchCalls): array {
+            $batchCalls[] = $missing;
+
+            return [2 => 'Grace', 3 => 'Alan'];
+        });
+        self::assertSame([[2, 3]], $batchCalls);
+        self::assertSame([1 => 'Ada', 2 => 'Grace', 3 => 'Alan'], $resolved);
+
+        // Second load for cached keys triggers zero DB calls
+        $cached = $loader->loadMany([2, 3], static function (array $missing) use (&$batchCalls): array {
+            $batchCalls[] = $missing;
+
+            return [];
+        });
+        self::assertCount(1, $batchCalls);
+        self::assertSame([2 => 'Grace', 3 => 'Alan'], $cached);
+
+        // 2. QueryGuard detects N+1 query patterns and resets cleanly between scopes
+        $guard = new QueryGuard(threshold: 3, throwOnViolation: false);
+        $guard->record("SELECT * FROM orders WHERE user_id = 1 AND status = 'open'");
+        $guard->record("SELECT * FROM orders WHERE user_id = 2 AND status = 'open'");
+        self::assertFalse($guard->hasViolations());
+        $guard->record("SELECT * FROM orders WHERE user_id = 3 AND status = 'paid'");
+        self::assertTrue($guard->hasViolations());
+        self::assertSame(3, $guard->violations()[0]['count']);
+        self::assertSame('SELECT * FROM orders WHERE user_id = ? AND status = ?', $guard->violations()[0]['pattern']);
+
+        $guard->reset();
+        self::assertFalse($guard->hasViolations());
+
+        // Strict mode throws DatabaseException immediately on N+1 threshold
+        $strictGuard = new QueryGuard(threshold: 2, throwOnViolation: true);
+        $strictGuard->record('SELECT * FROM items WHERE id = 10');
+        $this->expectException(DatabaseException::class);
+        $this->expectExceptionMessage('Potential N+1 query detected');
+        $strictGuard->record('SELECT * FROM items WHERE id = 11');
     }
 }

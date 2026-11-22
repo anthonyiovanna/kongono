@@ -6,12 +6,15 @@ namespace Kongono\Cli;
 
 use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
+use Kongono\Ai\Eval\EvalCase;
+use Kongono\Ai\Eval\EvalRunner;
 use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\Companions\ChieBuilder;
 use Kongono\Cli\Companions\DiffRenderer;
 use Kongono\Cli\Companions\HanteiDebugger;
 use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Database\MigrationLinter;
 use Kongono\Cli\Deploy\DeployBlueprintGenerator;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Cli\Sdk\SdkGenerator;
@@ -54,13 +57,14 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.3.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.4.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
                 'sdk:generate' => $this->cmdSdkGenerate($appRoot, $options),
                 'mcp' => $this->cmdMcp($appRoot),
                 'audit' => $this->cmdAudit($appRoot, $options),
+                'eval' => $this->cmdEval($appRoot, $options),
                 'deploy:init' => $this->cmdDeployInit($appRoot, $options),
                 'serve' => $this->cmdServe($appRoot, $options),
                 'tinker' => $this->cmdTinker($appRoot, $options),
@@ -70,6 +74,7 @@ final readonly class KongoCli
                 'migrate' => $this->cmdMigrate($appRoot),
                 'migrate:rollback' => $this->cmdMigrateRollback($appRoot, $options),
                 'migrate:status' => $this->cmdMigrateStatus($appRoot),
+                'migrate:lint' => $this->cmdMigrateLint($appRoot, $options),
                 'db:seed' => $this->cmdDbSeed($appRoot),
                 'optimize' => $this->cmdOptimize($appRoot),
                 'cache:clear' => $this->cmdCacheClear($appRoot),
@@ -1082,6 +1087,99 @@ final readonly class KongoCli
         return [0, implode("\n", $lines) . "\n"];
     }
 
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdMigrateLint(string $appRoot, array $options): array
+    {
+        $migrationsDir = $appRoot . DIRECTORY_SEPARATOR . 'migrations';
+        $report = (new MigrationLinter())->lintDirectory($migrationsDir);
+        $strict = isset($options['strict']);
+        $failed = !$report['passed'] || ($strict && $report['counts']['warning'] > 0);
+
+        if (isset($options['json'])) {
+            return [$failed ? 1 : 0, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [
+            sprintf('Kongono Migration Linter (%s):', $failed ? 'FAILED' : 'PASS'),
+            sprintf(
+                '  Scanned: %d migration file(s) — %d critical, %d warning',
+                $report['files_scanned'],
+                $report['counts']['critical'],
+                $report['counts']['warning'],
+            ),
+        ];
+
+        foreach ($report['findings'] as $f) {
+            $lines[] = sprintf('  [%-8s] %s (%s): %s', strtoupper($f['severity']), $f['code'], $f['file'], $f['message']);
+        }
+        if ([] === $report['findings']) {
+            $lines[] = '  [OK      ] All migrations passed zero-downtime safety checks.';
+        }
+
+        return [$failed ? 1 : 0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdEval(string $appRoot, array $options): array
+    {
+        $runner = new EvalRunner();
+        $fileOpt = is_string($options['file'] ?? null) && '' !== trim($options['file']) ? trim($options['file']) : null;
+        $suitePath = null !== $fileOpt
+            ? (str_starts_with($fileOpt, '/') || (strlen($fileOpt) > 1 && ':' === $fileOpt[1])
+                ? $fileOpt
+                : $appRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $fileOpt))
+            : $appRoot . DIRECTORY_SEPARATOR . 'evals' . DIRECTORY_SEPARATOR . 'suite.php';
+
+        $forceRedTeam = isset($options['redteam']);
+        $useLive = isset($options['live']);
+
+        if (!$forceRedTeam && is_file($suitePath)) {
+            $loaded = require $suitePath;
+            if (!is_array($loaded)) {
+                return [1, sprintf("Eval suite %s must return a list of Kongono\\Ai\\Eval\\EvalCase objects.\n", $suitePath)];
+            }
+            /** @var list<EvalCase> $cases */
+            $cases = [];
+            foreach ($loaded as $item) {
+                if ($item instanceof EvalCase) {
+                    $cases[] = $item;
+                }
+            }
+            $ai = $this->tryAiClient();
+            if (null === $ai) {
+                return [1, "Custom AI eval suite requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST), or pass --redteam for offline PromptGuard red-teaming.\n"];
+            }
+            $report = $runner->runCases($cases, $ai);
+            $modeLabel = 'Custom Eval Suite (' . basename($suitePath) . ')';
+        } else {
+            $ai = $useLive ? $this->tryAiClient() : null;
+            $report = $runner->runRedTeamBattery($ai);
+            $modeLabel = null !== $ai ? 'Adversarial Red-Team Battery (Live LLM)' : 'Adversarial Red-Team Battery (Offline PromptGuard)';
+        }
+
+        if (isset($options['json'])) {
+            return [$report->passed ? 0 : 1, json_encode($report->toArray(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [
+            sprintf('Kongono AI Eval — %s: %d/%d passed (%.1f%%)', $modeLabel, $report->passedCount, $report->total, $report->passRate),
+        ];
+        foreach ($report->results as $res) {
+            $lines[] = sprintf('  [%-4s] %-30s (%.2fms) %s', $res->passed ? 'PASS' : 'FAIL', $res->name, $res->durationMs, $res->outputExcerpt);
+            foreach ($res->failures as $failure) {
+                $lines[] = '         -> ' . $failure;
+            }
+        }
+
+        return [$report->passed ? 0 : 1, implode("\n", $lines) . "\n"];
+    }
+
     private function tryAiClient(): ?AiClient
     {
         if (null !== $this->aiOverride) {
@@ -1140,7 +1238,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -1213,6 +1311,7 @@ Core Commands:
   migrate [--app=path]                                  Run pending database migrations
   migrate:rollback [--app=path] [--steps=1]             Roll back applied database migrations
   migrate:status [--app=path]                           Show applied vs pending database migrations
+  migrate:lint [--app=path] [--json] [--strict]         Lint migrations for zero-downtime DDL & locking hazards
   db:seed [--app=path]                                  Execute SeederInterface files in seeders/
   optimize [--app=path]                                 Precompile .kgn.html views & cache graph/OpenAPI
   cache:clear [--app=path]                              Clear compiled views & cached app files
@@ -1224,6 +1323,7 @@ Core Commands:
   key:generate                                          Generate a 256-bit APP_KEY for .env
   doctor [--app=path]                                   Verify PHP 8.5, extensions, AI provider & app health
   audit [--app=path] [--attack] [--json] [--strict]     Run security audit (+ optional --attack red-team probes)
+  eval [--app=path] [--file=evals/suite.php] [--redteam] Run AI eval suite or PromptGuard red-team battery
   deploy:init [--app=path] --domain=app.example.com     Generate zero-downtime FrankenPHP Dockerfile, Caddyfile & VPS scripts
   env:check [--app=path]                                Verify required keys from .env.example exist in .env
   routes [--app=path] [--json]                          List all registered routes

@@ -15,6 +15,8 @@ use Kongono\Ai\Embedding\MemoryVectorStore;
 use Kongono\Ai\Embedding\PgVectorStore;
 use Kongono\Ai\Embedding\TextChunker;
 use Kongono\Ai\Embedding\VectorDocument;
+use Kongono\Ai\Eval\EvalCase;
+use Kongono\Ai\Eval\EvalRunner;
 use Kongono\Ai\Mcp\McpServer;
 use Kongono\Ai\Message;
 use Kongono\Ai\Provider\AnthropicProvider;
@@ -604,5 +606,68 @@ final class AiProvidersAndAgentTest extends TestCase
         $leakedB64 = $guard->inspectOutput('Encoded: ' . base64_encode($protected['canary']), $protected['canary']);
         self::assertFalse($leakedB64['safe']);
         self::assertTrue($leakedB64['leaked_canary']);
+    }
+
+    public function testEvalRunnerExecutesRedTeamBatteryAndCustomEvalCases(): void
+    {
+        $runner = new EvalRunner();
+
+        // 1. Offline 12-vector PromptGuard red-team battery passes 100% with zero network calls
+        $redTeam = $runner->runRedTeamBattery();
+        self::assertTrue($redTeam->passed);
+        self::assertSame(12, $redTeam->total);
+        self::assertSame(12, $redTeam->passedCount);
+        self::assertSame(100.0, $redTeam->passRate);
+
+        // 2. Custom EvalCases with expected/forbidden substrings, structured DTO & token budget
+        $transport = new FakeTransport(
+            new HttpResponse(200, json_encode([
+                'model' => 'gpt-4.1-mini',
+                'choices' => [['message' => ['content' => 'Kongono runs on PHP 8.5 with zero Symfony packages.']]],
+                'usage' => ['prompt_tokens' => 20, 'completion_tokens' => 15],
+            ], JSON_THROW_ON_ERROR)),
+            new HttpResponse(200, json_encode([
+                'model' => 'gpt-4.1-mini',
+                'choices' => [['message' => ['content' => '{"sentiment":"positive","summary":"Fast framework"}']]],
+                'usage' => ['prompt_tokens' => 25, 'completion_tokens' => 12],
+            ], JSON_THROW_ON_ERROR)),
+            new HttpResponse(200, json_encode([
+                'model' => 'gpt-4.1-mini',
+                'choices' => [['message' => ['content' => 'Forbidden leak: SECRET_WORD']]],
+                'usage' => ['prompt_tokens' => 50, 'completion_tokens' => 100],
+            ], JSON_THROW_ON_ERROR)),
+        );
+        $client = new AiClient(new OpenAiProvider('sk-test', transport: $transport));
+
+        $report = $runner->runCases([
+            new EvalCase(
+                name: 'php85_accuracy',
+                prompt: 'What runtime does Kongono target?',
+                expectedSubstrings: ['PHP 8.5', 'zero Symfony'],
+                forbiddenSubstrings: ['PHP 7'],
+                maxTokens: 100,
+            ),
+            new EvalCase(
+                name: 'structured_sentiment',
+                prompt: 'Classify: Kongono is blazing fast!',
+                structuredDtoClass: SentimentDto::class,
+                expectedSubstrings: ['"sentiment":"positive"'],
+            ),
+            new EvalCase(
+                name: 'budget_and_forbidden_catch',
+                prompt: 'Say secret',
+                forbiddenSubstrings: ['SECRET_WORD'],
+                maxTokens: 50,
+            ),
+        ], $client);
+
+        self::assertFalse($report->passed);
+        self::assertSame(3, $report->total);
+        self::assertSame(2, $report->passedCount);
+        self::assertSame(1, $report->failedCount);
+        self::assertTrue($report->results[0]->passed);
+        self::assertTrue($report->results[1]->passed);
+        self::assertFalse($report->results[2]->passed);
+        self::assertCount(2, $report->results[2]->failures);
     }
 }
