@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Database\Schema;
 
 use Kongono\Database\Dialect;
+use Kongono\Database\RowLevelSecurity;
 
 /** Clean, dialect-portable table DDL blueprint for migrations. */
 final class Blueprint
@@ -14,6 +15,9 @@ final class Blueprint
 
     /** @var list<array{columns: list<string>, unique: bool}> */
     private array $indexes = [];
+
+    /** @var ?array{tenantColumn: string, settingName: string, policyName: ?string} */
+    private ?array $rls = null;
 
     public function __construct(
         public readonly string $table,
@@ -93,6 +97,23 @@ final class Blueprint
         return $this;
     }
 
+    /**
+     * Enable & force fail-closed PostgreSQL Row-Level Security (RLS) on this table when migrating on Postgres.
+     */
+    public function rowLevelSecurity(
+        string $tenantColumn = 'workspace_id',
+        string $settingName = RowLevelSecurity::DEFAULT_SETTING,
+        ?string $policyName = null,
+    ): self {
+        $this->rls = [
+            'tenantColumn' => $tenantColumn,
+            'settingName' => $settingName,
+            'policyName' => $policyName,
+        ];
+
+        return $this;
+    }
+
     /** @return list<string> Compiled DDL statements */
     public function toSqlStatements(): array
     {
@@ -112,6 +133,12 @@ final class Blueprint
                 $tableQuoted,
                 $cols,
             );
+        }
+
+        if (null !== $this->rls && Dialect::Postgres === $this->dialect) {
+            foreach (RowLevelSecurity::enableSql($this->table, $this->rls['tenantColumn'], $this->rls['settingName'], $this->rls['policyName']) as $rlsSql) {
+                $statements[] = $rlsSql;
+            }
         }
 
         return $statements;

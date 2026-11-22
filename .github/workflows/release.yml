@@ -7,10 +7,12 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
-    name: Verify & Publish GitHub Release
+    name: Verify, Attest (SLSA + SBOM) & Publish GitHub Release
     runs-on: ubuntu-latest
 
     steps:
@@ -20,24 +22,50 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: curl, json, mbstring, openssl, pdo, pdo_pgsql, sodium, zlib
+          extensions: curl, dom, json, mbstring, openssl, pdo, pdo_pgsql, sodium, zlib
           tools: composer:v2
 
-      - name: Install Dependencies & Verify Suite
+      - name: Install Dependencies & Run Full Security Gate
         run: |
           composer install --no-interaction --prefer-dist
           composer validate --no-check-publish --strict
+          composer audit --locked --abandoned=report
           composer cs
           composer analyse
           php -d memory_limit=512M vendor/bin/phpunit --configuration phpunit.xml.dist --fail-on-deprecation --fail-on-warning --fail-on-notice
+          KONGONO_FUZZ_ITERATIONS=600 composer fuzz
+          php bin/kongo audit --attack --strict --app=examples/starter-app
+          php bin/kongo eval --redteam --app=examples/starter-app
 
-      - name: Create GitHub Release
+      - name: Build Release Archive, CycloneDX 1.5 SBOM & SHA-256 Checksums
         env:
-          GH_TOKEN: ${{ github.token }}
           REF_NAME: ${{ github.ref_name }}
         run: |
           if [[ ! "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$ ]]; then
             echo "Invalid release tag format: $REF_NAME" >&2
             exit 1
           fi
-          gh release create "$REF_NAME" --generate-notes --title "Kongono Framework $REF_NAME"
+          mkdir -p dist
+          git archive --format=tar.gz --prefix="kongono-${REF_NAME}/" -o "dist/kongono-${REF_NAME}.tar.gz" HEAD
+          php bin/generate-sbom "$REF_NAME" "dist/kongono-${REF_NAME}.cdx.json"
+          (cd dist && sha256sum "kongono-${REF_NAME}.tar.gz" "kongono-${REF_NAME}.cdx.json" > SHA256SUMS.txt)
+          cat dist/SHA256SUMS.txt
+
+      - name: Generate SLSA Build Provenance Attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/kongono-*.tar.gz
+            dist/kongono-*.cdx.json
+
+      - name: Create GitHub Release with Verified Artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          gh release create "$REF_NAME" \
+            "dist/kongono-${REF_NAME}.tar.gz" \
+            "dist/kongono-${REF_NAME}.cdx.json" \
+            "dist/SHA256SUMS.txt" \
+            --generate-notes \
+            --title "Kongono Framework $REF_NAME"

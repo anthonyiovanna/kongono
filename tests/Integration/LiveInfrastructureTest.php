@@ -9,10 +9,12 @@ use Kongono\Ai\Embedding\VectorDocument;
 use Kongono\Core\Cache\RedisCache;
 use Kongono\Core\Cache\RedisClient;
 use Kongono\Database\ConnectionInterface;
+use Kongono\Database\DatabaseException;
 use Kongono\Database\MigrationInterface;
 use Kongono\Database\Migrator;
 use Kongono\Database\PdoConnection;
 use Kongono\Database\QueryBuilder;
+use Kongono\Database\RowLevelSecurity;
 use Kongono\Database\Schema\Blueprint;
 use Kongono\Database\Schema\Schema;
 use Kongono\Jobs\Job;
@@ -128,6 +130,60 @@ final class LiveInfrastructureTest extends TestCase
         self::assertCount(1, $hits);
         self::assertSame('v1', $hits[0]->document->id);
         self::assertGreaterThan(0.9, $hits[0]->score);
+
+        // 4. Live PostgreSQL Row-Level Security (FORCE ROW LEVEL SECURITY + transaction-local set_config)
+        $db->execute('DROP TABLE IF EXISTS "integration_rls_notes"');
+        Schema::create($db, 'integration_rls_notes', static function (Blueprint $table): void {
+            $table->id();
+            $table->bigInteger('workspace_id');
+            $table->string('title', 200);
+            $table->rowLevelSecurity('workspace_id');
+        });
+        $db->execute("DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'kongono_rls_app') THEN CREATE ROLE kongono_rls_app NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS; END IF; END \$\$;");
+        $db->execute('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE "integration_rls_notes" TO kongono_rls_app');
+        $db->execute('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO kongono_rls_app');
+
+        RowLevelSecurity::withTenant($db, 101, static function (ConnectionInterface $tx): void {
+            $tx->table('integration_rls_notes')->insert(['workspace_id' => 101, 'title' => 'Tenant 101 Secret']);
+        });
+        RowLevelSecurity::withTenant($db, 202, static function (ConnectionInterface $tx): void {
+            $tx->table('integration_rls_notes')->insert(['workspace_id' => 202, 'title' => 'Tenant 202 Secret']);
+        });
+
+        // Unscoped non-superuser session fails closed with ZERO rows visible
+        $unscopedRows = $db->transaction(static function (ConnectionInterface $tx): array {
+            $tx->execute('SET LOCAL ROLE kongono_rls_app');
+
+            return $tx->query('SELECT * FROM "integration_rls_notes"');
+        });
+        self::assertSame([], $unscopedRows);
+
+        // Scoped to tenant 101: sees ONLY tenant 101's row
+        $t101Rows = RowLevelSecurity::withTenant($db, 101, static function (ConnectionInterface $tx): array {
+            $tx->execute('SET LOCAL ROLE kongono_rls_app');
+
+            return $tx->query('SELECT title FROM "integration_rls_notes"');
+        });
+        self::assertSame([['title' => 'Tenant 101 Secret']], $t101Rows);
+
+        // Cross-tenant INSERT as tenant 101 is blocked by PostgreSQL RLS WITH CHECK policy
+        try {
+            RowLevelSecurity::withTenant($db, 101, static function (ConnectionInterface $tx): void {
+                $tx->execute('SET LOCAL ROLE kongono_rls_app');
+                $tx->table('integration_rls_notes')->insert(['workspace_id' => 202, 'title' => 'Forged']);
+            });
+            self::fail('Expected PostgreSQL RLS WITH CHECK policy to block cross-tenant insert.');
+        } catch (DatabaseException) {
+            self::addToAssertionCount(1);
+        }
+
+        // After commit, transaction-local set_config(..., true) MUST have cleared automatically (persistent-runtime safe!)
+        $postCommitRows = $db->transaction(static function (ConnectionInterface $tx): array {
+            $tx->execute('SET LOCAL ROLE kongono_rls_app');
+
+            return $tx->query('SELECT * FROM "integration_rls_notes"');
+        });
+        self::assertSame([], $postCommitRows);
     }
 
     public function testLiveRedisCacheAndRedisQueueDriver(): void

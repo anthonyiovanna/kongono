@@ -15,6 +15,7 @@ use Kongono\Database\PdoConnection;
 use Kongono\Database\QueryBuilder;
 use Kongono\Database\QueryGuard;
 use Kongono\Database\Repository;
+use Kongono\Database\RowLevelSecurity;
 use Kongono\Database\Schema\Blueprint;
 use Kongono\Database\Schema\ColumnDefinition;
 use Kongono\Database\Schema\Schema;
@@ -712,5 +713,141 @@ final class QueryBuilderTest extends TestCase
         $this->expectException(DatabaseException::class);
         $this->expectExceptionMessage('Unsafe SQL identifier');
         Dialect::Postgres->quoteIdentifier('*.foo');
+    }
+
+    public function testPostgreSqlRowLevelSecurityDdlBlueprintAndTransactionLocalScoping(): void
+    {
+        // 1. Blueprint::rowLevelSecurity() emits fail-closed PostgreSQL FORCE RLS DDL
+        $bp = new Blueprint('invoices', Dialect::Postgres);
+        $bp->id();
+        $bp->bigInteger('workspace_id');
+        $bp->string('title');
+        $bp->rowLevelSecurity('workspace_id');
+        $stmts = $bp->toSqlStatements();
+
+        self::assertContains('ALTER TABLE "invoices" ENABLE ROW LEVEL SECURITY', $stmts);
+        self::assertContains('ALTER TABLE "invoices" FORCE ROW LEVEL SECURITY', $stmts);
+        self::assertContains(
+            'CREATE POLICY "kongono_rls_invoices_workspace_id" ON "invoices" '
+            . 'USING ("workspace_id"::text = NULLIF(current_setting(\'app.current_tenant\', true), \'\')) '
+            . 'WITH CHECK ("workspace_id"::text = NULLIF(current_setting(\'app.current_tenant\', true), \'\'))',
+            $stmts,
+        );
+
+        // Disable SQL cleanly rolls back policy
+        $down = RowLevelSecurity::disableSql('invoices');
+        self::assertSame([
+            'DROP POLICY IF EXISTS "kongono_rls_invoices_workspace_id" ON "invoices"',
+            'ALTER TABLE "invoices" NO FORCE ROW LEVEL SECURITY',
+            'ALTER TABLE "invoices" DISABLE ROW LEVEL SECURITY',
+        ], $down);
+
+        // 2. RowLevelSecurity::withTenant() invokes transaction-local set_config(setting, tenantId, true)
+        $calls = [];
+        $fakePg = new class ($calls) implements ConnectionInterface {
+            /** @param list<array{sql: string, bindings: list<mixed>}> $calls */
+            public function __construct(public array &$calls) {}
+
+            public function dialect(): Dialect
+            {
+                return Dialect::Postgres;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                $this->calls[] = ['sql' => $sql, 'bindings' => $bindings];
+
+                return [];
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                $this->calls[] = ['sql' => $sql, 'bindings' => $bindings];
+
+                return ['set_config' => '42'];
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                $this->calls[] = ['sql' => $sql, 'bindings' => $bindings];
+
+                return 1;
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, Dialect::Postgres, $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                $this->calls[] = ['sql' => 'BEGIN', 'bindings' => []];
+                $res = $callback($this);
+                $this->calls[] = ['sql' => 'COMMIT', 'bindings' => []];
+
+                return $res;
+            }
+        };
+
+        $out = RowLevelSecurity::withTenant($fakePg, new \Kongono\Database\TenantContext(42), static function (ConnectionInterface $tx): string {
+            $tx->query('SELECT * FROM "invoices"');
+
+            return 'ok';
+        });
+        self::assertSame('ok', $out);
+        self::assertSame('BEGIN', $calls[0]['sql']);
+        self::assertSame('SELECT set_config(?, ?, true)', $calls[1]['sql']);
+        self::assertSame(['app.current_tenant', '42'], $calls[1]['bindings']);
+        self::assertSame('COMMIT', $calls[3]['sql']);
+
+        // 3. Rejects SQLi setting names, empty tenant IDs, and non-PostgreSQL connections
+        try {
+            RowLevelSecurity::enableSql('invoices', settingName: "app.x'; DROP TABLE invoices;--");
+            self::fail('Expected unsafe RLS setting name to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('Unsafe PostgreSQL RLS setting name', $e->getMessage());
+        }
+
+        try {
+            RowLevelSecurity::withTenant($fakePg, '', static fn(): string => 'nope');
+            self::fail('Expected empty tenant ID to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('non-empty', $e->getMessage());
+        }
+
+        $fakeSqlite = new class implements ConnectionInterface {
+            public function dialect(): Dialect
+            {
+                return Dialect::Sqlite;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                return [];
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                return null;
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                return 0;
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, Dialect::Sqlite, $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                return $callback($this);
+            }
+        };
+        $this->expectException(DatabaseException::class);
+        $this->expectExceptionMessage('requires PostgreSQL');
+        RowLevelSecurity::withTenant($fakeSqlite, 42, static fn(): string => 'nope');
     }
 }

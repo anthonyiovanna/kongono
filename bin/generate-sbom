@@ -1,0 +1,110 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Generates a CycloneDX 1.5 JSON Software Bill of Materials (SBOM) for Kongono
+ * directly from composer.json + composer.lock with zero external tools required.
+ *
+ * Usage: php bin/generate-sbom [version] [output-path]
+ */
+
+$root = dirname(__DIR__);
+$version = $argv[1] ?? 'dev';
+$outPath = $argv[2] ?? ($root . DIRECTORY_SEPARATOR . 'kongono-' . $version . '.cdx.json');
+
+$composerPath = $root . DIRECTORY_SEPARATOR . 'composer.json';
+$lockPath = $root . DIRECTORY_SEPARATOR . 'composer.lock';
+
+$composer = json_decode((string) file_get_contents($composerPath), true, 64, JSON_THROW_ON_ERROR);
+if (!is_array($composer)) {
+    fwrite(STDERR, "Invalid composer.json\n");
+    exit(1);
+}
+
+$lock = is_file($lockPath)
+    ? json_decode((string) file_get_contents($lockPath), true, 64, JSON_THROW_ON_ERROR)
+    : ['packages' => [], 'packages-dev' => []];
+if (!is_array($lock)) {
+    fwrite(STDERR, "Invalid composer.lock\n");
+    exit(1);
+}
+
+$cleanVersion = ltrim($version, 'v');
+$components = [];
+
+$addPackages = static function (array $list, string $scope) use (&$components): void {
+    foreach ($list as $pkg) {
+        if (!is_array($pkg) || !is_string($pkg['name'] ?? null) || !is_string($pkg['version'] ?? null)) {
+            continue;
+        }
+        $name = $pkg['name'];
+        $ver = ltrim($pkg['version'], 'v');
+        $purl = sprintf('pkg:composer/%s@%s', $name, rawurlencode($pkg['version']));
+
+        $entry = [
+            'type' => 'library',
+            'bom-ref' => $purl,
+            'name' => $name,
+            'version' => $ver,
+            'scope' => $scope,
+            'purl' => $purl,
+        ];
+
+        if (isset($pkg['license']) && is_array($pkg['license'])) {
+            $licenses = [];
+            foreach ($pkg['license'] as $lic) {
+                if (is_string($lic) && '' !== $lic) {
+                    $licenses[] = ['license' => ['id' => $lic]];
+                }
+            }
+            if ([] !== $licenses) {
+                $entry['licenses'] = $licenses;
+            }
+        }
+
+        if (isset($pkg['dist']['shasum']) && is_string($pkg['dist']['shasum']) && '' !== $pkg['dist']['shasum']) {
+            $entry['hashes'] = [[
+                'alg' => 'SHA-1',
+                'content' => $pkg['dist']['shasum'],
+            ]];
+        }
+
+        $components[] = $entry;
+    }
+};
+
+$addPackages(is_array($lock['packages'] ?? null) ? $lock['packages'] : [], 'required');
+$addPackages(is_array($lock['packages-dev'] ?? null) ? $lock['packages-dev'] : [], 'optional');
+
+$uuid = sprintf(
+    '%s-%s-4%s-%s-%s',
+    bin2hex(random_bytes(4)),
+    bin2hex(random_bytes(2)),
+    substr(bin2hex(random_bytes(2)), 1),
+    dechex(8 + random_int(0, 3)) . substr(bin2hex(random_bytes(2)), 1),
+    bin2hex(random_bytes(6)),
+);
+
+$sbom = [
+    'bomFormat' => 'CycloneDX',
+    'specVersion' => '1.5',
+    'serialNumber' => 'urn:uuid:' . $uuid,
+    'version' => 1,
+    'metadata' => [
+        'timestamp' => gmdate('Y-m-d\TH:i:s\Z'),
+        'component' => [
+            'type' => 'framework',
+            'bom-ref' => sprintf('pkg:composer/kongono/framework@%s', rawurlencode($version)),
+            'name' => is_string($composer['name'] ?? null) ? $composer['name'] : 'kongono/framework',
+            'version' => $cleanVersion,
+            'licenses' => [['license' => ['id' => 'MIT']]],
+            'purl' => sprintf('pkg:composer/kongono/framework@%s', rawurlencode($version)),
+        ],
+    ],
+    'components' => $components,
+];
+
+file_put_contents($outPath, json_encode($sbom, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
+echo sprintf("Generated CycloneDX 1.5 SBOM (%d components): %s\n", count($components), $outPath);

@@ -2,17 +2,20 @@ name: Kongono CI
 
 on:
   push:
-    branches: [v1, main]
+    branches: [main]
     tags: ['v*']
   pull_request:
-    branches: [v1, main]
+    branches: [main]
+  schedule:
+    # Weekly scheduled security & parser fuzzing run (Mondays 06:00 UTC)
+    - cron: '0 6 * * 1'
 
 permissions:
   contents: read
 
 jobs:
   quality:
-    name: PHP 8.5 Quality Suite
+    name: PHP 8.5 Quality, Audit & Fuzz Suite
     runs-on: ubuntu-latest
 
     steps:
@@ -22,17 +25,18 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: curl, json, mbstring, openssl, pdo, pdo_pgsql, sodium, zlib
+          extensions: curl, dom, json, mbstring, openssl, pdo, pdo_pgsql, pdo_sqlite, sodium, zlib
           tools: composer:v2
 
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist
 
-      - name: Validate Composer Manifests
+      - name: Validate Composer Manifests & Supply-Chain Audit
         run: |
           composer validate --no-check-publish --strict
-          for dir in packages/*; do
-            composer --working-dir="$dir" validate --no-check-publish --strict
+          composer audit --locked --abandoned=report
+          for manifest in packages/*/composer.json; do
+            composer validate "$manifest" --no-check-publish --strict
           done
 
       - name: Code Style (PHP-CS-Fixer)
@@ -44,15 +48,26 @@ jobs:
       - name: Unit & App Test Suite (PHPUnit 13 Strict)
         run: php -d memory_limit=512M vendor/bin/phpunit --configuration phpunit.xml.dist --fail-on-deprecation --fail-on-warning --fail-on-notice
 
+      - name: Continuous Parser Fuzzing & Property Tests
+        env:
+          KONGONO_FUZZ_ITERATIONS: '600'
+        run: composer fuzz
+
+      - name: Self-Audit Attack Simulation & AI Red-Team Eval
+        run: |
+          php bin/kongo audit --attack --strict --app=examples/starter-app
+          php bin/kongo eval --redteam --app=examples/starter-app
+
   integration:
-    name: Live PostgreSQL (pgvector) & Redis Integration
+    name: Live PostgreSQL (pgvector + RLS) & Redis Integration
     runs-on: ubuntu-latest
+
     services:
       postgres:
-        image: pgvector/pgvector:pg17
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: kongono
-          POSTGRES_PASSWORD: secret
+          POSTGRES_PASSWORD: kongono_ci_password
           POSTGRES_DB: kongono_test
         ports:
           - 5432:5432
@@ -78,7 +93,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: curl, json, mbstring, openssl, pdo, pdo_pgsql, sodium, zlib
+          extensions: curl, dom, json, mbstring, openssl, pdo, pdo_pgsql, sodium, zlib
           tools: composer:v2
 
       - name: Install Dependencies
@@ -86,7 +101,7 @@ jobs:
 
       - name: Run Live Infrastructure Tests
         env:
-          KONGONO_TEST_POSTGRES_URL: pgsql://kongono:secret@127.0.0.1:5432/kongono_test
+          KONGONO_TEST_POSTGRES_URL: pgsql://kongono:kongono_ci_password@127.0.0.1:5432/kongono_test
           KONGONO_TEST_REDIS_URL: redis://127.0.0.1:6379/0
         run: composer test:integration
 
@@ -101,7 +116,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: curl, json, mbstring, openssl, pdo, sodium, zlib
+          extensions: curl, dom, json, mbstring, openssl, pdo, sodium, zlib
           tools: composer:v2
 
       - name: Install Framework Dependencies

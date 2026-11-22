@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\View\Tests;
 
+use Kongono\View\HtmlSanitizer;
 use Kongono\View\ViewEngine;
 use Kongono\View\ViewException;
 use Kongono\View\ViteManifest;
@@ -275,6 +276,38 @@ HTML,
         self::assertSame('/assets/app-123.js', $vite->asset('app.js'));
         self::assertStringContainsString('src="/assets/app-123.js"', $vite->tags('app.js'));
         self::assertStringNotContainsString('//assets/', $vite->tags('app.js'));
+    }
+
+    public function testHtmlSanitizerAndSafeHtmlDirectiveBlockXssMxssAndPreserveRichProse(): void
+    {
+        $dirty = '<div class="code-wrap"><span class="code-lang">php</span><pre><code>echo 1;</code></pre></div>'
+            . '<p>Read <a href="https://kongono.dev" target="_blank" onclick="steal()">docs</a> '
+            . 'and <a href="javascript:alert(1)">bad</a> '
+            . 'and <a href="//evil.test/phish">proto-rel</a>.</p>'
+            . '<script>alert("xss")</script>'
+            . '<svg onload="alert(2)"><script>alert(3)</script></svg>'
+            . '<math><mtext><style>body{display:none}</style></mtext></math>'
+            . '<img src="https://kongono.dev/logo.png" alt="Logo" onerror="pwn()" width="120">'
+            . '<img src="data:text/html,<script>alert(4)</script>">';
+
+        $clean = HtmlSanitizer::sanitize($dirty);
+        self::assertStringContainsString('<div class="code-wrap"><span class="code-lang">php</span><pre><code>echo 1;</code></pre></div>', $clean);
+        self::assertStringContainsString('<a href="https://kongono.dev" target="_blank" rel="noopener noreferrer">docs</a>', $clean);
+        self::assertStringContainsString('<img src="https://kongono.dev/logo.png" alt="Logo" width="120">', $clean);
+        self::assertStringNotContainsString('<script', $clean);
+        self::assertStringNotContainsString('<svg', $clean);
+        self::assertStringNotContainsString('<math', $clean);
+        self::assertStringNotContainsString('javascript:', $clean);
+        self::assertStringNotContainsString('data:', $clean);
+        self::assertStringNotContainsString('//evil.test', $clean);
+        self::assertStringNotContainsString('onclick', $clean);
+        self::assertStringNotContainsString('onerror', $clean);
+
+        // @safeHtml directive renders allowlisted HTML safely inside .kgn.html templates
+        file_put_contents($this->tempDir . '/views/prose.kgn.html', '<article>@safeHtml($body)</article>');
+        $engine = new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache');
+        $rendered = $engine->render('prose', ['body' => '<p><strong>Safe</strong></p><script>evil()</script>']);
+        self::assertSame('<article><p><strong>Safe</strong></p></article>', $rendered);
     }
 
     private function removeDir(string $dir): void

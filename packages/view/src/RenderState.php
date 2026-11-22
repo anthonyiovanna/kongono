@@ -36,6 +36,19 @@ final class RenderState
         return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
+    /** Render untrusted/Markdown HTML strictly through the WHATWG HTML5 allowlist sanitizer. */
+    public function safeHtml(mixed $value): string
+    {
+        if (null === $value) {
+            return '';
+        }
+        if (!is_scalar($value) && !($value instanceof \Stringable)) {
+            throw new ViewException(sprintf('Cannot render non-stringable value of type %s in @safeHtml.', get_debug_type($value)));
+        }
+
+        return HtmlSanitizer::sanitize((string) $value);
+    }
+
     /** @param array<string, string|int|float> $params */
     public function translate(string $key, array $params = [], ?string $locale = null): string
     {

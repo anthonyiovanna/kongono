@@ -37,7 +37,7 @@ final class AppScaffolder
                 'type' => 'project',
                 'require' => [
                     'php' => '>=8.5.0',
-                    'kongono/framework' => '^1.6',
+                    'kongono/framework' => '^1.7',
                 ],
                 'autoload' => [
                     'psr-4' => ['App\\' => 'src/'],
@@ -114,7 +114,7 @@ if (function_exists('frankenphp_handle_request')) {
 
 PHP,
             'Caddyfile' => "{\n    frankenphp {\n        worker ./public/worker.php\n    }\n}\n\n:8080 {\n    root * ./public\n    encode zstd br gzip\n    php_server\n}\n",
-            'Dockerfile' => "FROM dunglas/frankenphp:php8.5\nENV APP_ENV=production APP_DEBUG=false SESSION_SECURE=true\nWORKDIR /app\nCOPY . /app\nEXPOSE 8080\nCMD [\"frankenphp\", \"run\", \"--config\", \"/app/Caddyfile\"]\n",
+            'Dockerfile' => "FROM dunglas/frankenphp:php8.5\nRUN useradd -r -u 10001 -s /usr/sbin/nologin kongono && mkdir -p /app/var /data /config && chown -R kongono:kongono /app /data /config\nENV APP_ENV=production APP_DEBUG=false SESSION_SECURE=true TRUSTED_PROXIES=\"\"\nWORKDIR /app\nCOPY --chown=kongono:kongono . /app\nUSER kongono\nEXPOSE 8080\nCMD [\"frankenphp\", \"run\", \"--config\", \"/app/Caddyfile\"]\n",
             '.dockerignore' => ".git\n.env\n.env.*\n!.env.example\n/var\n/tests\n/vendor\n",
             'src/Http/HomeController.php' => <<<PHP
 <?php

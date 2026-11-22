@@ -518,6 +518,11 @@ final class Router
             }
         }
 
-        return '#\A' . $pattern . '\z#';
+        $compiled = '#\A' . $pattern . '\z#';
+        if (false === @preg_match($compiled, '')) {
+            throw new CoreException(sprintf('Invalid route regex compiled for path "%s".', $template));
+        }
+
+        return $compiled;
     }
 }

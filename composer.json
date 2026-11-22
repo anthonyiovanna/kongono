@@ -32,6 +32,7 @@
   "require": {
     "php": ">=8.5.0",
     "ext-curl": "*",
+    "ext-dom": "*",
     "ext-json": "*",
     "ext-mbstring": "*",
     "ext-pdo": "*",
@@ -97,6 +98,7 @@
       "Kongono\\Mail\\Tests\\": "packages/mail/tests/",
       "Kongono\\Ai\\Tests\\": "packages/ai/tests/",
       "Kongono\\Cli\\Tests\\": "packages/cli/tests/",
+      "Kongono\\Tests\\Fuzz\\": "tests/Fuzz/",
       "Kongono\\Tests\\Integration\\": "tests/Integration/",
       "StarterApp\\": "examples/starter-app/src/",
       "StarterApp\\Tests\\": "examples/starter-app/tests/"
@@ -114,6 +116,7 @@
   "scripts": {
     "test": "@php -d memory_limit=512M vendor/bin/phpunit --configuration phpunit.xml.dist",
     "test:integration": "@php -d memory_limit=512M vendor/bin/phpunit --configuration phpunit.xml.dist tests/Integration",
+    "fuzz": "@php -d memory_limit=512M vendor/bin/phpunit --configuration phpunit.xml.dist --fail-on-deprecation --fail-on-warning --fail-on-notice tests/Fuzz",
     "analyse": "@php -d memory_limit=512M vendor/bin/phpstan analyse --configuration=phpstan.neon.dist --no-progress",
     "cs": "vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
     "cs:fix": "vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php",

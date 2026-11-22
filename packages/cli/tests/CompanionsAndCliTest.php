@@ -171,7 +171,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.6.1', $vOut);
+            self::assertStringContainsString('v1.7.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -760,6 +760,18 @@ PHP);
             $r3 = $linter->lintDirectory($tmp . '/migs3');
             self::assertFalse($r3['passed']);
             self::assertContains('KGN-MIG-TRUNCATE', array_column($r3['findings'], 'code'));
+
+            // 5. Hardened container blueprints enforce non-root user, read_only, cap_drop ALL, no-new-privileges, TRUSTED_PROXIES, and request_body max_size
+            self::assertStringContainsString('USER kongono', $dockerfile);
+            self::assertStringContainsString('TRUSTED_PROXIES=""', $dockerfile);
+
+            $bp = (new DeployBlueprintGenerator())->generate('acme', 'acme.kongono.dev', worker: true);
+            self::assertStringContainsString('USER kongono', $bp['Dockerfile']);
+            self::assertStringContainsString('read_only: true', $bp['docker-compose.prod.yml']);
+            self::assertStringContainsString('no-new-privileges:true', $bp['docker-compose.prod.yml']);
+            self::assertStringContainsString("cap_drop:\n      - ALL", $bp['docker-compose.prod.yml']);
+            self::assertStringContainsString('max_size 10MB', $bp['Caddyfile']);
+            self::assertStringContainsString('TRUSTED_PROXIES=', $bp['.env.production.example']);
         } finally {
             $this->removeDir($tmp);
         }

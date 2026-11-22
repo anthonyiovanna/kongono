@@ -21,7 +21,7 @@ use Throwable;
  */
 final class ViewEngine
 {
-    private const string CACHE_VERSION = 'v2';
+    private const string CACHE_VERSION = 'v3';
 
     private readonly string $viewsPath;
     private readonly string $cachePath;
