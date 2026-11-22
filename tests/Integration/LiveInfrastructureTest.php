@@ -384,7 +384,13 @@ final class LiveInfrastructureTest extends TestCase
             });
 
         self::assertSame(3, $prioWorker->run('critical,default')->completed);
-        self::assertSame([1, 2, 99], $seenOrder);
+        // Both critical-queue batch items strictly preempt default-queue item 99
+        // (within the same second, Redis ZSET breaks equal-score ties lexicographically by job ID).
+        self::assertCount(3, $seenOrder);
+        self::assertSame(99, $seenOrder[2]);
+        $criticalItems = [$seenOrder[0], $seenOrder[1]];
+        sort($criticalItems);
+        self::assertSame([1, 2], $criticalItems);
         self::assertSame($batch->id, $batchFinishedId);
         $finalBatch = $batches->find($batch->id);
         self::assertNotNull($finalBatch);
