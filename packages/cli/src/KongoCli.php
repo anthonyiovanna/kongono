@@ -6,11 +6,13 @@ namespace Kongono\Cli;
 
 use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
+use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\Companions\ChieBuilder;
 use Kongono\Cli\Companions\DiffRenderer;
 use Kongono\Cli\Companions\HanteiDebugger;
 use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Deploy\DeployBlueprintGenerator;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Core\Graph\RouteNode;
 use Kongono\Database\ConnectionInterface;
@@ -51,11 +53,13 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.1.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.2.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
                 'mcp' => $this->cmdMcp($appRoot),
+                'audit' => $this->cmdAudit($appRoot, $options),
+                'deploy:init' => $this->cmdDeployInit($appRoot, $options),
                 'serve' => $this->cmdServe($appRoot, $options),
                 'tinker' => $this->cmdTinker($appRoot, $options),
                 'new' => $this->cmdNew($rest, $options),
@@ -923,6 +927,112 @@ final readonly class KongoCli
         return [1, "Unknown hantei subcommand. Use: check | debug \"<error>\" | generate-tests <file>\n"];
     }
 
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdAudit(string $appRoot, array $options): array
+    {
+        $app = null;
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (is_file($bootstrap)) {
+            try {
+                $loaded = require $bootstrap;
+                if ($loaded instanceof App) {
+                    $app = $loaded;
+                }
+            } catch (Throwable) {
+                $app = null;
+            }
+        }
+
+        $report = (new SecurityAuditor())->audit($appRoot, $app);
+        $strict = isset($options['strict']);
+        $failed = !$report['passed'] || ($strict && $report['counts']['warning'] > 0);
+
+        if (isset($options['json'])) {
+            return [$failed ? 1 : 0, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [
+            sprintf('Kongono Security Audit — Score: %d/100 (%s)', $report['score'], $failed ? 'FAILED' : 'PASS'),
+            sprintf(
+                '  Scanned: %d route(s), %d view(s), %d symfony/* package(s)',
+                $report['routes_scanned'],
+                $report['views_scanned'],
+                $report['symfony_packages'],
+            ),
+            sprintf(
+                '  Findings: %d critical, %d warning, %d info',
+                $report['counts']['critical'],
+                $report['counts']['warning'],
+                $report['counts']['info'],
+            ),
+        ];
+
+        foreach ($report['findings'] as $f) {
+            $lines[] = sprintf('  [%-8s] %s (%s): %s', strtoupper($f['severity']), $f['code'], $f['location'], $f['message']);
+        }
+        if ([] === $report['findings']) {
+            $lines[] = '  [OK      ] Zero security or supply-chain findings.';
+        }
+
+        return [$failed ? 1 : 0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdDeployInit(string $appRoot, array $options): array
+    {
+        $domain = is_string($options['domain'] ?? null) && '' !== trim($options['domain'])
+            ? trim($options['domain'])
+            : 'app.example.com';
+        $repo = is_string($options['repo'] ?? null) && '' !== trim($options['repo'])
+            ? trim($options['repo'])
+            : 'https://github.com/your-org/your-app.git';
+        $branch = is_string($options['branch'] ?? null) && '' !== trim($options['branch'])
+            ? trim($options['branch'])
+            : 'main';
+        $ip = is_string($options['ip'] ?? null) && '' !== trim($options['ip'])
+            ? trim($options['ip'])
+            : '203.0.113.10';
+        $threads = is_string($options['threads'] ?? null) && ctype_digit($options['threads'])
+            ? max(1, (int) $options['threads'])
+            : 4;
+        $force = isset($options['force']);
+
+        $files = (new DeployBlueprintGenerator())->generate(
+            slug: basename($appRoot),
+            domain: $domain,
+            gitRepo: $repo,
+            gitBranch: $branch,
+            serverIp: $ip,
+            postgres: isset($options['postgres']) || !isset($options['no-postgres']),
+            redis: isset($options['redis']) || !isset($options['no-redis']),
+            worker: isset($options['worker']),
+            threads: $threads,
+        );
+
+        $lines = [sprintf('Kongono Deploy Blueprint (%s):', $domain)];
+        foreach ($files as $rel => $content) {
+            $dest = $appRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $rel);
+            if (is_file($dest) && !$force) {
+                $lines[] = sprintf('  [SKIP ] %s (already exists; pass --force to overwrite)', $rel);
+                continue;
+            }
+            $dir = dirname($dest);
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0o775, true);
+            }
+            file_put_contents($dest, $content);
+            $lines[] = sprintf('  [WRITE] %s', $rel);
+        }
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
     private function tryAiClient(): ?AiClient
     {
         if (null !== $this->aiOverride) {
@@ -981,7 +1091,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -1064,6 +1174,8 @@ Core Commands:
   make:test <Name> [--app=path]                         Generate a PHPUnit 13 TestClient test
   key:generate                                          Generate a 256-bit APP_KEY for .env
   doctor [--app=path]                                   Verify PHP 8.5, extensions, AI provider & app health
+  audit [--app=path] [--json] [--strict]                Run graph-driven automated security & supply-chain audit
+  deploy:init [--app=path] --domain=app.example.com     Generate zero-downtime FrankenPHP Dockerfile, Caddyfile & VPS scripts
   env:check [--app=path]                                Verify required keys from .env.example exist in .env
   routes [--app=path] [--json]                          List all registered routes
   graph [--app=path]                                    Print live ApplicationGraph JSON

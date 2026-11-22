@@ -7,15 +7,21 @@ namespace Kongono\Cli\Mcp;
 use Kongono\Ai\Agent\AgentPrincipal;
 use Kongono\Ai\Mcp\McpServer;
 use Kongono\Ai\ToolDefinition;
+use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Deploy\DeployBlueprintGenerator;
+use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Http\App;
 use Kongono\Http\OpenApi\OpenApiGenerator;
+use Kongono\Http\Request;
+use Kongono\Http\Response;
 use Throwable;
 
 /**
  * Builds a capability-governed Kongono MCP Server exposing live ApplicationGraph,
- * OpenAPI 3.1 spec, route table, secret-scrubbed source browsing, and Oshie lessons.
+ * OpenAPI 3.1 spec, route table, automated security audit, in-process route testing,
+ * FrankenPHP deploy previews, secret-scrubbed source browsing, and Oshie lessons.
  *
  * Reusable across both stdio (`php bin/kongo mcp`) and HTTP (`POST /mcp`).
  */
@@ -26,6 +32,9 @@ final class KongonoMcpFactory
         'kongono_graph',
         'kongono_openapi',
         'kongono_routes',
+        'kongono_audit',
+        'kongono_test_route',
+        'kongono_deploy_preview',
         'kongono_list_files',
         'kongono_read_file',
         'kongono_oshie_lesson',
@@ -46,7 +55,7 @@ final class KongonoMcpFactory
 
         $server = new McpServer(
             serverName: 'kongono-framework',
-            serverVersion: '1.0.0',
+            serverVersion: '1.2.0',
             principal: $principal,
         );
 
@@ -111,6 +120,113 @@ final class KongonoMcpFactory
                 }
 
                 return implode("\n", $lines);
+            },
+        );
+
+        $server->registerTool(
+            new ToolDefinition(
+                name: 'kongono_audit',
+                description: 'Run the graph-driven Kongono security & architecture audit (0-Symfony supply chain, auth rate limits, payment idempotency, raw HTML sinks, .env hygiene).',
+                parametersSchema: [
+                    'type' => 'object',
+                    'properties' => (object) [],
+                ],
+            ),
+            static function () use ($appRoot, $app): string {
+                $report = (new SecurityAuditor())->audit($appRoot, $app);
+
+                return json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            },
+        );
+
+        $server->registerTool(
+            new ToolDefinition(
+                name: 'kongono_test_route',
+                description: 'Execute a real in-process HTTP request against this Kongono App without starting a server, returning status, headers, secret-scrubbed body, and active ops count.',
+                parametersSchema: [
+                    'type' => 'object',
+                    'required' => ['path'],
+                    'properties' => [
+                        'method' => [
+                            'type' => 'string',
+                            'description' => 'HTTP method (GET, HEAD, OPTIONS, POST, PUT, PATCH, DELETE). Defaults to GET.',
+                        ],
+                        'path' => [
+                            'type' => 'string',
+                            'description' => 'Request path (e.g. /health or /api/notes).',
+                        ],
+                        'json_body' => [
+                            'type' => 'object',
+                            'description' => 'Optional JSON payload for mutating requests.',
+                        ],
+                    ],
+                ],
+            ),
+            static function (array $args) use ($app): string {
+                if (null === $app) {
+                    return '{"error":"No runnable Kongono App instance loaded."}';
+                }
+                $method = strtoupper(is_string($args['method'] ?? null) ? trim($args['method']) : 'GET');
+                $path = is_string($args['path'] ?? null) ? trim($args['path']) : '/';
+                if ('' === $path || !str_starts_with($path, '/')) {
+                    throw new \InvalidArgumentException('Parameter "path" must start with "/".');
+                }
+                $pathOnly = explode('?', $path, 2)[0];
+                if ('/mcp' === strtolower($pathOnly)) {
+                    throw new \InvalidArgumentException('Recursive calls to /mcp via kongono_test_route are forbidden.');
+                }
+
+                $req = is_array($args['json_body'] ?? null)
+                    ? Request::json($method, $path, $args['json_body'])
+                    : Request::create($method, $path);
+                $res = $app->handle($req);
+                $headers = [];
+                foreach ($res->getHeaders() as $name => $values) {
+                    $headers[$name] = SecretScrubber::scrub(implode(', ', $values));
+                }
+                $rawBody = $res instanceof Response ? $res->bodyString() : (string) $res->getBody();
+
+                return json_encode([
+                    'method' => $method,
+                    'path' => $path,
+                    'status' => $res->getStatusCode(),
+                    'headers' => $headers,
+                    'body' => substr(SecretScrubber::scrub($rawBody), 0, 4000),
+                    'active_ops_after' => $app->kernel()->activeOperationCount(),
+                ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            },
+        );
+
+        $server->registerTool(
+            new ToolDefinition(
+                name: 'kongono_deploy_preview',
+                description: 'Preview zero-downtime FrankenPHP production deployment files (Dockerfile, Caddyfile, docker-compose.prod.yml, provision.sh, deploy.sh).',
+                parametersSchema: [
+                    'type' => 'object',
+                    'properties' => [
+                        'domain' => ['type' => 'string', 'description' => 'Production domain (e.g. app.example.com).'],
+                        'postgres' => ['type' => 'boolean', 'description' => 'Include PostgreSQL 17 service.'],
+                        'redis' => ['type' => 'boolean', 'description' => 'Include Redis 7 service.'],
+                        'worker' => ['type' => 'boolean', 'description' => 'Include async queue worker container.'],
+                    ],
+                ],
+            ),
+            static function (array $args) use ($appRoot): string {
+                $domain = is_string($args['domain'] ?? null) && '' !== trim($args['domain']) ? trim($args['domain']) : 'app.example.com';
+                $files = (new DeployBlueprintGenerator())->generate(
+                    slug: basename($appRoot),
+                    domain: $domain,
+                    postgres: (bool) ($args['postgres'] ?? true),
+                    redis: (bool) ($args['redis'] ?? true),
+                    worker: (bool) ($args['worker'] ?? false),
+                );
+
+                return json_encode([
+                    'domain' => $domain,
+                    'files' => array_keys($files),
+                    'dockerfile' => $files['Dockerfile'],
+                    'caddyfile' => $files['Caddyfile'],
+                ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
             },
         );
 

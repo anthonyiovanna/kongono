@@ -36,6 +36,8 @@ final class QueryBuilder
 
     private ?int $limit = null;
     private ?int $offset = null;
+    private ?string $requiredTenantColumn = null;
+    private bool $tenantScoped = false;
 
     public function __construct(
         private readonly string $table,
@@ -86,7 +88,36 @@ final class QueryBuilder
 
     public function where(string $column, string $operator, mixed $value): self
     {
+        if (null !== $this->requiredTenantColumn && '=' === trim($operator) && $this->matchesTenantColumn($column, $this->requiredTenantColumn)) {
+            $this->tenantScoped = true;
+        }
+
         return $this->addWhere('AND', $column, $operator, $value);
+    }
+
+    /**
+     * Bind a fail-closed row-level tenant scope (`WHERE <column> = ?`).
+     */
+    public function forTenant(TenantContext|int|string $tenant, string $column = 'workspace_id'): self
+    {
+        $col = $tenant instanceof TenantContext ? $tenant->column : $column;
+        $id = $tenant instanceof TenantContext ? $tenant->tenantId : $tenant;
+
+        $this->requiredTenantColumn = $col;
+        $this->tenantScoped = true;
+
+        return $this->addWhere('AND', $col, '=', $id);
+    }
+
+    /**
+     * Enforce that this query MUST include an equality filter on `$column` (or `forTenant()`)
+     * before compiling SELECT, UPDATE, or DELETE SQL — preventing cross-tenant data leaks.
+     */
+    public function requireTenant(string $column = 'workspace_id'): self
+    {
+        $this->requiredTenantColumn = $column;
+
+        return $this;
     }
 
     public function orWhere(string $column, string $operator, mixed $value): self
@@ -243,6 +274,7 @@ final class QueryBuilder
     /** Compile SELECT SQL + bindings. */
     public function toSelectSql(): Sql
     {
+        $this->assertTenantScoped('SELECT');
         $bindings = [];
         $select = implode(', ', array_map($this->quoteColumnOrExpression(...), $this->columns));
         $from = $this->dialect->quoteIdentifier($this->table);
@@ -414,6 +446,7 @@ final class QueryBuilder
      */
     public function toUpdateSql(array $values, array $returning = [], bool $allowUnscoped = false): Sql
     {
+        $this->assertTenantScoped('UPDATE');
         if ([] === $values) {
             throw new DatabaseException('Cannot compile UPDATE with empty values.');
         }
@@ -452,6 +485,7 @@ final class QueryBuilder
      */
     public function toDeleteSql(array $returning = [], bool $allowUnscoped = false): Sql
     {
+        $this->assertTenantScoped('DELETE');
         if ([] === $this->wheres && !$allowUnscoped) {
             throw new DatabaseException('Refusing unscoped DELETE without WHERE clause. Pass $allowUnscoped = true to override.');
         }
@@ -634,6 +668,27 @@ final class QueryBuilder
         $sql = $this->toDeleteSql();
 
         return $this->requireConnection()->execute($sql->query, $sql->bindings);
+    }
+
+    private function assertTenantScoped(string $operation): void
+    {
+        if (null !== $this->requiredTenantColumn && !$this->tenantScoped) {
+            throw new DatabaseException(sprintf(
+                'Refusing cross-tenant %s on "%s": missing required tenant scope on column "%s". Call forTenant() or where("%s", "=", ...).',
+                $operation,
+                $this->table,
+                $this->requiredTenantColumn,
+                $this->requiredTenantColumn,
+            ));
+        }
+    }
+
+    private function matchesTenantColumn(string $column, string $required): bool
+    {
+        $clean = strtolower(trim($column));
+        $target = strtolower(trim($required));
+
+        return $clean === $target || str_ends_with($clean, '.' . $target);
     }
 
     /** @param 'AND'|'OR' $boolean */

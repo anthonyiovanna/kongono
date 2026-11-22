@@ -498,4 +498,67 @@ final class AiProvidersAndAgentTest extends TestCase
         self::assertStringContainsString('ON CONFLICT (id) DO UPDATE', $sqlLog[2]);
         self::assertStringContainsString('metadata @> ?::jsonb', $sqlLog[3]);
     }
+
+    public function testAgentRunnerPausesForHumanApprovalAndEnforcesTokenBudget(): void
+    {
+        $transport = new FakeTransport(new HttpResponse(200, json_encode([
+            'model' => 'gpt-4.1-mini',
+            'choices' => [[
+                'message' => [
+                    'role' => 'assistant',
+                    'content' => '',
+                    'tool_calls' => [[
+                        'id' => 'call_refund_1',
+                        'type' => 'function',
+                        'function' => [
+                            'name' => 'billing_refund',
+                            'arguments' => '{"invoice_id":42,"amount_cents":50000}',
+                        ],
+                    ]],
+                ],
+            ]],
+            'usage' => ['prompt_tokens' => 40, 'completion_tokens' => 20],
+        ], JSON_THROW_ON_ERROR)));
+
+        $client = new AiClient(new OpenAiProvider('sk-test', transport: $transport));
+        $principal = new AgentPrincipal(
+            id: 'billing-agent',
+            role: 'support',
+            allowedTools: ['billing_refund'],
+            approvalRequiredTools: ['billing_refund'],
+            maxTokens: 1000,
+            maxCostUsd: 0.25,
+        );
+
+        $executed = false;
+        $runner = new AgentRunner($client, $principal);
+        $receipt = $runner->run(
+            [Message::user('Refund invoice 42')],
+            [new ToolDefinition('billing_refund', 'Refund an invoice', ['type' => 'object'])],
+            static function () use (&$executed): string {
+                $executed = true;
+
+                return 'refunded';
+            },
+        );
+
+        self::assertFalse($executed);
+        self::assertTrue($receipt->isAwaitingApproval());
+        self::assertSame('awaiting_approval', $receipt->status);
+        self::assertNotNull($receipt->pendingApproval);
+        self::assertSame('billing_refund', $receipt->pendingApproval->name);
+
+        // Enforce token budget fail-closed
+        $tightPrincipal = new AgentPrincipal(id: 'tight-agent', role: 'support', allowedTools: ['billing_refund'], maxTokens: 10);
+        $tightTransport = new FakeTransport(new HttpResponse(200, json_encode([
+            'model' => 'gpt-4.1-mini',
+            'choices' => [['message' => ['role' => 'assistant', 'content' => 'Done']]],
+            'usage' => ['prompt_tokens' => 30, 'completion_tokens' => 20],
+        ], JSON_THROW_ON_ERROR)));
+
+        $this->expectException(AiException::class);
+        $this->expectExceptionMessage('exceeded its token budget');
+        (new AgentRunner(new AiClient(new OpenAiProvider('sk-test', transport: $tightTransport)), $tightPrincipal))
+            ->run([Message::user('Hi')], [], static fn(): string => '');
+    }
 }

@@ -159,7 +159,25 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.1.0', $vOut);
+            self::assertStringContainsString('v1.2.0', $vOut);
+
+            // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
+            [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
+            self::assertSame(0, $auditCode);
+            $auditJson = json_decode($auditOut, true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($auditJson);
+            self::assertTrue($auditJson['passed']);
+            self::assertSame(0, $auditJson['symfony_packages']);
+            self::assertGreaterThan(10, $auditJson['routes_scanned']);
+
+            [$depCode, $depOut] = $cli->run(['deploy:init', '--app=' . $tempDir, '--domain=demo.kongono.dev', '--postgres', '--redis', '--worker', '--force']);
+            self::assertSame(0, $depCode);
+            self::assertStringContainsString('[WRITE] Dockerfile', $depOut);
+            self::assertFileExists($tempDir . '/Dockerfile');
+            self::assertFileExists($tempDir . '/Caddyfile');
+            self::assertFileExists($tempDir . '/docker-compose.prod.yml');
+            self::assertFileExists($tempDir . '/deploy/provision.sh');
+            self::assertFileExists($tempDir . '/deploy/deploy.sh');
 
             [$tkCode, $tkOut] = $cli->run(['tinker', '--app=' . $this->starterAppRoot, '--eval=$graph->appName']);
             self::assertSame(0, $tkCode);
@@ -277,5 +295,22 @@ final class CompanionsAndCliTest extends TestCase
         self::assertIsArray($readOk);
         self::assertFalse($readOk['result']['isError']);
         self::assertStringContainsString('final readonly class NoteController', $readOk['result']['content'][0]['text']);
+
+        // v1.2.0 MCP tools: kongono_audit, kongono_test_route, kongono_deploy_preview
+        $auditMcp = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"kongono_audit"}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($auditMcp);
+        self::assertFalse($auditMcp['result']['isError']);
+        self::assertStringContainsString('"symfony_packages": 0', $auditMcp['result']['content'][0]['text']);
+
+        $routeTest = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"kongono_test_route","arguments":{"method":"GET","path":"/health"}}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($routeTest);
+        self::assertFalse($routeTest['result']['isError']);
+        self::assertStringContainsString('"status": 200', $routeTest['result']['content'][0]['text']);
+        self::assertStringContainsString('"active_ops_after": 0', $routeTest['result']['content'][0]['text']);
+
+        $deployPrev = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"kongono_deploy_preview","arguments":{"domain":"prod.kongono.dev"}}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($deployPrev);
+        self::assertFalse($deployPrev['result']['isError']);
+        self::assertStringContainsString('prod.kongono.dev', $deployPrev['result']['content'][0]['text']);
     }
 }

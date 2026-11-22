@@ -377,4 +377,31 @@ final class QueryBuilderTest extends TestCase
         self::assertContains('DOWN_B', $events);
         self::assertSame(['20260101_create_a'], $applied);
     }
+
+    public function testFailClosedTenantContextPreventsCrossTenantQueries(): void
+    {
+        $ctx = new \Kongono\Database\TenantContext(42);
+        $scoped = (new QueryBuilder('invoices', Dialect::Postgres))
+            ->forTenant($ctx)
+            ->where('status', '=', 'open')
+            ->toSelectSql();
+
+        self::assertSame('SELECT * FROM "invoices" WHERE "workspace_id" = ? AND "status" = ?', $scoped->query);
+        self::assertSame([42, 'open'], $scoped->bindings);
+
+        // Explicit requireTenant() succeeds when where('workspace_id', '=', ...) is present
+        $manual = (new QueryBuilder('invoices', Dialect::Postgres))
+            ->requireTenant('workspace_id')
+            ->where('workspace_id', '=', 7)
+            ->toDeleteSql();
+        self::assertSame('DELETE FROM "invoices" WHERE "workspace_id" = ?', $manual->query);
+
+        // Unscoped query on a tenant-required table MUST fail closed
+        $this->expectException(\Kongono\Database\DatabaseException::class);
+        $this->expectExceptionMessage('Refusing cross-tenant SELECT');
+        (new QueryBuilder('invoices', Dialect::Postgres))
+            ->requireTenant('workspace_id')
+            ->where('status', '=', 'open')
+            ->toSelectSql();
+    }
 }

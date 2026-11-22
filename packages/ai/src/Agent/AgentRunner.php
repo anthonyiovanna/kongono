@@ -17,8 +17,8 @@ use Kongono\Core\Diagnostics\SecretScrubber;
 /**
  * Bounded, capability-governed agent loop.
  *
- * Enforces explicit AgentPrincipal allowlists, finite step/tool budgets,
- * and nondisclosing audit receipts on every tool execution.
+ * Enforces explicit AgentPrincipal allowlists, human-in-the-loop approval gates,
+ * finite step/tool/token budgets, and nondisclosing audit receipts on every tool execution.
  */
 final readonly class AgentRunner
 {
@@ -28,9 +28,9 @@ final readonly class AgentRunner
     ) {}
 
     /**
-     * @param list<Message>                                   $initialMessages
-     * @param list<ToolDefinition>                            $tools
-     * @param Closure(ToolCall): string                       $toolExecutor
+     * @param list<Message>             $initialMessages
+     * @param list<ToolDefinition>      $tools
+     * @param Closure(ToolCall): string $toolExecutor
      */
     public function run(array $initialMessages, array $tools, Closure $toolExecutor): AgentReceipt
     {
@@ -53,6 +53,15 @@ final readonly class AgentRunner
             $lastModel = $response->model;
             $totalInput += $response->usage->inputTokens;
             $totalOutput += $response->usage->outputTokens;
+
+            if ($this->principal->exceedsTokenBudget($totalInput + $totalOutput)) {
+                throw new AiException(sprintf(
+                    'Agent "%s" exceeded its token budget (%d > %d).',
+                    $this->principal->id,
+                    $totalInput + $totalOutput,
+                    $this->principal->maxTokens,
+                ));
+            }
 
             if (!$response->hasToolCalls()) {
                 return new AgentReceipt(
@@ -78,6 +87,27 @@ final readonly class AgentRunner
                     ];
                     $messages[] = Message::tool($call->id, 'Error: capability denied by policy.');
                     continue;
+                }
+
+                if ($this->principal->requiresApproval($call->name)) {
+                    $audit[] = [
+                        'tool' => $call->name,
+                        'allowed' => false,
+                        'summary' => 'Paused awaiting explicit human approval.',
+                    ];
+
+                    return new AgentReceipt(
+                        principalId: $this->principal->id,
+                        provider: $response->provider,
+                        model: $lastModel,
+                        finalText: sprintf('Paused: tool "%s" requires human approval before execution.', $call->name),
+                        steps: $steps,
+                        toolCallsExecuted: $toolCallsExecuted,
+                        toolAudit: $audit,
+                        usage: new TokenUsage($totalInput, $totalOutput),
+                        status: 'awaiting_approval',
+                        pendingApproval: $call,
+                    );
                 }
 
                 if ($toolCallsExecuted >= $this->principal->maxToolCalls) {
