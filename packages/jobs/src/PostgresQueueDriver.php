@@ -9,7 +9,8 @@ use Kongono\Database\ConnectionInterface;
 
 /**
  * Persistent PostgreSQL queue driver using short `FOR UPDATE SKIP LOCKED`
- * reservation transactions (never held while handlers execute) and generation/token fencing.
+ * reservation transactions (never held while handlers execute), generation/token fencing,
+ * `uniqueKey` deduplication, and dead-letter replay.
  */
 final readonly class PostgresQueueDriver implements QueueDriverInterface
 {
@@ -35,6 +36,7 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
             . 'lease_until BIGINT, '
             . 'status VARCHAR(32) NOT NULL, '
             . 'last_error TEXT, '
+            . 'unique_key VARCHAR(192), '
             . 'updated_at BIGINT NOT NULL'
             . ')',
             $t,
@@ -48,17 +50,32 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
         int $delaySeconds = 0,
         int $maxAttempts = 3,
         ?int $now = null,
+        ?string $uniqueKey = null,
     ): Job {
         $ts = $now ?? time();
+        $cleanUnique = null !== $uniqueKey && '' !== trim($uniqueKey) ? trim($uniqueKey) : null;
+        $encoded = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES, 64);
+
+        if (null !== $cleanUnique) {
+            $t = $this->db->dialect()->quoteIdentifier($this->table);
+            $existing = $this->db->first(
+                sprintf('SELECT * FROM %s WHERE queue = ? AND unique_key = ? AND status IN (?, ?) LIMIT 1', $t),
+                [$queue, $cleanUnique, JobStatus::Pending->value, JobStatus::Reserved->value],
+            );
+            if (null !== $existing) {
+                return $this->hydrateRow($existing);
+            }
+        }
+
         $id = bin2hex(random_bytes(16));
         $availableAt = $ts + max(0, $delaySeconds);
         $attempts = max(1, $maxAttempts);
 
-        $this->db->table($this->table)->insert([
+        $row = [
             'id' => $id,
             'queue' => $queue,
             'type' => $type,
-            'payload' => json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES, 64),
+            'payload' => $encoded,
             'attempt' => 0,
             'max_attempts' => $attempts,
             'generation' => 0,
@@ -68,9 +85,14 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
             'status' => JobStatus::Pending->value,
             'last_error' => null,
             'updated_at' => $ts,
-        ]);
+        ];
+        if (null !== $cleanUnique) {
+            $row['unique_key'] = $cleanUnique;
+        }
 
-        return new Job($id, $queue, $type, $payload, 0, $attempts, 0, null, $availableAt, null, JobStatus::Pending);
+        $this->db->table($this->table)->insert($row);
+
+        return new Job($id, $queue, $type, $payload, 0, $attempts, 0, null, $availableAt, null, JobStatus::Pending, null, $cleanUnique);
     }
 
     public function reserve(string $queue, int $leaseSeconds = 60, ?int $now = null): ?Job
@@ -152,6 +174,7 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
                     leaseUntil: $leaseUntil,
                     status: JobStatus::Reserved,
                     lastError: $job->lastError,
+                    uniqueKey: $job->uniqueKey,
                 );
             }
 
@@ -240,6 +263,59 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
             ->delete();
     }
 
+    public function listFailed(string $queue, int $limit = 100): array
+    {
+        $rows = $this->db->table($this->table)
+            ->where('queue', '=', $queue)
+            ->whereIn('status', [JobStatus::Failed->value, JobStatus::Dead->value])
+            ->orderBy('updated_at', 'DESC')
+            ->limit(max(1, $limit))
+            ->get();
+
+        $jobs = [];
+        foreach ($rows as $row) {
+            try {
+                $jobs[] = $this->hydrateRow($row);
+            } catch (JobException) {
+                continue;
+            }
+        }
+
+        return $jobs;
+    }
+
+    public function retryFailed(string $queue, ?string $jobId = null, ?int $now = null): int
+    {
+        $ts = $now ?? time();
+        $t = $this->db->dialect()->quoteIdentifier($this->table);
+
+        if (null !== $jobId) {
+            return $this->db->execute(
+                sprintf(
+                    'UPDATE %s SET status = ?, attempt = 0, generation = generation + 1, lease_token = NULL, lease_until = NULL, available_at = ?, last_error = NULL, updated_at = ? WHERE queue = ? AND id = ? AND status IN (?, ?)',
+                    $t,
+                ),
+                [JobStatus::Pending->value, $ts, $ts, $queue, $jobId, JobStatus::Failed->value, JobStatus::Dead->value],
+            );
+        }
+
+        return $this->db->execute(
+            sprintf(
+                'UPDATE %s SET status = ?, attempt = 0, generation = generation + 1, lease_token = NULL, lease_until = NULL, available_at = ?, last_error = NULL, updated_at = ? WHERE queue = ? AND status IN (?, ?)',
+                $t,
+            ),
+            [JobStatus::Pending->value, $ts, $ts, $queue, JobStatus::Failed->value, JobStatus::Dead->value],
+        );
+    }
+
+    public function flushFailed(string $queue): int
+    {
+        return $this->db->table($this->table)
+            ->where('queue', '=', $queue)
+            ->whereIn('status', [JobStatus::Failed->value, JobStatus::Dead->value])
+            ->delete();
+    }
+
     /** @param array<string, mixed> $row */
     private function hydrateRow(array $row): Job
     {
@@ -271,6 +347,7 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
             leaseUntil: is_numeric($row['lease_until'] ?? null) ? (int) $row['lease_until'] : null,
             status: JobStatus::tryFrom(is_string($row['status'] ?? null) ? $row['status'] : '') ?? JobStatus::Pending,
             lastError: is_string($row['last_error'] ?? null) ? $row['last_error'] : null,
+            uniqueKey: is_string($row['unique_key'] ?? null) && '' !== $row['unique_key'] ? $row['unique_key'] : null,
         );
     }
 }

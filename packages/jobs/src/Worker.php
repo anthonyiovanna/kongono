@@ -9,12 +9,16 @@ use Kongono\Core\Container;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Core\Kernel;
 use Kongono\Core\KernelState;
+use Kongono\Jobs\Batch\BatchStoreInterface;
+use Kongono\Jobs\Batch\JobBatch;
 use Throwable;
 
 /**
  * Persistent-runtime-safe background job worker.
  *
  * - Uses an explicit handler map (never PHP object unserialize())
+ * - Supports multi-queue priority draining (`['critical', 'high', 'default']` or `'critical,high,default'`)
+ * - Supports composable `JobMiddlewareInterface` pipelines and `JobBatch` fan-out/fan-in tracking
  * - Runs every job inside an isolated Kernel operation scope and resets Container scoped services
  * - Never auto-retries JobOutcome::Uncertain to prevent duplicate non-idempotent side effects
  */
@@ -22,6 +26,20 @@ final class Worker
 {
     /** @var array<string, JobHandlerInterface|Closure(Job): JobOutcome> */
     private array $handlers = [];
+
+    /** @var list<JobMiddlewareInterface|Closure(Job, Closure(Job): JobOutcome): JobOutcome> */
+    private array $middleware = [];
+
+    private ?BatchStoreInterface $batchStore = null;
+
+    /** @var list<Closure(JobBatch): void> */
+    private array $batchCompleteHooks = [];
+
+    /** @var list<Closure(JobBatch, Job): void> */
+    private array $batchFailureHooks = [];
+
+    /** @var list<Closure(JobBatch): void> */
+    private array $batchFinallyHooks = [];
 
     private bool $daemonStopRequested = false;
 
@@ -31,6 +49,11 @@ final class Worker
         private readonly ?Container $container = null,
     ) {}
 
+    public function driver(): QueueDriverInterface
+    {
+        return $this->driver;
+    }
+
     /** @param JobHandlerInterface|Closure(Job): JobOutcome $handler */
     public function register(string $jobType, JobHandlerInterface|Closure $handler): self
     {
@@ -39,14 +62,66 @@ final class Worker
         return $this;
     }
 
-    /** Process up to $maxJobs available jobs sequentially and return a deterministic summary report. */
+    /**
+     * Register one or more composable middleware layers wrapping job execution in FIFO order.
+     *
+     * @param JobMiddlewareInterface|Closure(Job, Closure(Job): JobOutcome): JobOutcome ...$middleware
+     */
+    public function middleware(JobMiddlewareInterface|Closure ...$middleware): self
+    {
+        foreach ($middleware as $mw) {
+            $this->middleware[] = $mw;
+        }
+
+        return $this;
+    }
+
+    /** Attach a {@see BatchStoreInterface} to track parallel {@see JobBatch} progress & cancellation automatically. */
+    public function withBatchStore(BatchStoreInterface $store): self
+    {
+        $this->batchStore = $store;
+
+        return $this;
+    }
+
+    /** @param Closure(JobBatch): void $callback Invoked when a batch reaches 0 pending jobs with 0 failures */
+    public function onBatchComplete(Closure $callback): self
+    {
+        $this->batchCompleteHooks[] = $callback;
+
+        return $this;
+    }
+
+    /** @param Closure(JobBatch, Job): void $callback Invoked whenever a job in a batch fails permanently */
+    public function onBatchFailure(Closure $callback): self
+    {
+        $this->batchFailureHooks[] = $callback;
+
+        return $this;
+    }
+
+    /** @param Closure(JobBatch): void $callback Invoked when a batch finishes (0 pending jobs), regardless of failures */
+    public function onBatchFinally(Closure $callback): self
+    {
+        $this->batchFinallyHooks[] = $callback;
+
+        return $this;
+    }
+
+    /**
+     * Process up to `$maxJobs` available jobs across one or more priority-ordered queues
+     * (pass `'critical,high,default'` or `['critical', 'high', 'default']`).
+     *
+     * @param string|list<string> $queue
+     */
     public function run(
-        string $queue = 'default',
+        string|array $queue = 'default',
         int $maxJobs = 50,
         int $leaseSeconds = 60,
         int $baseBackoffSeconds = 5,
         ?int $now = null,
     ): WorkerReport {
+        $queues = self::normalizeQueues($queue);
         $kernel = $this->kernel ?? new Kernel();
         if (KernelState::Unbooted === $kernel->state()) {
             $kernel->boot();
@@ -60,11 +135,31 @@ final class Worker
         $stale = 0;
 
         while ($processed < $maxJobs) {
-            $job = $this->driver->reserve($queue, $leaseSeconds, $now);
+            $job = null;
+            foreach ($queues as $q) {
+                $job = $this->driver->reserve($q, $leaseSeconds, $now);
+                if (null !== $job) {
+                    break;
+                }
+            }
             if (null === $job) {
                 break;
             }
             ++$processed;
+
+            // Skip jobs belonging to a cancelled batch cleanly without invoking the handler
+            $batchId = $job->batchId();
+            if (null !== $batchId && null !== $this->batchStore) {
+                $batch = $this->batchStore->find($batchId);
+                if (null !== $batch && $batch->cancelled) {
+                    if ($this->driver->acknowledge($job)) {
+                        ++$completed;
+                    } else {
+                        ++$stale;
+                    }
+                    continue;
+                }
+            }
 
             $outcome = $kernel->runOperation(function () use ($job): array {
                 try {
@@ -73,11 +168,19 @@ final class Worker
                         return [JobOutcome::Failed, sprintf('No handler registered for job type "%s".', $job->type)];
                     }
 
-                    $result = $handler instanceof JobHandlerInterface
-                        ? $handler->handle($job)
-                        : $handler($job);
+                    $core = static fn(Job $j): JobOutcome => $handler instanceof JobHandlerInterface
+                        ? $handler->handle($j)
+                        : $handler($j);
 
-                    return [$result, null];
+                    $pipeline = $core;
+                    foreach (array_reverse($this->middleware) as $mw) {
+                        $next = $pipeline;
+                        $pipeline = static fn(Job $j): JobOutcome => $mw instanceof JobMiddlewareInterface
+                            ? $mw->handle($j, $next)
+                            : $mw($j, $next);
+                    }
+
+                    return [$pipeline($job), null];
                 } catch (Throwable $e) {
                     return [JobOutcome::Retry, SecretScrubber::scrub($e->getMessage())];
                 } finally {
@@ -90,6 +193,7 @@ final class Worker
             if (JobOutcome::Completed === $resultOutcome) {
                 if ($this->driver->acknowledge($job)) {
                     ++$completed;
+                    $this->recordBatchCompletion($job);
                 } else {
                     ++$stale;
                 }
@@ -97,6 +201,7 @@ final class Worker
                 // Never blindly retry uncertain mutations; record terminal Failed with clear reason.
                 if ($this->driver->markFailed($job, JobStatus::Failed, $error ?? 'Uncertain job outcome; manual inspection required.')) {
                     ++$uncertain;
+                    $this->recordBatchFailure($job);
                 } else {
                     ++$stale;
                 }
@@ -112,6 +217,7 @@ final class Worker
                 $terminal = $job->attempt >= $job->maxAttempts ? JobStatus::Dead : JobStatus::Failed;
                 if ($this->driver->markFailed($job, $terminal, $error ?? 'Job failed permanently.')) {
                     ++$failed;
+                    $this->recordBatchFailure($job);
                 } else {
                     ++$stale;
                 }
@@ -122,13 +228,14 @@ final class Worker
     }
 
     /**
-     * Run a long-lived persistent queue daemon with adaptive sleep backoff, periodic pruning
-     * of expired terminal jobs, and graceful SIGTERM/SIGINT shutdown (zero cold-boot latency).
+     * Run a long-lived persistent queue daemon with priority-ordered queue draining,
+     * adaptive sleep backoff, periodic pruning of expired terminal jobs, and graceful SIGTERM/SIGINT shutdown.
      *
-     * @param ?Closure(): bool $shouldStop Optional external stop predicate (ideal for tests/supervisors)
+     * @param string|list<string> $queue
+     * @param ?Closure(): bool    $shouldStop Optional external stop predicate (ideal for tests/supervisors)
      */
     public function runDaemon(
-        string $queue = 'default',
+        string|array $queue = 'default',
         int $batchSize = 50,
         int $leaseSeconds = 60,
         int $baseBackoffSeconds = 5,
@@ -140,6 +247,7 @@ final class Worker
         ?int $maxIterations = null,
         ?Closure $shouldStop = null,
     ): WorkerReport {
+        $queues = self::normalizeQueues($queue);
         $this->daemonStopRequested = false;
         if (function_exists('pcntl_async_signals') && function_exists('pcntl_signal')) {
             pcntl_async_signals(true);
@@ -180,7 +288,7 @@ final class Worker
             }
 
             ++$iterations;
-            $batch = $this->run($queue, max(1, $batchSize), $leaseSeconds, $baseBackoffSeconds);
+            $batch = $this->run($queues, max(1, $batchSize), $leaseSeconds, $baseBackoffSeconds);
             $processed += $batch->processed;
             $completed += $batch->completed;
             $retried += $batch->retried;
@@ -190,7 +298,9 @@ final class Worker
 
             $now = time();
             if ($pruneIntervalSeconds > 0 && ($now - $lastPrunedAt) >= $pruneIntervalSeconds) {
-                $this->driver->prune($queue, $now - max(0, $pruneAfterSeconds));
+                foreach ($queues as $q) {
+                    $this->driver->prune($q, $now - max(0, $pruneAfterSeconds));
+                }
                 $lastPrunedAt = $now;
             }
 
@@ -211,5 +321,73 @@ final class Worker
         }
 
         return new WorkerReport($processed, $completed, $retried, $failed, $uncertain, $stale);
+    }
+
+    /**
+     * Normalize a single queue name, comma-separated priority list (`'high,default,low'`),
+     * or array of queue names into a non-empty priority-ordered list.
+     *
+     * @param string|list<string> $queue
+     * @return non-empty-list<string>
+     */
+    public static function normalizeQueues(string|array $queue): array
+    {
+        $rawList = is_string($queue) ? explode(',', $queue) : $queue;
+        $normalized = [];
+        foreach ($rawList as $item) {
+            $clean = trim($item);
+            if ('' !== $clean && !in_array($clean, $normalized, true)) {
+                $normalized[] = $clean;
+            }
+        }
+
+        return [] !== $normalized ? $normalized : ['default'];
+    }
+
+    private function recordBatchCompletion(Job $job): void
+    {
+        $batchId = $job->batchId();
+        if (null === $batchId || null === $this->batchStore) {
+            return;
+        }
+
+        $updated = $this->batchStore->recordJobCompleted($batchId, $job->id);
+        if (null === $updated || 0 !== $updated->pendingJobs) {
+            return;
+        }
+
+        if ($updated->succeeded()) {
+            foreach ($this->batchCompleteHooks as $hook) {
+                $hook($updated);
+            }
+        }
+        foreach ($this->batchFinallyHooks as $hook) {
+            $hook($updated);
+        }
+    }
+
+    private function recordBatchFailure(Job $job): void
+    {
+        $batchId = $job->batchId();
+        if (null === $batchId || null === $this->batchStore) {
+            return;
+        }
+
+        $before = $this->batchStore->find($batchId);
+        $wasFinished = null !== $before && $before->finished();
+
+        $updated = $this->batchStore->recordJobFailed($batchId, $job->id);
+        if (null === $updated) {
+            return;
+        }
+
+        foreach ($this->batchFailureHooks as $hook) {
+            $hook($updated, $job);
+        }
+        if (!$wasFinished && $updated->finished()) {
+            foreach ($this->batchFinallyHooks as $hook) {
+                $hook($updated);
+            }
+        }
     }
 }

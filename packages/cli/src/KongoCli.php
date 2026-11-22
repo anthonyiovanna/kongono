@@ -31,6 +31,8 @@ use Kongono\Database\Migrator;
 use Kongono\Database\SeederInterface;
 use Kongono\Http\App;
 use Kongono\Http\OpenApi\OpenApiGenerator;
+use Kongono\Jobs\Queue;
+use Kongono\Jobs\QueueDriverInterface;
 use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
 use Kongono\Security\Encryptor;
@@ -63,7 +65,7 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.13.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.14.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
@@ -79,6 +81,9 @@ final readonly class KongoCli
                 'tinker' => $this->cmdTinker($appRoot, $options),
                 'new' => $this->cmdNew($rest, $options),
                 'work' => $this->cmdWork($appRoot, $options),
+                'queue:failed' => $this->cmdQueueFailed($appRoot, $options),
+                'queue:retry' => $this->cmdQueueRetry($appRoot, $rest, $options),
+                'queue:flush' => $this->cmdQueueFlush($appRoot, $options),
                 'schedule:run' => $this->cmdScheduleRun($appRoot),
                 'migrate' => $this->cmdMigrate($appRoot, $options),
                 'migrate:fresh' => $this->cmdMigrateFresh($appRoot, $options),
@@ -313,7 +318,7 @@ final readonly class KongoCli
 
         return [0, sprintf(
             "Worker finished queue \"%s\": processed=%d completed=%d retried=%d failed=%d uncertain=%d stale=%d\n",
-            $queue,
+            implode(',', Worker::normalizeQueues($queue)),
             $report->processed,
             $report->completed,
             $report->retried,
@@ -321,6 +326,138 @@ final readonly class KongoCli
             $report->uncertain,
             $report->stale,
         )];
+    }
+
+    /**
+     * List failed and dead-lettered jobs in a queue (`kongo queue:failed [--queue=default] [--limit=50] [--json]`).
+     *
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdQueueFailed(string $appRoot, array $options): array
+    {
+        $driver = $this->resolveQueueDriver($appRoot, $errMsg);
+        if (null === $driver) {
+            return [1, $errMsg ?? "Unable to resolve queue driver.\n"];
+        }
+
+        $queue = is_string($options['queue'] ?? null) && '' !== trim($options['queue']) ? trim($options['queue']) : 'default';
+        $limit = is_string($options['limit'] ?? null) && is_numeric($options['limit']) ? max(1, (int) $options['limit']) : 50;
+        $jobs = $driver->listFailed($queue, $limit);
+
+        if (isset($options['json'])) {
+            $payload = array_map(static fn(\Kongono\Jobs\Job $j): array => [
+                'id' => $j->id,
+                'queue' => $j->queue,
+                'type' => $j->type,
+                'status' => $j->status->value,
+                'attempt' => $j->attempt,
+                'max_attempts' => $j->maxAttempts,
+                'last_error' => $j->lastError,
+            ], $jobs);
+
+            return [0, json_encode($payload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        if ([] === $jobs) {
+            return [0, sprintf("No failed or dead-lettered jobs in queue \"%s\".\n", $queue)];
+        }
+
+        $lines = [
+            sprintf('Failed / dead jobs in queue "%s" (%d shown):', $queue, count($jobs)),
+            str_repeat('-', 78),
+        ];
+        foreach ($jobs as $job) {
+            $lines[] = sprintf(
+                '  [%-6s] %s  type=%s  attempts=%d/%d  error=%s',
+                strtoupper($job->status->value),
+                $job->id,
+                $job->type,
+                $job->attempt,
+                $job->maxAttempts,
+                $job->lastError ?? '-',
+            );
+        }
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * Replay one failed/dead job by ID or all failed jobs (`kongo queue:retry <id>|--all [--queue=default]`).
+     *
+     * @param list<string>               $args
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdQueueRetry(string $appRoot, array $args, array $options): array
+    {
+        $driver = $this->resolveQueueDriver($appRoot, $errMsg);
+        if (null === $driver) {
+            return [1, $errMsg ?? "Unable to resolve queue driver.\n"];
+        }
+
+        $queue = is_string($options['queue'] ?? null) && '' !== trim($options['queue']) ? trim($options['queue']) : 'default';
+        $retryAll = isset($options['all']) || 'all' === ($args[0] ?? '');
+        $jobId = !$retryAll ? ($args[0] ?? '') : null;
+
+        if (!$retryAll && '' === $jobId) {
+            return [1, "Usage: kongo queue:retry <job-id> | --all [--queue=default] [--app=path]\n"];
+        }
+
+        $count = $driver->retryFailed($queue, $jobId);
+
+        return [0, sprintf("Requeued %d failed job(s) in queue \"%s\".\n", $count, $queue)];
+    }
+
+    /**
+     * Permanently flush failed and dead-lettered jobs (`kongo queue:flush [--queue=default]`).
+     *
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdQueueFlush(string $appRoot, array $options): array
+    {
+        $driver = $this->resolveQueueDriver($appRoot, $errMsg);
+        if (null === $driver) {
+            return [1, $errMsg ?? "Unable to resolve queue driver.\n"];
+        }
+
+        $queue = is_string($options['queue'] ?? null) && '' !== trim($options['queue']) ? trim($options['queue']) : 'default';
+        $removed = $driver->flushFailed($queue);
+
+        return [0, sprintf("Flushed %d failed job(s) from queue \"%s\".\n", $removed, $queue)];
+    }
+
+    private function resolveQueueDriver(string $appRoot, ?string &$error = null): ?QueueDriverInterface
+    {
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (!is_file($bootstrap)) {
+            $error = sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot);
+
+            return null;
+        }
+
+        $app = require $bootstrap;
+        if (!$app instanceof App) {
+            $error = "app/bootstrap.php did not return a Kongono\\Http\\App instance.\n";
+
+            return null;
+        }
+
+        $container = $app->container();
+        if ($container->has(QueueDriverInterface::class)) {
+            return $container->make(QueueDriverInterface::class);
+        }
+        if ($container->has(Queue::class)) {
+            return $container->make(Queue::class)->driver();
+        }
+        if ($container->has(Worker::class)) {
+            return $container->make(Worker::class)->driver();
+        }
+
+        $error = "No Kongono\\Jobs\\QueueDriverInterface, Queue, or Worker registered in this application's container.\n";
+
+        return null;
     }
 
     /** @return array{0: int, 1: string} */
@@ -1566,7 +1703,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -1634,7 +1771,10 @@ Core Commands:
   new <dir> [--name="My App"]                           Scaffold a brand-new Kongono v1 project
   serve [--app=path] [--host=127.0.0.1] [--port=8000]   Start local PHP 8.5 dev server
   tinker [--app=path] [--eval="expr"]                   Interactive PHP 8.5 REPL with live $app & $container
-  work [--app=path] [--queue=default] [--max-jobs=50]   Process queued background jobs
+  work [--app=path] [--queue=high,default] [--daemon]   Process background jobs (priority queues & daemon mode)
+  queue:failed [--queue=default] [--limit=50] [--json]  Inspect failed & dead-lettered background jobs
+  queue:retry [<id>|--all] [--queue=default]            Replay one or all failed jobs back to pending
+  queue:flush [--queue=default]                         Permanently delete failed & dead-lettered jobs
   schedule:run [--app=path]                             Execute due scheduled cron tasks
   migrate [--app=path] [--pretend] [--json]             Run pending migrations (or dry-run preview SQL)
   migrate:fresh [--app=path] [--seed] [--force]         Drop all tables & re-run all migrations (guarded in prod)

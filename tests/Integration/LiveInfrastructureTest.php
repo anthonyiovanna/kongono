@@ -18,6 +18,9 @@ use Kongono\Database\QueryBuilder;
 use Kongono\Database\RowLevelSecurity;
 use Kongono\Database\Schema\Blueprint;
 use Kongono\Database\Schema\Schema;
+use Kongono\Jobs\Batch\BatchDispatcher;
+use Kongono\Jobs\Batch\CacheBatchStore;
+use Kongono\Jobs\Batch\JobBatch;
 use Kongono\Jobs\Job;
 use Kongono\Jobs\JobOutcome;
 use Kongono\Jobs\PostgresQueueDriver;
@@ -212,6 +215,25 @@ final class LiveInfrastructureTest extends TestCase
         self::assertSame(1, $report->completed);
         self::assertSame(['ok' => true], $ranPayload);
 
+        // 2b. v1.14.0 live PostgresQueueDriver uniqueKey deduplication + dead-letter inspection/replay/flush
+        $u1 = $queue->dispatch('demo.ping', ['ok' => true], uniqueKey: 'pg-unique-1');
+        $u2 = $queue->dispatch('demo.ping', ['ok' => true], uniqueKey: 'pg-unique-1');
+        self::assertSame($u1->id, $u2->id);
+        self::assertSame(1, $pgQueue->stats('default')['pending']);
+        self::assertSame(1, $worker->run()->completed);
+
+        // Dead-letter a failing job, list, retry, and flush
+        $failJob = $queue->dispatch('demo.always_fail', ['x' => 1], maxAttempts: 1);
+        $failWorker = (new Worker($pgQueue))->register('demo.always_fail', static fn(): JobOutcome => JobOutcome::Failed);
+        self::assertSame(1, $failWorker->run()->failed);
+        $pgFailed = $pgQueue->listFailed('default');
+        self::assertCount(1, $pgFailed);
+        self::assertSame($failJob->id, $pgFailed[0]->id);
+        self::assertSame(1, $pgQueue->retryFailed('default', $failJob->id));
+        self::assertSame(1, $failWorker->run()->failed);
+        self::assertSame(1, $pgQueue->flushFailed('default'));
+        self::assertSame([], $pgQueue->listFailed('default'));
+
         // 3. Live PgVectorStore (real pgvector <=> cosine similarity + JSONB @> filter)
         $db->execute('DROP TABLE IF EXISTS "kongono_integration_vectors"');
         $pgv = new PgVectorStore($db, 'kongono_integration_vectors');
@@ -315,6 +337,61 @@ final class LiveInfrastructureTest extends TestCase
         self::assertSame(1, $driver->stats('default')['completed']);
         self::assertGreaterThanOrEqual(1, $driver->prune('default', time() + 60));
         self::assertSame(0, $driver->stats('default')['completed']);
+
+        // v1.14.0 live Redis 7: atomic Lua uniqueKey dedup, dead-letter replay/flush, priority queues, & CacheBatchStore
+        $rUnique1 = $queue->dispatch('redis.job', ['n' => 77], uniqueKey: 'redis-uniq-77');
+        $rUnique2 = $queue->dispatch('redis.job', ['n' => 77], uniqueKey: 'redis-uniq-77');
+        self::assertSame($rUnique1->id, $rUnique2->id);
+        self::assertSame(1, $driver->stats('default')['pending']);
+        self::assertSame(1, $worker->run()->completed);
+        // After completion, uniqueKey lock is freed atomically by LUA_TRANSITION
+        $rUnique3 = $queue->dispatch('redis.job', ['n' => 88], uniqueKey: 'redis-uniq-77');
+        self::assertNotSame($rUnique1->id, $rUnique3->id);
+        self::assertSame(1, $worker->run()->completed);
+
+        // Live Redis dead-letter inspection, retry, and flush
+        $deadRedisJob = $queue->dispatch('redis.fail', ['x' => 1], maxAttempts: 1);
+        $failRedisWorker = (new Worker($driver))->register('redis.fail', static fn(): JobOutcome => JobOutcome::Failed);
+        self::assertSame(1, $failRedisWorker->run()->failed);
+        $redisFailed = $driver->listFailed('default');
+        self::assertCount(1, $redisFailed);
+        self::assertSame($deadRedisJob->id, $redisFailed[0]->id);
+        self::assertSame(1, $driver->retryFailed('default', $deadRedisJob->id));
+        self::assertSame(1, $failRedisWorker->run()->failed);
+        self::assertSame(1, $driver->flushFailed('default'));
+        self::assertSame([], $driver->listFailed('default'));
+
+        // Live Redis multi-queue priority draining + CacheBatchStore fan-out/fan-in
+        $batchStore = new CacheBatchStore($cache, 'kongono:inttest:batch:');
+        $batches = new BatchDispatcher($queue, $batchStore);
+        $batch = $batches->dispatch('redis-batch', [
+            ['type' => 'batch.item', 'payload' => ['i' => 1]],
+            ['type' => 'batch.item', 'payload' => ['i' => 2]],
+        ], queue: 'critical');
+        $queue->dispatch('batch.item', ['i' => 99], queue: 'default');
+
+        $seenOrder = [];
+        $batchFinishedId = null;
+        $prioWorker = (new Worker($driver))
+            ->withBatchStore($batchStore)
+            ->onBatchComplete(static function (JobBatch $b) use (&$batchFinishedId): void {
+                $batchFinishedId = $b->id;
+            })
+            ->register('batch.item', static function (Job $job) use (&$seenOrder): JobOutcome {
+                $seenOrder[] = $job->payload['i'] ?? null;
+
+                return JobOutcome::Completed;
+            });
+
+        self::assertSame(3, $prioWorker->run('critical,default')->completed);
+        self::assertSame([1, 2, 99], $seenOrder);
+        self::assertSame($batch->id, $batchFinishedId);
+        $finalBatch = $batches->find($batch->id);
+        self::assertNotNull($finalBatch);
+        self::assertTrue($finalBatch->succeeded());
+        self::assertSame(100.0, $finalBatch->progress());
+        $driver->prune('critical', time() + 60);
+        $driver->prune('default', time() + 60);
 
         // Live distributed RedisEventBus across two independent worker clients + Last-Event-ID replay
         $redisWorker2 = RedisClient::fromUrl($url);

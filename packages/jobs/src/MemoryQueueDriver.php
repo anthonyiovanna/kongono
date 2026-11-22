@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Jobs;
 
-/** Deterministic in-memory queue driver with lease expiry and generation fencing tokens. */
+/** Deterministic in-memory queue driver with lease expiry, generation fencing, deduplication, and dead-letter replay. */
 final class MemoryQueueDriver implements QueueDriverInterface
 {
     /** @var array<string, Job> */
@@ -20,7 +20,21 @@ final class MemoryQueueDriver implements QueueDriverInterface
         int $delaySeconds = 0,
         int $maxAttempts = 3,
         ?int $now = null,
+        ?string $uniqueKey = null,
     ): Job {
+        $cleanUnique = null !== $uniqueKey && '' !== trim($uniqueKey) ? trim($uniqueKey) : null;
+        if (null !== $cleanUnique) {
+            foreach ($this->jobs as $existing) {
+                if (
+                    $existing->queue === $queue
+                    && $existing->uniqueKey === $cleanUnique
+                    && (JobStatus::Pending === $existing->status || JobStatus::Reserved === $existing->status)
+                ) {
+                    return $existing;
+                }
+            }
+        }
+
         $ts = $now ?? time();
         $id = bin2hex(random_bytes(16));
         $job = new Job(
@@ -35,6 +49,7 @@ final class MemoryQueueDriver implements QueueDriverInterface
             availableAt: $ts + max(0, $delaySeconds),
             leaseUntil: null,
             status: JobStatus::Pending,
+            uniqueKey: $cleanUnique,
         );
         $this->jobs[$id] = $job;
         $this->updatedAt[$id] = $ts;
@@ -71,6 +86,7 @@ final class MemoryQueueDriver implements QueueDriverInterface
                     leaseUntil: null,
                     status: JobStatus::Dead,
                     lastError: $job->lastError ?? 'Maximum attempts exhausted.',
+                    uniqueKey: $job->uniqueKey,
                 );
                 $this->updatedAt[$id] = $ts;
                 continue;
@@ -89,6 +105,7 @@ final class MemoryQueueDriver implements QueueDriverInterface
                 leaseUntil: $ts + max(1, $leaseSeconds),
                 status: JobStatus::Reserved,
                 lastError: $job->lastError,
+                uniqueKey: $job->uniqueKey,
             );
             $this->jobs[$id] = $reserved;
             $this->updatedAt[$id] = $ts;
@@ -117,6 +134,7 @@ final class MemoryQueueDriver implements QueueDriverInterface
             leaseUntil: null,
             status: JobStatus::Completed,
             lastError: null,
+            uniqueKey: $job->uniqueKey,
         );
         $this->updatedAt[$job->id] = time();
 
@@ -142,6 +160,7 @@ final class MemoryQueueDriver implements QueueDriverInterface
             leaseUntil: null,
             status: JobStatus::Pending,
             lastError: $error,
+            uniqueKey: $job->uniqueKey,
         );
         $this->updatedAt[$job->id] = $ts;
 
@@ -166,6 +185,7 @@ final class MemoryQueueDriver implements QueueDriverInterface
             leaseUntil: null,
             status: $terminalStatus,
             lastError: $error,
+            uniqueKey: $job->uniqueKey,
         );
         $this->updatedAt[$job->id] = time();
 
@@ -193,6 +213,71 @@ final class MemoryQueueDriver implements QueueDriverInterface
                 && in_array($job->status, [JobStatus::Completed, JobStatus::Failed, JobStatus::Dead], true)
                 && ($this->updatedAt[$id] ?? PHP_INT_MAX) <= $olderThanTimestamp
             ) {
+                unset($this->jobs[$id], $this->updatedAt[$id]);
+                ++$removed;
+            }
+        }
+
+        return $removed;
+    }
+
+    public function listFailed(string $queue, int $limit = 100): array
+    {
+        $failed = [];
+        foreach ($this->jobs as $job) {
+            if ($job->queue === $queue && (JobStatus::Failed === $job->status || JobStatus::Dead === $job->status)) {
+                $failed[] = $job;
+            }
+        }
+
+        usort($failed, fn(Job $a, Job $b): int => ($this->updatedAt[$b->id] ?? 0) <=> ($this->updatedAt[$a->id] ?? 0));
+
+        return array_slice($failed, 0, max(1, $limit));
+    }
+
+    public function retryFailed(string $queue, ?string $jobId = null, ?int $now = null): int
+    {
+        $ts = $now ?? time();
+        $requeued = 0;
+
+        foreach ($this->jobs as $id => $job) {
+            if ($job->queue !== $queue) {
+                continue;
+            }
+            if (JobStatus::Failed !== $job->status && JobStatus::Dead !== $job->status) {
+                continue;
+            }
+            if (null !== $jobId && $job->id !== $jobId) {
+                continue;
+            }
+
+            $this->jobs[$id] = new Job(
+                id: $job->id,
+                queue: $job->queue,
+                type: $job->type,
+                payload: $job->payload,
+                attempt: 0,
+                maxAttempts: $job->maxAttempts,
+                generation: $job->generation + 1,
+                leaseToken: null,
+                availableAt: $ts,
+                leaseUntil: null,
+                status: JobStatus::Pending,
+                lastError: null,
+                uniqueKey: $job->uniqueKey,
+            );
+            $this->updatedAt[$id] = $ts;
+            ++$requeued;
+        }
+
+        return $requeued;
+    }
+
+    public function flushFailed(string $queue): int
+    {
+        $removed = 0;
+        foreach ($this->jobs as $id => $job) {
+            if ($job->queue === $queue && (JobStatus::Failed === $job->status || JobStatus::Dead === $job->status)) {
                 unset($this->jobs[$id], $this->updatedAt[$id]);
                 ++$removed;
             }

@@ -11,9 +11,15 @@ use Kongono\Core\Cache\RedisClient;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\Dialect;
 use Kongono\Database\QueryBuilder;
+use Kongono\Jobs\Batch\BatchDispatcher;
+use Kongono\Jobs\Batch\CacheBatchStore;
+use Kongono\Jobs\Batch\JobBatch;
+use Kongono\Jobs\Batch\MemoryBatchStore;
 use Kongono\Jobs\Job;
 use Kongono\Jobs\JobException;
+use Kongono\Jobs\JobMiddlewareInterface;
 use Kongono\Jobs\JobOutcome;
+use Kongono\Jobs\JobStatus;
 use Kongono\Jobs\MemoryQueueDriver;
 use Kongono\Jobs\PostgresQueueDriver;
 use Kongono\Jobs\Queue;
@@ -470,5 +476,407 @@ final class JobsTest extends TestCase
         } finally {
             fclose($serverSock);
         }
+    }
+
+    public function testDeadLetterInspectionReplayAndFlushAcrossDrivers(): void
+    {
+        // 1. MemoryQueueDriver: listFailed(), retryFailed(single & all), flushFailed()
+        $driver = new MemoryQueueDriver();
+        $queue = new Queue($driver);
+
+        $j1 = $queue->dispatch('billing.charge', ['order' => 1], maxAttempts: 1);
+        $j2 = $queue->dispatch('billing.charge', ['order' => 2], maxAttempts: 1);
+        $j3 = $queue->dispatch('billing.charge', ['order' => 3], maxAttempts: 1);
+
+        $shouldSucceed = false;
+        $completedOrders = [];
+        $worker = (new Worker($driver))->register('billing.charge', static function (Job $job) use (&$shouldSucceed, &$completedOrders): JobOutcome {
+            if (!$shouldSucceed) {
+                return JobOutcome::Failed;
+            }
+            $completedOrders[] = $job->payload['order'] ?? null;
+
+            return JobOutcome::Completed;
+        });
+
+        $r1 = $worker->run();
+        self::assertSame(3, $r1->failed);
+        self::assertSame(3, $queue->stats()['dead']);
+
+        $failedList = $queue->listFailed(limit: 2);
+        self::assertCount(2, $failedList);
+        $allFailed = $queue->listFailed();
+        self::assertCount(3, $allFailed);
+
+        // Retry a single failed job by ID
+        self::assertSame(1, $queue->retryFailed($j1->id));
+        self::assertSame(0, $queue->retryFailed('nonexistent_job'));
+        self::assertSame(1, $queue->stats()['pending']);
+        self::assertSame(2, $queue->stats()['dead']);
+
+        $shouldSucceed = true;
+        $r2 = $worker->run();
+        self::assertSame(1, $r2->completed);
+        self::assertSame([1], $completedOrders);
+
+        // Retry remaining failed jobs via --all semantics (null jobId)
+        self::assertSame(2, $queue->retryFailed());
+        self::assertSame(2, $queue->stats()['pending']);
+        $r3 = $worker->run();
+        self::assertSame(2, $r3->completed);
+        self::assertSame([1, 2, 3], $completedOrders);
+
+        // Produce one more dead job and flush it permanently
+        $shouldSucceed = false;
+        $queue->dispatch('billing.charge', ['order' => 4], maxAttempts: 1);
+        $worker->run();
+        self::assertCount(1, $queue->listFailed());
+        self::assertSame(1, $queue->flushFailed());
+        self::assertCount(0, $queue->listFailed());
+        self::assertSame(0, $queue->stats()['dead']);
+        self::assertSame(3, $queue->stats()['completed']);
+
+        // 2. PostgresQueueDriver SQL verification for uniqueKey dedup, listFailed, retryFailed, flushFailed
+        $sqlLog = [];
+        $fakePg = new class ($sqlLog) implements ConnectionInterface {
+            /** @param list<string> $log */
+            public function __construct(public array &$log) {}
+
+            public function dialect(): Dialect
+            {
+                return Dialect::Postgres;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                $this->log[] = $sql;
+
+                return [];
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                $this->log[] = $sql;
+
+                return null;
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                $this->log[] = $sql;
+
+                return 2;
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, Dialect::Postgres, $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                return $callback($this);
+            }
+        };
+
+        $pg = new PostgresQueueDriver($fakePg);
+        $pg->push('default', 'sync.erp', ['id' => 9], uniqueKey: 'erp:9');
+        self::assertSame([], $pg->listFailed('default', 10));
+        self::assertSame(2, $pg->retryFailed('default', 'job_123'));
+        self::assertSame(2, $pg->retryFailed('default'));
+        self::assertSame(2, $pg->flushFailed('default'));
+        self::assertStringContainsString('unique_key = ?', $sqlLog[0]);
+        self::assertStringContainsString('WHERE queue = ? AND id = ? AND status IN (?, ?)', $sqlLog[3]);
+        self::assertStringContainsString('WHERE queue = ? AND status IN (?, ?)', $sqlLog[4]);
+        self::assertStringContainsString('DELETE FROM "kongono_jobs"', $sqlLog[5]);
+
+        // 3. RedisQueueDriver atomic Lua wire protocol for uniqueKey push + listFailed + retryFailed + flushFailed
+        $domain = '\\' === DIRECTORY_SEPARATOR ? STREAM_PF_INET : STREAM_PF_UNIX;
+        $pair = stream_socket_pair($domain, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        self::assertIsArray($pair);
+        [$clientSock, $serverSock] = $pair;
+
+        $dedupJson = json_encode([
+            'id' => 'job_existing_unique',
+            'queue' => 'default',
+            'type' => 'sync.erp',
+            'payload' => ['id' => 9],
+            'attempt' => 0,
+            'max_attempts' => 3,
+            'generation' => 0,
+            'lease_token' => null,
+            'available_at' => 1000,
+            'lease_until' => null,
+            'status' => 'pending',
+            'last_error' => null,
+            'unique_key' => 'erp:9',
+        ], JSON_THROW_ON_ERROR);
+        $failedJson = json_encode([
+            'id' => 'job_dead_1',
+            'queue' => 'default',
+            'type' => 'mail.send',
+            'payload' => [],
+            'attempt' => 3,
+            'max_attempts' => 3,
+            'generation' => 3,
+            'lease_token' => null,
+            'available_at' => 1000,
+            'lease_until' => null,
+            'status' => 'dead',
+            'last_error' => 'SMTP timeout',
+            'unique_key' => null,
+        ], JSON_THROW_ON_ERROR);
+
+        // Preload RESP responses for: LUA_PUSH_UNIQUE, LUA_LIST_FAILED, LUA_RETRY_FAILED, LUA_FLUSH_FAILED
+        fwrite(
+            $serverSock,
+            '$' . strlen($dedupJson) . "\r\n" . $dedupJson . "\r\n"
+            . "*1\r\n$" . strlen($failedJson) . "\r\n" . $failedJson . "\r\n"
+            . ":1\r\n"
+            . ":2\r\n",
+        );
+
+        try {
+            $redis = RedisClient::fromStream($clientSock);
+            $redisDriver = new RedisQueueDriver($redis);
+
+            $deduped = $redisDriver->push('default', 'sync.erp', ['id' => 9], uniqueKey: 'erp:9');
+            self::assertSame('job_existing_unique', $deduped->id);
+            self::assertSame('erp:9', $deduped->uniqueKey);
+
+            $deadJobs = $redisDriver->listFailed('default', 25);
+            self::assertCount(1, $deadJobs);
+            self::assertSame('job_dead_1', $deadJobs[0]->id);
+            self::assertSame(JobStatus::Dead, $deadJobs[0]->status);
+            self::assertSame('SMTP timeout', $deadJobs[0]->lastError);
+
+            self::assertSame(1, $redisDriver->retryFailed('default', 'job_dead_1'));
+            self::assertSame(2, $redisDriver->flushFailed('default'));
+            $redis->close();
+        } finally {
+            fclose($serverSock);
+        }
+    }
+
+    public function testMultiQueuePriorityDrainingAndDaemonOrder(): void
+    {
+        self::assertSame(['critical', 'high', 'default'], Worker::normalizeQueues('critical, high, default, high, '));
+        self::assertSame(['default'], Worker::normalizeQueues('  ,  '));
+
+        $driver = new MemoryQueueDriver();
+        $queue = new Queue($driver);
+
+        // Dispatch in reverse priority order: low -> default -> critical -> high
+        $queue->dispatch('task', ['label' => 'low-1'], queue: 'low');
+        $queue->dispatch('task', ['label' => 'default-1'], queue: 'default');
+        $queue->dispatch('task', ['label' => 'critical-1'], queue: 'critical');
+        $queue->dispatch('task', ['label' => 'high-1'], queue: 'high');
+        $queue->dispatch('task', ['label' => 'critical-2'], queue: 'critical');
+
+        $order = [];
+        $worker = (new Worker($driver))->register('task', static function (Job $job) use (&$order): JobOutcome {
+            $order[] = $job->payload['label'] ?? '';
+
+            return JobOutcome::Completed;
+        });
+
+        // Drain 3 jobs first: MUST pick both critical jobs and high-1, leaving default-1 and low-1 untouched
+        $first = $worker->run('critical,high,default,low', maxJobs: 3);
+        self::assertSame(3, $first->completed);
+        self::assertSame(['critical-1', 'critical-2', 'high-1'], $order);
+
+        // Drain the rest via runDaemon with array priority list
+        $second = $worker->runDaemon(['critical', 'high', 'default', 'low'], batchSize: 10, minSleepMs: 1, maxSleepMs: 2, maxIterations: 2);
+        self::assertSame(2, $second->completed);
+        self::assertSame(['critical-1', 'critical-2', 'high-1', 'default-1', 'low-1'], $order);
+    }
+
+    public function testUniqueJobDeduplicationAndComposableJobMiddleware(): void
+    {
+        $driver = new MemoryQueueDriver();
+        $queue = new Queue($driver);
+
+        // Duplicate dispatch with same uniqueKey while Pending returns existing job ID
+        $first = $queue->dispatch('invoice.sync', ['invoice' => 101], uniqueKey: 'invoice:101');
+        $dup = $queue->dispatch('invoice.sync', ['invoice' => 101], uniqueKey: 'invoice:101');
+        self::assertSame($first->id, $dup->id);
+        self::assertSame('invoice:101', $first->uniqueKey);
+        self::assertSame(1, $queue->stats()['pending']);
+
+        // While Reserved, duplicate dispatch STILL deduplicates
+        $reserved = $driver->reserve('default');
+        self::assertNotNull($reserved);
+        $dupWhileRunning = $queue->dispatch('invoice.sync', ['invoice' => 101], uniqueKey: 'invoice:101');
+        self::assertSame($first->id, $dupWhileRunning->id);
+        self::assertSame(0, $queue->stats()['pending']);
+
+        // Once acknowledged (Completed), uniqueKey lock releases and a fresh job can be enqueued
+        self::assertTrue($driver->acknowledge($reserved));
+        $fresh = $queue->dispatch('invoice.sync', ['invoice' => 101], uniqueKey: 'invoice:101');
+        self::assertNotSame($first->id, $fresh->id);
+        self::assertSame(1, $queue->stats()['pending']);
+
+        // Composable JobMiddlewareInterface + closure middleware ordering (FIFO enter, LIFO exit) + short-circuiting
+        $trace = [];
+        $classMiddleware = new class ($trace) implements JobMiddlewareInterface {
+            /** @param list<string> $trace */
+            public function __construct(private array &$trace) {}
+
+            public function handle(Job $job, Closure $next): JobOutcome
+            {
+                $this->trace[] = 'mw1:before:' . $job->type;
+                $outcome = $next($job);
+                $this->trace[] = 'mw1:after:' . $outcome->value;
+
+                return $outcome;
+            }
+        };
+
+        $shortCircuitMiddleware = static function (Job $job, Closure $next) use (&$trace): JobOutcome {
+            $trace[] = 'mw2:before';
+            if (true === ($job->payload['rate_limited'] ?? false)) {
+                $trace[] = 'mw2:short-circuit';
+
+                return JobOutcome::Retry;
+            }
+            $outcome = $next($job);
+            $trace[] = 'mw2:after';
+
+            return $outcome;
+        };
+
+        $worker = (new Worker($driver))
+            ->middleware($classMiddleware, $shortCircuitMiddleware)
+            ->register('invoice.sync', static function (Job $job) use (&$trace): JobOutcome {
+                $trace[] = 'handler:' . (string) ($job->payload['invoice'] ?? '');
+
+                return JobOutcome::Completed;
+            });
+
+        $r1 = $worker->run();
+        self::assertSame(1, $r1->completed);
+        self::assertSame([
+            'mw1:before:invoice.sync',
+            'mw2:before',
+            'handler:101',
+            'mw2:after',
+            'mw1:after:completed',
+        ], $trace);
+
+        // Short-circuiting middleware skips handler and returns Retry
+        $trace = [];
+        $queue->dispatch('invoice.sync', ['invoice' => 202, 'rate_limited' => true], maxAttempts: 3);
+        $r2 = $worker->run();
+        self::assertSame(1, $r2->retried);
+        self::assertSame([
+            'mw1:before:invoice.sync',
+            'mw2:before',
+            'mw2:short-circuit',
+            'mw1:after:retry',
+        ], $trace);
+    }
+
+    public function testParallelJobBatchFanOutFanInAndCancelOnFailure(): void
+    {
+        // 1. Successful fan-out/fan-in batch on MemoryBatchStore
+        $driver = new MemoryQueueDriver();
+        $queue = new Queue($driver);
+        $store = new MemoryBatchStore();
+        $batches = new BatchDispatcher($queue, $store);
+
+        $batch = $batches->dispatch(
+            name: 'monthly-invoices',
+            jobs: [
+                ['type' => 'invoice.pdf', 'payload' => ['n' => 1]],
+                ['type' => 'invoice.pdf', 'payload' => ['n' => 2]],
+                ['type' => 'invoice.pdf', 'payload' => ['n' => 3]],
+            ],
+            meta: ['month' => '2026-11'],
+        );
+        self::assertSame(3, $batch->totalJobs);
+        self::assertSame(0.0, $batch->progress());
+        self::assertFalse($batch->finished());
+
+        $completedHooks = [];
+        $finallyHooks = [];
+        $worker = (new Worker($driver))
+            ->withBatchStore($store)
+            ->onBatchComplete(static function (JobBatch $b) use (&$completedHooks): void {
+                $completedHooks[] = $b->id;
+            })
+            ->onBatchFinally(static function (JobBatch $b) use (&$finallyHooks): void {
+                $finallyHooks[] = $b->id;
+            })
+            ->register('invoice.pdf', static fn(Job $job): JobOutcome => JobOutcome::Completed);
+
+        // Process 1 job -> 33.33% progress, hooks not fired yet
+        $worker->run(maxJobs: 1);
+        $mid = $batches->find($batch->id);
+        self::assertNotNull($mid);
+        self::assertSame(1, $mid->processedJobs);
+        self::assertSame(2, $mid->pendingJobs);
+        self::assertSame(33.33, $mid->progress());
+        self::assertSame([], $completedHooks);
+
+        // Process remaining 2 jobs -> 100%, both complete and finally hooks fire once
+        $worker->run(maxJobs: 10);
+        $done = $batches->find($batch->id);
+        self::assertNotNull($done);
+        self::assertTrue($done->finished());
+        self::assertTrue($done->succeeded());
+        self::assertSame(100.0, $done->progress());
+        self::assertSame([$batch->id], $completedHooks);
+        self::assertSame([$batch->id], $finallyHooks);
+
+        // 2. CacheBatchStore + allowFailures=false auto-cancels batch and skips remaining queued jobs
+        $cacheStore = new CacheBatchStore(new MemoryCache());
+        $cacheBatches = new BatchDispatcher($queue, $cacheStore);
+        $strictBatch = $cacheBatches->dispatch(
+            name: 'import-csv',
+            jobs: [
+                ['type' => 'csv.row', 'payload' => ['row' => 1], 'maxAttempts' => 1],
+                ['type' => 'csv.row', 'payload' => ['row' => 2], 'maxAttempts' => 1],
+                ['type' => 'csv.row', 'payload' => ['row' => 3], 'maxAttempts' => 1],
+            ],
+            allowFailures: false,
+        );
+
+        $executedRows = [];
+        $failedHooks = [];
+        $strictCompleted = [];
+        $strictFinally = [];
+
+        $strictWorker = (new Worker($driver))
+            ->withBatchStore($cacheStore)
+            ->onBatchComplete(static function (JobBatch $b) use (&$strictCompleted): void {
+                $strictCompleted[] = $b->id;
+            })
+            ->onBatchFailure(static function (JobBatch $b, Job $j) use (&$failedHooks): void {
+                $failedHooks[] = [$b->id, $j->payload['row'] ?? null];
+            })
+            ->onBatchFinally(static function (JobBatch $b) use (&$strictFinally): void {
+                $strictFinally[] = $b->id;
+            })
+            ->register('csv.row', static function (Job $job) use (&$executedRows): JobOutcome {
+                $row = $job->payload['row'] ?? null;
+                $executedRows[] = $row;
+
+                return 1 === $row ? JobOutcome::Failed : JobOutcome::Completed;
+            });
+
+        $strictWorker->run(maxJobs: 10);
+        $finalStrict = $cacheBatches->find($strictBatch->id);
+        self::assertNotNull($finalStrict);
+        self::assertTrue($finalStrict->cancelled);
+        self::assertTrue($finalStrict->finished());
+        self::assertFalse($finalStrict->succeeded());
+        self::assertTrue($finalStrict->hasFailures());
+        self::assertSame(1, $finalStrict->failedJobs);
+        self::assertCount(1, $finalStrict->failedJobIds);
+        // Row 1 ran and failed; rows 2 and 3 were skipped automatically because batch was cancelled!
+        self::assertSame([1], $executedRows);
+        self::assertSame([], $strictCompleted);
+        self::assertSame([[$strictBatch->id, 1]], $failedHooks);
+        self::assertSame([$strictBatch->id], $strictFinally);
     }
 }

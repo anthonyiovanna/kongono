@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Jobs;
 
-/** Immutable job snapshot carrying explicit JSON payload and lease fencing token. */
+/** Immutable job snapshot carrying explicit JSON payload, optional unique key, and lease fencing token. */
 final readonly class Job
 {
     /** @param array<string, mixed> $payload */
@@ -21,5 +21,13 @@ final readonly class Job
         public ?int $leaseUntil,
         public JobStatus $status,
         public ?string $lastError = null,
+        public ?string $uniqueKey = null,
     ) {}
+
+    public function batchId(): ?string
+    {
+        $raw = $this->payload['_batch_id'] ?? null;
+
+        return is_string($raw) && '' !== $raw ? $raw : null;
+    }
 }

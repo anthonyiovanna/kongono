@@ -171,7 +171,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.13.0', $vOut);
+            self::assertStringContainsString('v1.14.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -1058,6 +1058,296 @@ PHP);
             } else {
                 $_ENV['APP_ENV'] = $prevServerEnv;
             }
+            $this->removeDir($tmp);
+        }
+    }
+
+    public function testQueuePriorityWorkAndDeadLetterCliCommands(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-queue-cli-' . bin2hex(random_bytes(5));
+        mkdir($tmp . '/app', 0o775, true);
+        $stateFile = $tmp . '/queue-state.json';
+
+        $bootstrapCode = <<<'PHP'
+<?php
+declare(strict_types=1);
+
+use Kongono\Http\App;
+use Kongono\Jobs\Job;
+use Kongono\Jobs\JobOutcome;
+use Kongono\Jobs\JobStatus;
+use Kongono\Jobs\Queue;
+use Kongono\Jobs\QueueDriverInterface;
+use Kongono\Jobs\Worker;
+
+$statePath = __STATE_FILE__;
+
+$driver = new class ($statePath) implements QueueDriverInterface {
+    public function __construct(private string $file) {}
+
+    /** @return array{jobs: array<string, array<string, mixed>>, log: list<string>} */
+    private function readState(): array
+    {
+        if (!is_file($this->file)) {
+            return ['jobs' => [], 'log' => []];
+        }
+        $decoded = json_decode((string) file_get_contents($this->file), true);
+        if (!is_array($decoded)) {
+            return ['jobs' => [], 'log' => []];
+        }
+
+        return [
+            'jobs' => is_array($decoded['jobs'] ?? null) ? $decoded['jobs'] : [],
+            'log' => is_array($decoded['log'] ?? null) ? $decoded['log'] : [],
+        ];
+    }
+
+    /** @param array{jobs: array<string, array<string, mixed>>, log: list<string>} $state */
+    private function writeState(array $state): void
+    {
+        file_put_contents($this->file, json_encode($state, JSON_THROW_ON_ERROR));
+    }
+
+    /** @param array<string, mixed> $row */
+    private function hydrate(array $row): Job
+    {
+        return new Job(
+            id: (string) $row['id'],
+            queue: (string) $row['queue'],
+            type: (string) $row['type'],
+            payload: is_array($row['payload'] ?? null) ? $row['payload'] : [],
+            attempt: (int) ($row['attempt'] ?? 0),
+            maxAttempts: (int) ($row['max_attempts'] ?? 1),
+            generation: (int) ($row['generation'] ?? 0),
+            leaseToken: is_string($row['lease_token'] ?? null) ? $row['lease_token'] : null,
+            availableAt: (int) ($row['available_at'] ?? 0),
+            leaseUntil: is_int($row['lease_until'] ?? null) ? $row['lease_until'] : null,
+            status: JobStatus::from((string) ($row['status'] ?? 'pending')),
+            lastError: is_string($row['last_error'] ?? null) ? $row['last_error'] : null,
+            uniqueKey: is_string($row['unique_key'] ?? null) ? $row['unique_key'] : null,
+        );
+    }
+
+    public function push(string $queue, string $type, array $payload = [], int $delaySeconds = 0, int $maxAttempts = 3, ?int $now = null, ?string $uniqueKey = null): Job
+    {
+        $state = $this->readState();
+        $id = 'job_' . bin2hex(random_bytes(4));
+        $row = [
+            'id' => $id, 'queue' => $queue, 'type' => $type, 'payload' => $payload,
+            'attempt' => 0, 'max_attempts' => $maxAttempts, 'generation' => 0,
+            'lease_token' => null, 'available_at' => ($now ?? time()) + $delaySeconds,
+            'lease_until' => null, 'status' => 'pending', 'last_error' => null, 'unique_key' => $uniqueKey,
+        ];
+        $state['jobs'][$id] = $row;
+        $this->writeState($state);
+
+        return $this->hydrate($row);
+    }
+
+    public function reserve(string $queue, int $leaseSeconds = 60, ?int $now = null): ?Job
+    {
+        $state = $this->readState();
+        foreach ($state['jobs'] as $id => $row) {
+            if ($row['queue'] === $queue && 'pending' === $row['status']) {
+                $row['status'] = 'reserved';
+                $row['attempt'] = ((int) $row['attempt']) + 1;
+                $row['generation'] = ((int) $row['generation']) + 1;
+                $row['lease_token'] = 'tok_' . $row['generation'];
+                $state['jobs'][$id] = $row;
+                $this->writeState($state);
+
+                return $this->hydrate($row);
+            }
+        }
+
+        return null;
+    }
+
+    public function acknowledge(Job $job): bool
+    {
+        $state = $this->readState();
+        if (!isset($state['jobs'][$job->id])) {
+            return false;
+        }
+        $state['jobs'][$job->id]['status'] = 'completed';
+        $state['jobs'][$job->id]['lease_token'] = null;
+        $state['log'][] = $job->queue . ':' . $job->id;
+        $this->writeState($state);
+
+        return true;
+    }
+
+    public function releaseForRetry(Job $job, int $delaySeconds, ?string $error = null, ?int $now = null): bool
+    {
+        $state = $this->readState();
+        if (!isset($state['jobs'][$job->id])) {
+            return false;
+        }
+        $state['jobs'][$job->id]['status'] = 'pending';
+        $state['jobs'][$job->id]['last_error'] = $error;
+        $this->writeState($state);
+
+        return true;
+    }
+
+    public function markFailed(Job $job, JobStatus $terminalStatus, ?string $error = null): bool
+    {
+        $state = $this->readState();
+        if (!isset($state['jobs'][$job->id])) {
+            return false;
+        }
+        $state['jobs'][$job->id]['status'] = $terminalStatus->value;
+        $state['jobs'][$job->id]['last_error'] = $error;
+        $this->writeState($state);
+
+        return true;
+    }
+
+    public function stats(string $queue): array
+    {
+        return ['pending' => 0, 'reserved' => 0, 'completed' => 0, 'failed' => 0, 'dead' => 0];
+    }
+
+    public function prune(string $queue, int $olderThanTimestamp): int
+    {
+        return 0;
+    }
+
+    public function listFailed(string $queue, int $limit = 100): array
+    {
+        $state = $this->readState();
+        $out = [];
+        foreach ($state['jobs'] as $row) {
+            if ($row['queue'] === $queue && ('failed' === $row['status'] || 'dead' === $row['status'])) {
+                $out[] = $this->hydrate($row);
+                if (count($out) >= $limit) {
+                    break;
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    public function retryFailed(string $queue, ?string $jobId = null, ?int $now = null): int
+    {
+        $state = $this->readState();
+        $count = 0;
+        foreach ($state['jobs'] as $id => $row) {
+            if ($row['queue'] !== $queue || ('failed' !== $row['status'] && 'dead' !== $row['status'])) {
+                continue;
+            }
+            if (null !== $jobId && $id !== $jobId) {
+                continue;
+            }
+            $row['status'] = 'pending';
+            $row['attempt'] = 0;
+            $row['last_error'] = null;
+            $state['jobs'][$id] = $row;
+            ++$count;
+        }
+        $this->writeState($state);
+
+        return $count;
+    }
+
+    public function flushFailed(string $queue): int
+    {
+        $state = $this->readState();
+        $removed = 0;
+        foreach ($state['jobs'] as $id => $row) {
+            if ($row['queue'] === $queue && ('failed' === $row['status'] || 'dead' === $row['status'])) {
+                unset($state['jobs'][$id]);
+                ++$removed;
+            }
+        }
+        $this->writeState($state);
+
+        return $removed;
+    }
+};
+
+$app = App::create(dirname(__DIR__), name: 'Queue CLI Test');
+$app->container()->singleton(QueueDriverInterface::class, static fn(): QueueDriverInterface => $driver);
+$app->container()->singleton(Queue::class, static fn(): Queue => new Queue($driver));
+$app->container()->singleton(Worker::class, static function () use ($driver): Worker {
+    return (new Worker($driver))
+        ->register('ok.task', static fn(): JobOutcome => JobOutcome::Completed)
+        ->register('fail.task', static fn(): JobOutcome => JobOutcome::Failed);
+});
+
+return $app;
+PHP;
+
+        file_put_contents($tmp . '/app/bootstrap.php', str_replace('__STATE_FILE__', $this->exportPhpString($stateFile), $bootstrapCode));
+        file_put_contents($stateFile, json_encode([
+            'jobs' => [
+                'job_def_1' => [
+                    'id' => 'job_def_1', 'queue' => 'default', 'type' => 'ok.task', 'payload' => [],
+                    'attempt' => 0, 'max_attempts' => 1, 'generation' => 0, 'lease_token' => null,
+                    'available_at' => 0, 'lease_until' => null, 'status' => 'pending', 'last_error' => null, 'unique_key' => null,
+                ],
+                'job_crit_1' => [
+                    'id' => 'job_crit_1', 'queue' => 'critical', 'type' => 'ok.task', 'payload' => [],
+                    'attempt' => 0, 'max_attempts' => 1, 'generation' => 0, 'lease_token' => null,
+                    'available_at' => 0, 'lease_until' => null, 'status' => 'pending', 'last_error' => null, 'unique_key' => null,
+                ],
+                'job_dead_a' => [
+                    'id' => 'job_dead_a', 'queue' => 'default', 'type' => 'ok.task', 'payload' => [],
+                    'attempt' => 1, 'max_attempts' => 1, 'generation' => 1, 'lease_token' => null,
+                    'available_at' => 0, 'lease_until' => null, 'status' => 'dead', 'last_error' => 'Gateway 502', 'unique_key' => null,
+                ],
+                'job_dead_b' => [
+                    'id' => 'job_dead_b', 'queue' => 'default', 'type' => 'fail.task', 'payload' => [],
+                    'attempt' => 1, 'max_attempts' => 1, 'generation' => 1, 'lease_token' => null,
+                    'available_at' => 0, 'lease_until' => null, 'status' => 'failed', 'last_error' => 'Timeout', 'unique_key' => null,
+                ],
+            ],
+            'log' => [],
+        ], JSON_THROW_ON_ERROR));
+
+        $cli = new KongoCli(dirname(__DIR__, 3));
+
+        try {
+            // 1. Multi-queue priority work: critical MUST execute before default
+            [$wCode, $wOut] = $cli->run(['work', '--queue=critical,default', '--app=' . $tmp]);
+            self::assertSame(0, $wCode);
+            self::assertStringContainsString('Worker finished queue "critical,default": processed=2 completed=2', $wOut);
+            $afterWork = json_decode((string) file_get_contents($stateFile), true, 16, JSON_THROW_ON_ERROR);
+            self::assertIsArray($afterWork);
+            self::assertSame(['critical:job_crit_1', 'default:job_def_1'], $afterWork['log']);
+
+            // 2. kongo queue:failed (text & --json) lists both failed/dead jobs
+            [$fCode, $fOut] = $cli->run(['queue:failed', '--app=' . $tmp]);
+            self::assertSame(0, $fCode);
+            self::assertStringContainsString('job_dead_a', $fOut);
+            self::assertStringContainsString('Gateway 502', $fOut);
+            self::assertStringContainsString('job_dead_b', $fOut);
+
+            [$fjCode, $fjOut] = $cli->run(['queue:failed', '--json', '--limit=1', '--app=' . $tmp]);
+            self::assertSame(0, $fjCode);
+            $fj = json_decode($fjOut, true, 16, JSON_THROW_ON_ERROR);
+            self::assertIsArray($fj);
+            self::assertCount(1, $fj);
+
+            // 3. kongo queue:retry <id> replays job_dead_a, and worker completes it
+            [$rCode, $rOut] = $cli->run(['queue:retry', 'job_dead_a', '--app=' . $tmp]);
+            self::assertSame(0, $rCode);
+            self::assertStringContainsString('Requeued 1 failed job(s) in queue "default"', $rOut);
+
+            [$w2Code, $w2Out] = $cli->run(['work', '--app=' . $tmp]);
+            self::assertSame(0, $w2Code);
+            self::assertStringContainsString('processed=1 completed=1', $w2Out);
+
+            // 4. kongo queue:flush permanently clears remaining failed job_dead_b
+            [$flCode, $flOut] = $cli->run(['queue:flush', '--app=' . $tmp]);
+            self::assertSame(0, $flCode);
+            self::assertStringContainsString('Flushed 1 failed job(s) from queue "default"', $flOut);
+
+            [$emptyCode, $emptyOut] = $cli->run(['queue:failed', '--app=' . $tmp]);
+            self::assertSame(0, $emptyCode);
+            self::assertStringContainsString('No failed or dead-lettered jobs', $emptyOut);
+        } finally {
             $this->removeDir($tmp);
         }
     }

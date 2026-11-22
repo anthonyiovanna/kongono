@@ -8,16 +8,44 @@ use Kongono\Core\Cache\RedisClient;
 
 /**
  * Zero-dependency Redis / Valkey distributed queue driver with atomic server-side Lua scripts
- * for delayed sorted sets, lease expiration reclaim, and generation + lease-token fencing.
+ * for delayed sorted sets, lease expiration reclaim, generation + lease-token fencing,
+ * `uniqueKey` deduplication, and dead-letter replay.
  */
 final readonly class RedisQueueDriver implements QueueDriverInterface
 {
+    private const string LUA_PUSH_UNIQUE = <<<'LUA'
+local pendingKey = KEYS[1]
+local jobsKey = KEYS[2]
+local uniqueKeyHash = KEYS[3]
+local uniqueKey = ARGV[1]
+local newId = ARGV[2]
+local availableAt = tonumber(ARGV[3])
+local newJobJson = ARGV[4]
+
+local existingId = redis.call('HGET', uniqueKeyHash, uniqueKey)
+if existingId then
+    local existingRaw = redis.call('HGET', jobsKey, existingId)
+    if existingRaw then
+        local ok, existing = pcall(cjson.decode, existingRaw)
+        if ok and type(existing) == 'table' and (existing.status == 'pending' or existing.status == 'reserved') then
+            return existingRaw
+        end
+    end
+end
+
+redis.call('HSET', jobsKey, newId, newJobJson)
+redis.call('ZADD', pendingKey, availableAt, newId)
+redis.call('HSET', uniqueKeyHash, uniqueKey, newId)
+return newJobJson
+LUA;
+
     private const string LUA_RESERVE = <<<'LUA'
 local pendingKey = KEYS[1]
 local reservedKey = KEYS[2]
 local jobsKey = KEYS[3]
 local terminalKey = KEYS[4]
 local countsKey = KEYS[5]
+local uniqueKeyHash = KEYS[6]
 local nowTs = tonumber(ARGV[1])
 local leaseUntil = tonumber(ARGV[2])
 local leaseToken = ARGV[3]
@@ -50,6 +78,11 @@ for _ = 1, 32 do
                 if job.last_error == nil or job.last_error == cjson.null then
                     job.last_error = 'Job exceeded maxAttempts after lease expiration.'
                 end
+                if type(job.unique_key) == 'string' and job.unique_key ~= '' then
+                    if redis.call('HGET', uniqueKeyHash, job.unique_key) == id then
+                        redis.call('HDEL', uniqueKeyHash, job.unique_key)
+                    end
+                end
                 redis.call('HSET', jobsKey, id, cjson.encode(job))
                 redis.call('ZADD', terminalKey, nowTs, id)
                 redis.call('HINCRBY', countsKey, 'dead', 1)
@@ -75,6 +108,7 @@ local reservedKey = KEYS[1]
 local targetZsetKey = KEYS[2]
 local jobsKey = KEYS[3]
 local countsKey = KEYS[4]
+local uniqueKeyHash = KEYS[5]
 local jobId = ARGV[1]
 local expectedGen = tonumber(ARGV[2])
 local expectedToken = ARGV[3]
@@ -95,6 +129,11 @@ redis.call('HSET', jobsKey, jobId, newJobJson)
 redis.call('ZADD', targetZsetKey, targetScore, jobId)
 if terminalStatus == 'completed' or terminalStatus == 'failed' or terminalStatus == 'dead' then
     redis.call('HINCRBY', countsKey, terminalStatus, 1)
+    if type(job.unique_key) == 'string' and job.unique_key ~= '' then
+        if redis.call('HGET', uniqueKeyHash, job.unique_key) == jobId then
+            redis.call('HDEL', uniqueKeyHash, job.unique_key)
+        end
+    end
 end
 return 1
 LUA;
@@ -127,6 +166,101 @@ end
 return #ids
 LUA;
 
+    private const string LUA_LIST_FAILED = <<<'LUA'
+local terminalKey = KEYS[1]
+local jobsKey = KEYS[2]
+local maxLimit = tonumber(ARGV[1]) or 100
+
+local ids = redis.call('ZREVRANGE', terminalKey, 0, -1)
+local out = {}
+for _, id in ipairs(ids) do
+    local raw = redis.call('HGET', jobsKey, id)
+    if raw then
+        local ok, job = pcall(cjson.decode, raw)
+        if ok and type(job) == 'table' and (job.status == 'failed' or job.status == 'dead') then
+            out[#out + 1] = raw
+            if #out >= maxLimit then
+                break
+            end
+        end
+    end
+end
+return out
+LUA;
+
+    private const string LUA_RETRY_FAILED = <<<'LUA'
+local terminalKey = KEYS[1]
+local pendingKey = KEYS[2]
+local jobsKey = KEYS[3]
+local countsKey = KEYS[4]
+local uniqueKeyHash = KEYS[5]
+local targetId = ARGV[1]
+local nowTs = tonumber(ARGV[2])
+
+local ids = {}
+if targetId ~= '' then
+    ids = {targetId}
+else
+    ids = redis.call('ZRANGE', terminalKey, 0, -1)
+end
+
+local requeued = 0
+for _, id in ipairs(ids) do
+    local raw = redis.call('HGET', jobsKey, id)
+    if raw then
+        local ok, job = pcall(cjson.decode, raw)
+        if ok and type(job) == 'table' and (job.status == 'failed' or job.status == 'dead') then
+            local oldSt = tostring(job.status)
+            local cur = tonumber(redis.call('HGET', countsKey, oldSt)) or 0
+            if cur > 0 then
+                redis.call('HINCRBY', countsKey, oldSt, -1)
+            end
+            job.status = 'pending'
+            job.attempt = 0
+            job.generation = (tonumber(job.generation) or 0) + 1
+            job.lease_token = cjson.null
+            job.lease_until = cjson.null
+            job.available_at = nowTs
+            job.last_error = cjson.null
+            redis.call('ZREM', terminalKey, id)
+            redis.call('HSET', jobsKey, id, cjson.encode(job))
+            redis.call('ZADD', pendingKey, nowTs, id)
+            if type(job.unique_key) == 'string' and job.unique_key ~= '' then
+                redis.call('HSET', uniqueKeyHash, job.unique_key, id)
+            end
+            requeued = requeued + 1
+        end
+    end
+end
+return requeued
+LUA;
+
+    private const string LUA_FLUSH_FAILED = <<<'LUA'
+local terminalKey = KEYS[1]
+local jobsKey = KEYS[2]
+local countsKey = KEYS[3]
+
+local ids = redis.call('ZRANGE', terminalKey, 0, -1)
+local removed = 0
+for _, id in ipairs(ids) do
+    local raw = redis.call('HGET', jobsKey, id)
+    if raw then
+        local ok, job = pcall(cjson.decode, raw)
+        if ok and type(job) == 'table' and (job.status == 'failed' or job.status == 'dead') then
+            local st = tostring(job.status)
+            local cur = tonumber(redis.call('HGET', countsKey, st)) or 0
+            if cur > 0 then
+                redis.call('HINCRBY', countsKey, st, -1)
+            end
+            redis.call('ZREM', terminalKey, id)
+            redis.call('HDEL', jobsKey, id)
+            removed = removed + 1
+        end
+    end
+end
+return removed
+LUA;
+
     public function __construct(
         private RedisClient $redis,
         private string $prefix = 'kongono:queue:',
@@ -139,10 +273,12 @@ LUA;
         int $delaySeconds = 0,
         int $maxAttempts = 3,
         ?int $now = null,
+        ?string $uniqueKey = null,
     ): Job {
         $ts = $now ?? time();
         $id = 'job_' . bin2hex(random_bytes(8));
         $availableAt = $ts + max(0, $delaySeconds);
+        $cleanUnique = null !== $uniqueKey && '' !== trim($uniqueKey) ? trim($uniqueKey) : null;
 
         $job = new Job(
             id: $id,
@@ -156,7 +292,22 @@ LUA;
             availableAt: $availableAt,
             leaseUntil: null,
             status: JobStatus::Pending,
+            uniqueKey: $cleanUnique,
         );
+
+        if (null !== $cleanUnique) {
+            $raw = $this->redis->eval(
+                self::LUA_PUSH_UNIQUE,
+                [
+                    $this->key($queue, 'pending'),
+                    $this->key($queue, 'jobs'),
+                    $this->key($queue, 'unique'),
+                ],
+                [$cleanUnique, $id, (string) $availableAt, $this->encodeJob($job)],
+            );
+
+            return is_string($raw) ? ($this->decodeJob($raw) ?? $job) : $job;
+        }
 
         $this->saveJob($queue, $job);
         $this->redis->zAdd($this->key($queue, 'pending'), (float) $availableAt, $id);
@@ -178,6 +329,7 @@ LUA;
                 $this->key($queue, 'jobs'),
                 $this->key($queue, 'terminal'),
                 $this->key($queue, 'counts'),
+                $this->key($queue, 'unique'),
             ],
             [(string) $ts, (string) $leaseUntil, $token],
         );
@@ -204,6 +356,7 @@ LUA;
             leaseUntil: null,
             status: JobStatus::Completed,
             lastError: null,
+            uniqueKey: $job->uniqueKey,
         );
 
         return $this->atomicTransition($job, $this->key($job->queue, 'terminal'), time(), $completed);
@@ -229,6 +382,7 @@ LUA;
             leaseUntil: null,
             status: JobStatus::Pending,
             lastError: $error,
+            uniqueKey: $job->uniqueKey,
         );
 
         return $this->atomicTransition($job, $this->key($job->queue, 'pending'), $nextAt, $retried);
@@ -253,6 +407,7 @@ LUA;
             leaseUntil: null,
             status: $terminalStatus,
             lastError: $error,
+            uniqueKey: $job->uniqueKey,
         );
 
         return $this->atomicTransition($job, $this->key($job->queue, 'terminal'), time(), $failed);
@@ -291,6 +446,67 @@ LUA;
         return $totalPruned;
     }
 
+    public function listFailed(string $queue, int $limit = 100): array
+    {
+        $res = $this->redis->eval(
+            self::LUA_LIST_FAILED,
+            [
+                $this->key($queue, 'terminal'),
+                $this->key($queue, 'jobs'),
+            ],
+            [(string) max(1, $limit)],
+        );
+
+        if (!is_array($res)) {
+            return [];
+        }
+
+        $jobs = [];
+        foreach ($res as $raw) {
+            if (is_string($raw)) {
+                $decoded = $this->decodeJob($raw);
+                if (null !== $decoded) {
+                    $jobs[] = $decoded;
+                }
+            }
+        }
+
+        return $jobs;
+    }
+
+    public function retryFailed(string $queue, ?string $jobId = null, ?int $now = null): int
+    {
+        $ts = $now ?? time();
+        $res = $this->redis->eval(
+            self::LUA_RETRY_FAILED,
+            [
+                $this->key($queue, 'terminal'),
+                $this->key($queue, 'pending'),
+                $this->key($queue, 'jobs'),
+                $this->key($queue, 'counts'),
+                $this->key($queue, 'unique'),
+            ],
+            [$jobId ?? '', (string) $ts],
+        );
+
+        return is_int($res) ? $res : 0;
+    }
+
+    public function flushFailed(string $queue): int
+    {
+        $res = $this->redis->eval(
+            self::LUA_FLUSH_FAILED,
+            [
+                $this->key($queue, 'terminal'),
+                $this->key($queue, 'jobs'),
+                $this->key($queue, 'counts'),
+            ],
+            [],
+        );
+
+        return is_int($res) ? $res : 0;
+    }
+
     private function atomicTransition(Job $claim, string $targetZsetKey, int $targetScore, Job $nextState): bool
     {
         $res = $this->redis->eval(
@@ -300,6 +516,7 @@ LUA;
                 $targetZsetKey,
                 $this->key($claim->queue, 'jobs'),
                 $this->key($claim->queue, 'counts'),
+                $this->key($claim->queue, 'unique'),
             ],
             [
                 $claim->id,
@@ -334,6 +551,7 @@ LUA;
             'lease_until' => $job->leaseUntil,
             'status' => $job->status->value,
             'last_error' => $job->lastError,
+            'unique_key' => $job->uniqueKey,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES, 64);
     }
 
@@ -362,6 +580,7 @@ LUA;
             leaseUntil: is_int($data['lease_until'] ?? null) ? $data['lease_until'] : null,
             status: $status,
             lastError: is_string($data['last_error'] ?? null) ? $data['last_error'] : null,
+            uniqueKey: is_string($data['unique_key'] ?? null) && '' !== $data['unique_key'] ? $data['unique_key'] : null,
         );
     }
 
