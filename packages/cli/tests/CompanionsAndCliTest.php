@@ -161,7 +161,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.4.2', $vOut);
+            self::assertStringContainsString('v1.4.3', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -180,6 +180,14 @@ final class CompanionsAndCliTest extends TestCase
             self::assertFileExists($tempDir . '/docker-compose.prod.yml');
             self::assertFileExists($tempDir . '/deploy/provision.sh');
             self::assertFileExists($tempDir . '/deploy/deploy.sh');
+
+            // Shell / Caddyfile injection via --domain or --branch MUST fail closed
+            [$badDepCode, $badDepOut] = $cli->run(['deploy:init', '--app=' . $tempDir, '--domain=evil.com;rm -rf /', '--force']);
+            self::assertSame(1, $badDepCode);
+            self::assertStringContainsString('Unsafe deployment domain', $badDepOut);
+            [$badBranchCode, $badBranchOut] = $cli->run(['deploy:init', '--app=' . $tempDir, '--domain=demo.kongono.dev', '--branch=main$(id)', '--force']);
+            self::assertSame(1, $badBranchCode);
+            self::assertStringContainsString('Unsafe Git branch', $badBranchOut);
 
             [$tkCode, $tkOut] = $cli->run(['tinker', '--app=' . $this->starterAppRoot, '--eval=$graph->appName']);
             self::assertSame(0, $tkCode);

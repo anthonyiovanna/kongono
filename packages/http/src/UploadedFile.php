@@ -68,6 +68,12 @@ final class UploadedFile implements UploadedFileInterface
         if (UPLOAD_ERR_OK !== $this->error) {
             throw new RuntimeException(sprintf('Cannot move file due to upload error code %d.', $this->error));
         }
+        if ('' === trim($targetPath) || str_contains($targetPath, "\0")) {
+            throw new RuntimeException('Invalid upload target path.');
+        }
+        if (is_link($targetPath)) {
+            throw new RuntimeException('Refusing to overwrite symlink upload target.');
+        }
 
         if (null !== $this->filePath && is_uploaded_file($this->filePath)) {
             if (!move_uploaded_file($this->filePath, $targetPath)) {

@@ -150,6 +150,13 @@ final class StorageTest extends TestCase
         $s3->list();
     }
 
+    public function testS3StorageRejectsNonHttpEndpointScheme(): void
+    {
+        $this->expectException(StorageException::class);
+        $this->expectExceptionMessage('Unsupported S3 endpoint scheme');
+        new S3Storage('my-bucket', 'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY', endpoint: 'gopher://127.0.0.1:6379/');
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {

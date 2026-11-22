@@ -27,15 +27,17 @@ final readonly class SseEvent
     {
         $lines = [];
         if (null !== $this->id && '' !== $this->id) {
-            $lines[] = 'id: ' . str_replace(["\r", "\n"], '', $this->id);
+            $lines[] = 'id: ' . str_replace(["\r", "\n", "\0"], '', $this->id);
         }
         if (null !== $this->event && '' !== $this->event) {
-            $lines[] = 'event: ' . str_replace(["\r", "\n"], '', $this->event);
+            $lines[] = 'event: ' . str_replace(["\r", "\n", "\0"], '', $this->event);
         }
         if (null !== $this->retryMs && $this->retryMs > 0) {
             $lines[] = 'retry: ' . $this->retryMs;
         }
-        foreach (explode("\n", str_replace("\r\n", "\n", $this->data)) as $dataLine) {
+        // Normalize CRLF and bare CR (WHATWG EventSource treats bare \r as a line delimiter!)
+        $normalizedData = str_replace(["\r\n", "\r", "\0"], ["\n", "\n", ''], $this->data);
+        foreach (explode("\n", $normalizedData) as $dataLine) {
             $lines[] = 'data: ' . $dataLine;
         }
 

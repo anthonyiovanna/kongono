@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kongono\Cli\Deploy;
 
+use InvalidArgumentException;
+
 /**
  * Generates zero-downtime FrankenPHP persistent-worker deployment artifacts
  * for any Ubuntu 24.04 VPS (Hetzner, DigitalOcean, Vultr, Linode, AWS EC2).
@@ -28,14 +30,63 @@ final readonly class DeployBlueprintGenerator
         $safeSlug = preg_replace('/[^a-z0-9-]+/', '-', strtolower(trim($slug)));
         $cleanSlug = (is_string($safeSlug) && '' !== trim($safeSlug, '-')) ? trim($safeSlug, '-') : 'kongono-app';
 
+        $cleanDomain = $this->validateDomain($domain);
+        $cleanRepo = $this->validateGitRepo($gitRepo);
+        $cleanBranch = $this->validateGitBranch($gitBranch);
+        $cleanIp = $this->validateServerIp($serverIp);
+
         return [
             'Dockerfile' => $this->dockerfile($safeThreads),
-            'Caddyfile' => $this->caddyfile($domain, $safeThreads),
-            'docker-compose.prod.yml' => $this->composeFile($cleanSlug, $domain, $postgres, $redis, $worker),
+            'Caddyfile' => $this->caddyfile($cleanDomain, $safeThreads),
+            'docker-compose.prod.yml' => $this->composeFile($cleanSlug, $cleanDomain, $postgres, $redis, $worker),
             'deploy/provision.sh' => $this->provisionScript($cleanSlug),
-            'deploy/deploy.sh' => $this->deployScript($cleanSlug, $domain, $gitRepo, $gitBranch, $serverIp),
-            '.env.production.example' => $this->envExample($cleanSlug, $domain, $postgres, $redis),
+            'deploy/deploy.sh' => $this->deployScript($cleanSlug, $cleanDomain, $cleanRepo, $cleanBranch, $cleanIp),
+            '.env.production.example' => $this->envExample($cleanSlug, $cleanDomain, $postgres, $redis),
         ];
+    }
+
+    private function validateDomain(string $domain): string
+    {
+        $clean = strtolower(trim($domain));
+        if ('' === $clean || 1 !== preg_match('/\A[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*(?::\d{1,5})?\z/', $clean)) {
+            throw new InvalidArgumentException(sprintf('Unsafe deployment domain "%s" rejected.', $domain));
+        }
+
+        return $clean;
+    }
+
+    private function validateGitRepo(string $repo): string
+    {
+        $clean = trim($repo);
+        if (
+            '' === $clean
+            || false !== strpbrk($clean, "\r\n\0\"'`$;|&<>()\\")
+            || 1 !== preg_match('/\A(?:https?:\/\/[a-zA-Z0-9._:@\/-]+|git@[a-zA-Z0-9._-]+:[a-zA-Z0-9._\/-]+)\z/', $clean)
+        ) {
+            throw new InvalidArgumentException(sprintf('Unsafe Git repository URL "%s" rejected.', $repo));
+        }
+
+        return $clean;
+    }
+
+    private function validateGitBranch(string $branch): string
+    {
+        $clean = trim($branch);
+        if ('' === $clean || str_contains($clean, '..') || 1 !== preg_match('/\A[a-zA-Z0-9._\/-]+\z/', $clean)) {
+            throw new InvalidArgumentException(sprintf('Unsafe Git branch name "%s" rejected.', $branch));
+        }
+
+        return $clean;
+    }
+
+    private function validateServerIp(string $ip): string
+    {
+        $clean = trim($ip);
+        if (false === filter_var($clean, FILTER_VALIDATE_IP) && 1 !== preg_match('/\A[a-zA-Z0-9.-]+\z/', $clean)) {
+            throw new InvalidArgumentException(sprintf('Unsafe server IP or hostname "%s" rejected.', $ip));
+        }
+
+        return $clean;
     }
 
     private function dockerfile(int $threads): string

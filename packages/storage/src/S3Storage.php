@@ -37,6 +37,12 @@ final readonly class S3Storage implements StorageInterface
             throw new StorageException(sprintf('Invalid S3 endpoint "%s".', $resolvedEndpoint));
         }
         $this->scheme = strtolower($parts['scheme']);
+        if ('https' !== $this->scheme && 'http' !== $this->scheme) {
+            throw new StorageException(sprintf('Unsupported S3 endpoint scheme "%s" (expected https or http).', $this->scheme));
+        }
+        if ('' === trim($bucket) || false !== strpbrk($bucket, "\r\n\0/\\")) {
+            throw new StorageException('Invalid S3 bucket name.');
+        }
         $this->host = strtolower($parts['host']) . (isset($parts['port']) ? ':' . $parts['port'] : '');
     }
 
@@ -234,6 +240,9 @@ final readonly class S3Storage implements StorageInterface
 
         $headerLines = [];
         foreach ($headers as $k => $v) {
+            if (1 !== preg_match('/\A[a-zA-Z0-9!#$%&\'*+.^_`|~-]+\z/', $k) || false !== strpbrk($v, "\r\n\0")) {
+                throw new StorageException(sprintf('Unsafe S3 header "%s" rejected.', $k));
+            }
             $headerLines[] = $k . ': ' . $v;
         }
 
@@ -243,6 +252,8 @@ final readonly class S3Storage implements StorageInterface
             CURLOPT_HTTPHEADER => $headerLines,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROTOCOLS_STR => $this->scheme,
+            CURLOPT_REDIR_PROTOCOLS_STR => $this->scheme,
             CURLOPT_NOBODY => 'HEAD' === $upper,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,

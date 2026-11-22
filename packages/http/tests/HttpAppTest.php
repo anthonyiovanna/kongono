@@ -698,6 +698,26 @@ final class HttpAppTest extends TestCase
             });
         $tlsRes = $sessApp->handle(Request::create('GET', 'https://app.kongono.dev/tls'));
         self::assertStringContainsString('Secure', $tlsRes->getHeaderLine('Set-Cookie'));
+
+        // 6. HttpCacheMiddleware never marks Set-Cookie or Authorization responses as public (CDN cache poisoning guard)
+        $cacheApp = App::create(__DIR__)
+            ->middleware(new \Kongono\Http\Middleware\HttpCacheMiddleware(maxAge: 300, public: true))
+            ->routes(static function (Router $r): void {
+                $r->get('/with-cookie', static fn(): Response => Response::text('secret')->withCookie(new Cookie('sid', '123')));
+                $r->get('/authed', static fn(): Response => Response::text('private-profile'));
+            });
+        $cookieCached = $cacheApp->handle(Request::create('GET', '/with-cookie'));
+        self::assertSame('private, no-store', $cookieCached->getHeaderLine('Cache-Control'));
+
+        $authCached = $cacheApp->handle(Request::create('GET', '/authed', ['Authorization' => 'Bearer tok']));
+        self::assertStringStartsWith('private,', $authCached->getHeaderLine('Cache-Control'));
+        self::assertStringContainsString('Authorization', $authCached->getHeaderLine('Vary'));
+
+        // 7. SseEvent neutralizes bare CR (\r) frame injection
+        $sse = (new SseEvent("line1\revent: forged\rdata: pwned", event: "ping\r\nfake", id: "1\rid:2"))->format();
+        self::assertStringContainsString("id: 1id:2\n", $sse);
+        self::assertStringContainsString("event: pingfake\n", $sse);
+        self::assertStringContainsString("data: line1\ndata: event: forged\ndata: data: pwned\n\n", $sse);
     }
 }
 

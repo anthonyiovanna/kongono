@@ -44,6 +44,8 @@ final class PdoConnection implements ConnectionInterface
         #[\SensitiveParameter]
         string $password,
     ): self {
+        self::assertSafeDsnPart($host, 'host');
+        self::assertSafeDsnPart($database, 'database');
         $dsn = sprintf('pgsql:host=%s;port=%d;dbname=%s', $host, $port, $database);
 
         return new self(new PDO($dsn, $username, $password), Dialect::Postgres);
@@ -79,6 +81,8 @@ final class PdoConnection implements ConnectionInterface
         }
 
         if ('mysql' === $scheme) {
+            self::assertSafeDsnPart($host, 'host');
+            self::assertSafeDsnPart($dbName, 'database');
             $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $parts['port'] ?? 3306, $dbName);
 
             return new self(new PDO($dsn, $user, $pass), Dialect::Mysql);
@@ -180,6 +184,13 @@ final class PdoConnection implements ConnectionInterface
                 $this->pdo->rollBack();
             }
             throw $failure;
+        }
+    }
+
+    private static function assertSafeDsnPart(string $value, string $field): void
+    {
+        if ('' === $value || false !== strpbrk($value, ";\r\n\0")) {
+            throw new DatabaseException(sprintf('Unsafe DSN %s parameter rejected.', $field));
         }
     }
 }

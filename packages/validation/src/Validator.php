@@ -24,6 +24,8 @@ use ReflectionParameter;
 /** Validates raw request/input arrays into strictly typed PHP 8.5 DTOs (including BackedEnums and nested DTOs). */
 final class Validator
 {
+    private const int MAX_NESTING_DEPTH = 16;
+
     /**
      * Validate and hydrate an associative array into a typed DTO class.
      *
@@ -34,8 +36,11 @@ final class Validator
      *
      * @throws ValidationException
      */
-    public function validate(string $dtoClass, array $input): object
+    public function validate(string $dtoClass, array $input, int $depth = 0): object
     {
+        if ($depth > self::MAX_NESTING_DEPTH) {
+            throw new ValidationException(['_root' => ['Nested input exceeded maximum depth limit.']]);
+        }
         $reflection = new ReflectionClass($dtoClass);
         $constructor = $reflection->getConstructor();
         if (null === $constructor) {
@@ -77,7 +82,7 @@ final class Validator
             }
 
             try {
-                [$coerced, $typeError] = $this->coerce($parameter, $raw, $name);
+                [$coerced, $typeError] = $this->coerce($parameter, $raw, $name, $depth);
             } catch (ValidationException $nested) {
                 foreach ($nested->errors as $subField => $subMessages) {
                     $errors[$name . '.' . $subField] = $subMessages;
@@ -170,7 +175,7 @@ final class Validator
     }
 
     /** @return array{0: mixed, 1: ?string} */
-    private function coerce(ReflectionParameter $parameter, mixed $value, string $name): array
+    private function coerce(ReflectionParameter $parameter, mixed $value, string $name, int $depth = 0): array
     {
         $type = $parameter->getType();
         if (!$type instanceof ReflectionNamedType) {
@@ -199,12 +204,12 @@ final class Validator
             'array' => is_array($value)
                 ? [$value, null]
                 : [null, sprintf('The %s field must be an array.', $name)],
-            default => $this->coerceObjectOrEnum($type->getName(), $value, $name),
+            default => $this->coerceObjectOrEnum($type->getName(), $value, $name, $depth),
         };
     }
 
     /** @return array{0: mixed, 1: ?string} */
-    private function coerceObjectOrEnum(string $typeName, mixed $value, string $name): array
+    private function coerceObjectOrEnum(string $typeName, mixed $value, string $name, int $depth = 0): array
     {
         if (is_subclass_of($typeName, BackedEnum::class)) {
             if ($value instanceof $typeName) {
@@ -243,7 +248,7 @@ final class Validator
                     $nestedInput[(string) $k] = $v;
                 }
 
-                return [$this->validate($typeName, $nestedInput), null];
+                return [$this->validate($typeName, $nestedInput, $depth + 1), null];
             }
 
             return [null, sprintf('The %s field must be an object.', $name)];
@@ -290,7 +295,15 @@ final class Validator
                     $errors[] = $attribute->message ?? sprintf('The %s field must be a valid email address.', $name);
                 }
             } elseif ($attribute instanceof Url) {
-                if (!is_string($value) || false === filter_var($value, FILTER_VALIDATE_URL)) {
+                $validUrl = false;
+                if (is_string($value) && false === strpbrk($value, "\r\n\0") && false !== filter_var($value, FILTER_VALIDATE_URL)) {
+                    $parsed = parse_url($value);
+                    $scheme = is_array($parsed) && is_string($parsed['scheme'] ?? null) ? strtolower($parsed['scheme']) : '';
+                    $host = is_array($parsed) && is_string($parsed['host'] ?? null) ? $parsed['host'] : '';
+                    $allowed = array_map('strtolower', $attribute->allowedSchemes);
+                    $validUrl = '' !== $host && in_array($scheme, $allowed, true);
+                }
+                if (!$validUrl) {
                     $errors[] = $attribute->message ?? sprintf('The %s field must be a valid URL.', $name);
                 }
             } elseif ($attribute instanceof Uuid) {

@@ -487,4 +487,11 @@ final class QueryBuilderTest extends TestCase
             ->orWhere('status', '=', 'overdue')
             ->toSelectSql();
     }
+
+    public function testPdoConnectionRejectsDsnParameterInjection(): void
+    {
+        $this->expectException(DatabaseException::class);
+        $this->expectExceptionMessage('Unsafe DSN host');
+        PdoConnection::pgsql('127.0.0.1;sslmode=disable', 5432, 'app', 'user', 'pass');
+    }
 }

@@ -20,6 +20,7 @@ use Throwable;
 final class McpServer
 {
     public const string PROTOCOL_VERSION = '2025-03-26';
+    public const int MAX_PAYLOAD_BYTES = 1_048_576;
 
     /** @var array<string, array{definition: ToolDefinition, handler: Closure(array<string, mixed>): string}> */
     private array $tools = [];
@@ -54,6 +55,10 @@ final class McpServer
      */
     public function handleJson(string $rawJson): ?string
     {
+        if (strlen($rawJson) > self::MAX_PAYLOAD_BYTES) {
+            return $this->encodeError(null, -32600, sprintf('Request payload exceeds maximum bound of %d bytes.', self::MAX_PAYLOAD_BYTES));
+        }
+
         if (str_starts_with($rawJson, "\xEF\xBB\xBF")) {
             $rawJson = substr($rawJson, 3);
         }
@@ -143,6 +148,10 @@ final class McpServer
 
         if (null !== $this->principal && !$this->principal->allowsTool($name)) {
             return $this->encodeError($id, -32001, sprintf('Capability denied for tool "%s".', $name));
+        }
+
+        if (null !== $this->principal && $this->principal->requiresApproval($name)) {
+            return $this->encodeError($id, -32002, sprintf('Tool "%s" requires explicit human approval before execution.', $name));
         }
 
         /** @var array<string, mixed> $arguments */

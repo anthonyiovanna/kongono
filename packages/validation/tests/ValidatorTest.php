@@ -11,6 +11,7 @@ use Kongono\Validation\Attributes\In;
 use Kongono\Validation\Attributes\Max;
 use Kongono\Validation\Attributes\Min;
 use Kongono\Validation\Attributes\Required;
+use Kongono\Validation\Attributes\Url;
 use Kongono\Validation\Attributes\Uuid;
 use Kongono\Validation\ValidationException;
 use Kongono\Validation\Validator;
@@ -59,6 +60,14 @@ final readonly class SignupDto
         public int $age,
         #[In(['free', 'pro'])]
         public string $plan = 'free',
+    ) {}
+}
+
+final readonly class WebhookTargetDto
+{
+    public function __construct(
+        #[Required, Url]
+        public string $endpoint,
     ) {}
 }
 
@@ -140,6 +149,22 @@ final class ValidatorTest extends TestCase
             self::assertArrayHasKey('passwordConfirmation', $e->errors);
             self::assertArrayHasKey('shipping.city', $e->errors);
             self::assertArrayHasKey('shipping.postalCode', $e->errors);
+        }
+    }
+
+    public function testUrlAttributeBlocksJavascriptFileGopherAndDataSchemes(): void
+    {
+        $validator = new Validator();
+        $ok = $validator->validate(WebhookTargetDto::class, ['endpoint' => 'https://api.kongono.dev/hooks']);
+        self::assertSame('https://api.kongono.dev/hooks', $ok->endpoint);
+
+        foreach (['javascript://%0aalert(1)', 'file:///etc/passwd', 'gopher://127.0.0.1:6379/', 'data:text/html,<script>alert(1)</script>'] as $hostile) {
+            try {
+                $validator->validate(WebhookTargetDto::class, ['endpoint' => $hostile]);
+                self::fail('Expected #[Url] to reject hostile scheme: ' . $hostile);
+            } catch (ValidationException $e) {
+                self::assertArrayHasKey('endpoint', $e->errors);
+            }
         }
     }
 }

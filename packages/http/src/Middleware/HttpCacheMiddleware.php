@@ -14,6 +14,11 @@ use Psr\Http\Server\RequestHandlerInterface;
 /**
  * Automatic HTTP Cache-Control, weak/strong ETag generation, and 304 Not Modified negotiation
  * for cacheable GET/HEAD responses.
+ *
+ * Security-hardened against CDN/shared-cache poisoning:
+ *   - Never marks responses carrying `Set-Cookie` as `public` (forces `private, no-store`)
+ *   - Never marks responses to `Authorization`-bearing requests as `public` (downgrades to `private` + `Vary: Authorization`)
+ *   - Respects explicit `no-store` or `private` directives already set by the handler
  */
 final readonly class HttpCacheMiddleware implements MiddlewareInterface
 {
@@ -35,11 +40,31 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
             return $response;
         }
 
-        $directives = [$this->public ? 'public' : 'private', 'max-age=' . max(0, $this->maxAge)];
-        if (null !== $this->staleWhileRevalidate && $this->staleWhileRevalidate > 0) {
+        $existingCc = strtolower($response->getHeaderLine('Cache-Control'));
+        if (str_contains($existingCc, 'no-store')) {
+            return $response;
+        }
+
+        // Never allow shared caches/CDNs to cache responses that emit session or auth cookies
+        if ($response->hasHeader('Set-Cookie')) {
+            return $response->withHeader('Cache-Control', 'private, no-store');
+        }
+
+        $hasAuthHeader = '' !== trim($request->getHeaderLine('Authorization'));
+        $isPrivate = !$this->public || $hasAuthHeader || str_contains($existingCc, 'private');
+
+        $directives = [$isPrivate ? 'private' : 'public', 'max-age=' . max(0, $this->maxAge)];
+        if (!$isPrivate && null !== $this->staleWhileRevalidate && $this->staleWhileRevalidate > 0) {
             $directives[] = 'stale-while-revalidate=' . $this->staleWhileRevalidate;
         }
         $response = $response->withHeader('Cache-Control', implode(', ', $directives));
+
+        if ($hasAuthHeader) {
+            $vary = $response->getHeaderLine('Vary');
+            if (!str_contains(strtolower($vary), 'authorization')) {
+                $response = $response->withHeader('Vary', '' === $vary ? 'Authorization' : $vary . ', Authorization');
+            }
+        }
 
         if ($this->etag) {
             $etag = '' !== $response->getHeaderLine('ETag')

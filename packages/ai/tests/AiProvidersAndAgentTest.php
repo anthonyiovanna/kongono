@@ -381,6 +381,24 @@ final class AiProvidersAndAgentTest extends TestCase
         self::assertIsArray($blocked);
         self::assertSame(-32602, $blocked['error']['code']);
 
+        // Oversized MCP JSON-RPC payload rejected fail-closed (-32600)
+        $oversized = json_decode((string) $server->handleJson(str_repeat(' ', McpServer::MAX_PAYLOAD_BYTES + 10)), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($oversized);
+        self::assertSame(-32600, $oversized['error']['code']);
+
+        // Approval-gated MCP tool fails closed with -32002 without executing
+        $approvalRan = false;
+        $gatedServer = (new McpServer('gated', '1.0.0', new AgentPrincipal('a', 'r', allowedTools: ['deploy_prod'], approvalRequiredTools: ['deploy_prod'])))
+            ->registerTool(new ToolDefinition('deploy_prod', 'Deploy'), static function () use (&$approvalRan): string {
+                $approvalRan = true;
+
+                return 'deployed';
+            });
+        $gatedRes = json_decode((string) $gatedServer->handleJson('{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"deploy_prod"}}'), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($gatedRes);
+        self::assertSame(-32002, $gatedRes['error']['code']);
+        self::assertFalse($approvalRan);
+
         // Unknown method returns -32601 & invalid JSON returns -32700
         $unknown = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":5,"method":"nope"}'), true, 32, JSON_THROW_ON_ERROR);
         self::assertIsArray($unknown);

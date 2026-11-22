@@ -230,6 +230,14 @@ HTML,
         $engine = new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache');
         self::assertSame('<head><script src="/_kongono/live.js" defer></script></head>', $engine->render('live-default'));
         self::assertSame('<head><script src="/assets/kgn-live.js" defer></script></head>', $engine->render('live-custom'));
+
+        // Poisoned public/hot with javascript: scheme fails closed
+        $pub = $this->tempDir . '/public_hot_sec';
+        mkdir($pub, 0o777, true);
+        file_put_contents($pub . '/hot', "javascript:alert(1)\n");
+        $this->expectException(ViewException::class);
+        $this->expectExceptionMessage('Unsafe Vite hot-server URL');
+        (new ViteManifest($pub))->tags('resources/js/app.js');
     }
 
     private function removeDir(string $dir): void

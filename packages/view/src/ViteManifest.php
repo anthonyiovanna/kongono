@@ -143,8 +143,16 @@ final readonly class ViteManifest
             return null;
         }
         $trimmed = rtrim(trim($raw), '/');
+        if ('' === $trimmed || false !== strpbrk($trimmed, "\r\n\0")) {
+            return null;
+        }
+        $parts = parse_url($trimmed);
+        $scheme = is_array($parts) && is_string($parts['scheme'] ?? null) ? strtolower($parts['scheme']) : '';
+        if (!in_array($scheme, ['http', 'https'], true) || !is_string($parts['host'] ?? null) || '' === $parts['host']) {
+            throw new ViewException('Unsafe Vite hot-server URL in public/hot (must use http:// or https://).');
+        }
 
-        return '' !== $trimmed ? $trimmed : null;
+        return $trimmed;
     }
 
     /** @return array<string, mixed> */
