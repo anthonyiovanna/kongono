@@ -119,7 +119,7 @@ final readonly class MigrationLinter
         }
 
         // 4. DROP COLUMN or DROP TABLE in forward migration (rolling-deploy hazard)
-        if (1 === preg_match('/\bDROP\s+COLUMN\b/i', $upSource)) {
+        if (1 === preg_match('/\bDROP\s+COLUMN\b/i', $upSource) || 1 === preg_match('/->\s*dropColumn\s*\(/i', $upSource)) {
             $findings[] = [
                 'severity' => 'warning',
                 'code' => 'KGN-MIG-DROP-COLUMN',

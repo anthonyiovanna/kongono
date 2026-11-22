@@ -12,6 +12,7 @@ use Kongono\Database\ConnectionInterface;
 use Kongono\Database\DatabaseException;
 use Kongono\Database\MigrationInterface;
 use Kongono\Database\Migrator;
+use Kongono\Database\NonTransactionalMigrationInterface;
 use Kongono\Database\PdoConnection;
 use Kongono\Database\QueryBuilder;
 use Kongono\Database\RowLevelSecurity;
@@ -99,6 +100,98 @@ final class LiveInfrastructureTest extends TestCase
         self::assertNotEmpty($queries);
 
         self::assertSame(['20261121_integration_items'], $migrator->rollback([$migration], steps: 1));
+
+        // 1b. v1.11.0: Blueprint uuid/json/decimal/foreignId, Schema::table() + CONCURRENTLY index, Migrator::pretend() & fresh()
+        $mAccounts = new class implements MigrationInterface {
+            public function id(): string
+            {
+                return '20261122_01_accounts';
+            }
+
+            public function up(ConnectionInterface $conn): void
+            {
+                Schema::create($conn, 'integration_accounts', static function (Blueprint $table): void {
+                    $table->id();
+                    $table->uuid('public_id')->unique();
+                    $table->decimal('balance', 14, 2)->default(0);
+                    $table->json('prefs')->default('{}');
+                });
+                Schema::create($conn, 'integration_ledger', static function (Blueprint $connTable): void {
+                    $connTable->id();
+                    $connTable->foreignId('account_id', 'integration_accounts', 'id', onDelete: 'CASCADE');
+                    $connTable->decimal('delta', 12, 2);
+                    $connTable->string('memo', 120)->nullable();
+                });
+            }
+
+            public function down(ConnectionInterface $conn): void
+            {
+                Schema::dropIfExists($conn, 'integration_ledger');
+                Schema::dropIfExists($conn, 'integration_accounts');
+            }
+        };
+
+        $mAlterConcurrent = new class implements NonTransactionalMigrationInterface {
+            public function id(): string
+            {
+                return '20261122_02_alter_ledger_concurrent';
+            }
+
+            public function up(ConnectionInterface $conn): void
+            {
+                Schema::table($conn, 'integration_ledger', static function (Blueprint $table): void {
+                    $table->string('currency', 3)->default('USD');
+                    $table->renameColumn('memo', 'note');
+                    $table->index(['account_id', 'currency'], concurrently: true);
+                });
+            }
+
+            public function down(ConnectionInterface $conn): void
+            {
+                Schema::table($conn, 'integration_ledger', static function (Blueprint $table): void {
+                    $table->dropIndex(['account_id', 'currency'], concurrently: true);
+                    $table->renameColumn('note', 'memo');
+                    $table->dropColumn('currency');
+                });
+            }
+        };
+
+        $schemaMigrator = new Migrator($db, 'kongono_schema_v111_migrations');
+        $freshResult = $schemaMigrator->fresh([$mAccounts, $mAlterConcurrent]);
+        self::assertSame(['20261122_01_accounts', '20261122_02_alter_ledger_concurrent'], $freshResult['applied']);
+
+        // Verify live PostgreSQL UUID, JSONB, NUMERIC, FOREIGN KEY CASCADE, and renamed column work end-to-end
+        $acctIdRow = $db->table('integration_accounts')->insertReturning([
+            'public_id' => '550e8400-e29b-41d4-a716-446655440000',
+            'balance' => '1250.75',
+            'prefs' => '{"tier":"pro"}',
+        ], ['id']);
+        $rawAcctId = $acctIdRow['id'] ?? null;
+        $acctId = is_int($rawAcctId) ? $rawAcctId : (is_numeric($rawAcctId) ? (int) $rawAcctId : 0);
+        self::assertGreaterThan(0, $acctId);
+
+        $db->table('integration_ledger')->insert([
+            'account_id' => $acctId,
+            'delta' => '49.99',
+            'note' => 'Initial credit',
+        ]);
+        $ledgerRow = $db->table('integration_ledger')->where('account_id', '=', $acctId)->first();
+        self::assertNotNull($ledgerRow);
+        self::assertSame('USD', $ledgerRow['currency']);
+        self::assertSame('Initial credit', $ledgerRow['note']);
+
+        // ON DELETE CASCADE cleans up child ledger row automatically
+        $db->table('integration_accounts')->where('id', '=', $acctId)->delete();
+        self::assertSame(0, $db->table('integration_ledger')->where('account_id', '=', $acctId)->count());
+
+        // Rollback non-transactional CONCURRENTLY migration + verify pretend() previews ONLY the pending one
+        self::assertSame(['20261122_02_alter_ledger_concurrent'], $schemaMigrator->rollback([$mAccounts, $mAlterConcurrent], steps: 1));
+        $pretendPreview = $schemaMigrator->pretend([$mAccounts, $mAlterConcurrent]);
+        self::assertSame(['20261122_02_alter_ledger_concurrent'], array_keys($pretendPreview));
+        self::assertContains(
+            'CREATE INDEX CONCURRENTLY IF NOT EXISTS "idx_integration_ledger_account_id_currency" ON "integration_ledger" ("account_id", "currency")',
+            $pretendPreview['20261122_02_alter_ledger_concurrent'],
+        );
 
         // 2. Live PostgresQueueDriver (FOR UPDATE SKIP LOCKED + fencing) + Worker
         $db->execute('DROP TABLE IF EXISTS "kongono_integration_jobs"');

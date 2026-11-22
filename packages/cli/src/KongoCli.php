@@ -21,6 +21,7 @@ use Kongono\Cli\Deploy\DeployBlueprintGenerator;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Cli\Sdk\SdkGenerator;
 use Kongono\Cli\Ui\UiComponentGenerator;
+use Kongono\Core\Config;
 use Kongono\Core\CoreException;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Core\Graph\RouteNode;
@@ -62,7 +63,7 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.10.1 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.11.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
@@ -79,18 +80,19 @@ final readonly class KongoCli
                 'new' => $this->cmdNew($rest, $options),
                 'work' => $this->cmdWork($appRoot, $options),
                 'schedule:run' => $this->cmdScheduleRun($appRoot),
-                'migrate' => $this->cmdMigrate($appRoot),
+                'migrate' => $this->cmdMigrate($appRoot, $options),
+                'migrate:fresh' => $this->cmdMigrateFresh($appRoot, $options),
                 'migrate:rollback' => $this->cmdMigrateRollback($appRoot, $options),
                 'migrate:status' => $this->cmdMigrateStatus($appRoot),
                 'migrate:lint' => $this->cmdMigrateLint($appRoot, $options),
                 'db:seed' => $this->cmdDbSeed($appRoot),
                 'optimize' => $this->cmdOptimize($appRoot),
                 'cache:clear' => $this->cmdCacheClear($appRoot),
-                'make:controller' => $this->cmdMake('controller', $appRoot, $rest),
-                'make:dto' => $this->cmdMake('dto', $appRoot, $rest),
-                'make:migration' => $this->cmdMake('migration', $appRoot, $rest),
-                'make:seeder' => $this->cmdMake('seeder', $appRoot, $rest),
-                'make:test' => $this->cmdMake('test', $appRoot, $rest),
+                'make:controller' => $this->cmdMake('controller', $appRoot, $rest, $options),
+                'make:dto' => $this->cmdMake('dto', $appRoot, $rest, $options),
+                'make:migration' => $this->cmdMake('migration', $appRoot, $rest, $options),
+                'make:seeder' => $this->cmdMake('seeder', $appRoot, $rest, $options),
+                'make:test' => $this->cmdMake('test', $appRoot, $rest, $options),
                 'key:generate' => [0, 'APP_KEY=' . Encryptor::generateKey() . "\n"],
                 'doctor' => $this->cmdDoctor($appRoot),
                 'env:check' => $this->cmdEnvCheck($appRoot),
@@ -385,9 +387,10 @@ final readonly class KongoCli
     /**
      * @param 'controller'|'dto'|'migration'|'seeder'|'test' $kind
      * @param list<string>                                   $args
+     * @param array<string, string|true>                     $options
      * @return array{0: int, 1: string}
      */
-    private function cmdMake(string $kind, string $appRoot, array $args): array
+    private function cmdMake(string $kind, string $appRoot, array $args, array $options = []): array
     {
         $name = $args[0] ?? '';
         if ('' === $name) {
@@ -396,10 +399,11 @@ final readonly class KongoCli
 
         $context = ProjectContext::discover($appRoot);
         $generator = new CodeGenerator();
+        $alterTable = is_string($options['table'] ?? null) ? $options['table'] : null;
         $createdPath = match ($kind) {
             'controller' => $generator->makeController($context, $name),
             'dto' => $generator->makeDto($context, $name),
-            'migration' => $generator->makeMigration($context, $name),
+            'migration' => $generator->makeMigration($context, $name, $alterTable),
             'seeder' => $generator->makeSeeder($context, $name),
             'test' => $generator->makeTest($context, $name),
         };
@@ -507,14 +511,32 @@ final readonly class KongoCli
             return [1, "No Kongono\\Database\\ConnectionInterface registered in this application's container.\n"];
         }
 
+        $db = $app->container()->make(ConnectionInterface::class);
+        $ran = $this->runSeeders($appRoot, $db);
+        if (null === $ran) {
+            return [0, "No seeder files found.\n"];
+        }
+        if ([] === $ran) {
+            return [0, "No SeederInterface classes executed.\n"];
+        }
+
+        return [0, "Executed seeders:\n" . implode("\n", array_map(static fn(string $f): string => '  + ' . $f, $ran)) . "\n"];
+    }
+
+    /**
+     * Execute all SeederInterface files under `seeders/` against the given connection.
+     *
+     * @return list<string>|null Null when no seeder files exist
+     */
+    private function runSeeders(string $appRoot, ConnectionInterface $db): ?array
+    {
         $seedersDir = $appRoot . DIRECTORY_SEPARATOR . 'seeders';
         $files = is_dir($seedersDir) ? glob($seedersDir . DIRECTORY_SEPARATOR . '*.php') : [];
         if (false === $files || [] === $files) {
-            return [0, "No seeder files found.\n"];
+            return null;
         }
         sort($files, SORT_STRING);
 
-        $db = $app->container()->make(ConnectionInterface::class);
         $ran = [];
         foreach ($files as $file) {
             $loaded = require $file;
@@ -524,11 +546,7 @@ final readonly class KongoCli
             }
         }
 
-        if ([] === $ran) {
-            return [0, "No SeederInterface classes executed.\n"];
-        }
-
-        return [0, "Executed seeders:\n" . implode("\n", array_map(static fn(string $f): string => '  + ' . $f, $ran)) . "\n"];
+        return $ran;
     }
 
     /** @return array{0: int, 1: string} */
@@ -846,8 +864,11 @@ final readonly class KongoCli
         return print_r($value, true);
     }
 
-    /** @return array{0: int, 1: string} */
-    private function cmdMigrate(string $appRoot): array
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdMigrate(string $appRoot, array $options = []): array
     {
         $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
         if (!is_file($bootstrap)) {
@@ -864,9 +885,128 @@ final readonly class KongoCli
             return [0, "No migrations directory found; nothing to migrate.\n"];
         }
 
+        $migrations = $this->loadMigrations($migrationsDir);
+        if (null === $migrations) {
+            return [0, "No migration files found.\n"];
+        }
+
+        $db = $app->container()->make(ConnectionInterface::class);
+        $migrator = new Migrator($db);
+
+        if (isset($options['pretend'])) {
+            $preview = $migrator->pretend($migrations);
+            if (isset($options['json'])) {
+                return [0, json_encode([
+                    'pretend' => true,
+                    'dialect' => $db->dialect()->value,
+                    'migrations' => $preview,
+                ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+            }
+            if ([] === $preview) {
+                return [0, "Database is already up to date (pretend mode: 0 statements).\n"];
+            }
+
+            $lines = ['Migration dry-run preview (no changes executed):'];
+            $totalStatements = 0;
+            foreach ($preview as $id => $statements) {
+                $lines[] = '';
+                $lines[] = '-- ' . $id;
+                if ([] === $statements) {
+                    $lines[] = '  (no SQL statements recorded)';
+                } else {
+                    foreach ($statements as $sql) {
+                        $lines[] = '  ' . $sql . ';';
+                        ++$totalStatements;
+                    }
+                }
+            }
+            $lines[] = '';
+            $lines[] = sprintf(
+                'Total: %d pending migration(s), %d SQL statement(s) previewed.',
+                count($preview),
+                $totalStatements,
+            );
+
+            return [0, implode("\n", $lines) . "\n"];
+        }
+
+        $ran = $migrator->migrate($migrations);
+        if ([] === $ran) {
+            return [0, "Database is already up to date.\n"];
+        }
+
+        return [0, "Applied migrations:\n" . implode("\n", array_map(static fn(string $id): string => '  + ' . $id, $ran)) . "\n"];
+    }
+
+    /**
+     * Drop all user tables and re-run every migration from scratch, with a hard fail-closed
+     * production environment guard unless `--force` is explicitly supplied.
+     *
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdMigrateFresh(string $appRoot, array $options = []): array
+    {
+        $force = isset($options['force']);
+        if (!$force && $this->isProductionEnvironment()) {
+            return [1, "Refusing to run `kongo migrate:fresh` in production (APP_ENV=production). Pass --force to override.\n"];
+        }
+
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (!is_file($bootstrap)) {
+            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $app = require $bootstrap;
+        if (!$app instanceof App || !$app->container()->has(ConnectionInterface::class)) {
+            return [1, "No Kongono\\Database\\ConnectionInterface registered in this application's container.\n"];
+        }
+
+        if (!$force && $this->isProductionEnvironment($app)) {
+            return [1, "Refusing to run `kongo migrate:fresh` in production (APP_ENV=production). Pass --force to override.\n"];
+        }
+
+        $migrationsDir = $appRoot . DIRECTORY_SEPARATOR . 'migrations';
+        $migrations = is_dir($migrationsDir) ? ($this->loadMigrations($migrationsDir) ?? []) : [];
+
+        $db = $app->container()->make(ConnectionInterface::class);
+        $result = (new Migrator($db))->fresh($migrations);
+
+        $lines = [
+            sprintf('Dropped %d table(s).', count($result['dropped'])),
+        ];
+        if ([] === $result['applied']) {
+            $lines[] = 'No migrations applied.';
+        } else {
+            $lines[] = 'Applied migrations:';
+            foreach ($result['applied'] as $id) {
+                $lines[] = '  + ' . $id;
+            }
+        }
+
+        if (isset($options['seed'])) {
+            $seeded = $this->runSeeders($appRoot, $db);
+            if (null === $seeded || [] === $seeded) {
+                $lines[] = 'No seeders executed.';
+            } else {
+                $lines[] = 'Executed seeders:';
+                foreach ($seeded as $file) {
+                    $lines[] = '  + ' . $file;
+                }
+            }
+        }
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @return list<MigrationInterface>|null Null when no migration PHP files exist
+     */
+    private function loadMigrations(string $migrationsDir): ?array
+    {
         $files = glob($migrationsDir . DIRECTORY_SEPARATOR . '*.php');
         if (false === $files || [] === $files) {
-            return [0, "No migration files found.\n"];
+            return null;
         }
         sort($files, SORT_STRING);
 
@@ -878,13 +1018,30 @@ final readonly class KongoCli
             }
         }
 
-        $db = $app->container()->make(ConnectionInterface::class);
-        $ran = (new Migrator($db))->migrate($migrations);
-        if ([] === $ran) {
-            return [0, "Database is already up to date.\n"];
+        return $migrations;
+    }
+
+    private function isProductionEnvironment(?App $app = null): bool
+    {
+        $candidates = [];
+        $envVal = Config::env('APP_ENV');
+        if (null !== $envVal) {
+            $candidates[] = strtolower(trim($envVal));
+        }
+        if (null !== $app && $app->container()->has(Config::class)) {
+            $cfgEnv = strtolower(trim($app->container()->make(Config::class)->string('app.env', '')));
+            if ('' !== $cfgEnv) {
+                $candidates[] = $cfgEnv;
+            }
         }
 
-        return [0, "Applied migrations:\n" . implode("\n", array_map(static fn(string $id): string => '  + ' . $id, $ran)) . "\n"];
+        foreach ($candidates as $val) {
+            if ('production' === $val || 'prod' === $val) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1409,7 +1566,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -1479,7 +1636,8 @@ Core Commands:
   tinker [--app=path] [--eval="expr"]                   Interactive PHP 8.5 REPL with live $app & $container
   work [--app=path] [--queue=default] [--max-jobs=50]   Process queued background jobs
   schedule:run [--app=path]                             Execute due scheduled cron tasks
-  migrate [--app=path]                                  Run pending database migrations
+  migrate [--app=path] [--pretend] [--json]             Run pending migrations (or dry-run preview SQL)
+  migrate:fresh [--app=path] [--seed] [--force]         Drop all tables & re-run all migrations (guarded in prod)
   migrate:rollback [--app=path] [--steps=1]             Roll back applied database migrations
   migrate:status [--app=path]                           Show applied vs pending database migrations
   migrate:lint [--app=path] [--json] [--strict]         Lint migrations for zero-downtime DDL & locking hazards
@@ -1488,7 +1646,7 @@ Core Commands:
   cache:clear [--app=path]                              Clear compiled views & cached app files
   make:controller <Name> [--app=path]                   Generate a PHP 8.5 attribute controller
   make:dto <Name> [--app=path]                          Generate a validated readonly input DTO
-  make:migration <Name> [--app=path]                    Generate a Schema::create() migration
+  make:migration <Name> [--table=tbl] [--app=path]      Generate a Schema::create() or Schema::table() migration
   make:seeder <Name> [--app=path]                       Generate a database SeederInterface file
   make:test <Name> [--app=path]                         Generate a PHPUnit 13 TestClient test
   key:generate                                          Generate a 256-bit APP_KEY for .env

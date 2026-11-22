@@ -77,7 +77,7 @@ PHP;
         return $path;
     }
 
-    public function makeMigration(ProjectContext $context, string $name): string
+    public function makeMigration(ProjectContext $context, string $name, ?string $alterTable = null): string
     {
         $slug = strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', '_', trim($name)));
         $slug = trim($slug, '_');
@@ -89,7 +89,47 @@ PHP;
         $id = $timestamp . '_' . $slug;
         $path = 'migrations/' . $id . '.php';
 
-        $code = <<<PHP
+        if (null !== $alterTable && '' !== trim($alterTable)) {
+            $tableSlug = strtolower((string) preg_replace('/[^a-zA-Z0-9_]+/', '_', trim($alterTable)));
+            $tableSlug = trim($tableSlug, '_');
+            if ('' === $tableSlug) {
+                throw new CoreException('Target table name cannot be empty.');
+            }
+
+            $code = <<<PHP
+<?php
+
+declare(strict_types=1);
+
+use Kongono\Database\ConnectionInterface;
+use Kongono\Database\MigrationInterface;
+use Kongono\Database\Schema\Blueprint;
+use Kongono\Database\Schema\Schema;
+
+return new class () implements MigrationInterface {
+    public function id(): string
+    {
+        return '{$id}';
+    }
+
+    public function up(ConnectionInterface \$db): void
+    {
+        Schema::table(\$db, '{$tableSlug}', static function (Blueprint \$table): void {
+            // \$table->string('example_column')->nullable();
+        });
+    }
+
+    public function down(ConnectionInterface \$db): void
+    {
+        Schema::table(\$db, '{$tableSlug}', static function (Blueprint \$table): void {
+            // \$table->dropColumn('example_column');
+        });
+    }
+};
+
+PHP;
+        } else {
+            $code = <<<PHP
 <?php
 
 declare(strict_types=1);
@@ -121,6 +161,8 @@ return new class () implements MigrationInterface {
 };
 
 PHP;
+        }
+
         $context->writeFileContained($path, $code);
 
         return $path;

@@ -11,7 +11,9 @@ use Kongono\Database\DatabaseException;
 use Kongono\Database\Dialect;
 use Kongono\Database\MigrationInterface;
 use Kongono\Database\Migrator;
+use Kongono\Database\NonTransactionalMigrationInterface;
 use Kongono\Database\PdoConnection;
+use Kongono\Database\PretendConnection;
 use Kongono\Database\QueryBuilder;
 use Kongono\Database\QueryGuard;
 use Kongono\Database\Repository;
@@ -849,5 +851,356 @@ final class QueryBuilderTest extends TestCase
         $this->expectException(DatabaseException::class);
         $this->expectExceptionMessage('requires PostgreSQL');
         RowLevelSecurity::withTenant($fakeSqlite, 42, static fn(): string => 'nope');
+    }
+
+    public function testBlueprintNewColumnHelpersForeignKeysSchemaTableAndRenameAcrossDialects(): void
+    {
+        // 1. PostgreSQL: UUID, JSONB, NUMERIC(p,s), FOREIGN KEY / foreignId, and custom index name
+        $pgBp = new Blueprint('orders', Dialect::Postgres);
+        $pgBp->uuid('id')->primary();
+        $pgBp->foreignId('user_id', 'users', 'id', onDelete: 'CASCADE', onUpdate: 'RESTRICT');
+        $pgBp->decimal('total_amount', 14, 4)->default(0);
+        $pgBp->json('metadata')->default('{}');
+        $pgBp->index(['user_id'], name: 'idx_orders_custom_user');
+        $pgSql = $pgBp->toSqlStatements();
+
+        self::assertCount(2, $pgSql);
+        self::assertSame(
+            'CREATE TABLE IF NOT EXISTS "orders" ('
+            . '"id" UUID PRIMARY KEY NOT NULL, '
+            . '"user_id" BIGINT NOT NULL, '
+            . '"total_amount" NUMERIC(14,4) NOT NULL DEFAULT 0, '
+            . '"metadata" JSONB NOT NULL DEFAULT \'{}\', '
+            . 'CONSTRAINT "fk_orders_user_id" FOREIGN KEY ("user_id") REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE RESTRICT'
+            . ')',
+            $pgSql[0],
+        );
+        self::assertSame('CREATE INDEX IF NOT EXISTS "idx_orders_custom_user" ON "orders" ("user_id")', $pgSql[1]);
+
+        // 2. MySQL: CHAR(36), JSON, DECIMAL(p,s), backtick identifiers, and CREATE INDEX without IF NOT EXISTS
+        $myBp = new Blueprint('orders', Dialect::Mysql);
+        $myBp->uuid('id')->primary();
+        $myBp->decimal('amount', 12, 2);
+        $myBp->json('payload')->nullable();
+        $myBp->foreignKey('org_id', 'orgs', 'id', onDelete: 'SET NULL');
+        $myBp->index(['org_id'], unique: true);
+        $mySql = $myBp->toSqlStatements();
+
+        self::assertStringContainsString('`id` CHAR(36) PRIMARY KEY NOT NULL', $mySql[0]);
+        self::assertStringContainsString('`amount` DECIMAL(12,2) NOT NULL', $mySql[0]);
+        self::assertStringContainsString('`payload` JSON NULL', $mySql[0]);
+        self::assertStringContainsString('CONSTRAINT `fk_orders_org_id` FOREIGN KEY (`org_id`) REFERENCES `orgs` (`id`) ON DELETE SET NULL', $mySql[0]);
+        self::assertSame('CREATE UNIQUE INDEX `idx_orders_org_id` ON `orders` (`org_id`)', $mySql[1]);
+
+        // 3. SQLite: TEXT for uuid/json, NUMERIC(p,s) for decimal
+        $sqBp = new Blueprint('orders', Dialect::Sqlite);
+        $sqBp->uuid('id')->primary();
+        $sqBp->json('meta');
+        $sqBp->decimal('price');
+        $sqSql = $sqBp->toSqlStatements();
+        self::assertStringContainsString('"id" TEXT PRIMARY KEY NOT NULL', $sqSql[0]);
+        self::assertStringContainsString('"meta" TEXT NOT NULL', $sqSql[0]);
+        self::assertStringContainsString('"price" NUMERIC(12,2) NOT NULL', $sqSql[0]);
+
+        // 4. Schema::table() alterations + Schema::rename() across PostgreSQL, MySQL, and SQLite
+        $pgConn = new PretendConnection(Dialect::Postgres);
+        Schema::table($pgConn, 'orders', static function (Blueprint $table): void {
+            $table->decimal('tax_amount', 12, 2)->default(0);
+            $table->uuid('external_ref')->nullable();
+            $table->renameColumn('note', 'memo');
+            $table->foreignKey('coupon_id', 'coupons', 'id', onDelete: 'SET NULL');
+            $table->index(['external_ref'], unique: true, concurrently: true);
+            $table->dropIndex(['legacy_status'], concurrently: true);
+            $table->dropForeign('fk_orders_legacy_id');
+            $table->dropColumn('legacy_status', 'legacy_flag');
+            $table->rowLevelSecurity('workspace_id');
+        });
+        Schema::rename($pgConn, 'orders', 'customer_orders');
+
+        $alterPg = $pgConn->statements();
+        self::assertContains('ALTER TABLE "orders" ADD COLUMN "tax_amount" NUMERIC(12,2) NOT NULL DEFAULT 0', $alterPg);
+        self::assertContains('ALTER TABLE "orders" ADD COLUMN "external_ref" UUID NULL', $alterPg);
+        self::assertContains('ALTER TABLE "orders" RENAME COLUMN "note" TO "memo"', $alterPg);
+        self::assertContains('ALTER TABLE "orders" ADD CONSTRAINT "fk_orders_coupon_id" FOREIGN KEY ("coupon_id") REFERENCES "coupons" ("id") ON DELETE SET NULL', $alterPg);
+        self::assertContains('CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS "idx_orders_external_ref" ON "orders" ("external_ref")', $alterPg);
+        self::assertContains('DROP INDEX CONCURRENTLY IF EXISTS "idx_orders_legacy_status"', $alterPg);
+        self::assertContains('ALTER TABLE "orders" DROP CONSTRAINT IF EXISTS "fk_orders_legacy_id"', $alterPg);
+        self::assertContains('ALTER TABLE "orders" DROP COLUMN "legacy_status"', $alterPg);
+        self::assertContains('ALTER TABLE "orders" DROP COLUMN "legacy_flag"', $alterPg);
+        self::assertContains('ALTER TABLE "orders" FORCE ROW LEVEL SECURITY', $alterPg);
+        self::assertContains('ALTER TABLE "orders" RENAME TO "customer_orders"', $alterPg);
+
+        // Verify dropIndex and dropForeign occur BEFORE dropColumn in alter order
+        $dropIdxPos = array_search('DROP INDEX CONCURRENTLY IF EXISTS "idx_orders_legacy_status"', $alterPg, true);
+        $dropFkPos = array_search('ALTER TABLE "orders" DROP CONSTRAINT IF EXISTS "fk_orders_legacy_id"', $alterPg, true);
+        $dropColPos = array_search('ALTER TABLE "orders" DROP COLUMN "legacy_status"', $alterPg, true);
+        self::assertIsInt($dropIdxPos);
+        self::assertIsInt($dropFkPos);
+        self::assertIsInt($dropColPos);
+        self::assertLessThan($dropColPos, $dropIdxPos);
+        self::assertLessThan($dropColPos, $dropFkPos);
+
+        // MySQL alter & rename syntax
+        $myConn = new PretendConnection(Dialect::Mysql);
+        Schema::table($myConn, 'orders', static function (Blueprint $table): void {
+            $table->dropIndex('idx_orders_status');
+            $table->dropForeign('fk_orders_user_id');
+            $table->dropColumn('old_col');
+        });
+        Schema::rename($myConn, 'orders', 'customer_orders');
+        self::assertSame([
+            'DROP INDEX `idx_orders_status` ON `orders`',
+            'ALTER TABLE `orders` DROP FOREIGN KEY `fk_orders_user_id`',
+            'ALTER TABLE `orders` DROP COLUMN `old_col`',
+            'RENAME TABLE `orders` TO `customer_orders`',
+        ], $myConn->statements());
+
+        // 5. Validation & fail-closed guards on Blueprint
+        try {
+            (new Blueprint('orders', Dialect::Postgres))->decimal('bad', 0, 0);
+            self::fail('Expected invalid decimal precision to throw.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('precision', $e->getMessage());
+        }
+
+        try {
+            (new Blueprint('orders', Dialect::Postgres))->decimal('bad', 5, 6);
+            self::fail('Expected decimal scale > precision to throw.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('scale', $e->getMessage());
+        }
+
+        try {
+            (new Blueprint('orders', Dialect::Postgres))->foreignKey('user_id', 'users', 'id', onDelete: 'CASCADE; DROP TABLE users');
+            self::fail('Expected SQLi ON DELETE action to throw.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('Unsupported foreign key ON DELETE action', $e->getMessage());
+        }
+
+        try {
+            $badCreate = new Blueprint('orders', Dialect::Postgres);
+            $badCreate->id();
+            $badCreate->dropColumn('oops');
+            $badCreate->toSqlStatements();
+            self::fail('Expected alter-only operation in Schema::create() to throw.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('Schema::table()', $e->getMessage());
+        }
+
+        try {
+            $sqAlter = new PretendConnection(Dialect::Sqlite);
+            Schema::table($sqAlter, 'orders', static function (Blueprint $table): void {
+                $table->foreignKey('user_id', 'users');
+            });
+            self::fail('Expected SQLite ALTER TABLE ADD FOREIGN KEY to fail closed.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('SQLite does not support adding foreign key', $e->getMessage());
+        }
+    }
+
+    public function testMigratorPretendFreshAndNonTransactionalMigrations(): void
+    {
+        $executed = [];
+        $applied = [];
+        $txCount = 0;
+        $migrationsTableExists = false;
+
+        $fakePg = new class ($executed, $applied, $txCount, $migrationsTableExists) implements ConnectionInterface {
+            /**
+             * @param list<string> $executed
+             * @param list<string> $applied
+             */
+            public function __construct(
+                public array &$executed,
+                public array &$applied,
+                public int &$txCount,
+                public bool &$migrationsTableExists,
+            ) {}
+
+            public function dialect(): Dialect
+            {
+                return Dialect::Postgres;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                if (str_contains($sql, 'FROM pg_tables')) {
+                    return [
+                        ['name' => 'kongono_migrations'],
+                        ['name' => 'orders'],
+                    ];
+                }
+                if (!$this->migrationsTableExists) {
+                    throw new DatabaseException('relation "kongono_migrations" does not exist');
+                }
+
+                return array_map(static fn(string $id): array => ['id' => $id], $this->applied);
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                return null;
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                $this->executed[] = $sql;
+                if (str_contains($sql, 'CREATE TABLE IF NOT EXISTS "kongono_migrations"')) {
+                    $this->migrationsTableExists = true;
+                } elseif (str_starts_with($sql, 'INSERT INTO "kongono_migrations"') && is_string($bindings[0] ?? null)) {
+                    $this->applied[] = $bindings[0];
+                } elseif (str_starts_with($sql, 'DELETE FROM "kongono_migrations"') && is_string($bindings[0] ?? null)) {
+                    $this->applied = array_values(array_filter($this->applied, static fn(string $id): bool => $id !== $bindings[0]));
+                } elseif (str_starts_with($sql, 'DROP TABLE IF EXISTS "kongono_migrations"')) {
+                    $this->migrationsTableExists = false;
+                    $this->applied = [];
+                }
+
+                return 1;
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, Dialect::Postgres, $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                ++$this->txCount;
+
+                return $callback($this);
+            }
+        };
+
+        $m1 = new class implements MigrationInterface {
+            public function id(): string
+            {
+                return '20261122_01_create_orders';
+            }
+
+            public function up(ConnectionInterface $db): void
+            {
+                Schema::create($db, 'orders', static function (Blueprint $table): void {
+                    $table->uuid('id')->primary();
+                    $table->decimal('total', 12, 2);
+                });
+            }
+
+            public function down(ConnectionInterface $db): void
+            {
+                Schema::dropIfExists($db, 'orders');
+            }
+        };
+
+        $m2 = new class implements NonTransactionalMigrationInterface {
+            public function id(): string
+            {
+                return '20261122_02_index_orders_concurrently';
+            }
+
+            public function up(ConnectionInterface $db): void
+            {
+                Schema::table($db, 'orders', static function (Blueprint $table): void {
+                    $table->index(['total'], concurrently: true);
+                });
+            }
+
+            public function down(ConnectionInterface $db): void
+            {
+                Schema::table($db, 'orders', static function (Blueprint $table): void {
+                    $table->dropIndex(['total'], concurrently: true);
+                });
+            }
+        };
+
+        $migrator = new Migrator($fakePg);
+
+        // 1. pretend() on fresh DB (no kongono_migrations table yet) MUST NOT execute any write SQL
+        $previewAll = $migrator->pretend([$m1, $m2]);
+        self::assertSame([], $executed);
+        self::assertFalse($migrationsTableExists);
+        self::assertSame(['20261122_01_create_orders', '20261122_02_index_orders_concurrently'], array_keys($previewAll));
+        self::assertStringContainsString('CREATE TABLE IF NOT EXISTS "orders" ("id" UUID PRIMARY KEY NOT NULL, "total" NUMERIC(12,2) NOT NULL)', $previewAll['20261122_01_create_orders'][0]);
+        self::assertSame(['CREATE INDEX CONCURRENTLY IF NOT EXISTS "idx_orders_total" ON "orders" ("total")'], $previewAll['20261122_02_index_orders_concurrently']);
+
+        // 2. migrate() runs m1 inside a transaction, and m2 (NonTransactionalMigrationInterface) outside a transaction!
+        self::assertSame(['20261122_01_create_orders', '20261122_02_index_orders_concurrently'], $migrator->migrate([$m1, $m2]));
+        self::assertSame(1, $txCount);
+
+        // 3. pretend() after all migrations applied returns empty map
+        self::assertSame([], $migrator->pretend([$m1, $m2]));
+
+        // 4. rollback() respects NonTransactionalMigrationInterface (txCount remains 1)
+        self::assertSame(['20261122_02_index_orders_concurrently'], $migrator->rollback([$m1, $m2], steps: 1));
+        self::assertSame(1, $txCount);
+        self::assertContains('DROP INDEX CONCURRENTLY IF EXISTS "idx_orders_total"', $executed);
+
+        // 5. pretend() now previews ONLY the pending migration m2
+        $previewPending = $migrator->pretend([$m1, $m2]);
+        self::assertSame(['20261122_02_index_orders_concurrently'], array_keys($previewPending));
+
+        // 6. fresh() drops all tables via CASCADE and re-runs every migration
+        $freshResult = $migrator->fresh([$m1, $m2]);
+        self::assertSame(['kongono_migrations', 'orders'], $freshResult['dropped']);
+        self::assertSame(['20261122_01_create_orders', '20261122_02_index_orders_concurrently'], $freshResult['applied']);
+        self::assertContains('DROP TABLE IF EXISTS "orders" CASCADE', $executed);
+
+        // 7. Verify SQLite and MySQL dropAllTables() toggle FK checks cleanly
+        foreach ([Dialect::Sqlite, Dialect::Mysql] as $dialect) {
+            $log = [];
+            $conn = new class ($dialect, $log) implements ConnectionInterface {
+                /** @param list<string> $log */
+                public function __construct(private readonly Dialect $dialect, public array &$log) {}
+
+                public function dialect(): Dialect
+                {
+                    return $this->dialect;
+                }
+
+                public function query(string $sql, array $bindings = []): array
+                {
+                    return [['name' => 'items'], ['name' => 'kongono_migrations']];
+                }
+
+                public function first(string $sql, array $bindings = []): ?array
+                {
+                    return null;
+                }
+
+                public function execute(string $sql, array $bindings = []): int
+                {
+                    $this->log[] = $sql;
+
+                    return 1;
+                }
+
+                public function table(string $table, ?string $alias = null): QueryBuilder
+                {
+                    return new QueryBuilder($table, $this->dialect, $this, $alias);
+                }
+
+                public function transaction(Closure $callback): mixed
+                {
+                    return $callback($this);
+                }
+            };
+            $dropped = (new Migrator($conn))->dropAllTables();
+            self::assertSame(['items', 'kongono_migrations'], $dropped);
+            if (Dialect::Sqlite === $dialect) {
+                self::assertSame([
+                    'PRAGMA foreign_keys = OFF',
+                    'DROP TABLE IF EXISTS "items"',
+                    'DROP TABLE IF EXISTS "kongono_migrations"',
+                    'PRAGMA foreign_keys = ON',
+                ], $log);
+            } else {
+                self::assertSame([
+                    'SET FOREIGN_KEY_CHECKS = 0',
+                    'DROP TABLE IF EXISTS `items`',
+                    'DROP TABLE IF EXISTS `kongono_migrations`',
+                    'SET FOREIGN_KEY_CHECKS = 1',
+                ], $log);
+            }
+        }
     }
 }

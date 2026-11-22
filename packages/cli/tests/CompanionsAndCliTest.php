@@ -171,7 +171,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.10.1', $vOut);
+            self::assertStringContainsString('v1.11.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -817,5 +817,248 @@ PHP);
         } finally {
             $this->removeDir($tmp);
         }
+    }
+
+    public function testMigratePretendFreshProductionGuardAndAlterMigrationScaffold(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-mig-v111-' . bin2hex(random_bytes(5));
+        mkdir($tmp . '/app', 0o777, true);
+        mkdir($tmp . '/migrations', 0o777, true);
+        mkdir($tmp . '/seeders', 0o777, true);
+
+        $stateFile = $tmp . '/db_state.json';
+        file_put_contents($stateFile, json_encode([
+            'tables' => ['legacy_table'],
+            'applied' => [],
+            'executed' => [],
+            'seeded' => 0,
+        ], JSON_THROW_ON_ERROR));
+
+        $bootstrapCode = <<<PHP
+<?php
+declare(strict_types=1);
+
+use Kongono\Database\ConnectionInterface;
+use Kongono\Database\Dialect;
+use Kongono\Database\QueryBuilder;
+use Kongono\Http\App;
+
+\$statePath = {$this->exportPhpString($stateFile)};
+
+\$conn = new class (\$statePath) implements ConnectionInterface {
+    public function __construct(private readonly string \$statePath) {}
+
+    /** @return array{tables: list<string>, applied: list<string>, executed: list<string>, seeded: int} */
+    private function load(): array
+    {
+        /** @var array{tables: list<string>, applied: list<string>, executed: list<string>, seeded: int} */
+        return json_decode((string) file_get_contents(\$this->statePath), true, 16, JSON_THROW_ON_ERROR);
+    }
+
+    /** @param array{tables: list<string>, applied: list<string>, executed: list<string>, seeded: int} \$data */
+    private function save(array \$data): void
+    {
+        file_put_contents(\$this->statePath, json_encode(\$data, JSON_THROW_ON_ERROR));
+    }
+
+    public function dialect(): Dialect
+    {
+        return Dialect::Postgres;
+    }
+
+    public function query(string \$sql, array \$bindings = []): array
+    {
+        \$state = \$this->load();
+        if (str_contains(\$sql, 'FROM pg_tables')) {
+            return array_map(static fn(string \$t): array => ['name' => \$t], \$state['tables']);
+        }
+        return array_map(static fn(string \$id): array => ['id' => \$id], \$state['applied']);
+    }
+
+    public function first(string \$sql, array \$bindings = []): ?array
+    {
+        return null;
+    }
+
+    public function execute(string \$sql, array \$bindings = []): int
+    {
+        \$state = \$this->load();
+        \$state['executed'][] = \$sql;
+        if (str_starts_with(\$sql, 'INSERT INTO "kongono_migrations"') && is_string(\$bindings[0] ?? null)) {
+            \$state['applied'][] = \$bindings[0];
+        } elseif (str_starts_with(\$sql, 'DROP TABLE IF EXISTS ')) {
+            \$state['tables'] = [];
+            \$state['applied'] = [];
+        } elseif (str_starts_with(\$sql, 'CREATE TABLE IF NOT EXISTS "orders"')) {
+            \$state['tables'][] = 'orders';
+        } elseif (str_starts_with(\$sql, 'INSERT INTO "orders"')) {
+            ++\$state['seeded'];
+        }
+        \$this->save(\$state);
+        return 1;
+    }
+
+    public function table(string \$table, ?string \$alias = null): QueryBuilder
+    {
+        return new QueryBuilder(\$table, Dialect::Postgres, \$this, \$alias);
+    }
+
+    public function transaction(\Closure \$callback): mixed
+    {
+        return \$callback(\$this);
+    }
+};
+
+return App::create(dirname(__DIR__), name: 'Migration CLI Test')
+    ->instance(ConnectionInterface::class, \$conn);
+PHP;
+        file_put_contents($tmp . '/app/bootstrap.php', $bootstrapCode);
+
+        file_put_contents($tmp . '/migrations/20261122000001_create_orders.php', <<<'PHP'
+<?php
+declare(strict_types=1);
+
+use Kongono\Database\ConnectionInterface;
+use Kongono\Database\MigrationInterface;
+use Kongono\Database\Schema\Blueprint;
+use Kongono\Database\Schema\Schema;
+
+return new class () implements MigrationInterface {
+    public function id(): string { return '20261122000001_create_orders'; }
+    public function up(ConnectionInterface $db): void
+    {
+        Schema::create($db, 'orders', static function (Blueprint $table): void {
+            $table->uuid('id')->primary();
+            $table->decimal('total', 12, 2)->default(0);
+            $table->json('meta')->default('{}');
+        });
+    }
+    public function down(ConnectionInterface $db): void
+    {
+        Schema::dropIfExists($db, 'orders');
+    }
+};
+PHP);
+
+        file_put_contents($tmp . '/seeders/OrdersSeeder.php', <<<'PHP'
+<?php
+declare(strict_types=1);
+
+use Kongono\Database\ConnectionInterface;
+use Kongono\Database\SeederInterface;
+
+return new class () implements SeederInterface {
+    public function run(ConnectionInterface $db): void
+    {
+        $db->table('orders')->insert(['id' => '00000000-0000-0000-0000-000000000001', 'total' => '99.50', 'meta' => '{}']);
+    }
+};
+PHP);
+
+        $cli = new KongoCli(dirname(__DIR__, 3));
+        $prevEnv = getenv('APP_ENV');
+        $prevServerEnv = $_ENV['APP_ENV'] ?? null;
+
+        try {
+            // 1. kongo make:migration --table=orders scaffolds Schema::table() cleanly
+            [$mkCode, $mkOut] = $cli->run(['make:migration', 'add_tax_to_orders', '--table=orders', '--app=' . $tmp]);
+            self::assertSame(0, $mkCode);
+            self::assertStringContainsString('add_tax_to_orders.php', $mkOut);
+            $generatedAlter = glob($tmp . '/migrations/*_add_tax_to_orders.php');
+            self::assertIsArray($generatedAlter);
+            self::assertCount(1, $generatedAlter);
+            $alterContents = (string) file_get_contents($generatedAlter[0]);
+            self::assertStringContainsString("Schema::table(\$db, 'orders'", $alterContents);
+            // Clean up generated empty alter migration before pretend/fresh assertions
+            @unlink($generatedAlter[0]);
+
+            // 2. kongo migrate --pretend outputs exact SQL and performs ZERO database mutations
+            [$pCode, $pOut] = $cli->run(['migrate', '--pretend', '--app=' . $tmp]);
+            self::assertSame(0, $pCode);
+            self::assertStringContainsString('Migration dry-run preview (no changes executed):', $pOut);
+            self::assertStringContainsString('20261122000001_create_orders', $pOut);
+            self::assertStringContainsString('"id" UUID PRIMARY KEY NOT NULL', $pOut);
+            self::assertStringContainsString('"total" NUMERIC(12,2) NOT NULL DEFAULT 0', $pOut);
+            self::assertStringContainsString('"meta" JSONB NOT NULL DEFAULT \'{}\'', $pOut);
+
+            $stateAfterPretend = json_decode((string) file_get_contents($stateFile), true, 16, JSON_THROW_ON_ERROR);
+            self::assertIsArray($stateAfterPretend);
+            self::assertSame([], $stateAfterPretend['executed']);
+
+            // 3. kongo migrate --pretend --json returns structured preview JSON
+            [$pjCode, $pjOut] = $cli->run(['migrate', '--pretend', '--json', '--app=' . $tmp]);
+            self::assertSame(0, $pjCode);
+            $pjData = json_decode($pjOut, true, 16, JSON_THROW_ON_ERROR);
+            self::assertIsArray($pjData);
+            self::assertTrue($pjData['pretend']);
+            self::assertSame('pgsql', $pjData['dialect']);
+            self::assertArrayHasKey('20261122000001_create_orders', $pjData['migrations']);
+
+            // 4. Hard production guard blocks `kongo migrate:fresh` when APP_ENV=production without --force
+            putenv('APP_ENV=production');
+            $_ENV['APP_ENV'] = 'production';
+            [$prodCode, $prodOut] = $cli->run(['migrate:fresh', '--app=' . $tmp]);
+            self::assertSame(1, $prodCode);
+            self::assertStringContainsString('Refusing to run `kongo migrate:fresh` in production', $prodOut);
+
+            // Confirm zero writes happened while blocked
+            $stateBlocked = json_decode((string) file_get_contents($stateFile), true, 16, JSON_THROW_ON_ERROR);
+            self::assertIsArray($stateBlocked);
+            self::assertSame([], $stateBlocked['executed']);
+
+            // 5. Passing --force overrides the production guard and --seed runs seeders on the same connection
+            [$forceCode, $forceOut] = $cli->run(['migrate:fresh', '--seed', '--force', '--app=' . $tmp]);
+            self::assertSame(0, $forceCode);
+            self::assertStringContainsString('Dropped 1 table(s).', $forceOut);
+            self::assertStringContainsString('20261122000001_create_orders', $forceOut);
+            self::assertStringContainsString('OrdersSeeder.php', $forceOut);
+
+            $stateAfterFresh = json_decode((string) file_get_contents($stateFile), true, 16, JSON_THROW_ON_ERROR);
+            self::assertIsArray($stateAfterFresh);
+            self::assertSame(1, $stateAfterFresh['seeded']);
+            self::assertSame(['20261122000001_create_orders'], $stateAfterFresh['applied']);
+
+            // 6. kongo migrate --pretend after migration is applied reports 0 statements
+            [$upToDateCode, $upToDateOut] = $cli->run(['migrate', '--pretend', '--app=' . $tmp]);
+            self::assertSame(0, $upToDateCode);
+            self::assertStringContainsString('already up to date (pretend mode: 0 statements)', $upToDateOut);
+
+            // 7. MigrationLinter catches fluent `$table->dropColumn(...)` in up() while ignoring it in down()
+            file_put_contents($tmp . '/migrations/20261122000002_fluent_drop.php', <<<'PHP'
+<?php
+declare(strict_types=1);
+class FluentDrop {
+    public function up($db): void {
+        \Kongono\Database\Schema\Schema::table($db, 'orders', static function ($table): void {
+            $table->dropColumn('legacy');
+        });
+    }
+    public function down($db): void {
+        \Kongono\Database\Schema\Schema::table($db, 'orders', static function ($table): void {
+            $table->string('legacy')->nullable();
+        });
+    }
+}
+PHP);
+            $lint = (new MigrationLinter())->lintDirectory($tmp . '/migrations');
+            self::assertContains('KGN-MIG-DROP-COLUMN', array_column($lint['findings'], 'code'));
+        } finally {
+            if (false === $prevEnv) {
+                putenv('APP_ENV');
+            } else {
+                putenv('APP_ENV=' . $prevEnv);
+            }
+            if (null === $prevServerEnv) {
+                unset($_ENV['APP_ENV']);
+            } else {
+                $_ENV['APP_ENV'] = $prevServerEnv;
+            }
+            $this->removeDir($tmp);
+        }
+    }
+
+    private function exportPhpString(string $value): string
+    {
+        return var_export($value, true);
     }
 }

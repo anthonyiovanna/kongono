@@ -7,7 +7,7 @@ namespace Kongono\Database\Schema;
 use Kongono\Database\DatabaseException;
 use Kongono\Database\Dialect;
 
-/** Column definition builder inside Schema::create(). */
+/** Column definition builder inside Schema::create() and Schema::table(). */
 final class ColumnDefinition
 {
     /** @var list<string> */
