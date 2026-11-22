@@ -250,6 +250,33 @@ final class StorageTest extends TestCase
         $signer->presignUrl('GET', 'https', "evil.example\r\nX-Injected: 1", '/bucket/key');
     }
 
+    public function testStorageFactorySwitchesBetweenLocalAndS3FromEnv(): void
+    {
+        $prev = [
+            'S3_BUCKET' => $_ENV['S3_BUCKET'] ?? null,
+            'S3_ACCESS_KEY_ID' => $_ENV['S3_ACCESS_KEY_ID'] ?? null,
+            'S3_SECRET_ACCESS_KEY' => $_ENV['S3_SECRET_ACCESS_KEY'] ?? null,
+        ];
+
+        try {
+            unset($_ENV['S3_BUCKET'], $_SERVER['S3_BUCKET'], $_ENV['S3_ACCESS_KEY_ID'], $_SERVER['S3_ACCESS_KEY_ID'], $_ENV['S3_SECRET_ACCESS_KEY'], $_SERVER['S3_SECRET_ACCESS_KEY']);
+            self::assertInstanceOf(LocalStorage::class, \Kongono\Storage\StorageFactory::fromEnv($this->tempDir));
+
+            $_ENV['S3_BUCKET'] = 'prod-bucket';
+            $_ENV['S3_ACCESS_KEY_ID'] = 'AKIAIOSFODNN7EXAMPLE';
+            $_ENV['S3_SECRET_ACCESS_KEY'] = 'super-secret-s3-key';
+            self::assertInstanceOf(S3Storage::class, \Kongono\Storage\StorageFactory::fromEnv($this->tempDir));
+        } finally {
+            foreach ($prev as $k => $v) {
+                if (null === $v) {
+                    unset($_ENV[$k], $_SERVER[$k]);
+                } else {
+                    $_ENV[$k] = $v;
+                }
+            }
+        }
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {

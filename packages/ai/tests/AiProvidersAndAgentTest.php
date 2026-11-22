@@ -528,8 +528,10 @@ final class AiProvidersAndAgentTest extends TestCase
         self::assertSame('pg-1', $pgHits[0]->document->id);
         self::assertSame(0.99, $pgHits[0]->score);
         self::assertStringContainsString('CREATE EXTENSION IF NOT EXISTS vector', $sqlLog[0]);
-        self::assertStringContainsString('ON CONFLICT (id) DO UPDATE', $sqlLog[2]);
-        self::assertStringContainsString('metadata @> ?::jsonb', $sqlLog[3]);
+        self::assertStringContainsString('USING hnsw (embedding vector_cosine_ops)', $sqlLog[2]);
+        self::assertStringContainsString('USING gin (metadata)', $sqlLog[3]);
+        self::assertStringContainsString('ON CONFLICT (id) DO UPDATE', $sqlLog[4]);
+        self::assertStringContainsString('metadata @> ?::jsonb', $sqlLog[5]);
     }
 
     public function testAgentRunnerPausesForHumanApprovalAndEnforcesTokenBudget(): void

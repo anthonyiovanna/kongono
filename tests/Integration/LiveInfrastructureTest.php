@@ -220,7 +220,28 @@ final class LiveInfrastructureTest extends TestCase
         self::assertSame(1, $report->completed);
         self::assertSame(42, $seen);
         self::assertSame(1, $driver->stats('default')['completed']);
+        self::assertGreaterThanOrEqual(1, $driver->prune('default', time() + 60));
+        self::assertSame(0, $driver->stats('default')['completed']);
 
+        // Live distributed RedisEventBus across two independent worker clients + Last-Event-ID replay
+        $redisWorker2 = RedisClient::fromUrl($url);
+        $busWorker1 = new \Kongono\Http\Realtime\RedisEventBus($redis, 'kongono:inttest:sse:');
+        $busWorker2 = new \Kongono\Http\Realtime\RedisEventBus($redisWorker2, 'kongono:inttest:sse:');
+        $busWorker1->clear();
+
+        $e1 = $busWorker1->publish('room-1', 'msg', ['text' => 'hello from worker 1']);
+        $e2 = $busWorker1->publish('room-1', 'msg', ['text' => 'second event']);
+        $allOnWorker2 = $busWorker2->since('room-1');
+        self::assertCount(2, $allOnWorker2);
+        self::assertSame($e1->id, $allOnWorker2[0]->id);
+
+        $missed = $busWorker2->since('room-1', $e1->id);
+        self::assertCount(1, $missed);
+        self::assertSame($e2->id, $missed[0]->id);
+        self::assertStringContainsString('second event', $missed[0]->data);
+
+        $busWorker1->clear();
+        $redisWorker2->close();
         $redis->close();
     }
 }

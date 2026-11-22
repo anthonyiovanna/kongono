@@ -961,6 +961,72 @@ final class HttpAppTest extends TestCase
         self::assertSame([], $bus->since('c1'));
         self::assertCount(1, $bus->since('c3'));
     }
+
+    public function testChunkedDynamicRouterMatchingRedisEventBusAndCachedAppDispatch(): void
+    {
+        // 1. Group-chunked PCRE2 (*MARK:i) router matches accurately across 64 dynamic routes (4 chunks of 16) + 405 Allow
+        $router = new Router();
+        for ($i = 0; $i < 64; ++$i) {
+            $router->get("/r{$i}/{tenant:[a-z]+}/{id:[0-9]+}", static fn(): Response => Response::text("get-{$i}"))->name("r{$i}");
+            $router->post("/r{$i}/{tenant:[a-z]+}/{id:[0-9]+}", static fn(): Response => Response::text("post-{$i}"));
+        }
+
+        $m0 = $router->match('GET', '/r0/acme/1');
+        self::assertSame(['tenant' => 'acme', 'id' => '1'], $m0->params);
+        $m31 = $router->match('POST', '/r31/northstar/77');
+        self::assertSame(['tenant' => 'northstar', 'id' => '77'], $m31->params);
+        $m63 = $router->match('GET', '/r63/kurogane/999');
+        self::assertSame(['tenant' => 'kurogane', 'id' => '999'], $m63->params);
+
+        try {
+            $router->match('DELETE', '/r45/acme/42');
+            self::fail('Expected 405 Method Not Allowed.');
+        } catch (HttpException $e) {
+            self::assertSame(405, $e->statusCode);
+            self::assertStringContainsString('GET', $e->headers['Allow'] ?? '');
+            self::assertStringContainsString('POST', $e->headers['Allow'] ?? '');
+        }
+
+        // 2. RedisEventBus publishes via atomic Lua EVAL and replays Last-Event-ID via ZRANGEBYSCORE
+        $domain = '\\' === DIRECTORY_SEPARATOR ? STREAM_PF_INET : STREAM_PF_UNIX;
+        $pair = stream_socket_pair($domain, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        self::assertIsArray($pair);
+        [$clientSock, $serverSock] = $pair;
+
+        $envelopeJson = json_encode(['id' => '7', 'event' => 'note.created', 'data' => '{"id":99}'], JSON_THROW_ON_ERROR);
+        fwrite(
+            $serverSock,
+            ":7\r\n"
+            . "*1\r\n\$" . strlen($envelopeJson) . "\r\n" . $envelopeJson . "\r\n",
+        );
+
+        try {
+            $redis = \Kongono\Core\Cache\RedisClient::fromStream($clientSock);
+            $redisBus = new \Kongono\Http\Realtime\RedisEventBus($redis);
+            $published = $redisBus->publish('notes', 'note.created', ['id' => 99]);
+            self::assertSame('7', $published->id);
+            self::assertSame('note.created', $published->event);
+
+            $replayed = $redisBus->since('notes', '6');
+            self::assertCount(1, $replayed);
+            self::assertSame('7', $replayed[0]->id);
+            self::assertSame('{"id":99}', $replayed[0]->data);
+            $redis->close();
+        } finally {
+            fclose($serverSock);
+        }
+
+        // 3. Cached controller + DTO dispatch executes identically across repeated warm requests
+        $app = App::create(__DIR__)
+            ->routes(static function (Router $r): void {
+                $r->post('/items/{id}', static fn(RoutePrecedenceInputDto $dto): Response => Response::json(['id' => $dto->id, 'title' => $dto->title]));
+            });
+        for ($i = 1; $i <= 5; ++$i) {
+            $res = $app->handle(Request::json('POST', "/items/item-{$i}", ['id' => 'ignored', 'title' => "Title {$i}"]));
+            self::assertSame(200, $res->getStatusCode());
+            self::assertSame("{\"id\":\"item-{$i}\",\"title\":\"Title {$i}\"}", (string) $res->getBody());
+        }
+    }
 }
 
 final readonly class RoutePrecedenceInputDto

@@ -27,6 +27,25 @@ final class Validator
     private const int MAX_NESTING_DEPTH = 16;
 
     /**
+     * Compiled per-DTO validation metadata cached once per persistent worker process.
+     *
+     * @var array<string, list<array{
+     *     name: string,
+     *     typeName: ?string,
+     *     hasDefault: bool,
+     *     default: mixed,
+     *     allowsNull: bool,
+     *     isRequired: bool,
+     *     requiredMessage: ?string,
+     *     attributes: list<object>
+     * }>>
+     */
+    private array $schemaCache = [];
+
+    /** @var array<string, string> */
+    private array $enumBackingCache = [];
+
+    /**
      * Validate and hydrate an associative array into a typed DTO class.
      *
      * @template T of object
@@ -41,34 +60,28 @@ final class Validator
         if ($depth > self::MAX_NESTING_DEPTH) {
             throw new ValidationException(['_root' => ['Nested input exceeded maximum depth limit.']]);
         }
-        $reflection = new ReflectionClass($dtoClass);
-        $constructor = $reflection->getConstructor();
-        if (null === $constructor) {
-            return $reflection->newInstance();
+
+        $schema = $this->schemaCache[$dtoClass] ??= $this->compileSchema($dtoClass);
+        if ([] === $schema) {
+            return new $dtoClass();
         }
 
         $errors = [];
         $arguments = [];
 
-        foreach ($constructor->getParameters() as $parameter) {
-            $name = $parameter->getName();
+        foreach ($schema as $field) {
+            $name = $field['name'];
             $present = array_key_exists($name, $input);
             $raw = $present ? $input[$name] : null;
-            $attributes = $this->collectAttributes($reflection, $parameter);
-
             $fieldErrors = [];
-            $isRequired = $this->hasAttribute($attributes, Required::class);
 
             if (!$present || null === $raw || (is_string($raw) && '' === trim($raw))) {
-                if ($isRequired) {
-                    $attr = $this->findAttribute($attributes, Required::class);
-                    $fieldErrors[] = (null !== $attr && null !== $attr->message)
-                        ? $attr->message
-                        : sprintf('The %s field is required.', $name);
-                } elseif ($parameter->isDefaultValueAvailable()) {
-                    $arguments[] = $parameter->getDefaultValue();
+                if ($field['isRequired']) {
+                    $fieldErrors[] = $field['requiredMessage'] ?? sprintf('The %s field is required.', $name);
+                } elseif ($field['hasDefault']) {
+                    $arguments[] = $field['default'];
                     continue;
-                } elseif ($parameter->allowsNull()) {
+                } elseif ($field['allowsNull']) {
                     $arguments[] = null;
                     continue;
                 } else {
@@ -82,7 +95,7 @@ final class Validator
             }
 
             try {
-                [$coerced, $typeError] = $this->coerce($parameter, $raw, $name, $depth);
+                [$coerced, $typeError] = $this->coerceByTypeName($field['typeName'], $raw, $name, $depth);
             } catch (ValidationException $nested) {
                 foreach ($nested->errors as $subField => $subMessages) {
                     $errors[$name . '.' . $subField] = $subMessages;
@@ -94,7 +107,7 @@ final class Validator
                 continue;
             }
 
-            $ruleErrors = $this->checkAttributes($attributes, $coerced, $name, $input);
+            $ruleErrors = $this->checkAttributes($field['attributes'], $coerced, $name, $input);
             if ([] !== $ruleErrors) {
                 $errors[$name] = $ruleErrors;
                 continue;
@@ -107,7 +120,50 @@ final class Validator
             throw new ValidationException($errors);
         }
 
-        return $reflection->newInstanceArgs($arguments);
+        return new $dtoClass(...$arguments);
+    }
+
+    /**
+     * @param class-string $dtoClass
+     * @return list<array{
+     *     name: string,
+     *     typeName: ?string,
+     *     hasDefault: bool,
+     *     default: mixed,
+     *     allowsNull: bool,
+     *     isRequired: bool,
+     *     requiredMessage: ?string,
+     *     attributes: list<object>
+     * }>
+     */
+    private function compileSchema(string $dtoClass): array
+    {
+        $reflection = new ReflectionClass($dtoClass);
+        $constructor = $reflection->getConstructor();
+        if (null === $constructor) {
+            return [];
+        }
+
+        $schema = [];
+        foreach ($constructor->getParameters() as $parameter) {
+            $attributes = $this->collectAttributes($reflection, $parameter);
+            $requiredAttr = $this->findAttribute($attributes, Required::class);
+            $type = $parameter->getType();
+            $hasDefault = $parameter->isDefaultValueAvailable();
+
+            $schema[] = [
+                'name' => $parameter->getName(),
+                'typeName' => $type instanceof ReflectionNamedType ? $type->getName() : null,
+                'hasDefault' => $hasDefault,
+                'default' => $hasDefault ? $parameter->getDefaultValue() : null,
+                'allowsNull' => $parameter->allowsNull(),
+                'isRequired' => null !== $requiredAttr,
+                'requiredMessage' => $requiredAttr?->message,
+                'attributes' => $attributes,
+            ];
+        }
+
+        return $schema;
     }
 
     /**
@@ -149,15 +205,6 @@ final class Validator
     }
 
     /**
-     * @param list<object> $attributes
-     * @param class-string $class
-     */
-    private function hasAttribute(array $attributes, string $class): bool
-    {
-        return $this->containsClass($attributes, $class);
-    }
-
-    /**
      * @template T of object
      * @param list<object>    $attributes
      * @param class-string<T> $class
@@ -175,14 +222,13 @@ final class Validator
     }
 
     /** @return array{0: mixed, 1: ?string} */
-    private function coerce(ReflectionParameter $parameter, mixed $value, string $name, int $depth = 0): array
+    private function coerceByTypeName(?string $typeName, mixed $value, string $name, int $depth = 0): array
     {
-        $type = $parameter->getType();
-        if (!$type instanceof ReflectionNamedType) {
+        if (null === $typeName) {
             return [$value, null];
         }
 
-        return match ($type->getName()) {
+        return match ($typeName) {
             'string' => is_string($value)
                 ? [trim($value), null]
                 : [null, sprintf('The %s field must be a string.', $name)],
@@ -196,7 +242,7 @@ final class Validator
             'array' => is_array($value)
                 ? [$value, null]
                 : [null, sprintf('The %s field must be an array.', $name)],
-            default => $this->coerceObjectOrEnum($type->getName(), $value, $name, $depth),
+            default => $this->coerceObjectOrEnum($typeName, $value, $name, $depth),
         };
     }
 
@@ -208,9 +254,11 @@ final class Validator
                 return [$value, null];
             }
 
-            $enumRef = new ReflectionEnum($typeName);
-            $backingType = $enumRef->getBackingType();
-            $backingName = $backingType instanceof ReflectionNamedType ? $backingType->getName() : 'string';
+            $backingName = $this->enumBackingCache[$typeName] ??= (static function () use ($typeName): string {
+                $backingType = (new ReflectionEnum($typeName))->getBackingType();
+
+                return $backingType instanceof ReflectionNamedType ? $backingType->getName() : 'string';
+            })();
 
             $candidate = match ($backingName) {
                 'int' => is_int($value) ? $value : (is_string($value) && 1 === preg_match('/\A-?\d+\z/', trim($value)) ? (int) trim($value) : null),

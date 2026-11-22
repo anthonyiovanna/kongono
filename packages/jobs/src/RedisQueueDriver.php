@@ -17,6 +17,7 @@ local pendingKey = KEYS[1]
 local reservedKey = KEYS[2]
 local jobsKey = KEYS[3]
 local terminalKey = KEYS[4]
+local countsKey = KEYS[5]
 local nowTs = tonumber(ARGV[1])
 local leaseUntil = tonumber(ARGV[2])
 local leaseToken = ARGV[3]
@@ -51,6 +52,7 @@ for _ = 1, 32 do
                 end
                 redis.call('HSET', jobsKey, id, cjson.encode(job))
                 redis.call('ZADD', terminalKey, nowTs, id)
+                redis.call('HINCRBY', countsKey, 'dead', 1)
             else
                 job.attempt = attempt + 1
                 job.generation = gen + 1
@@ -72,11 +74,13 @@ LUA;
 local reservedKey = KEYS[1]
 local targetZsetKey = KEYS[2]
 local jobsKey = KEYS[3]
+local countsKey = KEYS[4]
 local jobId = ARGV[1]
 local expectedGen = tonumber(ARGV[2])
 local expectedToken = ARGV[3]
 local targetScore = tonumber(ARGV[4])
 local newJobJson = ARGV[5]
+local terminalStatus = ARGV[6]
 
 local raw = redis.call('HGET', jobsKey, jobId)
 if not raw then return 0 end
@@ -89,7 +93,38 @@ if tostring(job.lease_token or '') ~= expectedToken then return 0 end
 redis.call('ZREM', reservedKey, jobId)
 redis.call('HSET', jobsKey, jobId, newJobJson)
 redis.call('ZADD', targetZsetKey, targetScore, jobId)
+if terminalStatus == 'completed' or terminalStatus == 'failed' or terminalStatus == 'dead' then
+    redis.call('HINCRBY', countsKey, terminalStatus, 1)
+end
 return 1
+LUA;
+
+    private const string LUA_PRUNE = <<<'LUA'
+local terminalKey = KEYS[1]
+local jobsKey = KEYS[2]
+local countsKey = KEYS[3]
+local maxScore = ARGV[1]
+
+local ids = redis.call('ZRANGEBYSCORE', terminalKey, '-inf', maxScore, 'LIMIT', 0, 500)
+if #ids == 0 then return 0 end
+for _, id in ipairs(ids) do
+    local raw = redis.call('HGET', jobsKey, id)
+    if raw then
+        local ok, job = pcall(cjson.decode, raw)
+        if ok and type(job) == 'table' then
+            local st = tostring(job.status or '')
+            if st == 'completed' or st == 'failed' or st == 'dead' then
+                local cur = tonumber(redis.call('HGET', countsKey, st)) or 0
+                if cur > 0 then
+                    redis.call('HINCRBY', countsKey, st, -1)
+                end
+            end
+        end
+    end
+    redis.call('ZREM', terminalKey, id)
+    redis.call('HDEL', jobsKey, id)
+end
+return #ids
 LUA;
 
     public function __construct(
@@ -142,6 +177,7 @@ LUA;
                 $this->key($queue, 'reserved'),
                 $this->key($queue, 'jobs'),
                 $this->key($queue, 'terminal'),
+                $this->key($queue, 'counts'),
             ],
             [(string) $ts, (string) $leaseUntil, $token],
         );
@@ -224,29 +260,35 @@ LUA;
 
     public function stats(string $queue): array
     {
-        $counts = ['pending' => 0, 'reserved' => 0, 'completed' => 0, 'failed' => 0, 'dead' => 0];
-        foreach ($this->redis->hGetAll($this->key($queue, 'jobs')) as $raw) {
-            $job = $this->decodeJob($raw);
-            if (null === $job) {
-                continue;
-            }
-            ++$counts[$job->status->value];
-        }
+        $terminalCounts = $this->redis->hGetAll($this->key($queue, 'counts'));
 
-        return $counts;
+        return [
+            'pending' => $this->redis->zCard($this->key($queue, 'pending')),
+            'reserved' => $this->redis->zCard($this->key($queue, 'reserved')),
+            'completed' => max(0, (int) ($terminalCounts['completed'] ?? 0)),
+            'failed' => max(0, (int) ($terminalCounts['failed'] ?? 0)),
+            'dead' => max(0, (int) ($terminalCounts['dead'] ?? 0)),
+        ];
     }
 
     public function prune(string $queue, int $olderThanTimestamp): int
     {
-        $ids = $this->redis->zRangeByScore($this->key($queue, 'terminal'), '-inf', (string) $olderThanTimestamp);
-        if ([] === $ids) {
-            return 0;
-        }
+        $totalPruned = 0;
+        do {
+            $batch = $this->redis->eval(
+                self::LUA_PRUNE,
+                [
+                    $this->key($queue, 'terminal'),
+                    $this->key($queue, 'jobs'),
+                    $this->key($queue, 'counts'),
+                ],
+                [(string) $olderThanTimestamp],
+            );
+            $count = is_int($batch) ? $batch : 0;
+            $totalPruned += $count;
+        } while ($count >= 500);
 
-        $this->redis->zRem($this->key($queue, 'terminal'), ...$ids);
-        $this->redis->hDel($this->key($queue, 'jobs'), ...$ids);
-
-        return count($ids);
+        return $totalPruned;
     }
 
     private function atomicTransition(Job $claim, string $targetZsetKey, int $targetScore, Job $nextState): bool
@@ -257,6 +299,7 @@ LUA;
                 $this->key($claim->queue, 'reserved'),
                 $targetZsetKey,
                 $this->key($claim->queue, 'jobs'),
+                $this->key($claim->queue, 'counts'),
             ],
             [
                 $claim->id,
@@ -264,6 +307,7 @@ LUA;
                 (string) $claim->leaseToken,
                 (string) $targetScore,
                 $this->encodeJob($nextState),
+                $nextState->status->value,
             ],
         );
 

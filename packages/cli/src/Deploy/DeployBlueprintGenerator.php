@@ -206,7 +206,7 @@ YAML;
     tmpfs:
       - /tmp:noexec,nosuid,size=64m
     env_file: .env.production
-    command: ["sh", "-c", "while true; do php /app/vendor/bin/kongo work --max-jobs=50; sleep 5; done"]
+    command: ["php", "/app/vendor/bin/kongo", "work", "--daemon", "--max-jobs=50"]
     volumes:
       - app_storage:/app/var/storage
       - app_cache:/app/var/cache
@@ -344,6 +344,12 @@ SH;
         if ($redis) {
             $lines[] = 'REDIS_URL=redis://' . $slug . '_redis:6379/0';
         }
+        $lines[] = '# Optional S3-compatible object storage (AWS S3 / Cloudflare R2 / MinIO) for multi-node scale-out:';
+        $lines[] = '# S3_BUCKET=';
+        $lines[] = '# S3_REGION=us-east-1';
+        $lines[] = '# S3_ENDPOINT=';
+        $lines[] = '# S3_ACCESS_KEY_ID=';
+        $lines[] = '# S3_SECRET_ACCESS_KEY=';
 
         return implode("\n", $lines) . "\n";
     }

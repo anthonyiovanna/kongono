@@ -27,7 +27,6 @@ use ReflectionFunction;
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
 use ReflectionNamedType;
-use ReflectionParameter;
 use Throwable;
 
 /**
@@ -50,6 +49,24 @@ final class App
     private array $middleware = [];
 
     private bool $debug = false;
+
+    /**
+     * Compiled per-controller-method parameter dispatch plans (zero reflection per request in persistent workers).
+     *
+     * @var array<string, list<array{
+     *     name: string,
+     *     typeName: ?string,
+     *     isBuiltin: bool,
+     *     allowsNull: bool,
+     *     hasDefault: bool,
+     *     default: mixed,
+     *     kind: 'request'|'security_attr'|'builtin'|'container'|'dto'|'autowire'|'untyped'
+     * }>>
+     */
+    private array $handlerPlanCache = [];
+
+    /** @var array<string, bool> */
+    private array $dtoCheckCache = [];
 
     private function __construct(
         private readonly string $basePath,
@@ -117,6 +134,8 @@ final class App
     public function bind(string $id, Closure|string $concrete): self
     {
         $this->container->bind($id, $concrete);
+        $this->handlerPlanCache = [];
+        $this->dtoCheckCache = [];
 
         return $this;
     }
@@ -128,6 +147,8 @@ final class App
     public function singleton(string $id, Closure|string $concrete): self
     {
         $this->container->singleton($id, $concrete);
+        $this->handlerPlanCache = [];
+        $this->dtoCheckCache = [];
 
         return $this;
     }
@@ -139,6 +160,8 @@ final class App
     public function scoped(string $id, Closure|string $concrete): self
     {
         $this->container->scoped($id, $concrete);
+        $this->handlerPlanCache = [];
+        $this->dtoCheckCache = [];
 
         return $this;
     }
@@ -149,6 +172,8 @@ final class App
             $this->views = $value;
         }
         $this->container->instance($id, $value);
+        $this->handlerPlanCache = [];
+        $this->dtoCheckCache = [];
 
         return $this;
     }
@@ -412,8 +437,9 @@ final class App
         $handler = $match->route->handler;
 
         if ($handler instanceof Closure) {
-            $reflection = new ReflectionFunction($handler);
-            $args = $this->resolveHandlerParameters($reflection, $request, $match->params);
+            $cacheKey = 'closure:' . spl_object_id($handler);
+            $plan = $this->handlerPlanCache[$cacheKey] ??= $this->compileHandlerPlan(new ReflectionFunction($handler));
+            $args = $this->resolveHandlerArgsFromPlan($plan, $request, $match->params);
             $result = $handler(...$args);
         } else {
             [$controllerClass, $methodName] = $handler;
@@ -421,9 +447,14 @@ final class App
             if (!is_object($controller)) {
                 throw new CoreException(sprintf('Controller "%s" did not resolve to an object.', $controllerClass));
             }
-            $reflection = new ReflectionMethod($controller, $methodName);
-            $args = $this->resolveHandlerParameters($reflection, $request, $match->params);
-            $result = $reflection->invokeArgs($controller, $args);
+            $cacheKey = $controllerClass . '::' . $methodName;
+            $plan = $this->handlerPlanCache[$cacheKey] ??= $this->compileHandlerPlan(new ReflectionMethod($controller, $methodName));
+            $args = $this->resolveHandlerArgsFromPlan($plan, $request, $match->params);
+            $callable = [$controller, $methodName];
+            if (!is_callable($callable)) {
+                throw new CoreException(sprintf('Controller method "%s::%s" is not callable.', $controllerClass, $methodName));
+            }
+            $result = $callable(...$args);
         }
 
         if ($result instanceof ResponseInterface) {
@@ -440,46 +471,116 @@ final class App
     }
 
     /**
+     * Compile a route handler's parameter resolution plan once per persistent worker.
+     *
+     * @return list<array{
+     *     name: string,
+     *     typeName: ?string,
+     *     isBuiltin: bool,
+     *     allowsNull: bool,
+     *     hasDefault: bool,
+     *     default: mixed,
+     *     kind: 'request'|'security_attr'|'builtin'|'container'|'dto'|'autowire'|'untyped'
+     * }>
+     */
+    private function compileHandlerPlan(ReflectionFunctionAbstract $reflection): array
+    {
+        $plan = [];
+        foreach ($reflection->getParameters() as $parameter) {
+            $name = $parameter->getName();
+            $type = $parameter->getType();
+            $hasDefault = $parameter->isDefaultValueAvailable();
+            $default = $hasDefault ? $parameter->getDefaultValue() : null;
+
+            if (!$type instanceof ReflectionNamedType) {
+                $plan[] = [
+                    'name' => $name,
+                    'typeName' => null,
+                    'isBuiltin' => false,
+                    'allowsNull' => true,
+                    'hasDefault' => $hasDefault,
+                    'default' => $default,
+                    'kind' => 'untyped',
+                ];
+                continue;
+            }
+
+            $typeName = $type->getName();
+            $isBuiltin = $type->isBuiltin();
+            $allowsNull = $type->allowsNull();
+
+            if (Request::class === $typeName || ServerRequestInterface::class === $typeName) {
+                $kind = 'request';
+            } elseif ('Kongono\\Security\\Principal' === $typeName || 'Kongono\\Http\\Session\\Session' === $typeName) {
+                $kind = 'security_attr';
+            } elseif ($isBuiltin) {
+                $kind = 'builtin';
+            } elseif ($this->container->hasBinding($typeName)) {
+                $kind = 'container';
+            } elseif (class_exists($typeName) && $this->looksLikeInputDtoCached($typeName)) {
+                $kind = 'dto';
+            } elseif ($this->container->has($typeName)) {
+                $kind = 'autowire';
+            } else {
+                $kind = 'untyped';
+            }
+
+            $plan[] = [
+                'name' => $name,
+                'typeName' => $typeName,
+                'isBuiltin' => $isBuiltin,
+                'allowsNull' => $allowsNull,
+                'hasDefault' => $hasDefault,
+                'default' => $default,
+                'kind' => $kind,
+            ];
+        }
+
+        return $plan;
+    }
+
+    /**
+     * @param list<array{
+     *     name: string,
+     *     typeName: ?string,
+     *     isBuiltin: bool,
+     *     allowsNull: bool,
+     *     hasDefault: bool,
+     *     default: mixed,
+     *     kind: 'request'|'security_attr'|'builtin'|'container'|'dto'|'autowire'|'untyped'
+     * }> $plan
      * @param array<string, string> $routeParams
      * @return list<mixed>
      */
-    private function resolveHandlerParameters(ReflectionFunctionAbstract $reflection, Request $request, array $routeParams): array
+    private function resolveHandlerArgsFromPlan(array $plan, Request $request, array $routeParams): array
     {
         $args = [];
+        foreach ($plan as $spec) {
+            $name = $spec['name'];
+            $typeName = $spec['typeName'];
 
-        foreach ($reflection->getParameters() as $parameter) {
-            $args[] = $this->resolveHandlerParameter($parameter, $request, $routeParams);
-        }
-
-        return $args;
-    }
-
-    /** @param array<string, string> $routeParams */
-    private function resolveHandlerParameter(ReflectionParameter $parameter, Request $request, array $routeParams): mixed
-    {
-        $name = $parameter->getName();
-        $type = $parameter->getType();
-
-        if ($type instanceof ReflectionNamedType) {
-            $typeName = $type->getName();
-
-            if (Request::class === $typeName || ServerRequestInterface::class === $typeName) {
-                return $request;
+            if ('request' === $spec['kind']) {
+                $args[] = $request;
+                continue;
             }
 
-            // Inject request attributes by exact type (e.g. Session, Principal)
-            $attrValue = $request->getAttribute($typeName);
-            if (is_object($attrValue) && $attrValue instanceof $typeName) {
-                return $attrValue;
-            }
-
-            // Security-sensitive request-attribute types MUST NEVER fall through to DTO hydration or autowiring
-            if ('Kongono\\Security\\Principal' === $typeName || 'Kongono\\Http\\Session\\Session' === $typeName) {
-                if ($parameter->isDefaultValueAvailable()) {
-                    return $parameter->getDefaultValue();
+            // Inject request attributes by exact type (e.g. Session, Principal, custom middleware attrs)
+            if (null !== $typeName && !$spec['isBuiltin']) {
+                $attrValue = $request->getAttribute($typeName);
+                if (is_object($attrValue) && $attrValue instanceof $typeName) {
+                    $args[] = $attrValue;
+                    continue;
                 }
-                if ($type->allowsNull()) {
-                    return null;
+            }
+
+            if ('security_attr' === $spec['kind']) {
+                if ($spec['hasDefault']) {
+                    $args[] = $spec['default'];
+                    continue;
+                }
+                if ($spec['allowsNull']) {
+                    $args[] = null;
+                    continue;
                 }
                 if ('Kongono\\Security\\Principal' === $typeName) {
                     throw new HttpException(401, 'Authentication required.');
@@ -488,42 +589,53 @@ final class App
                 throw new CoreException('Session attribute is missing: mount SessionMiddleware before accessing Session.');
             }
 
-            if ($type->isBuiltin()) {
+            if ('builtin' === $spec['kind'] && null !== $typeName) {
                 if (array_key_exists($name, $routeParams)) {
-                    return $this->coerceRouteParam($routeParams[$name], $typeName, $name);
+                    $args[] = $this->coerceRouteParam($routeParams[$name], $typeName, $name);
+                    continue;
                 }
-                if ($parameter->isDefaultValueAvailable()) {
-                    return $parameter->getDefaultValue();
+                if ($spec['hasDefault']) {
+                    $args[] = $spec['default'];
+                    continue;
                 }
 
                 throw new HttpException(400, sprintf('Missing required parameter "%s".', $name));
             }
 
-            // Explicit container binding (or framework service like ViewEngine/Config/Repository)
-            if (array_key_exists($typeName, $this->container->registeredBindings())) {
-                return $this->container->get($typeName);
+            if ('container' === $spec['kind'] && null !== $typeName) {
+                $args[] = $this->container->get($typeName);
+                continue;
             }
 
-            // Check if this is an input DTO class (concrete userland class with scalar/validated constructor params)
-            // Authoritative route parameters ALWAYS take precedence over query/body input (prevents route-param shadowing IDOR)
-            if (class_exists($typeName) && $this->looksLikeInputDto($typeName)) {
-                return $this->validator->validate($typeName, [...$request->allInput(), ...$routeParams]);
+            if ('dto' === $spec['kind'] && null !== $typeName && class_exists($typeName)) {
+                $args[] = $this->validator->validate($typeName, [...$request->allInput(), ...$routeParams]);
+                continue;
             }
 
-            // Fall back to container autowiring for services/repositories
-            if ($this->container->has($typeName)) {
-                return $this->container->get($typeName);
+            if ('autowire' === $spec['kind'] && null !== $typeName) {
+                $args[] = $this->container->get($typeName);
+                continue;
             }
+
+            if (array_key_exists($name, $routeParams)) {
+                $args[] = $routeParams[$name];
+                continue;
+            }
+            if ($spec['hasDefault']) {
+                $args[] = $spec['default'];
+                continue;
+            }
+
+            throw new CoreException(sprintf('Unable to resolve route parameter "$%s".', $name));
         }
 
-        if (array_key_exists($name, $routeParams)) {
-            return $routeParams[$name];
-        }
-        if ($parameter->isDefaultValueAvailable()) {
-            return $parameter->getDefaultValue();
-        }
+        return $args;
+    }
 
-        throw new CoreException(sprintf('Unable to resolve route parameter "$%s".', $name));
+    /** @param class-string $className */
+    private function looksLikeInputDtoCached(string $className): bool
+    {
+        return $this->dtoCheckCache[$className] ??= $this->looksLikeInputDto($className);
     }
 
     /**
@@ -566,7 +678,7 @@ final class App
                     $isDtoFieldType = true;
                 } elseif (
                     class_exists($paramTypeName)
-                    && !array_key_exists($paramTypeName, $this->container->registeredBindings())
+                    && !$this->container->hasBinding($paramTypeName)
                     && $this->looksLikeInputDto($paramTypeName, $visited, $depth + 1)
                 ) {
                     $isDtoFieldType = true;

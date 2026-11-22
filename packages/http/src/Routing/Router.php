@@ -19,6 +19,8 @@ use ReflectionMethod;
  */
 final class Router
 {
+    private const int DYNAMIC_CHUNK_SIZE = 16;
+
     /** @var list<Route> */
     private array $routes = [];
 
@@ -27,6 +29,13 @@ final class Router
 
     /** @var list<array{route: Route, regex: string}> Pre-compiled dynamic parameter routes */
     private array $dynamicRoutes = [];
+
+    /**
+     * Method-indexed group-chunked PCRE2 (*MARK:idx) regexes for sub-linear dynamic route dispatch.
+     *
+     * @var ?array<string, list<array{regex: ?string, routes: array<int, array{route: Route, regex: string}>}>>
+     */
+    private ?array $dynamicMethodChunks = null;
 
     private string $groupPrefix = '';
 
@@ -177,22 +186,46 @@ final class Router
             }
         }
 
-        foreach ($this->dynamicRoutes as $entry) {
-            if (1 !== preg_match($entry['regex'], $normalizedPath, $matches)) {
-                continue;
-            }
-            $route = $entry['route'];
-            if (in_array($upperMethod, $route->methods, true)) {
-                $params = [];
-                foreach ($matches as $key => $value) {
-                    if (is_string($key)) {
-                        $params[$key] = $value;
+        if ([] !== $this->dynamicRoutes) {
+            $chunksByMethod = $this->dynamicMethodChunks ??= $this->buildDynamicMethodChunks();
+            $methodChunks = $chunksByMethod[$upperMethod] ?? [];
+
+            foreach ($methodChunks as $chunk) {
+                $matchedEntry = null;
+                if (null !== $chunk['regex']) {
+                    if (1 === preg_match($chunk['regex'], $normalizedPath, $chunkMatches)) {
+                        $mark = $chunkMatches['MARK'] ?? null;
+                        if (is_string($mark) && isset($chunk['routes'][(int) $mark])) {
+                            $matchedEntry = $chunk['routes'][(int) $mark];
+                        }
+                    }
+                } else {
+                    foreach ($chunk['routes'] as $candidate) {
+                        if (1 === preg_match($candidate['regex'], $normalizedPath)) {
+                            $matchedEntry = $candidate;
+                            break;
+                        }
                     }
                 }
 
-                return new RouteMatch($route, $params);
+                if (null !== $matchedEntry && 1 === preg_match($matchedEntry['regex'], $normalizedPath, $matches)) {
+                    $params = [];
+                    foreach ($matches as $key => $value) {
+                        if (is_string($key)) {
+                            $params[$key] = $value;
+                        }
+                    }
+
+                    return new RouteMatch($matchedEntry['route'], $params);
+                }
             }
-            array_push($allowedMethods, ...$route->methods);
+
+            // No route matched for $upperMethod — scan remaining methods only to produce exact 405 Allow header
+            foreach ($this->dynamicRoutes as $entry) {
+                if (!in_array($upperMethod, $entry['route']->methods, true) && 1 === preg_match($entry['regex'], $normalizedPath)) {
+                    array_push($allowedMethods, ...$entry['route']->methods);
+                }
+            }
         }
 
         if ([] !== $allowedMethods) {
@@ -373,6 +406,7 @@ final class Router
             $this->routes[] = $route;
             $this->dynamicRoutes[] = ['route' => $route, 'regex' => $item['regex']];
         }
+        $this->dynamicMethodChunks = null;
 
         return $this;
     }
@@ -496,6 +530,67 @@ final class Router
             'route' => $route,
             'regex' => $this->compilePathRegex($route->path),
         ];
+        $this->dynamicMethodChunks = null;
+    }
+
+    /**
+     * Group dynamic routes per HTTP method into combined PCRE2 `(*MARK:i)` regex chunks
+     * (16 routes per `preg_match()` call) while preserving exact registration order.
+     *
+     * @return array<string, list<array{regex: ?string, routes: array<int, array{route: Route, regex: string}>}>>
+     */
+    private function buildDynamicMethodChunks(): array
+    {
+        /** @var array<string, list<array{route: Route, regex: string}>> $byMethod */
+        $byMethod = [];
+        foreach ($this->dynamicRoutes as $entry) {
+            foreach ($entry['route']->methods as $method) {
+                $byMethod[$method][] = $entry;
+            }
+        }
+
+        $compiled = [];
+        foreach ($byMethod as $method => $entries) {
+            $chunks = [];
+            foreach (array_chunk($entries, self::DYNAMIC_CHUNK_SIZE) as $slice) {
+                $branches = [];
+                $indexed = [];
+                $ok = true;
+                foreach ($slice as $idx => $entry) {
+                    $indexed[$idx] = $entry;
+                    $inner = $this->stripRegexAnchorsAndNamedGroups($entry['regex']);
+                    if (null === $inner) {
+                        $ok = false;
+                        break;
+                    }
+                    $branches[] = '(?:' . $inner . ')(*MARK:' . $idx . ')';
+                }
+
+                $combined = $ok ? '#\A(?:' . implode('|', $branches) . ')\z#' : null;
+                if (null !== $combined && false === @preg_match($combined, '')) {
+                    $combined = null;
+                }
+
+                $chunks[] = [
+                    'regex' => $combined,
+                    'routes' => $indexed,
+                ];
+            }
+            $compiled[$method] = $chunks;
+        }
+
+        return $compiled;
+    }
+
+    private function stripRegexAnchorsAndNamedGroups(string $compiledRegex): ?string
+    {
+        if (!str_starts_with($compiledRegex, '#\\A') || !str_ends_with($compiledRegex, '\\z#')) {
+            return null;
+        }
+        $body = substr($compiledRegex, 3, -3);
+        $stripped = preg_replace('/\(\?P<[a-zA-Z_][a-zA-Z0-9_]*>/', '(?:', $body);
+
+        return is_string($stripped) ? $stripped : null;
     }
 
     private function compilePathRegex(string $template): string

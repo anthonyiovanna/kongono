@@ -19,7 +19,9 @@ final readonly class PgVectorStore implements VectorStoreInterface
 
     public function ensureTable(int $dimensions = 1536): void
     {
-        $quoted = $this->db->dialect()->quoteIdentifier($this->table);
+        $dims = max(1, $dimensions);
+        $dialect = $this->db->dialect();
+        $quoted = $dialect->quoteIdentifier($this->table);
         $this->db->execute('CREATE EXTENSION IF NOT EXISTS vector');
         $this->db->execute(sprintf(
             'CREATE TABLE IF NOT EXISTS %s ('
@@ -30,7 +32,23 @@ final readonly class PgVectorStore implements VectorStoreInterface
             . 'updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()'
             . ')',
             $quoted,
-            max(1, $dimensions),
+            $dims,
+        ));
+        // Create HNSW cosine similarity index (pgvector supports HNSW up to 2,000 vector dimensions)
+        if ($dims <= 2000) {
+            $hnswIdx = $dialect->quoteIdentifier('idx_' . $this->table . '_embedding_hnsw');
+            $this->db->execute(sprintf(
+                'CREATE INDEX IF NOT EXISTS %s ON %s USING hnsw (embedding vector_cosine_ops)',
+                $hnswIdx,
+                $quoted,
+            ));
+        }
+        // Create GIN index on JSONB metadata for fast hybrid `@>` filtered semantic search
+        $ginIdx = $dialect->quoteIdentifier('idx_' . $this->table . '_metadata_gin');
+        $this->db->execute(sprintf(
+            'CREATE INDEX IF NOT EXISTS %s ON %s USING gin (metadata)',
+            $ginIdx,
+            $quoted,
         ));
     }
 

@@ -171,7 +171,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.7.0', $vOut);
+            self::assertStringContainsString('v1.8.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -772,6 +772,8 @@ PHP);
             self::assertStringContainsString("cap_drop:\n      - ALL", $bp['docker-compose.prod.yml']);
             self::assertStringContainsString('max_size 10MB', $bp['Caddyfile']);
             self::assertStringContainsString('TRUSTED_PROXIES=', $bp['.env.production.example']);
+            self::assertStringContainsString('"work", "--daemon"', $bp['docker-compose.prod.yml']);
+            self::assertStringContainsString('S3_BUCKET=', $bp['.env.production.example']);
         } finally {
             $this->removeDir($tmp);
         }

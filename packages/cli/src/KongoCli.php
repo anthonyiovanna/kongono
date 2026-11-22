@@ -59,7 +59,7 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.7.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.8.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
@@ -285,7 +285,23 @@ final readonly class KongoCli
         $worker = $app->container()->make(Worker::class);
         $queue = is_string($options['queue'] ?? null) ? $options['queue'] : 'default';
         $maxJobs = is_string($options['max-jobs'] ?? null) && is_numeric($options['max-jobs']) ? max(1, (int) $options['max-jobs']) : 50;
-        $report = $worker->run($queue, $maxJobs);
+
+        if (isset($options['daemon'])) {
+            $minSleep = is_string($options['sleep'] ?? null) && is_numeric($options['sleep']) ? max(1, (int) $options['sleep']) : 50;
+            $maxSleep = is_string($options['max-sleep'] ?? null) && is_numeric($options['max-sleep']) ? max($minSleep, (int) $options['max-sleep']) : 1000;
+            $maxRuntime = is_string($options['max-runtime'] ?? null) && is_numeric($options['max-runtime']) ? max(1, (int) $options['max-runtime']) : null;
+            $pruneAfter = is_string($options['prune-after'] ?? null) && is_numeric($options['prune-after']) ? max(0, (int) $options['prune-after']) : 86_400;
+            $report = $worker->runDaemon(
+                queue: $queue,
+                batchSize: $maxJobs,
+                minSleepMs: $minSleep,
+                maxSleepMs: $maxSleep,
+                pruneAfterSeconds: $pruneAfter,
+                maxRuntimeSeconds: $maxRuntime,
+            );
+        } else {
+            $report = $worker->run($queue, $maxJobs);
+        }
 
         return [0, sprintf(
             "Worker finished queue \"%s\": processed=%d completed=%d retried=%d failed=%d uncertain=%d stale=%d\n",

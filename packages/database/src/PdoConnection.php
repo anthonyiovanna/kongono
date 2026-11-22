@@ -7,23 +7,58 @@ namespace Kongono\Database;
 use Closure;
 use PDO;
 use PDOException;
+use PDOStatement;
 use Throwable;
 
-/** Strict PDO connection supporting PostgreSQL, SQLite, and MySQL with real prepared statements. */
+/**
+ * Strict PDO connection supporting PostgreSQL, SQLite, and MySQL with real prepared statements,
+ * bounded LRU prepared-statement reuse, and automatic transparent reconnect on idle transport loss
+ * in persistent workers (FrankenPHP / RoadRunner).
+ */
 final class PdoConnection implements ConnectionInterface
 {
+    private const int MAX_CACHED_STATEMENTS = 256;
+
     /** @var array<int, Closure(string, float): void> */
     private array $queryListeners = [];
 
     private int $nextListenerId = 0;
 
+    /** @var array<string, PDOStatement> */
+    private array $statementCache = [];
+
+    private PDO $pdo;
+
+    /** @var ?Closure(): PDO */
+    private ?Closure $connector;
+
+    /** @param ?Closure(): PDO $connector Optional factory for automatic reconnect after idle socket drop */
     public function __construct(
-        private readonly PDO $pdo,
+        PDO $pdo,
         private readonly Dialect $dialect = Dialect::Postgres,
+        ?Closure $connector = null,
     ) {
-        $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-        $this->pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+        $this->pdo = $pdo;
+        $this->connector = $connector;
+        $this->configurePdo($this->pdo);
+    }
+
+    /** Re-establish the underlying PDO connection and clear cached prepared statements. */
+    public function reconnect(): void
+    {
+        if (null === $this->connector) {
+            throw new DatabaseException('PdoConnection cannot reconnect without a connector factory.');
+        }
+        $this->statementCache = [];
+        $this->pdo = ($this->connector)();
+        $this->configurePdo($this->pdo);
+    }
+
+    private function configurePdo(PDO $pdo): void
+    {
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+        $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
     }
 
     /**
@@ -80,7 +115,9 @@ final class PdoConnection implements ConnectionInterface
             $dsn .= ';sslmode=' . $mode;
         }
 
-        return new self(new PDO($dsn, $username, $password), Dialect::Postgres);
+        $connector = static fn(): PDO => new PDO($dsn, $username, $password);
+
+        return new self($connector(), Dialect::Postgres, $connector);
     }
 
     public static function sqlite(string $path = ':memory:'): self
@@ -89,7 +126,9 @@ final class PdoConnection implements ConnectionInterface
             throw new DatabaseException('Unsafe SQLite path containing NUL byte rejected.');
         }
 
-        return new self(new PDO('sqlite:' . $path), Dialect::Sqlite);
+        $connector = ':memory:' === $path ? null : static fn(): PDO => new PDO('sqlite:' . $path);
+
+        return new self(new PDO('sqlite:' . $path), Dialect::Sqlite, $connector);
     }
 
     /** Connect from a standard DATABASE_URL (postgres://, mysql://, or sqlite://) preserving TLS/SSL query options. */
@@ -160,7 +199,9 @@ final class PdoConnection implements ConnectionInterface
                 }
             }
 
-            return new self(new PDO($dsn, $user, $pass, $options), Dialect::Mysql);
+            $connector = static fn(): PDO => new PDO($dsn, $user, $pass, $options);
+
+            return new self($connector(), Dialect::Mysql, $connector);
         }
 
         throw new DatabaseException(sprintf('Unsupported DATABASE_URL scheme "%s".', $scheme));
@@ -175,54 +216,120 @@ final class PdoConnection implements ConnectionInterface
     {
         $start = [] !== $this->queryListeners ? hrtime(true) : 0;
 
-        try {
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute($bindings);
-            /** @var list<array<string, mixed>> $rows */
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $this->notifyQuery($sql, $start);
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->runWithReconnect($sql, $bindings, static function (PDOStatement $stmt): array {
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }, 'Database query failed: ');
+        $this->notifyQuery($sql, $start);
 
-            return $rows;
-        } catch (PDOException $e) {
-            throw new DatabaseException('Database query failed: ' . $e->getMessage(), previous: $e);
-        }
+        return $rows;
     }
 
     public function first(string $sql, array $bindings = []): ?array
     {
         $start = [] !== $this->queryListeners ? hrtime(true) : 0;
 
-        try {
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute($bindings);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            $this->notifyQuery($sql, $start);
-            if (!is_array($row)) {
-                return null;
-            }
-            /** @var array<string, mixed> $typed */
-            $typed = $row;
-
-            return $typed;
-        } catch (PDOException $e) {
-            throw new DatabaseException('Database query failed: ' . $e->getMessage(), previous: $e);
+        $row = $this->runWithReconnect($sql, $bindings, static function (PDOStatement $stmt): mixed {
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        }, 'Database query failed: ');
+        $this->notifyQuery($sql, $start);
+        if (!is_array($row)) {
+            return null;
         }
+        /** @var array<string, mixed> $typed */
+        $typed = $row;
+
+        return $typed;
     }
 
     public function execute(string $sql, array $bindings = []): int
     {
         $start = [] !== $this->queryListeners ? hrtime(true) : 0;
 
-        try {
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute($bindings);
-            $count = $stmt->rowCount();
-            $this->notifyQuery($sql, $start);
+        $count = $this->runWithReconnect($sql, $bindings, static function (PDOStatement $stmt): int {
+            return $stmt->rowCount();
+        }, 'Database execution failed: ');
+        $this->notifyQuery($sql, $start);
 
-            return $count;
-        } catch (PDOException $e) {
-            throw new DatabaseException('Database execution failed: ' . $e->getMessage(), previous: $e);
+        return $count;
+    }
+
+    /**
+     * @template T
+     * @param list<mixed>                 $bindings
+     * @param Closure(PDOStatement): T    $extractor
+     * @return T
+     */
+    private function runWithReconnect(string $sql, array $bindings, Closure $extractor, string $errorPrefix): mixed
+    {
+        $canRetry = null !== $this->connector && !$this->pdo->inTransaction();
+
+        for ($attempt = 1; $attempt <= ($canRetry ? 2 : 1); ++$attempt) {
+            try {
+                $stmt = $this->prepareCached($sql);
+                $stmt->execute($bindings);
+                $result = $extractor($stmt);
+                if (PDOStatement::class === $stmt::class) {
+                    $stmt->closeCursor();
+                }
+
+                return $result;
+            } catch (PDOException $e) {
+                unset($this->statementCache[$sql]);
+                if ($attempt === 1 && $canRetry && self::isConnectionLost($e)) {
+                    $this->reconnect();
+                    continue;
+                }
+
+                throw new DatabaseException($errorPrefix . $e->getMessage(), previous: $e);
+            }
         }
+
+        throw new DatabaseException($errorPrefix . 'exhausted connection attempts.');
+    }
+
+    private function prepareCached(string $sql): PDOStatement
+    {
+        if (isset($this->statementCache[$sql])) {
+            $stmt = $this->statementCache[$sql];
+            unset($this->statementCache[$sql]);
+            $this->statementCache[$sql] = $stmt;
+
+            return $stmt;
+        }
+
+        $stmt = $this->pdo->prepare($sql);
+        if (count($this->statementCache) >= self::MAX_CACHED_STATEMENTS) {
+            unset($this->statementCache[array_key_first($this->statementCache)]);
+        }
+        $this->statementCache[$sql] = $stmt;
+
+        return $stmt;
+    }
+
+    private static function isConnectionLost(PDOException $e): bool
+    {
+        $sqlState = (string) $e->getCode();
+        if (in_array($sqlState, ['08000', '08003', '08006', '08S01', '57P01', '57P02', '57P03'], true)) {
+            return true;
+        }
+        $msg = strtolower($e->getMessage());
+        foreach ([
+            'server has gone away',
+            'lost connection',
+            'no connection to the server',
+            'terminating connection',
+            'connection reset',
+            'broken pipe',
+            'server closed the connection',
+            'ssl connection has been closed unexpectedly',
+        ] as $needle) {
+            if (str_contains($msg, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function notifyQuery(string $sql, int $startNs): void

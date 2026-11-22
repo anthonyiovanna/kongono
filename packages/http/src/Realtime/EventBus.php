@@ -11,7 +11,7 @@ use Kongono\Http\SseEvent;
  * Persistent-runtime-safe in-process Pub/Sub EventBus with bounded ring-buffer history
  * and Last-Event-ID replay for real-time Server-Sent Events (SSE) channels.
  */
-final class EventBus
+final class EventBus implements EventBusInterface
 {
     private int $sequence = 0;
 

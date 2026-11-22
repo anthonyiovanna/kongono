@@ -425,4 +425,50 @@ final class JobsTest extends TestCase
             fclose($serverSock);
         }
     }
+
+    public function testWorkerDaemonAdaptiveDrainAndRedisO1StatsAndPrune(): void
+    {
+        // 1. Worker::runDaemon() drains queued jobs immediately with zero cold-boot latency and stops cleanly
+        $driver = new MemoryQueueDriver();
+        $queue = new Queue($driver);
+        $queue->dispatch('mail.send', ['n' => 1]);
+        $queue->dispatch('mail.send', ['n' => 2]);
+
+        $worker = (new Worker($driver))->register('mail.send', static fn(): JobOutcome => JobOutcome::Completed);
+        $report = $worker->runDaemon(
+            queue: 'default',
+            batchSize: 10,
+            minSleepMs: 1,
+            maxSleepMs: 5,
+            maxIterations: 2,
+        );
+        self::assertSame(2, $report->processed);
+        self::assertSame(2, $report->completed);
+
+        // 2. RedisQueueDriver::stats() uses O(1) HGETALL(counts) + ZCARD(pending) + ZCARD(reserved), and prune() uses atomic LUA_PRUNE
+        $domain = '\\' === DIRECTORY_SEPARATOR ? STREAM_PF_INET : STREAM_PF_UNIX;
+        $pair = stream_socket_pair($domain, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        self::assertIsArray($pair);
+        [$clientSock, $serverSock] = $pair;
+
+        // Preload responses for stats(): HGETALL(counts), ZCARD(pending), ZCARD(reserved), plus prune() EVAL returning :3
+        fwrite(
+            $serverSock,
+            "*4\r\n\$9\r\ncompleted\r\n\$2\r\n12\r\n\$4\r\ndead\r\n\$1\r\n1\r\n"
+            . ":5\r\n"
+            . ":2\r\n"
+            . ":3\r\n",
+        );
+
+        try {
+            $redis = RedisClient::fromStream($clientSock);
+            $redisDriver = new RedisQueueDriver($redis);
+            $stats = $redisDriver->stats('default');
+            self::assertSame(['pending' => 5, 'reserved' => 2, 'completed' => 12, 'failed' => 0, 'dead' => 1], $stats);
+            self::assertSame(3, $redisDriver->prune('default', 1000));
+            $redis->close();
+        } finally {
+            fclose($serverSock);
+        }
+    }
 }
