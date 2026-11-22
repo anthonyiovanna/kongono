@@ -232,28 +232,39 @@ final readonly class CurlTransport implements StreamingHttpTransportInterface
             }
             $b0 = ord($packed[0]);
             $b1 = ord($packed[1]);
+            $b2 = ord($packed[2]);
+            $b3 = ord($packed[3]);
+            $b4 = ord($packed[4]);
+            $b5 = ord($packed[5]);
+            // Allowlist IANA Global Unicast 2000::/3 minus special-purpose RFC 6890 sub-blocks
+            if (0x20 !== ($b0 & 0xe0)) {
+                return false;
+            }
             if (
-                str_starts_with($packed, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00")
-                || str_starts_with($packed, "\x00\x64\xff\x9b")
-                || str_starts_with($packed, "\x01\x00\x00\x00\x00\x00\x00\x00")
+                (0x20 === $b0 && 0x01 === $b1 && 0x00 === $b2 && (0x00 === $b3 || 0x03 === $b3 || ($b3 >= 0x10 && $b3 <= 0x3f)))
+                || (0x20 === $b0 && 0x01 === $b1 && 0x00 === $b2 && 0x02 === $b3 && 0x00 === $b4 && 0x00 === $b5)
+                || (0x20 === $b0 && 0x01 === $b1 && 0x00 === $b2 && 0x04 === $b3 && 0x01 === $b4 && 0x12 === $b5)
+                || (0x20 === $b0 && 0x01 === $b1 && 0x0d === $b2 && 0xb8 === $b3)
                 || (0x20 === $b0 && 0x02 === $b1)
-                || (0x20 === $b0 && 0x01 === $b1 && 0x00 === ord($packed[2]) && 0x00 === ord($packed[3]))
-                || 0xfc === ($b0 & 0xfe)
-                || (0xfe === $b0 && 0x80 === ($b1 & 0x80))
-                || 0xff === $b0
+                || (0x3f === $b0 && 0xff === $b1 && 0x00 === ($b2 & 0xf0))
             ) {
                 return false;
             }
         } elseif (4 === strlen($packed)) {
             $o0 = ord($packed[0]);
             $o1 = ord($packed[1]);
+            $o2 = ord($packed[2]);
             if (
                 0 === $o0 || 10 === $o0 || 127 === $o0
                 || (100 === $o0 && $o1 >= 64 && $o1 <= 127)
                 || (169 === $o0 && 254 === $o1)
                 || (172 === $o0 && $o1 >= 16 && $o1 <= 31)
+                || (192 === $o0 && 0 === $o1 && (0 === $o2 || 2 === $o2))
+                || (192 === $o0 && 88 === $o1 && 99 === $o2)
                 || (192 === $o0 && 168 === $o1)
                 || (198 === $o0 && (18 === $o1 || 19 === $o1))
+                || (198 === $o0 && 51 === $o1 && 100 === $o2)
+                || (203 === $o0 && 0 === $o1 && 113 === $o2)
                 || $o0 >= 224
             ) {
                 return false;

@@ -38,6 +38,7 @@ use Kongono\Mail\Mailer;
 use Kongono\Security\Encryptor;
 use Kongono\Security\Middleware\BearerAuthMiddleware;
 use Kongono\Security\Middleware\CorsMiddleware;
+use Kongono\Security\Middleware\CsrfMiddleware;
 use Kongono\Security\Middleware\RateLimitMiddleware;
 use Kongono\Security\Middleware\SecurityHeadersMiddleware;
 use Kongono\Security\PasswordHasher;
@@ -64,7 +65,15 @@ $logger = new Logger('starter-app', retainInMemory: true);
 $metrics = new Metrics();
 $queueDriver = new MemoryQueueDriver();
 $queue = new Queue($queueDriver);
-$appKey = Config::env('APP_KEY') ?? 'kongono-starter-dev-key-change-in-prod';
+$appEnv = strtolower(Config::env('APP_ENV') ?? 'local');
+$debug = filter_var(Config::env('APP_DEBUG') ?? 'false', FILTER_VALIDATE_BOOL);
+$configuredKey = Config::env('APP_KEY');
+if ('production' === $appEnv && (null === $configuredKey || strlen(trim($configuredKey)) < 16)) {
+    throw new \RuntimeException('APP_KEY must be configured with at least 16 bytes in production (run `php bin/kongo key:generate`).');
+}
+$appKey = null !== $configuredKey && strlen(trim($configuredKey)) >= 16
+    ? trim($configuredKey)
+    : 'ephemeral-' . bin2hex(random_bytes(24));
 $signer = new TokenSigner($appKey);
 $encryptor = new Encryptor($appKey);
 $signedUrl = new SignedUrl($appKey);
@@ -115,8 +124,8 @@ $bearerAuth = new BearerAuthMiddleware(static function (string $token) use ($sig
 });
 
 $app = App::create($baseDir, name: 'Kongono Starter App')
-    ->config(['app' => ['debug' => true]])
-    ->views()
+    ->config(['app' => ['debug' => $debug]])
+    ->views(autoReload: $debug)
     ->instance(CacheInterface::class, $cache)
     ->instance(StorageInterface::class, $storage)
     ->instance(LoggerInterface::class, $logger)
@@ -200,9 +209,10 @@ $app->middleware(
     new CompressionMiddleware(),
     new StaticFilesMiddleware($baseDir . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets', '/assets/'),
     new SecurityHeadersMiddleware(),
-    new CorsMiddleware(allowedOrigins: ['*']),
+    new CorsMiddleware(allowedOrigins: []),
     new RateLimitMiddleware($cache, maxRequests: 120, windowSeconds: 60),
     new SessionMiddleware(new CacheSessionStore($cache)),
+    new CsrfMiddleware($signer, exemptPrefixes: ['/api/', '/_kongono/', '/mcp']),
     new RequestTimingMiddleware($metrics),
 );
 

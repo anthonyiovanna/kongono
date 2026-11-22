@@ -91,9 +91,17 @@ final class MemoryStorage implements StorageInterface
 
     private function normalizeKey(string $key): string
     {
-        $clean = ltrim(str_replace('\\', '/', trim($key)), '/');
-        if ('' === $clean || str_contains($clean, '..') || str_contains($clean, "\0")) {
+        if (1 === preg_match('/[\x00-\x1f\x7f]/', $key)) {
             throw new StorageException(sprintf('Invalid storage key "%s".', $key));
+        }
+        $clean = ltrim(str_replace('\\', '/', trim($key)), '/');
+        if ('' === $clean) {
+            throw new StorageException(sprintf('Invalid storage key "%s".', $key));
+        }
+        foreach (explode('/', $clean) as $segment) {
+            if ('' === $segment || '.' === $segment || '..' === $segment) {
+                throw new StorageException(sprintf('Invalid storage key "%s".', $key));
+            }
         }
 
         return $clean;

@@ -33,7 +33,8 @@ final readonly class LocalStorage implements StorageInterface
 
     public function __construct(string $rootDirectory, bool $createIfMissing = true)
     {
-        if (is_link($rootDirectory)) {
+        $cleanRoot = rtrim($rootDirectory, '/\\');
+        if ('' !== $cleanRoot && is_link($cleanRoot)) {
             throw new StorageException(sprintf('Storage root directory cannot be a symlink: "%s".', $rootDirectory));
         }
         if (!is_dir($rootDirectory)) {
@@ -371,8 +372,13 @@ final readonly class LocalStorage implements StorageInterface
             if (false === $written || $written !== strlen($bytes)) {
                 throw new StorageException('Failed to write temporary storage file.');
             }
-        } finally {
             fclose($handle);
+        } catch (\Throwable $e) {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
+            @unlink($tmp);
+            throw $e;
         }
 
         if (!@rename($tmp, $targetPath)) {
@@ -385,6 +391,9 @@ final readonly class LocalStorage implements StorageInterface
     }
 
     /**
+     * Fixed 256-shard flock pool prevents unbounded lock-file inode exhaustion
+     * even under high-cardinality writes or deletes of non-existent keys.
+     *
      * @template T
      * @param \Closure(): T $fn
      * @return T
@@ -399,7 +408,7 @@ final readonly class LocalStorage implements StorageInterface
             throw new StorageException('Unable to create storage lock directory.');
         }
 
-        $lockFile = $lockDir . DIRECTORY_SEPARATOR . hash('sha256', $cleanKey) . '.lock';
+        $lockFile = $lockDir . DIRECTORY_SEPARATOR . 'bucket-' . substr(hash('sha256', $cleanKey), 0, 2) . '.lock';
         if (is_link($lockFile)) {
             throw new StorageException('Storage lock file cannot be a symlink.');
         }

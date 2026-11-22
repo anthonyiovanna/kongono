@@ -100,9 +100,23 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     return null;
   }
 
+  function isSameOriginUrl(rawUrl) {
+    if (!rawUrl || /[\u0000-\u001F\u007F]/.test(rawUrl)) return null;
+    try {
+      const parsed = new URL(rawUrl, window.location.origin);
+      if (parsed.origin !== window.location.origin) return null;
+      return parsed;
+    } catch (_e) {
+      return null;
+    }
+  }
+
   async function dispatchLive(el, form) {
     const live = findLiveAttr(el);
     if (!live || !live.url) return;
+
+    const targetUrl = isSameOriginUrl(live.url);
+    if (!targetUrl) return;
 
     const confirmMsg = el.getAttribute("kgn-confirm");
     if (confirmMsg && !window.confirm(confirmMsg)) return;
@@ -113,7 +127,7 @@ final readonly class LiveMiddleware implements MiddlewareInterface
 
     const headers = {
       "X-Kongono-Live": "true",
-      "Accept": "text/html, application/json"
+      "Accept": "text/html"
     };
     const csrf = getCsrf(form || el);
     if (csrf) headers["X-CSRF-Token"] = csrf;
@@ -125,7 +139,9 @@ final readonly class LiveMiddleware implements MiddlewareInterface
 
     el.setAttribute("aria-busy", "true");
     try {
-      const res = await fetch(live.url, init);
+      const res = await fetch(targetUrl.href, init);
+      const finalUrl = isSameOriginUrl(res.url || targetUrl.href);
+      if (!finalUrl) return;
       const redirect = res.headers.get("X-Kongono-Redirect");
       if (redirect && !/[\u0000-\u001F\u007F]/.test(redirect)) {
         try {
@@ -137,12 +153,19 @@ final readonly class LiveMiddleware implements MiddlewareInterface
         } catch (_e) {}
       }
       const pushUrl = res.headers.get("X-Kongono-Push-Url");
-      if (pushUrl && pushUrl.startsWith("/") && !pushUrl.startsWith("//") && window.history && window.history.pushState) {
-        window.history.pushState({}, "", pushUrl);
+      if (pushUrl && pushUrl.startsWith("/") && !pushUrl.startsWith("//") && !pushUrl.startsWith("/\\") && window.history && window.history.pushState) {
+        try {
+          window.history.pushState({}, "", pushUrl);
+        } catch (_e) {}
       }
       const text = await res.text();
+      const ct = (res.headers.get("Content-Type") || "").toLowerCase();
       if (res.ok || text.length > 0) {
-        applySwap(target, text, swap);
+        if (ct.startsWith("text/html")) {
+          applySwap(target, text, swap);
+        } else if (target && swap !== "none" && swap !== "delete") {
+          target.textContent = text;
+        }
       }
       el.dispatchEvent(new CustomEvent("kongono:swapped", { bubbles: true, detail: { status: res.status, target } }));
     } finally {
@@ -155,10 +178,11 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     nodes.forEach((node) => {
       if (streams.has(node)) return;
       const url = node.getAttribute("kgn-stream");
-      if (!url || typeof EventSource === "undefined") return;
+      const streamUrl = isSameOriginUrl(url || "");
+      if (!streamUrl || typeof EventSource === "undefined") return;
       const eventName = node.getAttribute("kgn-event") || "message";
       const swap = node.getAttribute("kgn-swap") || "innerHTML";
-      const es = new EventSource(url);
+      const es = new EventSource(streamUrl.href);
       streams.set(node, es);
       const handler = (ev) => {
         if (!document.contains(node)) {

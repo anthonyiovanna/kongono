@@ -55,6 +55,9 @@ final class Request implements ServerRequestInterface
 
         foreach ($headers as $name => $value) {
             $normalized = strtolower($name);
+            if (isset($this->headerNames[$normalized])) {
+                unset($this->headers[$this->headerNames[$normalized]]);
+            }
             $this->headerNames[$normalized] = $name;
             $this->headers[$name] = is_array($value) ? $value : [$value];
         }
@@ -331,9 +334,18 @@ final class Request implements ServerRequestInterface
     {
         $accept = strtolower($this->getHeaderLine('Accept'));
         $contentType = strtolower($this->getHeaderLine('Content-Type'));
+        $jsonPos = strpos($accept, 'application/json');
+        $htmlPos = strpos($accept, 'text/html');
 
-        return str_contains($accept, 'application/json')
-            || str_contains($contentType, 'application/json')
+        // Kongono\Live fragment requests prefer HTML unless JSON is explicitly prioritized ahead of HTML
+        if ($this->isLive() && (false === $jsonPos || (false !== $htmlPos && $htmlPos < $jsonPos))) {
+            return false;
+        }
+        if (false !== $jsonPos && (false === $htmlPos || $jsonPos < $htmlPos)) {
+            return true;
+        }
+
+        return str_contains($contentType, 'application/json')
             || str_starts_with($this->path(), '/api/');
     }
 

@@ -76,10 +76,21 @@ final class QueryGuard
     /** Normalize SQL literals & IN-lists into a canonical query shape for N+1 grouping. */
     public static function normalizeSql(string $sql): string
     {
-        $normalized = trim((string) preg_replace('/\s+/', ' ', $sql));
-        $normalized = (string) preg_replace("/'(?:''|[^'])*'/", '?', $normalized);
-        $normalized = (string) preg_replace('/\b\d+(?:\.\d+)?\b/', '?', $normalized);
-        $normalized = (string) preg_replace('/\bIN\s*\(\s*\?(?:\s*,\s*\?)*\s*\)/i', 'IN (?)', $normalized);
+        $normalized = preg_replace('/\s+/', ' ', $sql);
+        $normalized = trim(is_string($normalized) ? $normalized : $sql);
+        // Unrolled possessive regex prevents PCRE2 recursion stack overflow on >=8 KB string literals
+        $step1 = preg_replace("/'[^']*+(?:''[^']*+)*+'/", '?', $normalized);
+        if (is_string($step1)) {
+            $normalized = $step1;
+        }
+        $step2 = preg_replace('/\b\d+(?:\.\d+)?\b/', '?', $normalized);
+        if (is_string($step2)) {
+            $normalized = $step2;
+        }
+        $step3 = preg_replace('/\bIN\s*\(\s*\?(?:\s*,\s*\?)*\s*\)/i', 'IN (?)', $normalized);
+        if (is_string($step3)) {
+            $normalized = $step3;
+        }
 
         return $normalized;
     }

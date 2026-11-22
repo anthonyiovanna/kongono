@@ -263,6 +263,20 @@ HTML,
         self::assertStringContainsString('&lt;img src=x onerror=alert(2)&gt;', $html);
     }
 
+    public function testRound4ViteManifestEmptyBuildDirDoesNotEmitProtocolRelativeUrl(): void
+    {
+        $pub = $this->tempDir . '/public_empty_build';
+        mkdir($pub . '/.vite', 0o777, true);
+        file_put_contents($pub . '/.vite/manifest.json', json_encode([
+            'app.js' => ['file' => 'assets/app-123.js'],
+        ], JSON_THROW_ON_ERROR));
+
+        $vite = new ViteManifest($pub, buildDirectory: '');
+        self::assertSame('/assets/app-123.js', $vite->asset('app.js'));
+        self::assertStringContainsString('src="/assets/app-123.js"', $vite->tags('app.js'));
+        self::assertStringNotContainsString('//assets/', $vite->tags('app.js'));
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {

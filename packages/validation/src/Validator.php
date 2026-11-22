@@ -229,7 +229,14 @@ final class Validator
             return [null, sprintf('The %s field must be one of: %s.', $name, implode(', ', $allowed))];
         }
 
+        if (enum_exists($typeName)) {
+            throw new CoreException(sprintf('Unsupported non-backed UnitEnum DTO field type "%s" for "$%s". Use a BackedEnum.', $typeName, $name));
+        }
+
         if (class_exists($typeName)) {
+            if (str_starts_with($typeName, 'Kongono\\') && !str_contains($typeName, '\\Tests\\')) {
+                throw new CoreException(sprintf('Refusing to hydrate framework class "%s" from untrusted input for "$%s".', $typeName, $name));
+            }
             if ($value instanceof $typeName) {
                 return [$value, null];
             }

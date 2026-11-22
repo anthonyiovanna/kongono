@@ -71,16 +71,22 @@ final readonly class MigrationLinter
     {
         $upSource = $this->extractUpMethodSource($source);
 
-        // 1. ADD COLUMN ... NOT NULL without DEFAULT (locks table + fails on non-empty tables)
-        if (1 === preg_match('/\bALTER\s+TABLE\b[^;]*\bADD\s+(?:COLUMN\s+)?[^;]*\bNOT\s+NULL\b/i', $upSource, $m)
-            && 1 !== preg_match('/\bDEFAULT\b/i', $m[0])
-        ) {
-            $findings[] = [
-                'severity' => 'critical',
-                'code' => 'KGN-MIG-NOT-NULL-NO-DEFAULT',
-                'file' => $fileName,
-                'message' => 'ALTER TABLE ADD COLUMN ... NOT NULL without DEFAULT fails on non-empty tables and locks writes. Add a DEFAULT or backfill first.',
-            ];
+        // 1. ADD COLUMN ... NOT NULL without DEFAULT (inspect EVERY full ALTER TABLE statement)
+        if (preg_match_all('/\bALTER\s+TABLE\b[^;]+/i', $upSource, $alterMatches) > 0) {
+            foreach ($alterMatches[0] as $stmt) {
+                if (
+                    1 === preg_match('/\bADD\s+(?:COLUMN\s+)?/i', $stmt)
+                    && 1 === preg_match('/\bNOT\s+NULL\b/i', $stmt)
+                    && 1 !== preg_match('/\bDEFAULT\b/i', $stmt)
+                ) {
+                    $findings[] = [
+                        'severity' => 'critical',
+                        'code' => 'KGN-MIG-NOT-NULL-NO-DEFAULT',
+                        'file' => $fileName,
+                        'message' => 'ALTER TABLE ADD COLUMN ... NOT NULL without DEFAULT fails on non-empty tables and locks writes. Add a DEFAULT or backfill first.',
+                    ];
+                }
+            }
         }
 
         // 2. TRUNCATE or unscoped DELETE FROM inside forward migration
@@ -133,55 +139,16 @@ final readonly class MigrationLinter
     }
 
     /**
-     * Extract the exact PHP body of `function up(...)` using PHP's tokenizer so placing
-     * `down()` before `up()` or mentioning `function down(` in comments cannot bypass linting.
-     *
-     * For procedural migrations without an explicit `function up()`, strips any tokenized
-     * `function down(...) { ... }` rollback helper while preserving all forward statements.
+     * Strip comments and any tokenized `function down(...) { ... }` rollback method using PHP's tokenizer
+     * so placing `down()` before `up()`, putting `function down(` in comments, or hiding destructive DDL
+     * inside private helper methods called by `up()` can NEVER bypass linting.
      */
     private function extractUpMethodSource(string $source): string
     {
         $tokens = \PhpToken::tokenize($source);
         $count = count($tokens);
-
-        // 1. Prefer explicit `function up(...) { ... }` when declared
-        for ($i = 0; $i < $count; ++$i) {
-            if (T_FUNCTION !== $tokens[$i]->id) {
-                continue;
-            }
-            $j = $i + 1;
-            while ($j < $count && in_array($tokens[$j]->id, [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
-                ++$j;
-            }
-            if ($j >= $count || T_STRING !== $tokens[$j]->id || 'up' !== strtolower($tokens[$j]->text)) {
-                continue;
-            }
-            while ($j < $count && '{' !== $tokens[$j]->text) {
-                ++$j;
-            }
-            if ($j >= $count) {
-                break;
-            }
-            $depth = 0;
-            $body = '';
-            for ($k = $j; $k < $count; ++$k) {
-                $token = $tokens[$k];
-                if (!in_array($token->id, [T_COMMENT, T_DOC_COMMENT], true)) {
-                    $body .= $token->text;
-                }
-                if ('{' === $token->text || T_CURLY_OPEN === $token->id || T_DOLLAR_OPEN_CURLY_BRACES === $token->id) {
-                    ++$depth;
-                } elseif ('}' === $token->text) {
-                    --$depth;
-                    if (0 === $depth) {
-                        return $body;
-                    }
-                }
-            }
-        }
-
-        // 2. Procedural script without `function up()`: strip comments and any tokenized `function down(...) { ... }`
         $filtered = '';
+
         for ($i = 0; $i < $count; ++$i) {
             $token = $tokens[$i];
             if (in_array($token->id, [T_COMMENT, T_DOC_COMMENT], true)) {

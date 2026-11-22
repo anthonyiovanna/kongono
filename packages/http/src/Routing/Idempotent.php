@@ -6,8 +6,8 @@ namespace Kongono\Http\Routing;
 
 use Attribute;
 use Kongono\Core\Cache\CacheInterface;
-use Kongono\Core\Cache\MemoryCache;
 use Kongono\Core\Container;
+use Kongono\Core\CoreException;
 use Kongono\Http\Middleware\IdempotencyMiddleware;
 use Psr\Http\Server\MiddlewareInterface;
 
@@ -26,9 +26,13 @@ final readonly class Idempotent implements MiddlewareAttributeInterface
 
     public function toMiddleware(Container $container): MiddlewareInterface
     {
-        $cache = $container->has(CacheInterface::class)
-            ? $container->make(CacheInterface::class)
-            : new MemoryCache();
+        if (!$container->has(CacheInterface::class)) {
+            throw new CoreException(
+                '#[Idempotent] requires a shared CacheInterface singleton bound in the container (refusing to fail open with an ephemeral per-request MemoryCache).',
+            );
+        }
+
+        $cache = $container->make(CacheInterface::class);
 
         return new IdempotencyMiddleware($cache, $this->ttlSeconds, $this->headerName);
     }

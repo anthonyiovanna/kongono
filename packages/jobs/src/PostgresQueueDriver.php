@@ -58,7 +58,7 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
             'id' => $id,
             'queue' => $queue,
             'type' => $type,
-            'payload' => json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
+            'payload' => json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES, 64),
             'attempt' => 0,
             'max_attempts' => $attempts,
             'generation' => 0,
@@ -81,48 +81,81 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
         $t = $this->db->dialect()->quoteIdentifier($this->table);
 
         return $this->db->transaction(function (ConnectionInterface $tx) use ($t, $queue, $ts, $leaseUntil, $token): ?Job {
-            $row = $tx->first(
-                sprintf(
-                    'SELECT * FROM %s WHERE queue = ? AND ((status = ? AND available_at <= ?) OR (status = ? AND lease_until <= ?)) AND attempt < max_attempts ORDER BY available_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED',
-                    $t,
-                ),
-                [$queue, JobStatus::Pending->value, $ts, JobStatus::Reserved->value, $ts],
-            );
+            for ($scan = 0; $scan < 32; ++$scan) {
+                $row = $tx->first(
+                    sprintf(
+                        'SELECT * FROM %s WHERE queue = ? AND ((status = ? AND available_at <= ?) OR (status = ? AND lease_until <= ?)) ORDER BY available_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED',
+                        $t,
+                    ),
+                    [$queue, JobStatus::Pending->value, $ts, JobStatus::Reserved->value, $ts],
+                );
 
-            if (null === $row) {
-                return null;
+                if (null === $row) {
+                    return null;
+                }
+
+                $rowId = is_string($row['id'] ?? null) ? $row['id'] : '';
+                try {
+                    $job = $this->hydrateRow($row);
+                } catch (JobException $e) {
+                    // Dead-letter corrupt/poison-pill payload rows so they can NEVER halt head-of-line queue progress
+                    if ('' !== $rowId) {
+                        $tx->execute(
+                            sprintf('UPDATE %s SET status = ?, generation = generation + 1, lease_token = NULL, lease_until = NULL, last_error = ?, updated_at = ? WHERE id = ?', $t),
+                            [JobStatus::Dead->value, $e->getMessage(), $ts, $rowId],
+                        );
+                    }
+                    continue;
+                }
+
+                // Transition expired final-attempt leases to Dead instead of leaving permanent zombie reserved rows
+                if ($job->attempt >= $job->maxAttempts) {
+                    $tx->execute(
+                        sprintf('UPDATE %s SET status = ?, generation = ?, lease_token = NULL, lease_until = NULL, last_error = ?, updated_at = ? WHERE id = ? AND generation = ?', $t),
+                        [
+                            JobStatus::Dead->value,
+                            $job->generation + 1,
+                            $job->lastError ?? 'Maximum attempts exhausted after lease expiration.',
+                            $ts,
+                            $job->id,
+                            $job->generation,
+                        ],
+                    );
+                    continue;
+                }
+
+                $newAttempt = $job->attempt + 1;
+                $newGeneration = $job->generation + 1;
+
+                $updated = $tx->execute(
+                    sprintf(
+                        'UPDATE %s SET status = ?, attempt = ?, generation = ?, lease_token = ?, lease_until = ?, updated_at = ? WHERE id = ? AND generation = ?',
+                        $t,
+                    ),
+                    [JobStatus::Reserved->value, $newAttempt, $newGeneration, $token, $leaseUntil, $ts, $job->id, $job->generation],
+                );
+
+                if (1 !== $updated) {
+                    return null;
+                }
+
+                return new Job(
+                    id: $job->id,
+                    queue: $job->queue,
+                    type: $job->type,
+                    payload: $job->payload,
+                    attempt: $newAttempt,
+                    maxAttempts: $job->maxAttempts,
+                    generation: $newGeneration,
+                    leaseToken: $token,
+                    availableAt: $job->availableAt,
+                    leaseUntil: $leaseUntil,
+                    status: JobStatus::Reserved,
+                    lastError: $job->lastError,
+                );
             }
 
-            $job = $this->hydrateRow($row);
-            $newAttempt = $job->attempt + 1;
-            $newGeneration = $job->generation + 1;
-
-            $updated = $tx->execute(
-                sprintf(
-                    'UPDATE %s SET status = ?, attempt = ?, generation = ?, lease_token = ?, lease_until = ?, updated_at = ? WHERE id = ? AND generation = ?',
-                    $t,
-                ),
-                [JobStatus::Reserved->value, $newAttempt, $newGeneration, $token, $leaseUntil, $ts, $job->id, $job->generation],
-            );
-
-            if (1 !== $updated) {
-                return null;
-            }
-
-            return new Job(
-                id: $job->id,
-                queue: $job->queue,
-                type: $job->type,
-                payload: $job->payload,
-                attempt: $newAttempt,
-                maxAttempts: $job->maxAttempts,
-                generation: $newGeneration,
-                leaseToken: $token,
-                availableAt: $job->availableAt,
-                leaseUntil: $leaseUntil,
-                status: JobStatus::Reserved,
-                lastError: $job->lastError,
-            );
+            return null;
         });
     }
 

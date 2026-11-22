@@ -102,12 +102,18 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
 
         try {
             $response = $handler->handle($request);
-            // Cache deterministic 2xx/4xx responses (do not cache 5xx transient server failures)
-            if ($response->getStatusCode() < 500) {
+            // Cache deterministic non-transient responses only (never cache 5xx, auth/rate-limit rejections, Set-Cookie, or no-store)
+            $status = $response->getStatusCode();
+            $cc = strtolower($response->getHeaderLine('Cache-Control'));
+            $isCacheable = $status < 500
+                && !in_array($status, [401, 403, 408, 429], true)
+                && !$response->hasHeader('Set-Cookie')
+                && !str_contains($cc, 'no-store');
+            if ($isCacheable) {
                 $contentType = $response->getHeaderLine('Content-Type');
                 $this->cache->set($cacheKey, [
                     'fingerprint' => $fingerprint,
-                    'status' => $response->getStatusCode(),
+                    'status' => $status,
                     'content_type' => '' !== $contentType ? $contentType : 'application/json; charset=utf-8',
                     'body' => (string) $response->getBody(),
                 ], $this->ttlSeconds);
@@ -149,8 +155,19 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
         $cookies = $request->getCookieParams();
         if ([] !== $cookies) {
             ksort($cookies, SORT_STRING);
+            $ctx = hash_init('sha256');
+            foreach ($cookies as $k => $v) {
+                $ks = (string) $k;
+                $vs = is_scalar($v) ? (string) $v : '';
+                hash_update($ctx, strlen($ks) . ':' . $ks . '=' . strlen($vs) . ':' . $vs . ';');
+            }
 
-            return 'cookie:' . hash('sha256', json_encode($cookies, JSON_THROW_ON_ERROR));
+            return 'cookie:' . hash_final($ctx);
+        }
+
+        $cookieHeader = trim($request->getHeaderLine('Cookie'));
+        if ('' !== $cookieHeader) {
+            return 'cookie_hdr:' . hash('sha256', $cookieHeader);
         }
 
         $server = $request->getServerParams();

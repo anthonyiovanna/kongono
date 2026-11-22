@@ -251,10 +251,17 @@ final class Router
             }
 
             $serializedAttrs = $this->exportControllerMiddlewareAttributes($route->handler);
+            if (count($route->routeMiddlewareAttributes()) > count($serializedAttrs)) {
+                throw new CoreException(sprintf(
+                    'Cannot AOT-compile route "%s" (%s): route carries fluent middlewareAttributes() that are not declared on the controller class/method and would be dropped. Declare them as PHP attributes on the controller instead.',
+                    $route->path,
+                    $route->handlerLabel(),
+                ));
+            }
 
             if (!str_contains($route->path, '{')) {
                 foreach ($route->methods as $method) {
-                    $static[$route->path][$method] = [
+                    $static[$route->path][$method] ??= [
                         'handler' => $route->handler,
                         'name' => $route->routeName(),
                         'middleware_attributes' => $serializedAttrs,
@@ -493,16 +500,24 @@ final class Router
 
     private function compilePathRegex(string $template): string
     {
-        $regex = preg_replace_callback(
-            '/\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([^}]+))?\}/',
-            static function (array $m): string {
+        $parts = preg_split('/(\{[a-zA-Z_][a-zA-Z0-9_]*(?::[^}]+)?\})/', $template, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if (!is_array($parts)) {
+            return '#\A' . preg_quote($template, '#') . '\z#';
+        }
+
+        $pattern = '';
+        foreach ($parts as $segment) {
+            if (1 === preg_match('/\A\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([^}]+))?\}\z/', $segment, $m)) {
                 $constraint = $m[2] ?? '[^/]+';
+                if (str_contains($constraint, '#')) {
+                    throw new CoreException(sprintf('Unsafe route parameter constraint "%s" in path "%s".', $constraint, $template));
+                }
+                $pattern .= sprintf('(?P<%s>%s)', $m[1], $constraint);
+            } else {
+                $pattern .= preg_quote($segment, '#');
+            }
+        }
 
-                return sprintf('(?P<%s>%s)', $m[1], $constraint);
-            },
-            $template,
-        );
-
-        return '#\A' . (is_string($regex) ? $regex : preg_quote($template, '#')) . '\z#';
+        return '#\A' . $pattern . '\z#';
     }
 }

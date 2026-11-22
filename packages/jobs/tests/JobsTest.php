@@ -174,31 +174,27 @@ final class JobsTest extends TestCase
         self::assertIsArray($pair);
         [$clientSock, $serverSock] = $pair;
 
-        $jobJson = json_encode([
+        $reservedJobJson = json_encode([
             'id' => 'job_abc',
             'queue' => 'default',
             'type' => 'email.send',
             'payload' => ['to' => 'ada@kongono.dev'],
-            'attempt' => 0,
+            'attempt' => 1,
             'max_attempts' => 3,
-            'generation' => 0,
-            'lease_token' => null,
+            'generation' => 1,
+            'lease_token' => 'tok_atomic_lua_1',
             'available_at' => 1000,
-            'lease_until' => null,
-            'status' => 'pending',
+            'lease_until' => 1065,
+            'status' => 'reserved',
             'last_error' => null,
         ], JSON_THROW_ON_ERROR);
 
-        // Preload deterministic RESP responses for push (HSET, ZADD) + reserve (ZRANGEBYSCORE, ZREM, HGET, HSET, ZADD)
+        // Preload deterministic RESP responses for push (HSET, ZADD) + atomic Lua reserve (EVAL)
         fwrite(
             $serverSock,
             ":1\r\n"
             . ":1\r\n"
-            . "*1\r\n\$7\r\njob_abc\r\n"
-            . ":1\r\n"
-            . '$' . strlen($jobJson) . "\r\n" . $jobJson . "\r\n"
-            . ":0\r\n"
-            . ":1\r\n",
+            . '$' . strlen($reservedJobJson) . "\r\n" . $reservedJobJson . "\r\n",
         );
 
         try {
@@ -271,8 +267,8 @@ final class JobsTest extends TestCase
         self::assertSame('manager.approved', $s3->waitingEvent);
         self::assertSame(1, $chargeCount);
 
-        // Human manager approves via signal(), then workflow completes cleanly
-        $engine->signal('wf-order-1', 'manager.approved', ['by' => 'ada@kongono.dev']);
+        // Human manager approves via signal() within deadline, then workflow completes cleanly
+        $engine->signal('wf-order-1', 'manager.approved', ['by' => 'ada@kongono.dev'], now: 5005);
         $s4 = $engine->resume('wf-order-1', $definition, now: 5010);
         self::assertSame(WorkflowStatus::Completed, $s4->status);
         self::assertSame(1, $chargeCount);
@@ -334,5 +330,99 @@ final class JobsTest extends TestCase
         $this->expectException(JobException::class);
         $this->expectExceptionMessage('is not waiting for event "manager.approved"');
         $engine->signal('wf-sec-1', 'manager.approved', ['by' => 'mallory']);
+    }
+
+    public function testRound4WorkflowDeadlinePostgresDepthAndRedisLuaAtomicFencing(): void
+    {
+        // 1. WorkflowEngine::signal() rejects signals arriving at/after waitForEvent() deadline
+        $engine = new WorkflowEngine(new CacheWorkflowStore(new MemoryCache()));
+        $engine->run('wf-deadline-1', 'billing.approve', static function (WorkflowContext $wf): string {
+            $wf->waitForEvent('manager.approved', timeoutSeconds: 60);
+
+            return 'ok';
+        }, now: 1000);
+
+        try {
+            $engine->signal('wf-deadline-1', 'manager.approved', ['by' => 'late'], now: 1060);
+            self::fail('Expected expired waitForEvent() deadline to reject signal().');
+        } catch (JobException $e) {
+            self::assertStringContainsString('deadline', $e->getMessage());
+        }
+
+        // 2. PostgresQueueDriver::push() rejects deeply nested payloads (> depth 64)
+        $fakePg = new class implements ConnectionInterface {
+            public function dialect(): Dialect
+            {
+                return Dialect::Postgres;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                return [];
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                return null;
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                return 0;
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, Dialect::Postgres, $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                return $callback($this);
+            }
+        };
+        $deepPayload = ['leaf' => 1];
+        for ($i = 0; $i < 70; ++$i) {
+            $deepPayload = ['nested' => $deepPayload];
+        }
+        try {
+            (new PostgresQueueDriver($fakePg))->push('default', 'deep.job', $deepPayload);
+            self::fail('Expected deeply nested payload to throw JsonException.');
+        } catch (\JsonException) {
+            self::addToAssertionCount(1);
+        }
+
+        // 3. RedisQueueDriver::acknowledge() executes atomic EVAL Lua script and returns false on stale fence (:0)
+        $domain = '\\' === DIRECTORY_SEPARATOR ? STREAM_PF_INET : STREAM_PF_UNIX;
+        $pair = stream_socket_pair($domain, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        self::assertIsArray($pair);
+        [$clientSock, $serverSock] = $pair;
+        fwrite($serverSock, ":0\r\n");
+
+        try {
+            $redis = RedisClient::fromStream($clientSock);
+            $driver = new RedisQueueDriver($redis);
+            $staleJob = new Job(
+                id: 'job_stale',
+                queue: 'default',
+                type: 'email.send',
+                payload: [],
+                attempt: 1,
+                maxAttempts: 3,
+                generation: 1,
+                leaseToken: 'stale_token',
+                availableAt: 1000,
+                leaseUntil: 1060,
+                status: \Kongono\Jobs\JobStatus::Reserved,
+            );
+
+            self::assertFalse($driver->acknowledge($staleJob));
+            $redis->close();
+            $sentWire = stream_get_contents($serverSock);
+            self::assertIsString($sentWire);
+            self::assertStringContainsString("\$4\r\nEVAL\r\n", $sentWire);
+        } finally {
+            fclose($serverSock);
+        }
     }
 }

@@ -203,11 +203,31 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         $server = $request->getServerParams();
         $remote = $server['REMOTE_ADDR'] ?? null;
         if (!is_string($remote) || '' === trim($remote)) {
-            // In-process TestClient / CLI calls without a network socket
-            return true;
+            // Only permit missing REMOTE_ADDR for in-process CLI / TestClient invocations
+            if ('cli' !== PHP_SAPI) {
+                return false;
+            }
+        } elseif (!in_array(strtolower(trim($remote)), ['127.0.0.1', '::1', 'localhost', '::ffff:127.0.0.1'], true)) {
+            return false;
         }
 
-        return in_array(strtolower(trim($remote)), ['127.0.0.1', '::1', 'localhost', '::ffff:127.0.0.1'], true);
+        // Defend against DNS rebinding: reject any non-loopback Host header or URI host
+        $loopbackHosts = ['127.0.0.1', 'localhost', '[::1]', '::1'];
+        $uriHost = strtolower(trim($request->getUri()->getHost()));
+        if ('' !== $uriHost && !in_array($uriHost, $loopbackHosts, true)) {
+            return false;
+        }
+
+        $hostHeader = trim($request->getHeaderLine('Host'));
+        if ('' !== $hostHeader) {
+            $parsedHost = parse_url('http://' . $hostHeader, PHP_URL_HOST);
+            $normalizedHost = is_string($parsedHost) ? strtolower($parsedHost) : '';
+            if ('' === $normalizedHost || !in_array($normalizedHost, $loopbackHosts, true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function isSameOriginMutatingRequest(ServerRequestInterface $request): bool
@@ -222,7 +242,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             $parsed = parse_url($origin);
             $originHost = is_array($parsed) && is_string($parsed['host'] ?? null) ? strtolower($parsed['host']) : '';
             $reqHost = strtolower($request->getUri()->getHost());
-            $allowedHosts = array_unique(array_filter([$reqHost, '127.0.0.1', 'localhost', '::1'], static fn(string $h): bool => '' !== $h));
+            $allowedHosts = $this->loopbackOnly
+                ? ['127.0.0.1', 'localhost', '[::1]', '::1']
+                : array_unique(array_filter([$reqHost, '127.0.0.1', 'localhost', '[::1]', '::1'], static fn(string $h): bool => '' !== $h));
             if ('' === $originHost || !in_array($originHost, $allowedHosts, true)) {
                 return false;
             }

@@ -7,11 +7,91 @@ namespace Kongono\Jobs;
 use Kongono\Core\Cache\RedisClient;
 
 /**
- * Zero-dependency Redis / Valkey distributed queue driver with delayed sorted sets,
- * lease expiration reclaim, and generation + lease-token fencing.
+ * Zero-dependency Redis / Valkey distributed queue driver with atomic server-side Lua scripts
+ * for delayed sorted sets, lease expiration reclaim, and generation + lease-token fencing.
  */
 final readonly class RedisQueueDriver implements QueueDriverInterface
 {
+    private const string LUA_RESERVE = <<<'LUA'
+local pendingKey = KEYS[1]
+local reservedKey = KEYS[2]
+local jobsKey = KEYS[3]
+local terminalKey = KEYS[4]
+local nowTs = tonumber(ARGV[1])
+local leaseUntil = tonumber(ARGV[2])
+local leaseToken = ARGV[3]
+
+for _ = 1, 32 do
+    local sourceKey = pendingKey
+    local ids = redis.call('ZRANGEBYSCORE', pendingKey, '-inf', ARGV[1], 'LIMIT', 0, 1)
+    if #ids == 0 then
+        sourceKey = reservedKey
+        ids = redis.call('ZRANGEBYSCORE', reservedKey, '-inf', ARGV[1], 'LIMIT', 0, 1)
+        if #ids == 0 then
+            return nil
+        end
+    end
+
+    local id = ids[1]
+    redis.call('ZREM', sourceKey, id)
+    local raw = redis.call('HGET', jobsKey, id)
+    if raw then
+        local ok, job = pcall(cjson.decode, raw)
+        if ok and type(job) == 'table' then
+            local attempt = tonumber(job.attempt) or 0
+            local maxAttempts = tonumber(job.max_attempts) or 1
+            local gen = tonumber(job.generation) or 0
+            if attempt >= maxAttempts then
+                job.status = 'dead'
+                job.generation = gen + 1
+                job.lease_token = cjson.null
+                job.lease_until = cjson.null
+                if job.last_error == nil or job.last_error == cjson.null then
+                    job.last_error = 'Job exceeded maxAttempts after lease expiration.'
+                end
+                redis.call('HSET', jobsKey, id, cjson.encode(job))
+                redis.call('ZADD', terminalKey, nowTs, id)
+            else
+                job.attempt = attempt + 1
+                job.generation = gen + 1
+                job.lease_token = leaseToken
+                job.lease_until = leaseUntil
+                job.status = 'reserved'
+                local updated = cjson.encode(job)
+                redis.call('HSET', jobsKey, id, updated)
+                redis.call('ZADD', reservedKey, leaseUntil, id)
+                return updated
+            end
+        end
+    end
+end
+return nil
+LUA;
+
+    private const string LUA_TRANSITION = <<<'LUA'
+local reservedKey = KEYS[1]
+local targetZsetKey = KEYS[2]
+local jobsKey = KEYS[3]
+local jobId = ARGV[1]
+local expectedGen = tonumber(ARGV[2])
+local expectedToken = ARGV[3]
+local targetScore = tonumber(ARGV[4])
+local newJobJson = ARGV[5]
+
+local raw = redis.call('HGET', jobsKey, jobId)
+if not raw then return 0 end
+local ok, job = pcall(cjson.decode, raw)
+if not ok or type(job) ~= 'table' then return 0 end
+if job.status ~= 'reserved' then return 0 end
+if tonumber(job.generation) ~= expectedGen then return 0 end
+if tostring(job.lease_token or '') ~= expectedToken then return 0 end
+
+redis.call('ZREM', reservedKey, jobId)
+redis.call('HSET', jobsKey, jobId, newJobJson)
+redis.call('ZADD', targetZsetKey, targetScore, jobId)
+return 1
+LUA;
+
     public function __construct(
         private RedisClient $redis,
         private string $prefix = 'kongono:queue:',
@@ -52,128 +132,62 @@ final readonly class RedisQueueDriver implements QueueDriverInterface
     public function reserve(string $queue, int $leaseSeconds = 60, ?int $now = null): ?Job
     {
         $ts = $now ?? time();
+        $leaseUntil = $ts + max(1, $leaseSeconds);
+        $token = bin2hex(random_bytes(12));
 
-        for ($scan = 0; $scan < 32; ++$scan) {
-            $candidateId = null;
+        $raw = $this->redis->eval(
+            self::LUA_RESERVE,
+            [
+                $this->key($queue, 'pending'),
+                $this->key($queue, 'reserved'),
+                $this->key($queue, 'jobs'),
+                $this->key($queue, 'terminal'),
+            ],
+            [(string) $ts, (string) $leaseUntil, $token],
+        );
 
-            $due = $this->redis->zRangeByScore($this->key($queue, 'pending'), '-inf', (string) $ts, 1);
-            if ([] !== $due) {
-                $id = $due[0];
-                // Atomic ZREM ownership claim: only the winning worker receives 1
-                if (1 === $this->redis->zRem($this->key($queue, 'pending'), $id)) {
-                    $candidateId = $id;
-                } else {
-                    continue;
-                }
-            } else {
-                $expired = $this->redis->zRangeByScore($this->key($queue, 'reserved'), '-inf', (string) $ts, 1);
-                if ([] === $expired) {
-                    return null;
-                }
-                $id = $expired[0];
-                if (1 === $this->redis->zRem($this->key($queue, 'reserved'), $id)) {
-                    $candidateId = $id;
-                } else {
-                    continue;
-                }
-            }
-
-            $current = $this->loadJob($queue, $candidateId);
-            if (null === $current) {
-                continue;
-            }
-
-            // Defend against poison-pill infinite retry loops when expired leases exhaust maxAttempts
-            if ($current->attempt >= $current->maxAttempts) {
-                $dead = new Job(
-                    id: $current->id,
-                    queue: $current->queue,
-                    type: $current->type,
-                    payload: $current->payload,
-                    attempt: $current->attempt,
-                    maxAttempts: $current->maxAttempts,
-                    generation: $current->generation + 1,
-                    leaseToken: null,
-                    availableAt: $current->availableAt,
-                    leaseUntil: null,
-                    status: JobStatus::Dead,
-                    lastError: $current->lastError ?? 'Job exceeded maxAttempts after lease expiration.',
-                );
-                $this->saveJob($queue, $dead);
-                $this->redis->zAdd($this->key($queue, 'terminal'), (float) $ts, $dead->id);
-                continue;
-            }
-
-            $leaseUntil = $ts + max(1, $leaseSeconds);
-            $reserved = new Job(
-                id: $current->id,
-                queue: $current->queue,
-                type: $current->type,
-                payload: $current->payload,
-                attempt: $current->attempt + 1,
-                maxAttempts: $current->maxAttempts,
-                generation: $current->generation + 1,
-                leaseToken: bin2hex(random_bytes(12)),
-                availableAt: $current->availableAt,
-                leaseUntil: $leaseUntil,
-                status: JobStatus::Reserved,
-                lastError: $current->lastError,
-            );
-
-            $this->saveJob($queue, $reserved);
-            $this->redis->zAdd($this->key($queue, 'reserved'), (float) $leaseUntil, $reserved->id);
-
-            return $reserved;
-        }
-
-        return null;
+        return is_string($raw) ? $this->decodeJob($raw) : null;
     }
 
     public function acknowledge(Job $job): bool
     {
-        $current = $this->loadJob($job->queue, $job->id);
-        if (null === $current || !$this->fenceMatches($current, $job)) {
+        if (null === $job->leaseToken) {
             return false;
         }
 
         $completed = new Job(
-            id: $current->id,
-            queue: $current->queue,
-            type: $current->type,
-            payload: $current->payload,
-            attempt: $current->attempt,
-            maxAttempts: $current->maxAttempts,
-            generation: $current->generation,
+            id: $job->id,
+            queue: $job->queue,
+            type: $job->type,
+            payload: $job->payload,
+            attempt: $job->attempt,
+            maxAttempts: $job->maxAttempts,
+            generation: $job->generation,
             leaseToken: null,
-            availableAt: $current->availableAt,
+            availableAt: $job->availableAt,
             leaseUntil: null,
             status: JobStatus::Completed,
             lastError: null,
         );
 
-        $this->redis->zRem($this->key($job->queue, 'reserved'), $job->id);
-        $this->saveJob($job->queue, $completed);
-        $this->redis->zAdd($this->key($job->queue, 'terminal'), (float) time(), $job->id);
-
-        return true;
+        return $this->atomicTransition($job, $this->key($job->queue, 'terminal'), time(), $completed);
     }
 
     public function releaseForRetry(Job $job, int $delaySeconds, ?string $error = null, ?int $now = null): bool
     {
-        $current = $this->loadJob($job->queue, $job->id);
-        if (null === $current || !$this->fenceMatches($current, $job)) {
+        if (null === $job->leaseToken) {
             return false;
         }
 
         $nextAt = ($now ?? time()) + max(0, $delaySeconds);
         $retried = new Job(
-            id: $current->id,
-            queue: $current->queue,
-            type: $current->type,
-            payload: $current->payload,
-            attempt: $current->attempt,
-            maxAttempts: $current->maxAttempts,
-            generation: $current->generation,
+            id: $job->id,
+            queue: $job->queue,
+            type: $job->type,
+            payload: $job->payload,
+            attempt: $job->attempt,
+            maxAttempts: $job->maxAttempts,
+            generation: $job->generation,
             leaseToken: null,
             availableAt: $nextAt,
             leaseUntil: null,
@@ -181,40 +195,31 @@ final readonly class RedisQueueDriver implements QueueDriverInterface
             lastError: $error,
         );
 
-        $this->redis->zRem($this->key($job->queue, 'reserved'), $job->id);
-        $this->saveJob($job->queue, $retried);
-        $this->redis->zAdd($this->key($job->queue, 'pending'), (float) $nextAt, $job->id);
-
-        return true;
+        return $this->atomicTransition($job, $this->key($job->queue, 'pending'), $nextAt, $retried);
     }
 
     public function markFailed(Job $job, JobStatus $terminalStatus, ?string $error = null): bool
     {
-        $current = $this->loadJob($job->queue, $job->id);
-        if (null === $current || !$this->fenceMatches($current, $job)) {
+        if (null === $job->leaseToken) {
             return false;
         }
 
         $failed = new Job(
-            id: $current->id,
-            queue: $current->queue,
-            type: $current->type,
-            payload: $current->payload,
-            attempt: $current->attempt,
-            maxAttempts: $current->maxAttempts,
-            generation: $current->generation,
+            id: $job->id,
+            queue: $job->queue,
+            type: $job->type,
+            payload: $job->payload,
+            attempt: $job->attempt,
+            maxAttempts: $job->maxAttempts,
+            generation: $job->generation,
             leaseToken: null,
-            availableAt: $current->availableAt,
+            availableAt: $job->availableAt,
             leaseUntil: null,
             status: $terminalStatus,
             lastError: $error,
         );
 
-        $this->redis->zRem($this->key($job->queue, 'reserved'), $job->id);
-        $this->saveJob($job->queue, $failed);
-        $this->redis->zAdd($this->key($job->queue, 'terminal'), (float) time(), $job->id);
-
-        return true;
+        return $this->atomicTransition($job, $this->key($job->queue, 'terminal'), time(), $failed);
     }
 
     public function stats(string $queue): array
@@ -244,18 +249,35 @@ final readonly class RedisQueueDriver implements QueueDriverInterface
         return count($ids);
     }
 
-    private function fenceMatches(Job $current, Job $claim): bool
+    private function atomicTransition(Job $claim, string $targetZsetKey, int $targetScore, Job $nextState): bool
     {
-        return JobStatus::Reserved === $current->status
-            && $current->generation === $claim->generation
-            && null !== $current->leaseToken
-            && null !== $claim->leaseToken
-            && hash_equals($current->leaseToken, $claim->leaseToken);
+        $res = $this->redis->eval(
+            self::LUA_TRANSITION,
+            [
+                $this->key($claim->queue, 'reserved'),
+                $targetZsetKey,
+                $this->key($claim->queue, 'jobs'),
+            ],
+            [
+                $claim->id,
+                (string) $claim->generation,
+                (string) $claim->leaseToken,
+                (string) $targetScore,
+                $this->encodeJob($nextState),
+            ],
+        );
+
+        return 1 === $res;
     }
 
     private function saveJob(string $queue, Job $job): void
     {
-        $encoded = json_encode([
+        $this->redis->hSet($this->key($queue, 'jobs'), $job->id, $this->encodeJob($job));
+    }
+
+    private function encodeJob(Job $job): string
+    {
+        return json_encode([
             'id' => $job->id,
             'queue' => $job->queue,
             'type' => $job->type,
@@ -268,16 +290,7 @@ final readonly class RedisQueueDriver implements QueueDriverInterface
             'lease_until' => $job->leaseUntil,
             'status' => $job->status->value,
             'last_error' => $job->lastError,
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-
-        $this->redis->hSet($this->key($queue, 'jobs'), $job->id, $encoded);
-    }
-
-    private function loadJob(string $queue, string $id): ?Job
-    {
-        $raw = $this->redis->hGet($this->key($queue, 'jobs'), $id);
-
-        return null === $raw ? null : $this->decodeJob($raw);
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES, 64);
     }
 
     private function decodeJob(string $raw): ?Job

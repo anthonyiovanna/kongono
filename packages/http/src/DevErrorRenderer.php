@@ -16,7 +16,7 @@ use Throwable;
  */
 final class DevErrorRenderer
 {
-    private const array REDACTED_HEADERS = ['authorization', 'cookie', 'set-cookie', 'x-api-key', 'proxy-authorization'];
+    private const array REDACTED_HEADERS = ['authorization', 'cookie', 'set-cookie', 'x-api-key', 'x-csrf-token', 'proxy-authorization'];
 
     public function render(Request $request, Throwable $exception): string
     {
@@ -172,7 +172,8 @@ HTML;
             sprintf('<tr><th>Method &amp; Path</th><td class="mono">%s %s</td></tr>', $this->esc($request->method()), $this->esc($request->path())),
         ];
         foreach ($request->getHeaders() as $name => $values) {
-            $val = in_array(strtolower($name), self::REDACTED_HEADERS, true)
+            $isSensitive = in_array(strtolower($name), self::REDACTED_HEADERS, true) || SecretScrubber::isSensitiveKey($name);
+            $val = $isSensitive
                 ? '[REDACTED]'
                 : SecretScrubber::scrub(implode(', ', $values));
             $rows[] = sprintf('<tr><th>%s</th><td class="mono">%s</td></tr>', $this->esc($name), $this->esc($val));

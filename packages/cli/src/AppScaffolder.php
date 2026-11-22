@@ -37,13 +37,13 @@ final class AppScaffolder
                 'type' => 'project',
                 'require' => [
                     'php' => '>=8.5.0',
-                    'kongono/framework' => '^1.4',
+                    'kongono/framework' => '^1.6',
                 ],
                 'autoload' => [
                     'psr-4' => ['App\\' => 'src/'],
                 ],
             ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
-            '.env.example' => "APP_ENV=local\nAPP_DEBUG=true\n# Run `php vendor/bin/kongo key:generate` and place the generated key in your untracked .env file:\nAPP_KEY=REPLACE_WITH_kongo_key_generate\n# Set any one AI provider for Oshie, Chie & Hantei:\n# OPENAI_API_KEY=\n# ANTHROPIC_API_KEY=\n# GEMINI_API_KEY=\n# OLLAMA_HOST=http://127.0.0.1:11434\n",
+            '.env.example' => "APP_ENV=local\nAPP_DEBUG=false\n# Run `php vendor/bin/kongo key:generate` and place the generated key in your untracked .env file:\nAPP_KEY=REPLACE_WITH_kongo_key_generate\n# Set any one AI provider for Oshie, Chie & Hantei:\n# OPENAI_API_KEY=\n# ANTHROPIC_API_KEY=\n# GEMINI_API_KEY=\n# OLLAMA_HOST=http://127.0.0.1:11434\n",
             'app/bootstrap.php' => <<<PHP
 <?php
 
@@ -61,7 +61,7 @@ use Kongono\Security\Middleware\SecurityHeadersMiddleware;
 \$baseDir = dirname(__DIR__);
 EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
 
-\$debug = filter_var(Config::env('APP_DEBUG') ?? 'true', FILTER_VALIDATE_BOOL);
+\$debug = filter_var(Config::env('APP_DEBUG') ?? 'false', FILTER_VALIDATE_BOOL);
 \$inspector = new DevInspector();
 \$health = (new HealthCheck())->check('runtime', static fn(): bool => true);
 
@@ -114,7 +114,7 @@ if (function_exists('frankenphp_handle_request')) {
 
 PHP,
             'Caddyfile' => "{\n    frankenphp {\n        worker ./public/worker.php\n    }\n}\n\n:8080 {\n    root * ./public\n    encode zstd br gzip\n    php_server\n}\n",
-            'Dockerfile' => "FROM dunglas/frankenphp:php8.5\nWORKDIR /app\nCOPY . /app\nEXPOSE 8080\nCMD [\"frankenphp\", \"run\", \"--config\", \"/app/Caddyfile\"]\n",
+            'Dockerfile' => "FROM dunglas/frankenphp:php8.5\nENV APP_ENV=production APP_DEBUG=false SESSION_SECURE=true\nWORKDIR /app\nCOPY . /app\nEXPOSE 8080\nCMD [\"frankenphp\", \"run\", \"--config\", \"/app/Caddyfile\"]\n",
             '.dockerignore' => ".git\n.env\n.env.*\n!.env.example\n/var\n/tests\n/vendor\n",
             'src/Http/HomeController.php' => <<<PHP
 <?php

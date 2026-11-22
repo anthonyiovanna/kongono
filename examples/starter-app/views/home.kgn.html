@@ -25,6 +25,7 @@
 
   <x-card title="Create a Note">
     <form method="POST" action="/notes">
+      <input type="hidden" name="_csrf" value="{{ $csrfToken }}">
       <label>Title <input type="text" name="title" required minlength="3" maxlength="120"></label>
       <label>Body <textarea name="body" rows="3" required></textarea></label>
       <button type="submit">Save Note</button>

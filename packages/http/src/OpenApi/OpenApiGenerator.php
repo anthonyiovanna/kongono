@@ -41,7 +41,7 @@ final class OpenApiGenerator
                     continue;
                 }
                 $lower = strtolower($method);
-                $operation = $this->buildOperation($route, $schemas);
+                $operation = $this->buildOperation($route, $schemas, $app, $method);
                 $paths[$openApiPath][$lower] = $operation;
             }
         }
@@ -76,7 +76,7 @@ final class OpenApiGenerator
      * @param array<string, array<string, mixed>> $schemas
      * @return array<string, mixed>
      */
-    private function buildOperation(Route $route, array &$schemas): array
+    private function buildOperation(Route $route, array &$schemas, App $app, string $method): array
     {
         $operation = [
             'operationId' => $route->routeName() ?? strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', '_', $route->path)),
@@ -102,6 +102,9 @@ final class OpenApiGenerator
             ? new ReflectionFunction($route->handler)
             : new ReflectionMethod($route->handler[0], $route->handler[1]);
 
+        $registeredBindings = $app->container()->registeredBindings();
+        $allowsBody = !in_array(strtoupper($method), ['GET', 'HEAD', 'OPTIONS'], true);
+
         foreach ($reflection->getParameters() as $param) {
             $type = $param->getType();
             if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
@@ -111,7 +114,7 @@ final class OpenApiGenerator
             if (Request::class === $typeName || ServerRequestInterface::class === $typeName || !class_exists($typeName)) {
                 continue;
             }
-            if ($this->isInputDto($typeName)) {
+            if ($allowsBody && $this->isInputDto($typeName, $registeredBindings)) {
                 $shortName = (new ReflectionClass($typeName))->getShortName();
                 $schemas[$shortName] = $this->buildDtoSchema($typeName);
                 $operation['requestBody'] = [
@@ -133,25 +136,64 @@ final class OpenApiGenerator
         return $operation;
     }
 
-    /** @param class-string $className */
-    private function isInputDto(string $className): bool
+    /**
+     * @param class-string          $className
+     * @param array<string, mixed>  $registeredBindings
+     * @param array<class-string, true> $visited
+     */
+    private function isInputDto(string $className, array $registeredBindings, array $visited = [], int $depth = 0): bool
     {
+        // Exclude internal classes, framework/security classes (Principal, Session, etc.), and container services
+        if ((str_starts_with($className, 'Kongono\\') && !str_contains($className, '\\Tests\\')) || array_key_exists($className, $registeredBindings) || $depth > 16) {
+            return false;
+        }
+        if (isset($visited[$className])) {
+            return true;
+        }
+
         $ref = new ReflectionClass($className);
-        if (!$ref->isInstantiable()) {
+        if (!$ref->isInstantiable() || $ref->isInternal()) {
             return false;
         }
         $ctor = $ref->getConstructor();
         if (null === $ctor || 0 === $ctor->getNumberOfParameters()) {
             return false;
         }
+
+        $visited[$className] = true;
+        $hasRequiredOrValidated = false;
         foreach ($ctor->getParameters() as $p) {
             $type = $p->getType();
-            if ($type instanceof ReflectionNamedType && $type->isBuiltin()) {
-                return true;
+            if (!$type instanceof ReflectionNamedType) {
+                return false;
+            }
+            $isField = false;
+            if ($type->isBuiltin()) {
+                $isField = true;
+            } else {
+                $pType = $type->getName();
+                if (is_subclass_of($pType, \BackedEnum::class)) {
+                    $isField = true;
+                } elseif (class_exists($pType) && $this->isInputDto($pType, $registeredBindings, $visited, $depth + 1)) {
+                    $isField = true;
+                }
+            }
+            if (!$isField) {
+                return false;
+            }
+            if (!$p->isDefaultValueAvailable()) {
+                $hasRequiredOrValidated = true;
+            } else {
+                foreach ($p->getAttributes() as $a) {
+                    if (str_starts_with($a->getName(), 'Kongono\\Validation\\Attributes\\')) {
+                        $hasRequiredOrValidated = true;
+                        break;
+                    }
+                }
             }
         }
 
-        return false;
+        return $hasRequiredOrValidated;
     }
 
     /**
@@ -204,11 +246,15 @@ final class OpenApiGenerator
 
         $attrs = [];
         foreach ($param->getAttributes() as $a) {
-            $attrs[] = $a->newInstance();
+            if (str_starts_with($a->getName(), 'Kongono\\Validation\\Attributes\\')) {
+                $attrs[] = $a->newInstance();
+            }
         }
         if ($class->hasProperty($name)) {
             foreach ($class->getProperty($name)->getAttributes() as $a) {
-                $attrs[] = $a->newInstance();
+                if (str_starts_with($a->getName(), 'Kongono\\Validation\\Attributes\\')) {
+                    $attrs[] = $a->newInstance();
+                }
             }
         }
 

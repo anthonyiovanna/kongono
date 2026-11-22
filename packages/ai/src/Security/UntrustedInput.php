@@ -25,10 +25,10 @@ final readonly class UntrustedInput
     public function sanitized(): string
     {
         $clean = self::normalizeForInspection($this->content);
-        $clean = (string) preg_replace('/\[\s*KONGONO\s+SECURITY\s+BOUNDARY\s*\]/i', '[neutralized-boundary]', $clean);
+        $clean = (string) preg_replace('/\[\s*KONGONO\s+SECURITY\s+BOUNDARY\s*\]/iu', '[neutralized-boundary]', $clean);
 
         return (string) preg_replace(
-            '#<\s*/?\s*(untrusted_data|system|instructions|assistant|developer)\b[^>]*>#i',
+            '#<\s*/?\s*(untrusted_data|system|instructions|assistant|developer)\b[^>]*>#iu',
             '[neutralized-tag]',
             $clean,
         );
@@ -36,7 +36,8 @@ final readonly class UntrustedInput
 
     /**
      * Scrub invalid UTF-8 first (so invalid bytes can never disable PCRE /u mode), strip invisible/format/tag
-     * Unicode obfuscators, and fold fullwidth ASCII + alternate angle/slash homoglyphs.
+     * Unicode obfuscators (including Variation Selectors Supplement), fold Unicode spaces (\p{Zs}), and fold
+     * fullwidth ASCII + alternate angle/slash homoglyphs.
      */
     public static function normalizeForInspection(string $raw): string
     {
@@ -46,14 +47,20 @@ final readonly class UntrustedInput
             : (string) iconv('UTF-8', 'UTF-8//IGNORE', $raw);
         $clean = str_replace("\0", '', $clean);
 
-        // Strip C0 controls (except \t, \n, \r), all Unicode Cf format chars, CGJ, fillers, variation selectors, and Unicode Tag block (U+E0000..U+E007F)
+        // Strip C0 controls (except \t, \n, \r), all Unicode Cf format chars, CGJ, fillers, variation selectors (BMP + Supplement), and Unicode Tag block
         $stripped = preg_replace(
-            '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\p{Cf}\x{034F}\x{115F}\x{1160}\x{180E}\x{3164}\x{FE00}-\x{FE0F}\x{FFA0}\x{E0000}-\x{E007F}]/u',
+            '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\p{Cf}\x{034F}\x{115F}\x{1160}\x{180E}\x{3164}\x{FE00}-\x{FE0F}\x{FFA0}\x{E0000}-\x{E007F}\x{E0100}-\x{E01EF}]/u',
             '',
             $clean,
         );
         if (is_string($stripped)) {
             $clean = $stripped;
+        }
+
+        // Fold Unicode space separators (NBSP, thin/hair/ideographic spaces, etc.) to ASCII space
+        $spaced = preg_replace('/\p{Zs}+/u', ' ', $clean);
+        if (is_string($spaced)) {
+            $clean = $spaced;
         }
 
         // Fold fullwidth ASCII forms (U+FF01..U+FF5E -> ASCII !..~)

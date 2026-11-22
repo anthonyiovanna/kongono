@@ -158,7 +158,13 @@ final readonly class Uri implements UriInterface
         if ('' !== $authority) {
             $uri .= '//' . $authority;
         }
-        $uri .= $this->path;
+        $path = $this->path;
+        if ('' !== $authority && '' !== $path && !str_starts_with($path, '/')) {
+            $path = '/' . $path;
+        } elseif ('' === $authority && str_starts_with($path, '//')) {
+            $path = '/' . ltrim($path, '/');
+        }
+        $uri .= $path;
         if ('' !== $this->query) {
             $uri .= '?' . $this->query;
         }

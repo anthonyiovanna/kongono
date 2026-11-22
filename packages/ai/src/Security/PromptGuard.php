@@ -18,11 +18,11 @@ final readonly class PromptGuard
 
     /** @var array<string, string> */
     private const array INJECTION_PATTERNS = [
-        'ignore_previous_instructions' => '/\b(ignore|disregard|forget)\s+(all\s+)?(previous|prior|above)\s+(instructions|prompts|rules)\b/i',
-        'system_prompt_extraction' => '/\b(reveal|print|show|dump|output|repeat)\s+(your\s+)?(system\s+prompt|hidden\s+instructions|secret\s+canary|developer\s+prompt)\b/i',
-        'role_override' => '/\b(you\s+are\s+now|act\s+as\s+root|override\s+safety|enter\s+developer\s+mode|jailbreak)\b/i',
-        'tool_exfiltration' => '/\b(exfiltrate|send\s+.{0,40}\s+to\s+https?:\/\/|curl\s+https?:\/\/|read\s+\.env)\b/i',
-        'delimiter_escape' => '#<\s*/\s*(untrusted_data|system|instructions)\s*>#i',
+        'ignore_previous_instructions' => '/\b(ignore|disregard|forget)\s+(all\s+)?(previous|prior|above)\s+(instructions|prompts|rules)\b/iu',
+        'system_prompt_extraction' => '/\b(reveal|print|show|dump|output|repeat)\s+(your\s+)?(system\s+prompt|hidden\s+instructions|secret\s+canary|developer\s+prompt)\b/iu',
+        'role_override' => '/\b(you\s+are\s+now|act\s+as\s+root|override\s+safety|enter\s+developer\s+mode|jailbreak)\b/iu',
+        'tool_exfiltration' => '/\b(exfiltrate|send\s+.{0,40}\s+to\s+https?:\/\/|curl\s+https?:\/\/|read\s+\.env)\b/iu',
+        'delimiter_escape' => '#<\s*/\s*(untrusted_data|system|instructions)\s*>#iu',
     ];
 
     /**

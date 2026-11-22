@@ -10,6 +10,18 @@ use Kongono\Database\Dialect;
 /** Column definition builder inside Schema::create(). */
 final class ColumnDefinition
 {
+    /** @var list<string> */
+    private const array ALLOWED_BASE_TYPES = [
+        'INT', 'INTEGER', 'BIGINT', 'SMALLINT', 'TINYINT', 'MEDIUMINT',
+        'SERIAL', 'BIGSERIAL', 'SMALLSERIAL',
+        'VARCHAR', 'CHAR', 'CHARACTER VARYING', 'TEXT', 'TINYTEXT', 'MEDIUMTEXT', 'LONGTEXT',
+        'BOOLEAN', 'BOOL',
+        'NUMERIC', 'DECIMAL', 'REAL', 'FLOAT', 'DOUBLE', 'DOUBLE PRECISION',
+        'DATE', 'TIME', 'TIMESTAMP', 'TIMESTAMPTZ', 'TIMESTAMP WITH TIME ZONE', 'TIMESTAMP WITHOUT TIME ZONE', 'DATETIME',
+        'JSON', 'JSONB', 'UUID', 'BYTEA', 'BLOB', 'BINARY', 'VARBINARY', 'INET', 'CIDR', 'VECTOR',
+    ];
+
+    public readonly string $type;
     private bool $nullable = false;
     private bool $unique = false;
     private bool $primary = false;
@@ -18,12 +30,21 @@ final class ColumnDefinition
 
     public function __construct(
         public readonly string $name,
-        public readonly string $type,
+        string $type,
         public readonly bool $autoIncrement = false,
     ) {
-        if ('' === trim($type) || 1 !== preg_match('/\A[A-Za-z][A-Za-z0-9_ ]*(?:\(\d+(?:,\s*\d+)?\))?\z/', trim($type))) {
+        if (1 === preg_match('/[\x00-\x1f\x7f]/', $type)) {
+            throw new DatabaseException('Unsafe SQL column type containing control characters rejected.');
+        }
+        $normalized = trim((string) preg_replace('/\s+/', ' ', trim($type)));
+        if (1 !== preg_match('/\A([A-Za-z][A-Za-z ]*[A-Za-z]|[A-Za-z])(?:\((\d+(?:,\s*\d+)?)\))?\z/', $normalized, $m)) {
             throw new DatabaseException(sprintf('Unsafe SQL column type "%s" rejected.', $type));
         }
+        $baseType = strtoupper(trim($m[1]));
+        if (!in_array($baseType, self::ALLOWED_BASE_TYPES, true)) {
+            throw new DatabaseException(sprintf('Unsafe SQL column type "%s" rejected.', $type));
+        }
+        $this->type = isset($m[2]) ? $baseType . '(' . $m[2] . ')' : $baseType;
     }
 
     public function nullable(bool $value = true): self

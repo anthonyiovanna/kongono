@@ -583,4 +583,134 @@ final class QueryBuilderTest extends TestCase
         $this->expectExceptionMessage('Unsafe SQL column type');
         (new ColumnDefinition('evil', 'INT; DROP TABLE users'))->toSql(Dialect::Postgres);
     }
+
+    public function testRound4TenantUpdateUpsertBypassPdoTlsColumnAllowlistQueryGuardAndDialectWildcard(): void
+    {
+        // 1. toUpdateSql() blocks overwriting the tenant column (case-insensitively)
+        foreach (['workspace_id', 'WORKSPACE_ID'] as $col) {
+            try {
+                (new QueryBuilder('invoices', Dialect::Postgres))
+                    ->forTenant(42)
+                    ->where('id', '=', 10)
+                    ->toUpdateSql([$col => 999, 'status' => 'paid']);
+                self::fail('Expected tenant column overwrite in UPDATE to fail for ' . $col);
+            } catch (DatabaseException $e) {
+                self::assertStringContainsString('cannot modify tenant column', strtolower($e->getMessage()));
+            }
+        }
+
+        // 2. toUpsertSql() enforces requireTenant() (both missing row tenant AND missing forTenant() scope), blocks case-insensitive tenant update, and emits MySQL conditional IF() guard
+        try {
+            (new QueryBuilder('invoices', Dialect::Postgres))
+                ->requireTenant('workspace_id')
+                ->toUpsertSql([['id' => 1, 'title' => 'A']], ['id'], ['title']);
+            self::fail('Expected unscoped requireTenant() UPSERT without tenant column to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('Refusing cross-tenant INSERT', $e->getMessage());
+        }
+
+        try {
+            (new QueryBuilder('invoices', Dialect::Postgres))
+                ->requireTenant('workspace_id')
+                ->toUpsertSql([['id' => 1, 'workspace_id' => 42, 'title' => 'A']], ['id'], ['title']);
+            self::fail('Expected requireTenant() UPSERT without forTenant() conflict guard to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('Refusing UPSERT with DO UPDATE', $e->getMessage());
+        }
+
+        try {
+            (new QueryBuilder('invoices', Dialect::Postgres))
+                ->forTenant(42)
+                ->toUpsertSql([['id' => 1, 'title' => 'A']], ['id'], ['WORKSPACE_ID']);
+            self::fail('Expected case-insensitive tenant column update in UPSERT to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('cannot overwrite tenant column', strtolower($e->getMessage()));
+        }
+
+        // MySQL UPSERT refuses missing tenant column in conflictColumns AND wraps updates in conditional IF() guard
+        try {
+            (new QueryBuilder('invoices', Dialect::Mysql))
+                ->forTenant(42)
+                ->toUpsertSql([['id' => 1, 'title' => 'Unsafe']], ['id'], ['title']);
+            self::fail('Expected MySQL UPSERT without tenant in conflictColumns to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('Refusing MySQL UPSERT', $e->getMessage());
+        }
+
+        $mysqlUpsert = (new QueryBuilder('invoices', Dialect::Mysql))
+            ->forTenant(42)
+            ->toUpsertSql([['id' => 1, 'title' => 'Safe']], ['id', 'workspace_id'], ['title']);
+        self::assertStringContainsString('IF(`workspace_id` = ?, VALUES(`title`), `title`)', $mysqlUpsert->query);
+        self::assertSame([1, 'Safe', 42, 42], $mysqlUpsert->bindings);
+
+        // Qualified tenant column normalized cleanly on insert conflict check
+        try {
+            (new QueryBuilder('invoices', Dialect::Postgres))
+                ->forTenant(42, 'invoices.workspace_id')
+                ->toInsertSql(['workspace_id' => 999, 'title' => 'Hijack']);
+            self::fail('Expected qualified tenant column conflict check to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('conflicts with active forTenant() scope', $e->getMessage());
+        }
+
+        // Empty tenant ID rejected
+        try {
+            (new QueryBuilder('invoices', Dialect::Postgres))->forTenant('');
+            self::fail('Expected empty tenant ID to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('cannot be empty', $e->getMessage());
+        }
+
+        // Changing required tenant column via requireTenant() after forTenant() resets scoped state
+        try {
+            (new QueryBuilder('invoices', Dialect::Postgres))
+                ->forTenant(42, 'workspace_id')
+                ->requireTenant('org_id')
+                ->toSelectSql();
+            self::fail('Expected requireTenant() with a new column to require scoping on the new column.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('Refusing cross-tenant SELECT', $e->getMessage());
+        }
+
+        // 3. PdoConnection::fromUrl() rejects unsafe sslmode and NUL bytes in SQLite URL
+        try {
+            PdoConnection::fromUrl('postgres://user:pass@127.0.0.1:5432/app?sslmode=disable;host=evil');
+            self::fail('Expected invalid sslmode to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('sslmode', $e->getMessage());
+        }
+        try {
+            PdoConnection::fromUrl("sqlite:///tmp/app\0.db");
+            self::fail('Expected SQLite NUL byte URL to fail.');
+        } catch (DatabaseException) {
+            self::addToAssertionCount(1);
+        }
+        try {
+            PdoConnection::sqlite("/tmp/app\0.db");
+            self::fail('Expected SQLite NUL byte path to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('NUL', $e->getMessage());
+        }
+
+        // 4. ColumnDefinition enforces strict SQL type allowlist and rejects NUL bytes
+        foreach (["VARCHAR(255)\0", 'TEXT DEFAULT CURRENT_USER REFERENCES users'] as $badType) {
+            try {
+                (new ColumnDefinition('bio', $badType))->toSql(Dialect::Postgres);
+                self::fail('Expected unsafe ColumnDefinition type to fail: ' . $badType);
+            } catch (DatabaseException $e) {
+                self::assertStringContainsString('Unsafe SQL column type', $e->getMessage());
+            }
+        }
+
+        // 5. QueryGuard::normalizeSql() handles large 10KB string literals without PCRE stack overflow
+        $bigSql = "SELECT * FROM notes WHERE body = '" . str_repeat('a', 10_000) . "' AND id = 42";
+        $normalized = QueryGuard::normalizeSql($bigSql);
+        self::assertSame('SELECT * FROM notes WHERE body = ? AND id = ?', $normalized);
+
+        // 6. Dialect::quoteIdentifier() allows table.* but rejects non-terminal *.foo
+        self::assertSame('"posts".*', Dialect::Postgres->quoteIdentifier('posts.*'));
+        $this->expectException(DatabaseException::class);
+        $this->expectExceptionMessage('Unsafe SQL identifier');
+        Dialect::Postgres->quoteIdentifier('*.foo');
+    }
 }

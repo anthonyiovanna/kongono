@@ -12,8 +12,10 @@ use Throwable;
 /** Strict PDO connection supporting PostgreSQL, SQLite, and MySQL with real prepared statements. */
 final class PdoConnection implements ConnectionInterface
 {
-    /** @var list<Closure(string, float): void> */
+    /** @var array<int, Closure(string, float): void> */
     private array $queryListeners = [];
+
+    private int $nextListenerId = 0;
 
     public function __construct(
         private readonly PDO $pdo,
@@ -31,9 +33,30 @@ final class PdoConnection implements ConnectionInterface
      */
     public function onQuery(Closure $listener): self
     {
-        $this->queryListeners[] = $listener;
+        $this->queryListeners[++$this->nextListenerId] = $listener;
 
         return $this;
+    }
+
+    /**
+     * Register a scoped query listener and return an unsubscribe closure (ideal for `OperationScope::defer()`).
+     *
+     * @param Closure(string, float): void $listener
+     * @return Closure(): void
+     */
+    public function listenQuery(Closure $listener): Closure
+    {
+        $id = ++$this->nextListenerId;
+        $this->queryListeners[$id] = $listener;
+
+        return function () use ($id): void {
+            unset($this->queryListeners[$id]);
+        };
+    }
+
+    public function clearQueryListeners(): void
+    {
+        $this->queryListeners = [];
     }
 
     public static function pgsql(
@@ -43,21 +66,33 @@ final class PdoConnection implements ConnectionInterface
         string $username,
         #[\SensitiveParameter]
         string $password,
+        ?string $sslMode = null,
     ): self {
         self::assertSafeDsnPart($host, 'host');
         self::assertSafeDsnPart($database, 'database');
         self::assertValidPort($port);
         $dsn = sprintf('pgsql:host=%s;port=%d;dbname=%s', $host, $port, $database);
+        if (null !== $sslMode && '' !== trim($sslMode)) {
+            $mode = strtolower(trim($sslMode));
+            if (!in_array($mode, ['disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'], true)) {
+                throw new DatabaseException(sprintf('Unsupported PostgreSQL sslmode "%s".', $sslMode));
+            }
+            $dsn .= ';sslmode=' . $mode;
+        }
 
         return new self(new PDO($dsn, $username, $password), Dialect::Postgres);
     }
 
     public static function sqlite(string $path = ':memory:'): self
     {
+        if (str_contains($path, "\0")) {
+            throw new DatabaseException('Unsafe SQLite path containing NUL byte rejected.');
+        }
+
         return new self(new PDO('sqlite:' . $path), Dialect::Sqlite);
     }
 
-    /** Connect from a standard DATABASE_URL (postgres://, mysql://, or sqlite://). */
+    /** Connect from a standard DATABASE_URL (postgres://, mysql://, or sqlite://) preserving TLS/SSL query options. */
     public static function fromUrl(#[\SensitiveParameter] string $url): self
     {
         $parts = parse_url($url);
@@ -67,7 +102,13 @@ final class PdoConnection implements ConnectionInterface
 
         $scheme = strtolower($parts['scheme']);
         if ('sqlite' === $scheme) {
-            $path = ltrim($parts['path'] ?? ':memory:', '/');
+            if (str_starts_with(strtolower($url), 'sqlite:///')) {
+                $rawPath = substr($url, strlen('sqlite://'));
+                $qPos = strpos($rawPath, '?');
+                $path = false === $qPos ? $rawPath : substr($rawPath, 0, $qPos);
+            } else {
+                $path = ltrim($parts['path'] ?? ':memory:', '/');
+            }
 
             return self::sqlite('' === $path ? ':memory:' : $path);
         }
@@ -76,9 +117,15 @@ final class PdoConnection implements ConnectionInterface
         $dbName = ltrim($parts['path'] ?? '', '/');
         $user = isset($parts['user']) ? rawurldecode($parts['user']) : '';
         $pass = isset($parts['pass']) ? rawurldecode($parts['pass']) : '';
+        $query = [];
+        if (isset($parts['query']) && '' !== $parts['query']) {
+            parse_str($parts['query'], $query);
+        }
 
         if ('postgres' === $scheme || 'postgresql' === $scheme || 'pgsql' === $scheme) {
-            return self::pgsql($host, $parts['port'] ?? 5432, $dbName, $user, $pass);
+            $sslMode = is_string($query['sslmode'] ?? null) ? $query['sslmode'] : null;
+
+            return self::pgsql($host, $parts['port'] ?? 5432, $dbName, $user, $pass, $sslMode);
         }
 
         if ('mysql' === $scheme) {
@@ -87,8 +134,33 @@ final class PdoConnection implements ConnectionInterface
             self::assertSafeDsnPart($dbName, 'database');
             self::assertValidPort($mysqlPort);
             $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $host, $mysqlPort, $dbName);
+            $options = [];
+            $sslModeRaw = is_string($query['ssl-mode'] ?? null) ? $query['ssl-mode'] : (is_string($query['sslmode'] ?? null) ? $query['sslmode'] : null);
+            $sslCa = is_string($query['sslca'] ?? null) ? $query['sslca'] : (is_string($query['sslrootcert'] ?? null) ? $query['sslrootcert'] : null);
+            if (null !== $sslCa && '' !== trim($sslCa)) {
+                if (str_contains($sslCa, "\0")) {
+                    throw new DatabaseException('Unsafe MySQL SSL CA path.');
+                }
+                if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
+                    $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+                }
+            }
+            if (null !== $sslModeRaw && '' !== trim($sslModeRaw)) {
+                $mode = strtoupper(trim($sslModeRaw));
+                if (!in_array($mode, ['DISABLED', 'PREFERRED', 'REQUIRED', 'VERIFY_CA', 'VERIFY_IDENTITY'], true)) {
+                    throw new DatabaseException(sprintf('Unsupported MySQL ssl-mode "%s".', $sslModeRaw));
+                }
+                if (in_array($mode, ['REQUIRED', 'VERIFY_CA', 'VERIFY_IDENTITY'], true)) {
+                    if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                        $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = 'REQUIRED' !== $mode;
+                    }
+                    if (!isset($options[PDO::MYSQL_ATTR_SSL_CA]) && 'REQUIRED' !== $mode) {
+                        throw new DatabaseException(sprintf('MySQL ssl-mode=%s requires sslca/sslrootcert in DATABASE_URL.', $mode));
+                    }
+                }
+            }
 
-            return new self(new PDO($dsn, $user, $pass), Dialect::Mysql);
+            return new self(new PDO($dsn, $user, $pass, $options), Dialect::Mysql);
         }
 
         throw new DatabaseException(sprintf('Unsupported DATABASE_URL scheme "%s".', $scheme));

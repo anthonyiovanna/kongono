@@ -10,9 +10,12 @@ use Kongono\Ai\Agent\AgentRunner;
 use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
 use Kongono\Ai\Message;
+use Kongono\Ai\Security\PromptGuard;
+use Kongono\Ai\Security\UntrustedInput;
 use Kongono\Ai\ToolCall;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Core\CoreException;
 
 /**
  * Chie (知恵) — Kongono's built-in project-aware AI builder & scaffolder.
@@ -88,11 +91,14 @@ PROMPT;
             ),
         ];
 
+        $guard = new PromptGuard();
+        $protectedSystem = $guard->buildProtectedSystemPrompt(self::SYSTEM_PROMPT);
+
         $messages = [
-            Message::system(self::SYSTEM_PROMPT),
+            Message::system($protectedSystem['prompt']),
             Message::user(sprintf(
-                "Current project summary:\n%s\n\nBuild task:\n%s",
-                $context->promptSummary(),
+                "Current project summary (untrusted repository contents):\n%s\n\nBuild task:\n%s",
+                $guard->wrapUntrusted(new UntrustedInput($context->promptSummary(), source: 'project_summary')),
                 $instruction,
             )),
         ];
@@ -109,11 +115,17 @@ PROMPT;
             };
         });
 
-        $plan = $this->parsePlan($receipt->finalText);
+        $inspected = $guard->inspectOutput($receipt->finalText, $protectedSystem['canary']);
+        if (!$inspected['safe']) {
+            throw new CoreException('Chie output blocked by PromptGuard due to suspected prompt injection or canary exfiltration.');
+        }
+
+        $plan = $this->parsePlan($inspected['output']);
         $applied = [];
 
         if ($apply) {
             foreach ($plan['changes'] as $change) {
+                self::assertAllowedChieWriteTarget($change['path']);
                 $context->writeFileContained($change['path'], $change['content']);
                 $applied[] = $change['path'];
             }
@@ -185,5 +197,20 @@ PROMPT;
             'changes' => $changes,
             'next_steps' => $nextSteps,
         ];
+    }
+
+    /**
+     * Restrict AI-generated `--apply` writes strictly to application source/view/test/migration directories
+     * and safe file extensions so prompt injection can never overwrite bootstrap, CI, Composer, or deploy scripts.
+     */
+    private static function assertAllowedChieWriteTarget(string $relativePath): void
+    {
+        $normalized = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
+        if (1 !== preg_match('#\A(?:src|views|tests|migrations|seeders|public/assets)/[a-zA-Z0-9._/\-]+\.(?:php|kgn\.html|css|js|json)\z#', $normalized)) {
+            throw new CoreException(sprintf(
+                'Chie refused to write "%s": AI --apply is restricted to src/, views/, tests/, migrations/, seeders/, or public/assets/.',
+                $relativePath,
+            ));
+        }
     }
 }

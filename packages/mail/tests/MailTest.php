@@ -157,4 +157,16 @@ final class MailTest extends TestCase
         $this->expectExceptionMessage('CR, LF, or NUL');
         new ResendTransport("re_test_123\r\nX-Injected: 1");
     }
+
+    public function testRound4SmtpTransportRejectsAuthorityAndControlCharsInHost(): void
+    {
+        foreach (['127.0.0.1:60130#', 'mail.example.com/evil', "mail.example.com\r\n", ''] as $badHost) {
+            try {
+                new SmtpTransport($badHost, 587);
+                self::fail('Expected SmtpTransport to reject unsafe host: ' . $badHost);
+            } catch (MailException) {
+                self::addToAssertionCount(1);
+            }
+        }
+    }
 }

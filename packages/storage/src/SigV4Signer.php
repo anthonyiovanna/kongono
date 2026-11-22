@@ -15,7 +15,17 @@ final readonly class SigV4Signer
         private string $secretAccessKey,
         private string $region = 'us-east-1',
         private string $service = 's3',
-    ) {}
+    ) {
+        if (1 !== preg_match('/\A[A-Za-z0-9._\-+=]{1,128}\z/', $accessKeyId)) {
+            throw new StorageException('Invalid S3 accessKeyId format.');
+        }
+        if (1 !== preg_match('/\A[a-z0-9][a-z0-9-]{0,62}\z/i', $region)) {
+            throw new StorageException(sprintf('Invalid S3 region "%s".', $region));
+        }
+        if (1 !== preg_match('/\A[a-z0-9-]{1,64}\z/i', $service)) {
+            throw new StorageException(sprintf('Invalid SigV4 service name "%s".', $service));
+        }
+    }
 
     /**
      * Sign an S3 HTTP request and return the complete signed header map.
@@ -46,9 +56,9 @@ final readonly class SigV4Signer
             }
             $lowerHeaders[$name] = $val;
         }
-        if ('' === trim($host) || false !== strpbrk($host, "\r\n\0 ")) {
-            throw new StorageException('Unsafe host rejected by SigV4Signer.');
-        }
+        self::assertSafeMethod($method);
+        self::assertSafeHost($host);
+        self::assertSafeCanonicalUri($canonicalUri);
         $lowerHeaders['host'] = $host;
         $lowerHeaders['x-amz-date'] = $amzDate;
         $lowerHeaders['x-amz-content-sha256'] = $payloadHash;
@@ -99,6 +109,14 @@ final readonly class SigV4Signer
         int $expiresSeconds = 900,
         ?int $timestamp = null,
     ): string {
+        self::assertSafeMethod($method);
+        $cleanScheme = strtolower(trim($scheme));
+        if ('https' !== $cleanScheme && 'http' !== $cleanScheme) {
+            throw new StorageException(sprintf('Unsupported presigned URL scheme "%s".', $scheme));
+        }
+        self::assertSafeHost($host);
+        self::assertSafeCanonicalUri($canonicalUri);
+
         $ts = $timestamp ?? time();
         $amzDate = gmdate('Ymd\THis\Z', $ts);
         $dateStamp = gmdate('Ymd', $ts);
@@ -131,7 +149,28 @@ final readonly class SigV4Signer
 
         $signature = hash_hmac('sha256', $stringToSign, $this->signingKey($dateStamp));
 
-        return sprintf('%s://%s%s?%s&X-Amz-Signature=%s', $scheme, $host, $canonicalUri, $canonicalQuery, $signature);
+        return sprintf('%s://%s%s?%s&X-Amz-Signature=%s', $cleanScheme, $host, $canonicalUri, $canonicalQuery, $signature);
+    }
+
+    private static function assertSafeMethod(string $method): void
+    {
+        if (1 !== preg_match('/\A[A-Za-z]{1,16}\z/', $method)) {
+            throw new StorageException(sprintf('Unsafe HTTP method "%s" rejected by SigV4Signer.', $method));
+        }
+    }
+
+    private static function assertSafeHost(string $host): void
+    {
+        if ('' === trim($host) || false !== strpbrk($host, " \t\r\n\0/?#@\\") || 1 !== preg_match('/\A(?:\[[0-9a-fA-F:]+\]|[a-zA-Z0-9.-]+)(?::\d{1,5})?\z/', $host)) {
+            throw new StorageException('Unsafe host rejected by SigV4Signer.');
+        }
+    }
+
+    private static function assertSafeCanonicalUri(string $uri): void
+    {
+        if ('' === $uri || !str_starts_with($uri, '/') || 1 === preg_match('/[\x00-\x1f\x7f\s?#]/', $uri)) {
+            throw new StorageException('Unsafe canonical URI rejected by SigV4Signer.');
+        }
     }
 
     private function signingKey(string $dateStamp): string

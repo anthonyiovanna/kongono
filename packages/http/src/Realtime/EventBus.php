@@ -23,9 +23,13 @@ final class EventBus
 
     private int $nextSubscriberId = 0;
 
-    /** @param positive-int $maxHistoryPerChannel */
+    /**
+     * @param positive-int $maxHistoryPerChannel
+     * @param positive-int $maxChannels
+     */
     public function __construct(
         private readonly int $maxHistoryPerChannel = 100,
+        private readonly int $maxChannels = 1000,
     ) {}
 
     /**
@@ -38,10 +42,16 @@ final class EventBus
         $id = (string) (++$this->sequence);
         $sse = SseEvent::json($payload, event: $event, id: $id);
 
-        $this->history[$channel][] = $sse;
-        if (count($this->history[$channel]) > $this->maxHistoryPerChannel) {
-            array_shift($this->history[$channel]);
+        if (!isset($this->history[$channel]) && count($this->history) >= $this->maxChannels) {
+            unset($this->history[array_key_first($this->history)]);
         }
+        $events = $this->history[$channel] ?? [];
+        unset($this->history[$channel]);
+        $events[] = $sse;
+        if (count($events) > $this->maxHistoryPerChannel) {
+            array_shift($events);
+        }
+        $this->history[$channel] = $events;
 
         foreach ($this->subscribers[$channel] ?? [] as $listener) {
             $listener($sse);

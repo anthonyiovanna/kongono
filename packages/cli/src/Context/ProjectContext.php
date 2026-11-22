@@ -223,8 +223,13 @@ final readonly class ProjectContext
             || in_array($base, self::FORBIDDEN_SECRET_FILES, true)
             || str_starts_with($lower, '.git/')
             || str_contains($lower, '/.git/')
+            || str_starts_with($lower, '.ssh/')
+            || str_contains($lower, '/.ssh/')
+            || '.aws/credentials' === $lower
+            || str_contains($lower, '/.aws/credentials')
             || str_starts_with($lower, 'var/cache/')
             || str_starts_with($lower, 'var/storage/')
+            || '.docker/config.json' === $lower
             || str_contains($lower, '/.docker/config.json');
 
         if ($forbiddenExt || $forbiddenName) {
@@ -241,8 +246,17 @@ final readonly class ProjectContext
         $forbiddenTarget = (str_starts_with($base, '.env') && '.env.example' !== $base)
             || str_starts_with($lower, '.git/')
             || str_contains($lower, '/.git/')
+            || str_starts_with($lower, '.github/')
+            || str_contains($lower, '/.github/')
+            || str_starts_with($lower, '.vscode/')
             || str_starts_with($lower, 'vendor/')
-            || 'composer.lock' === $lower
+            || str_starts_with($lower, 'deploy/')
+            || str_starts_with($lower, 'bin/')
+            || in_array($lower, ['composer.json', 'composer.lock', '.gitlab-ci.yml', 'dockerfile', 'caddyfile', '.htaccess'], true)
+            || str_starts_with($base, 'docker-compose')
+            || str_starts_with($base, '.php-cs-fixer')
+            || str_starts_with($base, 'phpunit.xml')
+            || str_starts_with($base, 'phpstan.neon')
             || in_array($base, self::FORBIDDEN_SECRET_FILES, true);
 
         if ($forbiddenExt || $forbiddenTarget) {

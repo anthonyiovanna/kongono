@@ -46,7 +46,12 @@ final class McpServer
             return $this;
         }
 
-        $handlerAttr = [] !== (new ReflectionFunction($handler))->getAttributes(RequiresApproval::class);
+        $refHandler = new ReflectionFunction($handler);
+        $scopeClass = $refHandler->getClosureScopeClass();
+        $calledClass = $refHandler->getClosureCalledClass();
+        $handlerAttr = [] !== $refHandler->getAttributes(RequiresApproval::class)
+            || (null !== $scopeClass && [] !== $scopeClass->getAttributes(RequiresApproval::class))
+            || (null !== $calledClass && [] !== $calledClass->getAttributes(RequiresApproval::class));
         $this->tools[$definition->name] = [
             'definition' => $definition,
             'handler' => $handler,
@@ -54,6 +59,12 @@ final class McpServer
         ];
 
         return $this;
+    }
+
+    /** Reset the per-session executed tool call counter (useful between isolated HTTP requests or stdio sessions). */
+    public function resetBudget(): void
+    {
+        $this->toolCallsExecuted = 0;
     }
 
     /**

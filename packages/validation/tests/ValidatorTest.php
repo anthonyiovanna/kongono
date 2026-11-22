@@ -23,6 +23,18 @@ enum Priority: string
     case High = 'high';
 }
 
+enum PureUnitStatus
+{
+    case Active;
+}
+
+final readonly class PureEnumDto
+{
+    public function __construct(
+        public PureUnitStatus $status,
+    ) {}
+}
+
 final readonly class AddressDto
 {
     public function __construct(
@@ -203,5 +215,13 @@ final class ValidatorTest extends TestCase
             self::assertArrayHasKey('count', $e->errors);
             self::assertArrayHasKey('ratio', $e->errors);
         }
+    }
+
+    public function testRound4RejectsPureUnitEnumCrashAndFrameworkClassHydration(): void
+    {
+        $validator = new Validator();
+        $this->expectException(\Kongono\Core\CoreException::class);
+        $this->expectExceptionMessage('UnitEnum');
+        $validator->validate(PureEnumDto::class, ['status' => ['Active']]);
     }
 }

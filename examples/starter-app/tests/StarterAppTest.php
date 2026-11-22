@@ -95,11 +95,40 @@ final class StarterAppTest extends TestCase
         $deleted = $app->handle(Request::create('DELETE', '/api/notes/3', ['Accept' => 'application/json']));
         self::assertSame(204, $deleted->getStatusCode());
 
-        // Multipart upload stored atomically via LocalStorage & downloaded back
-        $upload = $app->handle(Request::create(
+        // Unauthenticated upload/download fails closed 401
+        $unauthUpload = $app->handle(Request::create(
             'POST',
             '/api/upload',
             headers: ['Accept' => 'application/json'],
+            files: ['document' => UploadedFile::fromString('hello world', 'hello.txt', 'text/plain')],
+        ));
+        self::assertSame(401, $unauthUpload->getStatusCode());
+
+        // Obtain signed bearer token via registration for authenticated upload/download
+        $regRes = $app->handle(Request::json('POST', '/api/auth/register', [
+            'name' => 'Upload User',
+            'email' => 'upload@kongono.dev',
+            'password' => 'super-secure-pass-123',
+        ]));
+        self::assertSame(201, $regRes->getStatusCode());
+        $regJson = json_decode((string) $regRes->getBody(), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($regJson);
+        $bearer = 'Bearer ' . (is_string($regJson['token'] ?? null) ? $regJson['token'] : '');
+
+        // Active HTML/JS uploads are rejected with 415 (prevents same-origin Stored XSS)
+        $xssUpload = $app->handle(Request::create(
+            'POST',
+            '/api/upload',
+            headers: ['Accept' => 'application/json', 'Authorization' => $bearer],
+            files: ['document' => UploadedFile::fromString('<script>alert(1)</script>', 'evil.html', 'text/html')],
+        ));
+        self::assertSame(415, $xssUpload->getStatusCode());
+
+        // Multipart upload stored atomically via LocalStorage & downloaded back safely as sandboxed attachment
+        $upload = $app->handle(Request::create(
+            'POST',
+            '/api/upload',
+            headers: ['Accept' => 'application/json', 'Authorization' => $bearer],
             files: ['document' => UploadedFile::fromString('hello world', 'hello.txt', 'text/plain')],
         ));
         self::assertSame(201, $upload->getStatusCode());
@@ -109,9 +138,12 @@ final class StarterAppTest extends TestCase
         self::assertSame(11, $meta['size']);
         self::assertNotEmpty($meta['version']);
 
-        $downloaded = $app->handle(Request::create('GET', '/api/files/hello.txt'));
+        $downloaded = $app->handle(Request::create('GET', '/api/files/hello.txt', ['Authorization' => $bearer]));
         self::assertSame(200, $downloaded->getStatusCode());
         self::assertSame('hello world', (string) $downloaded->getBody());
+        self::assertSame('application/octet-stream', $downloaded->getHeaderLine('Content-Type'));
+        self::assertStringContainsString('attachment;', $downloaded->getHeaderLine('Content-Disposition'));
+        self::assertStringContainsString('sandbox', $downloaded->getHeaderLine('Content-Security-Policy'));
         self::assertSame('"' . $meta['version'] . '"', $downloaded->getHeaderLine('ETag'));
 
         // Live ApplicationGraph endpoint
@@ -182,7 +214,17 @@ final class StarterAppTest extends TestCase
 
     public function testDocsHealthAndMcpEndpointsWorkEndToEnd(): void
     {
-        $app = $this->bootApp();
+        $prevDebug = $_ENV['APP_DEBUG'] ?? null;
+        $_ENV['APP_DEBUG'] = 'true';
+        try {
+            $app = $this->bootApp();
+        } finally {
+            if (null === $prevDebug) {
+                unset($_ENV['APP_DEBUG']);
+            } else {
+                $_ENV['APP_DEBUG'] = $prevDebug;
+            }
+        }
         $client = new TestClient($app);
 
         // Zero-CDN Interactive /docs API Explorer
@@ -201,8 +243,24 @@ final class StarterAppTest extends TestCase
             ->assertJsonPath('checks.cache.ok', true)
             ->assertJsonPath('checks.storage.ok', true);
 
-        // Live MCP JSON-RPC 2.0 endpoint over HTTP (POST /mcp)
-        $init = $client->postJson('/mcp', [
+        // Unauthenticated POST /mcp fails closed 401
+        $client->postJson('/mcp', [
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'initialize',
+            'params' => [],
+        ])->assertStatus(401);
+
+        // Obtain authenticated Bearer token for live MCP JSON-RPC 2.0 endpoint over HTTP (POST /mcp)
+        $mcpAuth = $client->postJson('/api/auth/register', [
+            'name' => 'MCP Admin',
+            'email' => 'mcp@kongono.dev',
+            'password' => 'super-secure-pass-123',
+        ])->assertCreated();
+        $mcpToken = is_string($mcpAuth->json()['token'] ?? null) ? $mcpAuth->json()['token'] : '';
+        $authedClient = $client->withBearerToken($mcpToken);
+
+        $init = $authedClient->postJson('/mcp', [
             'jsonrpc' => '2.0',
             'id' => 1,
             'method' => 'initialize',
@@ -210,7 +268,7 @@ final class StarterAppTest extends TestCase
         ])->assertOk();
         self::assertSame('kongono-framework', $init->json()['result']['serverInfo']['name']);
 
-        $list = $client->postJson('/mcp', [
+        $list = $authedClient->postJson('/mcp', [
             'jsonrpc' => '2.0',
             'id' => 2,
             'method' => 'tools/list',
@@ -219,7 +277,7 @@ final class StarterAppTest extends TestCase
         self::assertContains('kongono_graph', $toolNames);
         self::assertContains('kongono_openapi', $toolNames);
 
-        $call = $client->postJson('/mcp', [
+        $call = $authedClient->postJson('/mcp', [
             'jsonrpc' => '2.0',
             'id' => 3,
             'method' => 'tools/call',

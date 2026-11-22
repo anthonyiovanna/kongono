@@ -48,9 +48,18 @@ final readonly class AgentRunner
         /** @var array<string, ToolDefinition> $toolIndex */
         $toolIndex = [];
         foreach ($admittedTools as $t) {
-            $toolIndex[$t->name] = $t;
+            if (isset($toolIndex[$t->name]) && $toolIndex[$t->name]->requiresApproval && !$t->requiresApproval) {
+                $toolIndex[$t->name] = new ToolDefinition($t->name, $t->description, $t->parametersSchema, requiresApproval: true);
+            } else {
+                $toolIndex[$t->name] = $t;
+            }
         }
-        $executorRequiresApproval = [] !== (new ReflectionFunction($toolExecutor))->getAttributes(RequiresApproval::class);
+        $refExec = new ReflectionFunction($toolExecutor);
+        $execScopeClass = $refExec->getClosureScopeClass();
+        $execCalledClass = $refExec->getClosureCalledClass();
+        $executorRequiresApproval = [] !== $refExec->getAttributes(RequiresApproval::class)
+            || (null !== $execScopeClass && [] !== $execScopeClass->getAttributes(RequiresApproval::class))
+            || (null !== $execCalledClass && [] !== $execCalledClass->getAttributes(RequiresApproval::class));
         $guard = new PromptGuard();
 
         $messages = $initialMessages;
@@ -104,17 +113,17 @@ final readonly class AgentRunner
             $messages[] = Message::assistant($response->text, $response->toolCalls);
 
             foreach ($response->toolCalls as $call) {
-                if (!$this->principal->allowsTool($call->name)) {
+                if (!$this->principal->allowsTool($call->name) || !isset($toolIndex[$call->name])) {
                     $audit[] = [
                         'tool' => $call->name,
                         'allowed' => false,
-                        'summary' => 'Denied by AgentPrincipal capability policy.',
+                        'summary' => 'Denied by AgentPrincipal capability policy or undeclared tool.',
                     ];
                     $messages[] = Message::tool($call->id, 'Error: capability denied by policy.');
                     continue;
                 }
 
-                $defRequiresApproval = isset($toolIndex[$call->name]) && $toolIndex[$call->name]->requiresApproval;
+                $defRequiresApproval = $toolIndex[$call->name]->requiresApproval;
                 if ($this->principal->requiresApproval($call->name) || $defRequiresApproval || $executorRequiresApproval) {
                     $audit[] = [
                         'tool' => $call->name,

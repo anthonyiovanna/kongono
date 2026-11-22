@@ -135,21 +135,37 @@ final readonly class S3Storage implements StorageInterface
         }
 
         $objects = [];
-        // Defend against XML Entity Expansion / XXE payloads in upstream responses
-        if (1 === preg_match('/<!(?:DOCTYPE|ENTITY)\b/i', $res['body'])) {
+        // Defend against XML Entity Expansion / XXE payloads (including UTF-16/UTF-32 encoded DTDs)
+        $body = $res['body'];
+        if (
+            str_contains($body, "\0")
+            || str_starts_with($body, "\xFF\xFE")
+            || str_starts_with($body, "\xFE\xFF")
+            || 1 === preg_match('/<!(?:DOCTYPE|ENTITY)\b/i', $body)
+        ) {
             throw new StorageException('Unsafe XML DOCTYPE/ENTITY declaration rejected in S3 ListObjectsV2 response.');
         }
-        $xml = @simplexml_load_string($res['body'], \SimpleXMLElement::class, LIBXML_NONET | LIBXML_NOCDATA);
-        if (false !== $xml && isset($xml->Contents)) {
-            foreach ($xml->Contents as $item) {
-                $objects[] = new ObjectMeta(
-                    key: (string) $item->Key,
-                    size: (int) $item->Size,
-                    sha256: '',
-                    version: trim((string) $item->ETag, '"'),
-                    contentType: 'application/octet-stream',
-                    updatedAt: (string) $item->LastModified,
-                );
+        $dom = new \DOMDocument();
+        $prevErrors = libxml_use_internal_errors(true);
+        $loaded = '' !== trim($body) && $dom->loadXML($body, LIBXML_NONET | LIBXML_NOCDATA);
+        libxml_clear_errors();
+        libxml_use_internal_errors($prevErrors);
+        if ($loaded) {
+            if (null !== $dom->doctype) {
+                throw new StorageException('Unsafe XML DOCTYPE/ENTITY declaration rejected in S3 ListObjectsV2 response.');
+            }
+            $xml = simplexml_import_dom($dom);
+            if (null !== $xml && isset($xml->Contents)) {
+                foreach ($xml->Contents as $item) {
+                    $objects[] = new ObjectMeta(
+                        key: (string) $item->Key,
+                        size: (int) $item->Size,
+                        sha256: '',
+                        version: trim((string) $item->ETag, '"'),
+                        contentType: 'application/octet-stream',
+                        updatedAt: (string) $item->LastModified,
+                    );
+                }
             }
         }
 
@@ -257,6 +273,7 @@ final readonly class S3Storage implements StorageInterface
             CURLOPT_HTTPHEADER => $headerLines,
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PATH_AS_IS => true,
             CURLOPT_PROTOCOLS_STR => $this->scheme,
             CURLOPT_REDIR_PROTOCOLS_STR => $this->scheme,
             CURLOPT_NOBODY => 'HEAD' === $upper,
@@ -313,9 +330,17 @@ final readonly class S3Storage implements StorageInterface
 
     private function normalizeKey(string $key): string
     {
-        $clean = ltrim(str_replace('\\', '/', trim($key)), '/');
-        if ('' === $clean || str_contains($clean, '..') || str_contains($clean, "\0")) {
+        if (1 === preg_match('/[\x00-\x1f\x7f]/', $key)) {
             throw new StorageException(sprintf('Invalid storage key "%s".', $key));
+        }
+        $clean = ltrim(str_replace('\\', '/', trim($key)), '/');
+        if ('' === $clean) {
+            throw new StorageException(sprintf('Invalid storage key "%s".', $key));
+        }
+        foreach (explode('/', $clean) as $segment) {
+            if ('' === $segment || '.' === $segment || '..' === $segment) {
+                throw new StorageException(sprintf('Invalid storage key "%s".', $key));
+            }
         }
 
         return $clean;

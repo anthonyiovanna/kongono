@@ -12,8 +12,10 @@ final readonly class SmtpTransport implements MailTransportInterface
     private const int MAX_RESPONSE_LINES = 128;
     private const int MAX_RESPONSE_BYTES = 65_536;
 
+    private string $host;
+
     public function __construct(
-        private string $host,
+        string $host,
         private int $port = 587,
         private ?string $username = null,
         #[SensitiveParameter]
@@ -21,9 +23,7 @@ final readonly class SmtpTransport implements MailTransportInterface
         private bool $startTls = true,
         private int $timeoutSeconds = 15,
     ) {
-        if ('' === trim($host) || 1 === preg_match('/[\s\r\n\0]/', $host)) {
-            throw new MailException('Invalid SMTP host.');
-        }
+        $this->host = self::validateHost($host);
         if ($port < 1 || $port > 65535) {
             throw new MailException(sprintf('Invalid SMTP port %d.', $port));
         }
@@ -58,7 +58,7 @@ final readonly class SmtpTransport implements MailTransportInterface
                 'verify_peer' => true,
                 'verify_peer_name' => true,
                 'allow_self_signed' => false,
-                'peer_name' => $this->host,
+                'peer_name' => trim($this->host, '[]'),
                 'crypto_method' => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT,
             ],
         ]);
@@ -141,10 +141,23 @@ final readonly class SmtpTransport implements MailTransportInterface
         $bytesRead = 0;
         $finalCode = null;
 
-        while (false !== ($line = fgets($socket, 1024))) {
+        while (true) {
+            $line = '';
+            while (false !== ($chunk = fgets($socket, 1024))) {
+                $line .= $chunk;
+                $bytesRead += strlen($chunk);
+                if ($bytesRead > self::MAX_RESPONSE_BYTES) {
+                    throw new MailException('SMTP server response exceeded maximum safe size.');
+                }
+                if (str_ends_with($chunk, "\n")) {
+                    break;
+                }
+            }
+            if ('' === $line) {
+                break;
+            }
             ++$linesRead;
-            $bytesRead += strlen($line);
-            if ($linesRead > self::MAX_RESPONSE_LINES || $bytesRead > self::MAX_RESPONSE_BYTES) {
+            if ($linesRead > self::MAX_RESPONSE_LINES) {
                 throw new MailException('SMTP server response exceeded maximum safe size.');
             }
             if (strlen($line) < 4 || !ctype_digit(substr($line, 0, 3))) {
@@ -164,5 +177,35 @@ final readonly class SmtpTransport implements MailTransportInterface
         if (null === $finalCode || $finalCode !== $expectedCode) {
             throw new MailException(sprintf('Unexpected SMTP response (expected %d, got %d).', $expectedCode, $finalCode ?? 0));
         }
+    }
+
+    private static function validateHost(string $host): string
+    {
+        if (false !== strpbrk($host, "\r\n\0")) {
+            throw new MailException('Invalid SMTP host.');
+        }
+        $trimmed = trim($host);
+        if ('' === $trimmed || strlen($trimmed) > 255 || false !== strpbrk($trimmed, " \t/?#@%\\")) {
+            throw new MailException('Invalid SMTP host.');
+        }
+        if (str_starts_with($trimmed, '[') && str_ends_with($trimmed, ']')) {
+            $inner = substr($trimmed, 1, -1);
+            if (false === filter_var($inner, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                throw new MailException('Invalid bracketed IPv6 SMTP host.');
+            }
+
+            return '[' . strtolower($inner) . ']';
+        }
+        if (false !== filter_var($trimmed, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            return '[' . strtolower($trimmed) . ']';
+        }
+        if (false !== filter_var($trimmed, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return $trimmed;
+        }
+        if (1 !== preg_match('/\A[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\z/', $trimmed)) {
+            throw new MailException('Invalid SMTP host.');
+        }
+
+        return $trimmed;
     }
 }

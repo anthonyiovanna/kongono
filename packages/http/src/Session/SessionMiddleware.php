@@ -22,6 +22,7 @@ final readonly class SessionMiddleware implements MiddlewareInterface
         private int $ttlSeconds = 7200,
         private bool $secure = false,
         private string $sameSite = 'Lax',
+        private int $absoluteMaxLifetimeSeconds = 0,
     ) {}
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -29,11 +30,19 @@ final readonly class SessionMiddleware implements MiddlewareInterface
         $cookies = $request->getCookieParams();
         $incomingId = is_string($cookies[$this->cookieName] ?? null) ? $cookies[$this->cookieName] : '';
         $isNew = false;
+        $now = time();
 
         if ('' !== $incomingId && 1 === preg_match('/\A[a-f0-9]{32,128}\z/', $incomingId)) {
             $data = $this->store->read($incomingId);
             if (null !== $data) {
-                $session = new Session($incomingId, $data, persisted: true);
+                $createdAt = is_int($data['_created_at'] ?? null) ? $data['_created_at'] : null;
+                if ($this->absoluteMaxLifetimeSeconds > 0 && null !== $createdAt && ($now - $createdAt) >= $this->absoluteMaxLifetimeSeconds) {
+                    $this->store->destroy($incomingId);
+                    $session = new Session(bin2hex(random_bytes(24)), persisted: false);
+                    $isNew = true;
+                } else {
+                    $session = new Session($incomingId, $data, persisted: true);
+                }
             } else {
                 $session = new Session(bin2hex(random_bytes(24)), persisted: false);
                 $isNew = true;
@@ -69,7 +78,15 @@ final readonly class SessionMiddleware implements MiddlewareInterface
         // Lazy persistence: only store & emit Set-Cookie when the session was written, rotated, or its ID was accessed (e.g. CSRF)
         $shouldPersist = $session->isDirty() || $session->wasRegenerated() || ($isNew && $session->wasIdAccessed());
         if ($shouldPersist) {
-            $this->store->write($session->id(), $session->exportPayload(), $this->ttlSeconds);
+            // Prevent concurrent-request resurrection of a session destroyed/rotated while this request was in flight
+            $canPersist = $isNew || $session->wasRegenerated() || null !== $this->store->read($session->id());
+            if ($canPersist) {
+                $payload = $session->exportPayload();
+                if ($this->absoluteMaxLifetimeSeconds > 0 && !is_int($payload['_created_at'] ?? null)) {
+                    $payload['_created_at'] = $now;
+                }
+                $this->store->write($session->id(), $payload, $this->ttlSeconds);
+            }
         }
 
         if (($isNew && $shouldPersist) || $session->wasRegenerated()) {

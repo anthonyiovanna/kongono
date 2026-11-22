@@ -7,6 +7,9 @@ on:
   pull_request:
     branches: [v1, main]
 
+permissions:
+  contents: read
+
 jobs:
   quality:
     name: PHP 8.5 Quality Suite
@@ -119,7 +122,7 @@ jobs:
           php vendor/bin/kongo doctor
           php vendor/bin/kongo routes --json
           php vendor/bin/kongo optimize
-          php -S 127.0.0.1:8799 -t public public/index.php &
+          APP_DEBUG=true php -S 127.0.0.1:8799 -t public public/index.php &
           SERVER_PID=$!
           sleep 1
           curl -fsS http://127.0.0.1:8799/ | grep -q "Smoke App"

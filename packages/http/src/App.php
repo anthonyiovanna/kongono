@@ -262,31 +262,9 @@ final class App
 
                     public function handle(ServerRequestInterface $request): ResponseInterface
                     {
-                        $req = $request instanceof Request ? $request : $this->wrapRequest($request);
+                        $req = $request instanceof Request ? $request : $this->app->wrapServerRequest($request);
 
                         return $this->app->dispatchSafely($req);
-                    }
-
-                    private function wrapRequest(ServerRequestInterface $psr): Request
-                    {
-                        $headers = [];
-                        foreach ($psr->getHeaders() as $name => $values) {
-                            $headers[$name] = array_values($values);
-                        }
-
-                        return new Request(
-                            method: $psr->getMethod(),
-                            uri: $psr->getUri(),
-                            headers: $headers,
-                            body: $psr->getBody(),
-                            protocolVersion: $psr->getProtocolVersion(),
-                            serverParams: $psr->getServerParams(),
-                            cookieParams: $psr->getCookieParams(),
-                            queryParams: $psr->getQueryParams(),
-                            uploadedFiles: $psr->getUploadedFiles(),
-                            parsedBody: $psr->getParsedBody(),
-                            attributes: $psr->getAttributes(),
-                        );
                     }
                 };
 
@@ -313,7 +291,7 @@ final class App
             $request = Request::fromGlobals();
             $response = $this->handle($request);
         } catch (HttpException $e) {
-            $response = Response::json(['error' => ['status' => $e->statusCode, 'message' => $e->getMessage()]], $e->statusCode, $e->headers);
+            $response = Response::json(['error' => ['status' => $e->statusCode, 'message' => SecretScrubber::scrub($e->getMessage())]], $e->statusCode, $e->headers);
         } catch (Throwable) {
             $response = Response::json(['error' => ['status' => 400, 'message' => 'Malformed HTTP request.']], 400);
         }
@@ -338,7 +316,7 @@ final class App
                     $request = Request::fromGlobals();
                     $response = $this->handle($request);
                 } catch (HttpException $e) {
-                    $response = Response::json(['error' => ['status' => $e->statusCode, 'message' => $e->getMessage()]], $e->statusCode, $e->headers);
+                    $response = Response::json(['error' => ['status' => $e->statusCode, 'message' => SecretScrubber::scrub($e->getMessage())]], $e->statusCode, $e->headers);
                 } catch (Throwable) {
                     $response = Response::json(['error' => ['status' => 400, 'message' => 'Malformed HTTP request.']], 400);
                 }
@@ -371,10 +349,35 @@ final class App
     }
 
     /** @internal */
+    public function wrapServerRequest(ServerRequestInterface $psr): Request
+    {
+        $headers = [];
+        foreach ($psr->getHeaders() as $name => $values) {
+            $headers[$name] = array_values($values);
+        }
+
+        return new Request(
+            method: $psr->getMethod(),
+            uri: $psr->getUri(),
+            headers: $headers,
+            body: $psr->getBody(),
+            protocolVersion: $psr->getProtocolVersion(),
+            serverParams: $psr->getServerParams(),
+            cookieParams: $psr->getCookieParams(),
+            queryParams: $psr->getQueryParams(),
+            uploadedFiles: $psr->getUploadedFiles(),
+            parsedBody: $psr->getParsedBody(),
+            attributes: $psr->getAttributes(),
+        );
+    }
+
+    /** @internal */
     public function dispatch(Request $request): ResponseInterface
     {
         $match = $this->router->match($request->method(), $request->path());
-        $enriched = $request->withAttribute('_route_params', $match->params);
+        $enriched = $request
+            ->withAttribute('_route_params', $match->params)
+            ->withAttribute('_route_pattern', $match->route->path);
 
         $routeTerminal = new readonly class ($this, $match) implements RequestHandlerInterface {
             public function __construct(
@@ -386,7 +389,7 @@ final class App
             {
                 return $this->app->invokeRouteHandler(
                     $this->match,
-                    $request instanceof Request ? $request : Request::create($request->getMethod(), (string) $request->getUri()),
+                    $request instanceof Request ? $request : $this->app->wrapServerRequest($request),
                 );
             }
         };
@@ -470,6 +473,21 @@ final class App
                 return $attrValue;
             }
 
+            // Security-sensitive request-attribute types MUST NEVER fall through to DTO hydration or autowiring
+            if ('Kongono\\Security\\Principal' === $typeName || 'Kongono\\Http\\Session\\Session' === $typeName) {
+                if ($parameter->isDefaultValueAvailable()) {
+                    return $parameter->getDefaultValue();
+                }
+                if ($type->allowsNull()) {
+                    return null;
+                }
+                if ('Kongono\\Security\\Principal' === $typeName) {
+                    throw new HttpException(401, 'Authentication required.');
+                }
+
+                throw new CoreException('Session attribute is missing: mount SessionMiddleware before accessing Session.');
+            }
+
             if ($type->isBuiltin()) {
                 if (array_key_exists($name, $routeParams)) {
                     return $this->coerceRouteParam($routeParams[$name], $typeName, $name);
@@ -508,9 +526,20 @@ final class App
         throw new CoreException(sprintf('Unable to resolve route parameter "$%s".', $name));
     }
 
-    /** @param class-string $className */
-    private function looksLikeInputDto(string $className): bool
+    /**
+     * @param class-string              $className
+     * @param array<class-string, true> $visited
+     */
+    private function looksLikeInputDto(string $className, array $visited = [], int $depth = 0): bool
     {
+        // Never hydrate framework/security classes from untrusted HTTP input, and prevent cyclic recursion DoS
+        if ((str_starts_with($className, 'Kongono\\') && !str_contains($className, '\\Tests\\')) || $depth > 16) {
+            return false;
+        }
+        if (isset($visited[$className])) {
+            return true;
+        }
+
         $ref = new \ReflectionClass($className);
         if (!$ref->isInstantiable() || $ref->isInternal()) {
             return false;
@@ -520,6 +549,7 @@ final class App
             return false;
         }
 
+        $visited[$className] = true;
         $hasRequiredOrValidatedField = false;
         foreach ($ctor->getParameters() as $param) {
             $type = $param->getType();
@@ -532,12 +562,12 @@ final class App
                 $isDtoFieldType = true;
             } else {
                 $paramTypeName = $type->getName();
-                if (enum_exists($paramTypeName)) {
+                if (is_subclass_of($paramTypeName, \BackedEnum::class)) {
                     $isDtoFieldType = true;
                 } elseif (
                     class_exists($paramTypeName)
                     && !array_key_exists($paramTypeName, $this->container->registeredBindings())
-                    && $this->looksLikeInputDto($paramTypeName)
+                    && $this->looksLikeInputDto($paramTypeName, $visited, $depth + 1)
                 ) {
                     $isDtoFieldType = true;
                 }

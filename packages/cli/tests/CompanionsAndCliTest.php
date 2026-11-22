@@ -11,6 +11,7 @@ use Kongono\Ai\Transport\HttpTransportInterface;
 use Kongono\Cli\AppScaffolder;
 use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\CodeGenerator;
+use Kongono\Cli\Companions\ChieBuilder;
 use Kongono\Cli\Companions\HanteiDebugger;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Database\MigrationLinter;
@@ -170,7 +171,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.5.0', $vOut);
+            self::assertStringContainsString('v1.6.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -643,6 +644,122 @@ PHP);
             self::assertStringContainsString('encodePart(', $swiftSdk);
             $kotlinSdk = $sdkGen->generateFromSpec($sdkSpec, 'kotlin');
             self::assertStringContainsString('escapeJsonString(', $kotlinSdk);
+        } finally {
+            $this->removeDir($tmp);
+        }
+    }
+
+    public function testRound4ProjectContextChiePromptGuardMigrationLinterAndScaffolderDefaults(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-cli-r4-' . bin2hex(random_bytes(5));
+        mkdir($tmp, 0o777, true);
+
+        try {
+            // 1. AppScaffolder fails closed with APP_DEBUG=false in bootstrap.php, .env.example, and Dockerfile
+            $appDir = $tmp . DIRECTORY_SEPARATOR . 'app';
+            (new AppScaffolder())->scaffold($appDir, 'SecureApp');
+            $bootstrap = (string) file_get_contents($appDir . '/app/bootstrap.php');
+            $envExample = (string) file_get_contents($appDir . '/.env.example');
+            $dockerfile = (string) file_get_contents($appDir . '/Dockerfile');
+            self::assertStringContainsString("Config::env('APP_DEBUG') ?? 'false'", $bootstrap);
+            self::assertStringContainsString('APP_DEBUG=false', $envExample);
+            self::assertStringContainsString('APP_DEBUG=false', $dockerfile);
+
+            // 2. ProjectContext blocks reading root .docker/.aws/.ssh secrets and writing composer.json/.github/Dockerfile
+            mkdir($appDir . '/.docker', 0o777, true);
+            mkdir($appDir . '/.aws', 0o777, true);
+            mkdir($appDir . '/.ssh', 0o777, true);
+            file_put_contents($appDir . '/.docker/config.json', '{"auths":{}}');
+            file_put_contents($appDir . '/.aws/credentials', '[default]');
+            file_put_contents($appDir . '/.ssh/id_rsa', 'PRIVATE');
+
+            $ctx = ProjectContext::discover($appDir);
+            foreach (['.docker/config.json', '.aws/credentials', '.ssh/id_rsa'] as $secretPath) {
+                try {
+                    $ctx->readFileSafe($secretPath);
+                    self::fail('Expected ProjectContext::readFileSafe to block ' . $secretPath);
+                } catch (CoreException $e) {
+                    self::assertStringContainsString('forbidden', $e->getMessage());
+                }
+            }
+            foreach (['composer.json', '.github/workflows/ci.yml', 'Dockerfile'] as $writeBlocked) {
+                try {
+                    $ctx->writeFileContained($writeBlocked, 'pwned');
+                    self::fail('Expected ProjectContext::writeFileContained to block ' . $writeBlocked);
+                } catch (CoreException $e) {
+                    self::assertStringContainsString('forbidden', $e->getMessage());
+                }
+            }
+
+            // 3. ChieBuilder refuses --apply writes outside safe app source dirs (e.g. app/bootstrap.php, composer.json)
+            foreach (['composer.json', 'app/bootstrap.php'] as $maliciousTarget) {
+                $planJson = json_encode([
+                    'summary' => 'Inject backdoor',
+                    'changes' => [[
+                        'path' => $maliciousTarget,
+                        'action' => 'update',
+                        'explanation' => 'override',
+                        'content' => '<?php // malicious',
+                    ]],
+                    'next_steps' => [],
+                ], JSON_THROW_ON_ERROR);
+                $chie = new ChieBuilder(new AiClient(new OpenAiProvider('sk-test', transport: new ScriptedTransport(
+                    new HttpResponse(200, json_encode([
+                        'model' => 'gpt-4.1-mini',
+                        'choices' => [['message' => ['role' => 'assistant', 'content' => $planJson]]],
+                    ], JSON_THROW_ON_ERROR)),
+                ))));
+                try {
+                    $chie->build('Add feature', $ctx, apply: true);
+                    self::fail('Expected ChieBuilder --apply to reject target: ' . $maliciousTarget);
+                } catch (CoreException $e) {
+                    self::assertStringContainsString('refused to write', $e->getMessage());
+                }
+            }
+
+            // 4. MigrationLinter handles multi-statement ALTER TABLE, no false positive on NOT NULL DEFAULT, and inspects helper methods
+            mkdir($tmp . '/migs1', 0o777, true);
+            mkdir($tmp . '/migs2', 0o777, true);
+            mkdir($tmp . '/migs3', 0o777, true);
+            file_put_contents($tmp . '/migs1/001_safe_default.php', <<<'PHP'
+<?php
+class M1 {
+    public function up($db): void {
+        $db->execute("ALTER TABLE users ADD COLUMN role VARCHAR(32) NOT NULL DEFAULT 'user';");
+    }
+}
+PHP);
+            file_put_contents($tmp . '/migs2/002_multi_stmt_hazard.php', <<<'PHP'
+<?php
+class M2 {
+    public function up($db): void {
+        $db->execute("ALTER TABLE a ADD COLUMN x TEXT DEFAULT 'ok'; ALTER TABLE b ADD COLUMN y TEXT NOT NULL;");
+    }
+}
+PHP);
+            file_put_contents($tmp . '/migs3/003_helper_truncate.php', <<<'PHP'
+<?php
+class M3 {
+    public function up($db): void {
+        $this->wipe($db);
+    }
+    private function wipe($db): void {
+        $db->execute('TRUNCATE TABLE audit_logs;');
+    }
+}
+PHP);
+            $linter = new MigrationLinter();
+            $r1 = $linter->lintDirectory($tmp . '/migs1');
+            self::assertTrue($r1['passed']);
+            self::assertSame([], $r1['findings']);
+
+            $r2 = $linter->lintDirectory($tmp . '/migs2');
+            self::assertFalse($r2['passed']);
+            self::assertContains('KGN-MIG-NOT-NULL-NO-DEFAULT', array_column($r2['findings'], 'code'));
+
+            $r3 = $linter->lintDirectory($tmp . '/migs3');
+            self::assertFalse($r3['passed']);
+            self::assertContains('KGN-MIG-TRUNCATE', array_column($r3['findings'], 'code'));
         } finally {
             $this->removeDir($tmp);
         }

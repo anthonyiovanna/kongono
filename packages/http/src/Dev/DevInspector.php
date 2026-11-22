@@ -85,7 +85,8 @@ final class DevInspector
         $safeHeaders = [];
         foreach ($headers as $name => $val) {
             $joined = is_array($val) ? implode(', ', $val) : $val;
-            $safeHeaders[$name] = in_array(strtolower($name), self::REDACTED_HEADERS, true)
+            $isSensitive = in_array(strtolower($name), self::REDACTED_HEADERS, true) || SecretScrubber::isSensitiveKey($name);
+            $safeHeaders[$name] = $isSensitive
                 ? '[REDACTED]'
                 : SecretScrubber::scrub($joined);
         }

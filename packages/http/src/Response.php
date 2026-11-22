@@ -57,6 +57,9 @@ final class Response implements ResponseInterface
         private string $protocolVersion = '1.1',
         string $reasonPhrase = '',
     ) {
+        self::assertValidStatus($statusCode, $reasonPhrase);
+        self::assertValidProtocolVersion($protocolVersion);
+
         $this->body = $body ?? Stream::fromString('');
         $this->reasonPhrase = '' !== $reasonPhrase ? $reasonPhrase : (self::REASON_PHRASES[$statusCode] ?? '');
 
@@ -64,6 +67,9 @@ final class Response implements ResponseInterface
             $values = is_array($value) ? $value : [$value];
             self::assertValidHeader($name, $values);
             $normalized = strtolower($name);
+            if (isset($this->headerNames[$normalized])) {
+                unset($this->headers[$this->headerNames[$normalized]]);
+            }
             $this->headerNames[$normalized] = $name;
             $this->headers[$name] = $values;
         }
@@ -72,9 +78,11 @@ final class Response implements ResponseInterface
     /** @param array<string, string|list<string>> $headers */
     public static function html(string $html, int $status = 200, array $headers = []): self
     {
-        $headers['Content-Type'] ??= 'text/html; charset=utf-8';
+        $response = new self($status, $headers, Stream::fromString($html));
 
-        return new self($status, $headers, Stream::fromString($html));
+        return $response->hasHeader('Content-Type')
+            ? $response
+            : $response->withHeader('Content-Type', 'text/html; charset=utf-8');
     }
 
     /**
@@ -89,36 +97,45 @@ final class Response implements ResponseInterface
         ?string $pushUrl = null,
         ?string $redirect = null,
     ): self {
-        $headers['Content-Type'] ??= 'text/html; charset=utf-8';
-        $headers['Vary'] ??= 'X-Kongono-Live';
-        $headers['X-Kongono-Live'] = 'fragment';
+        $response = new self($status, $headers, Stream::fromString($html));
+        if (!$response->hasHeader('Content-Type')) {
+            $response = $response->withHeader('Content-Type', 'text/html; charset=utf-8');
+        }
+        if (!$response->hasHeader('Vary')) {
+            $response = $response->withHeader('Vary', 'X-Kongono-Live');
+        }
+        $response = $response->withHeader('X-Kongono-Live', 'fragment');
         if (null !== $pushUrl && '' !== $pushUrl) {
             self::assertSafeNavigationUrl($pushUrl, 'pushUrl');
-            $headers['X-Kongono-Push-Url'] = $pushUrl;
+            $response = $response->withHeader('X-Kongono-Push-Url', $pushUrl);
         }
         if (null !== $redirect && '' !== $redirect) {
             self::assertSafeNavigationUrl($redirect, 'redirect');
-            $headers['X-Kongono-Redirect'] = $redirect;
+            $response = $response->withHeader('X-Kongono-Redirect', $redirect);
         }
 
-        return new self($status, $headers, Stream::fromString($html));
+        return $response;
     }
 
     /** @param array<string, string|list<string>> $headers */
     public static function json(mixed $data, int $status = 200, array $headers = []): self
     {
-        $headers['Content-Type'] ??= 'application/json; charset=utf-8';
         $encoded = json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $response = new self($status, $headers, Stream::fromString($encoded));
 
-        return new self($status, $headers, Stream::fromString($encoded));
+        return $response->hasHeader('Content-Type')
+            ? $response
+            : $response->withHeader('Content-Type', 'application/json; charset=utf-8');
     }
 
     /** @param array<string, string|list<string>> $headers */
     public static function text(string $text, int $status = 200, array $headers = []): self
     {
-        $headers['Content-Type'] ??= 'text/plain; charset=utf-8';
+        $response = new self($status, $headers, Stream::fromString($text));
 
-        return new self($status, $headers, Stream::fromString($text));
+        return $response->hasHeader('Content-Type')
+            ? $response
+            : $response->withHeader('Content-Type', 'text/plain; charset=utf-8');
     }
 
     public static function redirect(string $location, int $status = 302): self
@@ -210,6 +227,7 @@ final class Response implements ResponseInterface
 
     public function withProtocolVersion(string $version): MessageInterface
     {
+        self::assertValidProtocolVersion($version);
         $clone = clone $this;
         $clone->protocolVersion = $version;
 
@@ -307,6 +325,7 @@ final class Response implements ResponseInterface
 
     public function withStatus(int $code, string $reasonPhrase = ''): ResponseInterface
     {
+        self::assertValidStatus($code, $reasonPhrase);
         $clone = clone $this;
         $clone->statusCode = $code;
         $clone->reasonPhrase = '' !== $reasonPhrase ? $reasonPhrase : (self::REASON_PHRASES[$code] ?? '');
@@ -317,6 +336,23 @@ final class Response implements ResponseInterface
     public function getReasonPhrase(): string
     {
         return $this->reasonPhrase;
+    }
+
+    private static function assertValidStatus(int $code, string $reasonPhrase): void
+    {
+        if ($code < 100 || $code > 599) {
+            throw new InvalidArgumentException(sprintf('Invalid HTTP status code %d (must be 100-599).', $code));
+        }
+        if ('' !== $reasonPhrase && 1 === preg_match('/[\x00-\x08\x0a-\x1f\x7f]/', $reasonPhrase)) {
+            throw new InvalidArgumentException('Invalid HTTP reason phrase: contains control characters or CRLF.');
+        }
+    }
+
+    private static function assertValidProtocolVersion(string $version): void
+    {
+        if (1 !== preg_match('/\A\d(?:\.\d)?\z/', $version)) {
+            throw new InvalidArgumentException(sprintf('Invalid HTTP protocol version "%s".', $version));
+        }
     }
 
     /**

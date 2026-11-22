@@ -16,15 +16,35 @@ enum Dialect: string
             return '*';
         }
         if (str_contains($identifier, '.')) {
-            return implode('.', array_map($this->quoteIdentifier(...), explode('.', $identifier)));
+            $parts = explode('.', $identifier);
+            $lastIdx = count($parts) - 1;
+            $quoted = [];
+            foreach ($parts as $idx => $part) {
+                if ('*' === $part) {
+                    if ($idx !== $lastIdx) {
+                        throw new DatabaseException(sprintf('Unsafe SQL identifier "%s".', $identifier));
+                    }
+                    $quoted[] = '*';
+                    continue;
+                }
+                $quoted[] = $this->quoteSinglePart($part, $identifier);
+            }
+
+            return implode('.', $quoted);
         }
-        if (1 !== preg_match('/\A[a-zA-Z_][a-zA-Z0-9_]*\z/', $identifier)) {
-            throw new DatabaseException(sprintf('Unsafe SQL identifier "%s".', $identifier));
+
+        return $this->quoteSinglePart($identifier, $identifier);
+    }
+
+    private function quoteSinglePart(string $part, string $original): string
+    {
+        if (1 !== preg_match('/\A[a-zA-Z_][a-zA-Z0-9_]*\z/', $part)) {
+            throw new DatabaseException(sprintf('Unsafe SQL identifier "%s".', $original));
         }
 
         return match ($this) {
-            self::Mysql => '`' . $identifier . '`',
-            self::Postgres, self::Sqlite => '"' . $identifier . '"',
+            self::Mysql => '`' . $part . '`',
+            self::Postgres, self::Sqlite => '"' . $part . '"',
         };
     }
 

@@ -56,12 +56,14 @@ final readonly class CompressionMiddleware implements MiddlewareInterface
         }
 
         if (!$this->compressAuthenticated) {
-            $isDynamicDoc = str_starts_with($contentType, 'text/html') || str_starts_with($contentType, 'application/json');
             $hasCreds = '' !== trim($request->getHeaderLine('Authorization'))
+                || '' !== trim($request->getHeaderLine('Proxy-Authorization'))
+                || '' !== trim($request->getHeaderLine('X-API-Key'))
                 || '' !== trim($request->getHeaderLine('Cookie'))
                 || [] !== $request->getCookieParams()
+                || null !== $request->getAttribute('Kongono\\Security\\Principal')
                 || str_contains($cc, 'private');
-            if ($isDynamicDoc && $hasCreds) {
+            if ($hasCreds) {
                 return $response;
             }
         }
@@ -77,9 +79,31 @@ final readonly class CompressionMiddleware implements MiddlewareInterface
             return $response;
         }
 
-        $body = (string) $stream;
+        // Bounded streaming read so unknown-length streams cannot cause OOM before maxBytes is checked
+        if ($stream->isSeekable()) {
+            $stream->rewind();
+        }
+        $body = '';
+        while (!$stream->eof()) {
+            $chunk = $stream->read(min(65536, ($this->maxBytes - strlen($body)) + 1));
+            if ('' === $chunk) {
+                break;
+            }
+            $body .= $chunk;
+            if (strlen($body) > $this->maxBytes) {
+                if ($stream->isSeekable()) {
+                    $stream->rewind();
+                }
+
+                return $response;
+            }
+        }
         $bodyLen = strlen($body);
-        if ($bodyLen < $this->minBytes || $bodyLen > $this->maxBytes) {
+        if ($bodyLen < $this->minBytes) {
+            if ($stream->isSeekable()) {
+                $stream->rewind();
+            }
+
             return $response;
         }
 

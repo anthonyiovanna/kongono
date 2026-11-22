@@ -19,11 +19,14 @@ use Kongono\Http\Routing\Delete;
 use Kongono\Http\Routing\Feature;
 use Kongono\Http\Routing\Get;
 use Kongono\Http\Routing\Idempotent;
+use Kongono\Http\Routing\Middleware;
 use Kongono\Http\Routing\Post;
 use Kongono\Http\Session\Session;
 use Kongono\Http\SseEvent;
 use Kongono\Jobs\Queue;
 use Kongono\Jobs\Worker;
+use Kongono\Security\Middleware\BearerAuthMiddleware;
+use Kongono\Security\TokenSigner;
 use Kongono\Storage\StorageInterface;
 use Kongono\View\ViewEngine;
 use StarterApp\Domain\Note;
@@ -40,6 +43,7 @@ final readonly class NoteController
         private Metrics $metrics,
         private HealthCheck $health,
         private EventBus $events,
+        private TokenSigner $signer,
         private App $app,
     ) {}
 
@@ -52,6 +56,7 @@ final readonly class NoteController
             'title' => 'Kongono v1 Starter',
             'notes' => $this->store->all(),
             'flash' => is_string($flash) ? $flash : null,
+            'csrfToken' => $this->signer->generateCsrfToken($session->id()),
             'routeCount' => count($this->app->graph()->routes),
             'phpVersion' => PHP_VERSION,
         ]));
@@ -128,6 +133,7 @@ final readonly class NoteController
     }
 
     #[Post('/api/upload', name: 'api.upload')]
+    #[Middleware(BearerAuthMiddleware::class)]
     public function apiUpload(Request $request): Response
     {
         $file = $request->file('document');
@@ -135,13 +141,25 @@ final readonly class NoteController
             throw new HttpException(400, 'Expected multipart file field "document".');
         }
 
-        $safeName = basename($file->getClientFilename() ?? 'upload.bin');
-        $key = 'uploads/' . $safeName;
+        $rawName = basename($file->getClientFilename() ?? 'upload.bin');
+        $safeName = (string) preg_replace('/[^a-zA-Z0-9._-]/', '_', $rawName);
+        if ('' === $safeName || str_starts_with($safeName, '.')) {
+            $safeName = 'upload.bin';
+        }
         $bytes = (string) $file->getStream();
+        $finfoMime = class_exists(\finfo::class) ? (new \finfo(FILEINFO_MIME_TYPE))->buffer($bytes) : false;
+        $detectedMime = is_string($finfoMime) && '' !== $finfoMime ? $finfoMime : 'application/octet-stream';
+        $blockedMimes = ['text/html', 'application/xhtml+xml', 'image/svg+xml', 'text/javascript', 'application/javascript', 'application/x-httpd-php'];
+        $lowerExt = strtolower(pathinfo($safeName, PATHINFO_EXTENSION));
+        if (in_array(strtolower($detectedMime), $blockedMimes, true) || in_array($lowerExt, ['html', 'htm', 'xhtml', 'svg', 'js', 'mjs', 'php', 'phtml'], true)) {
+            throw new HttpException(415, 'Active web/script content types are not allowed for upload.');
+        }
+
+        $key = 'uploads/' . $safeName;
         $result = $this->storage->put(
             $key,
             $bytes,
-            $file->getClientMediaType() ?? 'application/octet-stream',
+            $detectedMime,
         );
 
         return Response::json([
@@ -156,9 +174,11 @@ final readonly class NoteController
     }
 
     #[Get('/api/files/{name}', name: 'api.files.download')]
+    #[Middleware(BearerAuthMiddleware::class)]
     public function apiDownload(string $name): Response
     {
-        $key = 'uploads/' . basename($name);
+        $safeName = (string) preg_replace('/[^a-zA-Z0-9._-]/', '_', basename($name));
+        $key = 'uploads/' . $safeName;
         $bytes = $this->storage->get($key);
         $meta = $this->storage->meta($key);
         if (null === $bytes || null === $meta) {
@@ -166,7 +186,9 @@ final readonly class NoteController
         }
 
         return Response::text($bytes, 200, [
-            'Content-Type' => $meta->contentType,
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => sprintf('attachment; filename="%s"', $safeName),
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
             'ETag' => '"' . $meta->version . '"',
         ]);
     }
@@ -222,6 +244,7 @@ final readonly class NoteController
     }
 
     #[Post('/mcp', name: 'mcp')]
+    #[Middleware(BearerAuthMiddleware::class)]
     public function mcp(Request $request): Response
     {
         $server = KongonoMcpFactory::forApp($this->app->basePath(), $this->app);

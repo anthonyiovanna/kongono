@@ -873,6 +873,94 @@ final class HttpAppTest extends TestCase
         self::assertTrue($session->isInvalidated());
         self::assertContains($afterSecond, $session->previousIds());
     }
+
+    public function testRound4PrincipalForgeryDefenseLiveXssDnsRebindingIdempotentFailClosedAndRouterHardening(): void
+    {
+        // 1. CRITICAL: Unauthenticated query/JSON params CANNOT forge Kongono\Security\Principal or Session via DTO hydration
+        $authApp = App::create(__DIR__)->routes(static function (Router $r): void {
+            $r->get('/optional-me', static fn(?\Kongono\Security\Principal $user = null): Response => Response::json(['user' => $user?->id]));
+            $r->get('/required-me', static fn(\Kongono\Security\Principal $user): Response => Response::json(['user' => $user->id]));
+        });
+        $forgedOpt = $authApp->handle(Request::create('GET', '/optional-me?id=root&kind=system&capabilities[]=admin.all'));
+        self::assertSame(200, $forgedOpt->getStatusCode());
+        self::assertSame('{"user":null}', (string) $forgedOpt->getBody());
+
+        $forgedReq = $authApp->handle(Request::create('GET', '/required-me?id=root&kind=system&capabilities[]=admin.all'));
+        self::assertSame(401, $forgedReq->getStatusCode());
+
+        // 2. LiveMiddleware sends Accept: text/html, enforces same-origin & Content-Type before HTML swap
+        $liveJs = LiveMiddleware::scriptSource();
+        self::assertStringContainsString('"Accept": "text/html"', $liveJs);
+        self::assertStringContainsString('ct.startsWith("text/html")', $liveJs);
+        self::assertStringContainsString('isSameOriginUrl', $liveJs);
+
+        // 3. DevDashboardMiddleware blocks DNS rebinding (non-loopback Host header even when REMOTE_ADDR=127.0.0.1)
+        $inspector = new DevInspector();
+        $devApp = App::create(__DIR__)->config(['app' => ['debug' => true]]);
+        $devApp->middleware(new DevDashboardMiddleware($devApp, $inspector));
+        $rebindRes = $devApp->handle(Request::create('GET', 'http://evil.com:8000/_kongono', ['Host' => 'evil.com:8000'], serverParams: ['REMOTE_ADDR' => '127.0.0.1']));
+        self::assertSame(403, $rebindRes->getStatusCode());
+
+        // 4. #[Idempotent] fails closed when CacheInterface is not bound in the container
+        $unboundIdemApp = App::create(__DIR__)->controller(CachedDemoController::class);
+        $unboundRes = $unboundIdemApp->handle(Request::create('POST', '/orders', ['Idempotency-Key' => 'k1']));
+        self::assertSame(500, $unboundRes->getStatusCode());
+
+        // 5. Router::compilePathRegex() escapes literal '.' in static segments & rejects AOT export of fluent middlewareAttributes()
+        $router = new Router();
+        $router->get('/api/v1.0/users/{id}', static fn(): Response => Response::text('ok'));
+        self::assertNotNull($router->match('GET', '/api/v1.0/users/42'));
+        try {
+            $router->match('GET', '/api/v1X0/users/42');
+            self::fail('Expected literal dot in /api/v1.0/users/{id} not to match v1X0.');
+        } catch (HttpException $e) {
+            self::assertSame(404, $e->statusCode);
+        }
+
+        // 6. IdempotencyMiddleware handles invalid UTF-8 cookie bytes without HTTP 500 and never caches 401/429
+        $idemApp = App::create(__DIR__)
+            ->middleware(new IdempotencyMiddleware(new MemoryCache()))
+            ->routes(static function (Router $r): void {
+                $r->post('/auth-check', static fn(): Response => Response::text('denied', 401));
+            });
+        $badCookieReq = Request::create('POST', '/auth-check', ['Idempotency-Key' => 'utf8-test'])
+            ->withCookieParams(['raw' => "\xFF\xFE"]);
+        self::assertSame(401, $idemApp->handle($badCookieReq)->getStatusCode());
+        // Second call with same key is NOT served from cache (no Idempotency-Replayed header)
+        $second401 = $idemApp->handle($badCookieReq);
+        self::assertSame(401, $second401->getStatusCode());
+        self::assertSame('', $second401->getHeaderLine('Idempotency-Replayed'));
+
+        // 7. Response deduplicates case-variant headers, rejects CRLF in status/protocol, and Uri::__toString() separates authority/path
+        $resp = Response::html('<p>ok</p>', 200, ['content-type' => 'text/plain']);
+        self::assertSame([], $resp->withoutHeader('Content-Type')->getHeaders());
+        try {
+            $resp->withStatus(200, "OK\r\nX-Evil: 1");
+            self::fail('Expected CRLF in reasonPhrase to be rejected.');
+        } catch (\InvalidArgumentException) {
+            self::addToAssertionCount(1);
+        }
+        $uri = new \Kongono\Http\Uri(scheme: 'http', host: 'example.com', path: '.evil.com/x');
+        self::assertSame('http://example.com/.evil.com/x', (string) $uri);
+
+        // 8. OpenApiGenerator never exposes Principal schema & ApiDocsRenderer blocks javascript: specUrl
+        $spec = (new OpenApiGenerator())->generate($authApp);
+        self::assertArrayNotHasKey('components', $spec);
+        try {
+            (new ApiDocsRenderer())->render($authApp, 'javascript:alert(1)');
+            self::fail('Expected ApiDocsRenderer to reject javascript: specUrl.');
+        } catch (\InvalidArgumentException) {
+            self::addToAssertionCount(1);
+        }
+
+        // 9. EventBus enforces maxChannels bound (prevents worker OOM)
+        $bus = new EventBus(maxHistoryPerChannel: 5, maxChannels: 2);
+        $bus->publish('c1', 'e', ['a' => 1]);
+        $bus->publish('c2', 'e', ['a' => 2]);
+        $bus->publish('c3', 'e', ['a' => 3]);
+        self::assertSame([], $bus->since('c1'));
+        self::assertCount(1, $bus->since('c3'));
+    }
 }
 
 final readonly class RoutePrecedenceInputDto

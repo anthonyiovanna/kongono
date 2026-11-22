@@ -12,17 +12,33 @@ final class ResponseEmitter
     public function emit(ResponseInterface $response): void
     {
         if (!headers_sent()) {
+            $proto = $response->getProtocolVersion();
+            $code = $response->getStatusCode();
+            $reason = $response->getReasonPhrase();
+            if (1 !== preg_match('/\A\d(?:\.\d)?\z/', $proto)) {
+                $proto = '1.1';
+            }
+            if ($code < 100 || $code > 599) {
+                $code = 500;
+            }
+            $cleanReason = (string) preg_replace('/[\x00-\x08\x0a-\x1f\x7f]/', '', $reason);
             $statusLine = sprintf(
                 'HTTP/%s %d%s',
-                $response->getProtocolVersion(),
-                $response->getStatusCode(),
-                '' !== $response->getReasonPhrase() ? ' ' . $response->getReasonPhrase() : '',
+                $proto,
+                $code,
+                '' !== $cleanReason ? ' ' . $cleanReason : '',
             );
-            header($statusLine, true, $response->getStatusCode());
+            header($statusLine, true, $code);
 
             foreach ($response->getHeaders() as $name => $values) {
+                if (1 !== preg_match('/\A[a-zA-Z0-9!#$%&\'*+.^_`|~-]+\z/', $name)) {
+                    continue;
+                }
                 $first = 'set-cookie' !== strtolower($name);
                 foreach ($values as $value) {
+                    if (1 === preg_match('/[\x00-\x08\x0a-\x1f\x7f]/', $value)) {
+                        continue;
+                    }
                     header(sprintf('%s: %s', $name, $value), $first);
                     $first = false;
                 }

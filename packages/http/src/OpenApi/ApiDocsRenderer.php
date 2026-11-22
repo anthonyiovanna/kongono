@@ -18,7 +18,18 @@ final class ApiDocsRenderer
         $info = is_array($spec['info'] ?? null) ? $spec['info'] : [];
         $title = htmlspecialchars(is_string($info['title'] ?? null) ? $info['title'] : 'Kongono API', ENT_QUOTES, 'UTF-8');
         $specJson = json_encode($spec, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-        $safeSpecUrl = htmlspecialchars($specUrl, ENT_QUOTES, 'UTF-8');
+        $trimmedSpec = trim($specUrl);
+        $isSafeSpecUrl = '' !== $trimmedSpec
+            && 1 !== preg_match('/[\x00-\x1f\x7f]/', $trimmedSpec)
+            && (
+                (str_starts_with($trimmedSpec, '/') && !str_starts_with($trimmedSpec, '//') && !str_starts_with($trimmedSpec, '/\\'))
+                || str_starts_with(strtolower($trimmedSpec), 'https://')
+                || str_starts_with(strtolower($trimmedSpec), 'http://')
+            );
+        if (!$isSafeSpecUrl) {
+            throw new \InvalidArgumentException('Unsafe OpenAPI specUrl (must be a safe relative path or http(s):// URL).');
+        }
+        $safeSpecUrl = htmlspecialchars($trimmedSpec, ENT_QUOTES, 'UTF-8');
 
         $head = <<<HTML
 <!doctype html>

@@ -191,6 +191,65 @@ final class StorageTest extends TestCase
         $signer->signHeaders('GET', 's3.amazonaws.com', '/k', headers: ['x-custom' => "ok\r\nX-Injected: 1"]);
     }
 
+    public function testRound4S3SigV4DotKeysXmlXxeAndMemoryStorageHardening(): void
+    {
+        // 1. S3Storage rejects crafted region authority override
+        try {
+            new S3Storage('my-bucket', 'AKIAIOSFODNN7EXAMPLE', 'secret', region: 'evil.com#');
+            self::fail('Expected crafted S3 region to fail.');
+        } catch (StorageException $e) {
+            self::assertStringContainsString('Invalid S3 region', $e->getMessage());
+        }
+
+        // 2. S3Storage, MemoryStorage, and LocalStorage reject dot segments & empty segments
+        $s3 = new S3Storage(
+            bucket: 'my-bucket',
+            accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+            secretAccessKey: 'secret',
+            httpSender: static fn(): array => ['status' => 200, 'headers' => [], 'body' => ''],
+        );
+        $memory = new MemoryStorage();
+        $local = new LocalStorage($this->tempDir);
+
+        foreach (['.', 'a/./b', 'a//b'] as $badKey) {
+            foreach ([$s3, $memory, $local] as $driver) {
+                try {
+                    $driver->put($badKey, 'x');
+                    self::fail('Expected invalid storage key to fail: ' . $badKey);
+                } catch (StorageException) {
+                    self::addToAssertionCount(1);
+                }
+            }
+        }
+
+        // 3. S3Storage::list() rejects UTF-16LE / NUL-byte DOCTYPE XXE payloads
+        $utf16Xxe = "\xFF\xFE" . implode("\x00", str_split('<?xml version="1.0"?><!DOCTYPE x [<!ENTITY e "x">]><ListBucketResult/>')) . "\x00";
+        $xxeS3 = new S3Storage(
+            bucket: 'my-bucket',
+            accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+            secretAccessKey: 'secret',
+            httpSender: static fn(): array => ['status' => 200, 'headers' => [], 'body' => $utf16Xxe],
+        );
+        try {
+            $xxeS3->list();
+            self::fail('Expected UTF-16LE XML DOCTYPE payload to fail.');
+        } catch (StorageException) {
+            self::addToAssertionCount(1);
+        }
+
+        // 4. SigV4Signer validates accessKeyId, region, and presignUrl() host
+        try {
+            new SigV4Signer("AKIA\r\nEVIL", 'secret');
+            self::fail('Expected CRLF in SigV4 accessKeyId to fail.');
+        } catch (StorageException $e) {
+            self::assertStringContainsString('Invalid S3 accessKeyId', $e->getMessage());
+        }
+
+        $signer = new SigV4Signer('AKIAIOSFODNN7EXAMPLE', 'secret');
+        $this->expectException(StorageException::class);
+        $signer->presignUrl('GET', 'https', "evil.example\r\nX-Injected: 1", '/bucket/key');
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {

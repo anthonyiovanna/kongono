@@ -136,10 +136,11 @@ final readonly class WorkflowEngine
 
     /**
      * Deliver an external event signal (e.g. webhook or human AI approval) to a workflow currently waiting for it.
-     * Refuses terminal runs, duplicate/overwrite signals, and unexpected pre-seeded event names.
+     * Refuses terminal runs, expired wait deadlines, duplicate/overwrite signals, and unexpected pre-seeded event names.
      */
-    public function signal(string $runId, string $eventName, mixed $payload = true): WorkflowState
+    public function signal(string $runId, string $eventName, mixed $payload = true, ?int $now = null): WorkflowState
     {
+        $ts = $now ?? time();
         $state = $this->store->load($runId);
         if (null === $state) {
             throw new JobException(sprintf('Workflow run "%s" not found.', $runId));
@@ -149,6 +150,9 @@ final readonly class WorkflowEngine
         }
         if (WorkflowStatus::WaitingForEvent !== $state->status || $state->waitingEvent !== $eventName) {
             throw new JobException(sprintf('Workflow run "%s" is not waiting for event "%s".', $runId, $eventName));
+        }
+        if (null !== $state->wakeAt && $ts >= $state->wakeAt) {
+            throw new JobException(sprintf('Workflow run "%s" wait deadline for event "%s" has expired.', $runId, $eventName));
         }
         if (array_key_exists($eventName, $state->events)) {
             throw new JobException(sprintf('Event "%s" was already delivered to workflow run "%s".', $eventName, $runId));

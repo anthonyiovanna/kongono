@@ -53,7 +53,10 @@ final readonly class ViteManifest
             throw new ViewException(sprintf('Vite entry "%s" not found in manifest.', $entry));
         }
 
-        return '/' . trim($this->buildDirectory, '/') . '/' . ltrim($chunk['file'], '/');
+        $trimmedDir = trim($this->buildDirectory, '/');
+        $prefix = '' === $trimmedDir ? '/' : '/' . $trimmedDir . '/';
+
+        return $prefix . ltrim($chunk['file'], '/');
     }
 
     /** @param list<string> $entries */
@@ -79,7 +82,8 @@ final readonly class ViteManifest
     private function renderProductionTags(array $entries): string
     {
         $manifest = $this->loadManifest();
-        $prefix = '/' . trim($this->buildDirectory, '/') . '/';
+        $trimmedDir = trim($this->buildDirectory, '/');
+        $prefix = '' === $trimmedDir ? '/' : '/' . $trimmedDir . '/';
         $styles = [];
         $preloads = [];
         $scripts = [];
@@ -135,7 +139,7 @@ final readonly class ViteManifest
     private function readHotUrl(): ?string
     {
         $hotPath = rtrim($this->publicPath, '/\\') . DIRECTORY_SEPARATOR . $this->hotFilename;
-        if (!is_file($hotPath)) {
+        if (is_link($hotPath) || !is_file($hotPath)) {
             return null;
         }
         $raw = file_get_contents($hotPath);
