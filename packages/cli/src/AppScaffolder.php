@@ -36,8 +36,8 @@ final class AppScaffolder
                 'name' => 'app/' . $slugName,
                 'type' => 'project',
                 'require' => [
-                    'php' => '>=8.5.0',
-                    'kongono/framework' => '^1.9',
+                    'php' => '>=8.5.13',
+                    'kongono/framework' => '^1.10',
                 ],
                 'autoload' => [
                     'psr-4' => ['App\\' => 'src/'],

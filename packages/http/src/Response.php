@@ -86,9 +86,11 @@ final class Response implements ResponseInterface
     }
 
     /**
-     * Create a Kongono\Live HTML fragment response for partial DOM swaps or keyed DOM morphing.
+     * Create a Kongono\Live HTML fragment response for partial DOM swaps, keyed DOM morphing,
+     * and optional out-of-band (`kgn-oob`) multi-region updates in a single HTTP round-trip.
      *
      * @param array<string, string|list<string>> $headers
+     * @param list<string>                       $oob     Additional out-of-band HTML elements carrying `id` and `kgn-oob="..."`
      */
     public static function fragment(
         string $html,
@@ -97,8 +99,10 @@ final class Response implements ResponseInterface
         ?string $pushUrl = null,
         ?string $redirect = null,
         ?string $swap = null,
+        array $oob = [],
     ): self {
-        $response = new self($status, $headers, Stream::fromString($html));
+        $payload = [] === $oob ? $html : ($html . "\n" . implode("\n", $oob));
+        $response = new self($status, $headers, Stream::fromString($payload));
         if (!$response->hasHeader('Content-Type')) {
             $response = $response->withHeader('Content-Type', 'text/html; charset=utf-8');
         }
@@ -123,6 +127,50 @@ final class Response implements ResponseInterface
         }
 
         return $response;
+    }
+
+    /**
+     * Single-action content negotiation: serves typed JSON to mobile/API clients (`Accept: application/json`),
+     * a Kongono Live 2.5 HTML fragment to `X-Kongono-Live: true` requests, or a full SSR HTML page to direct visits.
+     * Only the matching closure is invoked — API callers never incur template rendering overhead.
+     *
+     * @param Closure(): string                  $html
+     * @param Closure(): mixed                   $json
+     * @param (Closure(): string)|null           $fragment
+     * @param array<string, string|list<string>> $headers
+     * @param list<string>                       $oob
+     */
+    public static function adaptive(
+        Request $request,
+        Closure $html,
+        Closure $json,
+        ?Closure $fragment = null,
+        int $status = 200,
+        ?string $swap = 'morph',
+        ?string $pushUrl = null,
+        array $headers = [],
+        array $oob = [],
+    ): self {
+        if ($request->expectsJson()) {
+            return self::json($json(), $status, $headers)
+                ->withHeader('Vary', 'Accept, X-Kongono-Live');
+        }
+
+        if ($request->isLive()) {
+            $render = $fragment ?? $html;
+
+            return self::fragment(
+                html: $render(),
+                status: $status,
+                headers: $headers,
+                pushUrl: $pushUrl,
+                swap: $swap,
+                oob: $oob,
+            )->withHeader('Vary', 'Accept, X-Kongono-Live');
+        }
+
+        return self::html($html(), $status, $headers)
+            ->withHeader('Vary', 'Accept, X-Kongono-Live');
     }
 
     /**

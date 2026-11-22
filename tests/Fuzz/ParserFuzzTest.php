@@ -368,7 +368,7 @@ final class ParserFuzzTest extends TestCase
                 self::assertFalse($signer->verify($mutatedUrl), "Mutated signed URL verified at seed {$this->seed} iter {$i}");
             }
 
-            // 5. Bridge PagePayload::validateComponent() rejects path traversal / XSS / control chars
+            // 5. Bridge PagePayload::validateComponent() & RenderState::island() reject path traversal / XSS / control chars
             $rawComp = $this->mutateString('Projects/Show');
             try {
                 $validComp = \Kongono\Http\Bridge\PagePayload::validateComponent($rawComp);
@@ -376,6 +376,15 @@ final class ParserFuzzTest extends TestCase
                 self::assertMatchesRegularExpression('/\A[A-Za-z0-9][A-Za-z0-9_\/\-]{0,127}\z/', $validComp);
             } catch (InvalidArgumentException) {
                 // Expected fail-closed rejection on unsafe component names
+            }
+
+            try {
+                $rs = new \Kongono\View\RenderState(new \Kongono\View\ViewEngine(sys_get_temp_dir(), sys_get_temp_dir()));
+                $islandTag = $rs->island($rawComp, ['v' => $rawComp], 'visible');
+                self::assertStringContainsString('k-ignore=""', $islandTag);
+                self::assertStringNotContainsString('</script>', $islandTag);
+            } catch (\Kongono\View\ViewException) {
+                // Expected fail-closed rejection on unsafe island component names
             }
         }
     }

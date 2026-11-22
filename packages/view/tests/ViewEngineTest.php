@@ -309,12 +309,26 @@ HTML,
         $rendered = $engine->render('prose', ['body' => '<p><strong>Safe</strong></p><script>evil()</script>']);
         self::assertSame('<article><p><strong>Safe</strong></p></article>', $rendered);
 
-        // @state(...) and @bridgeScript directives emit strict CSP-safe attributes & script tags
-        file_put_contents($this->tempDir . '/views/island.kgn.html', "<div @state(\$init)></div>\n@bridgeScript");
-        $islandHtml = $engine->render('island', ['init' => ['open' => false, 'label' => 'A & "B" </script>']]);
+        // @state(...), @island(...), and @bridgeScript directives emit strict CSP-safe attributes & script tags
+        file_put_contents($this->tempDir . '/views/island.kgn.html', "<div @state(\$init)></div>\n@island('Charts/BidHistory', \$chartProps, 'visible', 'chart-1')\n@bridgeScript");
+        $islandHtml = $engine->render('island', [
+            'init' => ['open' => false, 'label' => 'A & "B" </script>'],
+            'chartProps' => ['lotId' => 42, 'label' => 'Price </script>'],
+        ]);
         self::assertStringContainsString('k-state="', $islandHtml);
+        self::assertStringContainsString('id="chart-1" data-k-island="Charts/BidHistory"', $islandHtml);
+        self::assertStringContainsString('data-k-hydrate="visible" k-ignore=""', $islandHtml);
         self::assertStringNotContainsString('</script>', substr($islandHtml, 0, strpos($islandHtml, '<script src="/_kongono/bridge.js"') ?: 0));
         self::assertStringContainsString('<script src="/_kongono/bridge.js" defer></script>', $islandHtml);
+
+        // @island rejects traversal component names & invalid hydration strategies
+        file_put_contents($this->tempDir . '/views/bad_island.kgn.html', "@island('../Evil', [])");
+        try {
+            $engine->render('bad_island');
+            self::fail('Expected traversal @island name to be rejected.');
+        } catch (ViewException $e) {
+            self::assertStringContainsString('Invalid Bridge island component name', $e->getMessage());
+        }
     }
 
     private function removeDir(string $dir): void

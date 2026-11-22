@@ -615,6 +615,12 @@ final class Request implements ServerRequestInterface
         return 'true' === strtolower(trim($this->getHeaderLine('X-Kongono-Live')));
     }
 
+    /** Returns true when invoked speculatively by Kongono Live 2.5 prefetching (`X-Kongono-Prefetch: true`). */
+    public function isPrefetch(): bool
+    {
+        return 'true' === strtolower(trim($this->getHeaderLine('X-Kongono-Prefetch')));
+    }
+
     /** Returns true when invoked by the Kongono Bridge SPA runtime (`X-Kongono-Bridge: true`). */
     public function isBridge(): bool
     {

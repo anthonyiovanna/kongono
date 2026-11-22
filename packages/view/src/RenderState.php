@@ -49,7 +49,7 @@ final class RenderState
         return HtmlSanitizer::sanitize((string) $value);
     }
 
-    /** Encode an associative state array/DTO safely into a CSP-strict Kongono Live 2.0 `k-state="..."` attribute. */
+    /** Encode an associative state array/DTO safely into a CSP-strict Kongono Live 2.5 `k-state="..."` attribute. */
     public function stateAttr(mixed $state): string
     {
         $json = json_encode(
@@ -58,6 +58,45 @@ final class RenderState
         );
 
         return 'k-state="' . htmlspecialchars($json, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '"';
+    }
+
+    /**
+     * Render an Astro-style Hybrid Bridge Island mount node (`@island('PriceChart', $props, 'visible')`)
+     * protected by `k-ignore` so Kongono Live 2.5 morphs push updated props without remounting React/Vue/Svelte.
+     */
+    public function island(string $component, mixed $props = [], string $hydrate = 'load', ?string $id = null): string
+    {
+        $clean = trim($component);
+        if (
+            '' === $clean
+            || str_contains($clean, '..')
+            || 1 !== preg_match('/\A[A-Za-z0-9][A-Za-z0-9_\/\-]{0,127}\z/', $clean)
+        ) {
+            throw new ViewException(sprintf('Invalid Bridge island component name "%s".', $component));
+        }
+
+        $strategy = strtolower(trim($hydrate));
+        if (!in_array($strategy, ['load', 'visible', 'idle'], true)) {
+            throw new ViewException(sprintf('Invalid island hydration strategy "%s". Allowed: load, visible, idle.', $hydrate));
+        }
+
+        $json = json_encode(
+            $props,
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT,
+        );
+
+        $idAttr = '';
+        if (null !== $id && '' !== trim($id)) {
+            $idAttr = ' id="' . htmlspecialchars(trim($id), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '"';
+        }
+
+        return sprintf(
+            '<div%s data-k-island="%s" data-k-props="%s" data-k-hydrate="%s" k-ignore=""></div>',
+            $idAttr,
+            htmlspecialchars($clean, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            htmlspecialchars($json, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            $strategy,
+        );
     }
 
     /** @param array<string, string|int|float> $params */

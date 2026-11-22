@@ -20,6 +20,7 @@ use Kongono\Cli\Database\MigrationLinter;
 use Kongono\Cli\Deploy\DeployBlueprintGenerator;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Cli\Sdk\SdkGenerator;
+use Kongono\Cli\Ui\UiComponentGenerator;
 use Kongono\Core\CoreException;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Core\Graph\RouteNode;
@@ -61,13 +62,14 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.9.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.10.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
                 'sdk:generate' => $this->cmdSdkGenerate($appRoot, $options),
                 'bridge:init' => $this->cmdBridgeInit($appRoot, $rest, $options),
                 'bridge:types' => $this->cmdBridgeTypes($appRoot, $options),
+                'ui:add' => $this->cmdUiAdd($appRoot, $rest, $options),
                 'mcp' => $this->cmdMcp($appRoot),
                 'audit' => $this->cmdAudit($appRoot, $options),
                 'eval' => $this->cmdEval($appRoot, $options),
@@ -1223,6 +1225,40 @@ final readonly class KongoCli
     }
 
     /**
+     * Copy-own zero-npm, strict-CSP accessible Kongono UI components (`kongo ui:add modal drawer ...`).
+     *
+     * @param list<string>               $args
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdUiAdd(string $appRoot, array $args, array $options): array
+    {
+        if ([] === $args) {
+            return [1, sprintf("Usage: kongo ui:add <%s|all> [--app=path] [--force]\n", implode('|', UiComponentGenerator::AVAILABLE))];
+        }
+
+        $force = isset($options['force']);
+        $files = (new UiComponentGenerator())->generate($args);
+        $lines = ['Kongono UI Primitives (zero-npm, strict-CSP):'];
+
+        foreach ($files as $rel => $content) {
+            $dest = $appRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $rel);
+            if (is_file($dest) && !$force) {
+                $lines[] = sprintf('  [SKIP ] %s (already exists; pass --force to overwrite)', $rel);
+                continue;
+            }
+            $dir = dirname($dest);
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0o775, true);
+            }
+            file_put_contents($dest, $content);
+            $lines[] = sprintf('  [WRITE] %s', $rel);
+        }
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
      * @param array<string, string|true> $options
      * @return array{0: int, 1: string}
      */
@@ -1465,6 +1501,9 @@ Core Commands:
   graph [--app=path]                                    Print live ApplicationGraph JSON
   openapi [--app=path]                                  Generate OpenAPI 3.1 JSON spec from routes & DTOs
   sdk:generate --lang=ts|swift|kotlin|dart [--out=file] Generate typed Web/iOS/Android/Flutter client SDK
+  bridge:init <react|vue|svelte> [--app=path] [--force] Scaffold first-class React 19, Vue 3, or Svelte 5 Bridge SPA
+  bridge:types [--app=path] [--out=file]                Generate strict TypeScript interfaces from PHP 8.5 DTOs & enums
+  ui:add <modal|drawer|dropdown|tabs|toast|datatable|kanban|all> Add zero-npm accessible Kongono UI components
   mcp [--app=path]                                      Run Model Context Protocol (MCP) JSON-RPC stdio server
   check                                                 Run full CS + PHPStan + PHPUnit suite
   test                                                  Run PHPUnit test suite

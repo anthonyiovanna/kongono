@@ -1030,18 +1030,32 @@ final class HttpAppTest extends TestCase
 
     public function testLive2RuntimeMorphingZeroEvalAndKongonoBridgeProtocol(): void
     {
-        // 1. Live 2.0 runtime: zero eval / zero new Function, includes keyed morphing, signals, optimistic rollback & View Transitions
+        // 1. Live 2.5 runtime: zero eval / zero new Function, includes keyed morphing, safe AST + pipes,
+        //    speculative prefetch, out-of-band morph, k-persist, offline queue, sortable DnD, and hybrid island props
         $liveJs = LiveMiddleware::scriptSource();
-        self::assertStringContainsString('version: "2.0.0"', $liveJs);
+        self::assertStringContainsString('version: "2.5.0"', $liveJs);
         self::assertStringContainsString('morphChildren', $liveJs);
         self::assertStringContainsString('BLOCKED_KEYS', $liveJs);
         self::assertStringContainsString('startViewTransition', $liveJs);
         self::assertStringContainsString('kgn-optimistic-text', $liveJs);
+        self::assertStringContainsString('compileExpr', $liveJs);
+        self::assertStringContainsString('PIPES.currency', $liveJs);
+        self::assertStringContainsString('kgn-prefetch', $liveJs);
+        self::assertStringContainsString('kgn-oob', $liveJs);
+        self::assertStringContainsString('k-persist', $liveJs);
+        self::assertStringContainsString('kgn-offline', $liveJs);
+        self::assertStringContainsString('kgn-sortable', $liveJs);
+        self::assertStringContainsString('kongono:island-props', $liveJs);
         self::assertStringNotContainsString('eval(', $liveJs);
         self::assertStringNotContainsString('new Function', $liveJs);
 
-        $frag = Response::fragment('<div id="c">ok</div>', swap: 'morph');
+        $frag = Response::fragment(
+            '<div id="c">ok</div>',
+            swap: 'morph',
+            oob: ['<span id="badge" kgn-oob="morph">5</span>'],
+        );
         self::assertSame('morph', $frag->getHeaderLine('X-Kongono-Swap'));
+        self::assertStringContainsString('kgn-oob="morph"', (string) $frag->getBody());
         try {
             Response::fragment('<div>x</div>', swap: 'evil_swap');
             self::fail('Expected invalid swap mode to fail.');
@@ -1049,7 +1063,57 @@ final class HttpAppTest extends TestCase
             self::addToAssertionCount(1);
         }
 
-        // 2. Kongono Bridge (React/Vue/Svelte): initial HTML, SPA JSON, lazy partial reloads, 409 version mismatch, 422 errors, 303 redirect
+        // 1b. Single-action Response::adaptive() serves JSON, Live fragment, or full SSR HTML lazily
+        $htmlCalls = 0;
+        $fragCalls = 0;
+        $jsonCalls = 0;
+        $adaptiveApp = App::create(__DIR__)->routes(static function (Router $r) use (&$htmlCalls, &$fragCalls, &$jsonCalls): void {
+            $r->get('/lots/{id}', static function (Request $req, int $id) use (&$htmlCalls, &$fragCalls, &$jsonCalls): Response {
+                return Response::adaptive(
+                    request: $req,
+                    html: static function () use (&$htmlCalls, $id): string {
+                        ++$htmlCalls;
+
+                        return "<html><body>Full Lot {$id}</body></html>";
+                    },
+                    fragment: static function () use (&$fragCalls, $id): string {
+                        ++$fragCalls;
+
+                        return "<section id=\"lot\">Fragment Lot {$id}</section>";
+                    },
+                    json: static function () use (&$jsonCalls, $id): array {
+                        ++$jsonCalls;
+
+                        return ['id' => $id, 'kind' => 'lot'];
+                    },
+                    oob: ['<div id="ticker" kgn-oob="morphInner">Live</div>'],
+                );
+            });
+        });
+
+        $apiRes = $adaptiveApp->handle(Request::create('GET', '/lots/9', ['Accept' => 'application/json']));
+        self::assertSame(200, $apiRes->getStatusCode());
+        self::assertStringContainsString('application/json', $apiRes->getHeaderLine('Content-Type'));
+        self::assertSame('{"id":9,"kind":"lot"}', (string) $apiRes->getBody());
+        self::assertSame(1, $jsonCalls);
+        self::assertSame(0, $htmlCalls);
+        self::assertSame(0, $fragCalls);
+
+        $liveRes = $adaptiveApp->handle(Request::create('GET', '/lots/9', ['X-Kongono-Live' => 'true', 'X-Kongono-Prefetch' => 'true', 'Accept' => 'text/html']));
+        self::assertSame(200, $liveRes->getStatusCode());
+        self::assertSame('morph', $liveRes->getHeaderLine('X-Kongono-Swap'));
+        self::assertStringContainsString('Fragment Lot 9', (string) $liveRes->getBody());
+        self::assertStringContainsString('kgn-oob="morphInner"', (string) $liveRes->getBody());
+        self::assertSame(1, $fragCalls);
+        self::assertSame(0, $htmlCalls);
+        self::assertTrue(Request::create('GET', '/lots/9', ['X-Kongono-Prefetch' => 'true'])->isPrefetch());
+
+        $fullRes = $adaptiveApp->handle(Request::create('GET', '/lots/9', ['Accept' => 'text/html']));
+        self::assertSame(200, $fullRes->getStatusCode());
+        self::assertStringContainsString('Full Lot 9', (string) $fullRes->getBody());
+        self::assertSame(1, $htmlCalls);
+
+        // 2. Kongono Bridge (React/Vue/Svelte): initial HTML, SPA JSON, lazy partial reloads, hybrid islands, 409/422/303
         $expensiveCalls = 0;
         $bridgeMw = new \Kongono\Http\Bridge\BridgeMiddleware(
             version: 'v-bundle-42',
@@ -1074,10 +1138,12 @@ final class HttpAppTest extends TestCase
                 $r->delete('/projects/{id}', static fn(): Response => Response::redirect('/projects'));
             });
 
-        // Bridge JS runtime served with ETag + zero eval
+        // Bridge JS runtime served with ETag, mountIslands, + zero eval
         $jsRes = $app->handle(Request::create('GET', '/_kongono/bridge.js'));
         self::assertSame(200, $jsRes->getStatusCode());
         self::assertStringContainsString('window.KongonoBridge', (string) $jsRes->getBody());
+        self::assertStringContainsString('mountIslands', (string) $jsRes->getBody());
+        self::assertStringContainsString('kongono:island-props', (string) $jsRes->getBody());
         self::assertStringNotContainsString('eval(', (string) $jsRes->getBody());
         self::assertSame(304, $app->handle(Request::create('GET', '/_kongono/bridge.js', ['If-None-Match' => $jsRes->getHeaderLine('ETag')]))->getStatusCode());
 

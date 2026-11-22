@@ -171,7 +171,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.9.0', $vOut);
+            self::assertStringContainsString('v1.10.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -804,6 +804,16 @@ PHP);
             [$tCode, $tOut] = $cli->run(['bridge:types', '--app=' . $this->starterAppRoot]);
             self::assertSame(0, $tCode);
             self::assertStringContainsString('export interface CreateNoteInput', $tOut);
+
+            // 8. `kongo ui:add` scaffolds zero-npm strict-CSP accessible UI primitives that pass SecurityAuditor cleanly
+            [$uCode, $uOut] = $cli->run(['ui:add', 'all', '--app=' . $appDir]);
+            self::assertSame(0, $uCode);
+            self::assertStringContainsString('views/components/k-modal.kgn.html', $uOut);
+            self::assertStringContainsString('views/components/k-kanban.kgn.html', $uOut);
+            self::assertFileExists($appDir . '/public/assets/kongono-ui.css');
+            self::assertFileExists($appDir . '/views/components/k-dropdown.kgn.html');
+            $uiAudit = (new SecurityAuditor())->audit($appDir);
+            self::assertNotContains('KGN-AUDIT-RAW-HTML', array_column($uiAudit['findings'], 'code'));
         } finally {
             $this->removeDir($tmp);
         }

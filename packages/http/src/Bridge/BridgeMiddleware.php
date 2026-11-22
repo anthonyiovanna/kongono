@@ -327,9 +327,58 @@ final readonly class BridgeMiddleware implements MiddlewareInterface
     }
   });
 
+  // Astro-style Hybrid Bridge Islands inside Kongono Live 2.5 pages (`@island('Chart', $props, 'visible')`)
+  const mountedIslands = new WeakMap();
+
+  function mountIslands({ resolve, mount, root = document }) {
+    if (typeof resolve !== "function" || typeof mount !== "function") return;
+    const hydrateOne = async (el) => {
+      if (mountedIslands.has(el)) return;
+      mountedIslands.set(el, true);
+      const name = el.getAttribute("data-k-island") || "";
+      if (!name) return;
+      let props = {};
+      try { props = JSON.parse(el.getAttribute("data-k-props") || "{}"); } catch (_e) {}
+      const mod = await resolve(name);
+      const Component = (mod && mod.default) ? mod.default : mod;
+      const runMount = (nextProps) => mount({ el, Component, props: nextProps, component: name });
+      runMount(props);
+      el.addEventListener("kongono:island-props", (ev) => {
+        if (ev.detail && ev.detail.props) runMount(ev.detail.props);
+      });
+    };
+
+    const scan = (scope) => {
+      const nodes = (scope || document).querySelectorAll("[data-k-island]");
+      nodes.forEach((el) => {
+        if (mountedIslands.has(el)) return;
+        const strategy = (el.getAttribute("data-k-hydrate") || "load").toLowerCase();
+        if (strategy === "visible" && typeof IntersectionObserver !== "undefined") {
+          const io = new IntersectionObserver((entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                io.disconnect();
+                hydrateOne(el);
+              }
+            }
+          }, { rootMargin: "150px" });
+          io.observe(el);
+        } else if (strategy === "idle" && typeof window.requestIdleCallback === "function") {
+          window.requestIdleCallback(() => hydrateOne(el));
+        } else {
+          hydrateOne(el);
+        }
+      });
+    };
+
+    scan(root);
+    document.addEventListener("kongono:swapped", (ev) => scan((ev.detail && ev.detail.target) || document));
+  }
+
   window.KongonoBridge = {
-    version: "1.9.0",
+    version: "1.10.0",
     boot,
+    mountIslands,
     visit,
     reload,
     createForm,

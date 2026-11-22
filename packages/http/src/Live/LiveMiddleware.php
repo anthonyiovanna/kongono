@@ -12,25 +12,31 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
- * Serves Kongono\Live 2.0 — a zero-build-step, strict-CSP-compliant (zero eval / zero new Function)
- * reactive hypermedia, keyed DOM morphing, client signals, optimistic UI, and SSE runtime.
+ * Serves Kongono\Live 2.5 — a zero-build-step, strict-CSP-compliant (zero eval / zero new Function)
+ * reactive hypermedia, keyed DOM morphing, safe arithmetic/pipe AST signals, speculative prefetch,
+ * out-of-band multi-morph, offline mutation queue, drag-and-drop sortable, and hybrid island runtime.
  *
- * Server-driven Hypermedia & Morphing:
+ * Server-driven Hypermedia, Prefetch, OOB & Offline:
  *   - kgn-get / kgn-post / kgn-put / kgn-patch / kgn-delete
  *   - kgn-target="#selector"
  *   - kgn-swap="morph|morphInner|innerHTML|outerHTML|beforeend|afterbegin|delete|none"
+ *   - kgn-oob="morph|morphInner|innerHTML|outerHTML|beforeend|afterbegin|delete" (multi-region updates in 1 response)
+ *   - kgn-prefetch="hover|visible|mousedown" (speculative GET fragment cache with auto-invalidation on write)
+ *   - kgn-offline="queue" (idempotent offline mutation queue replayed automatically when online)
+ *   - kgn-sortable="/endpoint" (optimistic drag-and-drop + Alt+Arrow reordering with rollback on failure)
  *   - kgn-trigger="click|submit|input delay:250ms|change|keyup"
  *   - kgn-transition="true" (native View Transitions API)
  *   - kgn-optimistic-text="Saved!" / kgn-optimistic-class="is-active" / kgn-disable
  *   - kgn-confirm="Confirm action?"
  *   - kgn-stream="/events/stream" + kgn-event="item.updated"
  *
- * Zero-eval CSP-strict Client Signals:
- *   - k-state='{"open":false,"count":0,"tab":"overview","query":""}' (or `@state([...])`)
- *   - k-text="expr" / k-show="expr" / k-hide="expr" / k-model="path"
- *   - k-class:active="expr" / k-attr:aria-expanded="expr" / k-filter="query"
- *   - k-on:click="toggle(open)" / "inc(count)" / "dec(count)" / "set(tab, 'billing')" / "reset()" / "dispatch(ev)" / "call(fn)"
- *   - Event modifiers: .prevent, .stop, .self, .enter, .escape
+ * Zero-eval CSP-strict Client Signals, Safe Math/Pipes & Persistence:
+ *   - k-state='{"bid":6450,"insured":true}' (or `@state([...])`) + k-persist="local|session"
+ *   - Safe cached AST supporting arithmetic (+,-,*,/,%), parens, ternary (? :), ??, ||, &&, !, comparisons,
+ *     and pure pipe formatters: currency, number, fixed, round, floor, ceil, abs, percent, upper, lower, trim, plural, default
+ *   - k-text / k-show / k-hide / k-model / k-class:* / k-attr:* / k-filter / k-online / k-offline
+ *   - k-on:click="toggle(open)" / "inc(count)" / "dec(count)" / "set(total, bid * 1.15)" / "reset()" / "dispatch(ev)" / "call(fn)"
+ *   - Hybrid Bridge Island prop sync: [data-k-island] receives `kongono:island-props` across morphs without remounting
  */
 final readonly class LiveMiddleware implements MiddlewareInterface
 {
@@ -74,12 +80,77 @@ final readonly class LiveMiddleware implements MiddlewareInterface
   if (window.KongonoLive) return;
 
   const METHODS = ["get", "post", "put", "patch", "delete"];
-  const BLOCKED_KEYS = new Set(["__proto__", "prototype", "constructor"]);
+  const BLOCKED_KEYS = new Set(["__proto__", "prototype", "constructor", "window", "document", "globalThis", "Function"]);
   const URL_ATTRS = new Set(["href", "src", "action", "formaction"]);
+  const MAX_AST_CACHE = 512;
+  const MAX_TOKENS = 128;
+  const MAX_DEPTH = 24;
+  const MAX_PREFETCH = 40;
+  const PREFETCH_TTL_MS = 15000;
+  const OFFLINE_QUEUE_KEY = "kongono:offline-queue";
+
   const streams = new WeakMap();
   const islands = new WeakMap();
   const timers = new WeakMap();
+  const sortables = new WeakMap();
+  const prefetchedVisible = new WeakSet();
+  const astCache = new Map();
+  const prefetchCache = new Map();
+  const inflightPrefetch = new Map();
   const customActions = Object.create(null);
+  let islandSeq = 0;
+  let flushingQueue = false;
+
+  const PIPES = Object.create(null);
+  PIPES.currency = (val, code = "USD", locale = "en-US") => {
+    const n = Number(val);
+    if (!Number.isFinite(n)) return "";
+    const cur = String(code || "USD").toUpperCase();
+    const loc = String(locale || "en-US");
+    const isWhole = Math.abs(n - Math.round(n)) < 1e-9;
+    try {
+      return new Intl.NumberFormat(loc, {
+        style: "currency",
+        currency: cur,
+        minimumFractionDigits: isWhole ? 0 : 2,
+        maximumFractionDigits: 2
+      }).format(n);
+    } catch (_e) {
+      return cur + " " + (isWhole ? String(Math.round(n)) : n.toFixed(2));
+    }
+  };
+  PIPES.number = (val, locale = "en-US") => {
+    const n = Number(val);
+    if (!Number.isFinite(n)) return "0";
+    try { return new Intl.NumberFormat(String(locale || "en-US")).format(n); } catch (_e) { return String(n); }
+  };
+  PIPES.fixed = (val, digits = 2) => {
+    const n = Number(val);
+    if (!Number.isFinite(n)) return "0";
+    const d = Math.max(0, Math.min(6, Math.trunc(Number(digits) || 0)));
+    return n.toFixed(d);
+  };
+  PIPES.round = (val) => Math.round(Number(val) || 0);
+  PIPES.floor = (val) => Math.floor(Number(val) || 0);
+  PIPES.ceil = (val) => Math.ceil(Number(val) || 0);
+  PIPES.abs = (val) => Math.abs(Number(val) || 0);
+  PIPES.percent = (val, digits = 0) => {
+    const n = Number(val);
+    if (!Number.isFinite(n)) return "0%";
+    const d = Math.max(0, Math.min(4, Math.trunc(Number(digits) || 0)));
+    return (n * 100).toFixed(d) + "%";
+  };
+  PIPES.upper = (val) => String(val == null ? "" : val).toUpperCase();
+  PIPES.lower = (val) => String(val == null ? "" : val).toLowerCase();
+  PIPES.trim = (val) => String(val == null ? "" : val).trim();
+  PIPES.plural = (val, singular = "", pluralForm = "") => {
+    const n = Number(val);
+    const num = Number.isFinite(n) ? n : 0;
+    const s = String(singular || "");
+    const p = String(pluralForm || (s ? s + "s" : ""));
+    return String(num) + " " + (num === 1 ? s : p);
+  };
+  PIPES.default = (val, fallback = "") => (val === null || val === undefined || val === "" ? fallback : val);
 
   function cloneSafe(val) {
     if (Array.isArray(val)) return val.map(cloneSafe);
@@ -142,75 +213,264 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     cur[leaf] = value;
   }
 
-  function parseLiteralOrPath(token, state) {
-    const t = token.trim();
-    if (t === "true") return true;
-    if (t === "false") return false;
-    if (t === "null") return null;
-    if ((t.startsWith("'") && t.endsWith("'")) || (t.startsWith('"') && t.endsWith('"'))) {
-      return t.slice(1, -1);
+  // Zero-eval recursive-descent AST tokenizer & parser (arithmetic, parens, ternary, comparisons, pipes)
+  function tokenize(src) {
+    const tokens = [];
+    let i = 0;
+    const len = src.length;
+    while (i < len && tokens.length < MAX_TOKENS) {
+      const ch = src[i];
+      if (ch === " " || ch === "\t" || ch === "\n" || ch === "\r") { i++; continue; }
+      const three = src.slice(i, i + 3);
+      if (three === "===" || three === "!==") { tokens.push({ t: "op", v: three }); i += 3; continue; }
+      const two = src.slice(i, i + 2);
+      if (two === "==" || two === "!=" || two === ">=" || two === "<=" || two === "&&" || two === "||" || two === "??") {
+        tokens.push({ t: "op", v: two }); i += 2; continue;
+      }
+      if ("+-*/%!<>?:(),|".includes(ch)) {
+        tokens.push({ t: ch === "|" ? "pipe" : "punc", v: ch }); i++; continue;
+      }
+      if (ch === "'" || ch === '"') {
+        const q = ch;
+        let s = "";
+        i++;
+        while (i < len && src[i] !== q) {
+          if (src[i] === "\\" && i + 1 < len) { s += src[i + 1]; i += 2; }
+          else { s += src[i]; i++; }
+        }
+        if (i < len && src[i] === q) i++;
+        tokens.push({ t: "str", v: s });
+        continue;
+      }
+      if ((ch >= "0" && ch <= "9") || (ch === "." && i + 1 < len && src[i + 1] >= "0" && src[i + 1] <= "9")) {
+        let num = "";
+        let dot = false;
+        while (i < len && ((src[i] >= "0" && src[i] <= "9") || (!dot && src[i] === "."))) {
+          if (src[i] === ".") dot = true;
+          num += src[i++];
+        }
+        tokens.push({ t: "num", v: Number(num) });
+        continue;
+      }
+      if (/[a-zA-Z_$]/.test(ch)) {
+        let id = "";
+        while (i < len && /[a-zA-Z0-9_$.]/.test(src[i])) id += src[i++];
+        if (id === "true") tokens.push({ t: "lit", v: true });
+        else if (id === "false") tokens.push({ t: "lit", v: false });
+        else if (id === "null") tokens.push({ t: "lit", v: null });
+        else tokens.push({ t: "id", v: id });
+        continue;
+      }
+      i++;
     }
-    if (/^-?\d+(?:\.\d+)?$/.test(t)) return Number(t);
-    const val = getPath(state, t);
-    return val !== undefined ? val : t;
+    return tokens;
   }
 
-  function evalAtom(expr, state) {
-    const s = expr.trim();
-    if (!s) return false;
-    if (s.startsWith("!")) return !evalAtom(s.slice(1), state);
-    const cmp = /^(.+?)\s*(===|!==|==|!=|>=|<=|>|<)\s*(.+)$/.exec(s);
-    if (cmp) {
-      const left = evalAtom(cmp[1], state);
-      const right = parseLiteralOrPath(cmp[3], state);
-      switch (cmp[2]) {
-        case "===": case "==": return String(left) === String(right) || left === right;
-        case "!==": case "!=": return !(String(left) === String(right) || left === right);
-        case ">=": return Number(left) >= Number(right);
-        case "<=": return Number(left) <= Number(right);
-        case ">": return Number(left) > Number(right);
-        case "<": return Number(left) < Number(right);
+  function compileExpr(raw) {
+    const key = String(raw || "").trim();
+    if (!key) return null;
+    if (astCache.has(key)) return astCache.get(key);
+    const tokens = tokenize(key);
+    let pos = 0;
+    let depth = 0;
+    const peek = () => tokens[pos] || null;
+    const next = () => tokens[pos++] || null;
+    const match = (t, v) => {
+      const tk = peek();
+      if (tk && tk.t === t && (v === undefined || tk.v === v)) { pos++; return tk; }
+      return null;
+    };
+
+    function parsePipes() {
+      let node = parseTernary();
+      while (match("pipe")) {
+        const nameTk = match("id");
+        if (!nameTk) break;
+        const args = [];
+        if (match("punc", "(")) {
+          if (!match("punc", ")")) {
+            do {
+              args.push(parseTernary());
+            } while (match("punc", ","));
+            match("punc", ")");
+          }
+        }
+        node = { k: "pipe", name: nameTk.v, expr: node, args };
+      }
+      return node;
+    }
+
+    function parseTernary() {
+      const cond = parseNullish();
+      if (match("punc", "?")) {
+        const yes = parseTernary();
+        match("punc", ":");
+        const no = parseTernary();
+        return { k: "tern", c: cond, y: yes, n: no };
+      }
+      return cond;
+    }
+
+    function parseNullish() {
+      let left = parseOr();
+      while (match("op", "??")) left = { k: "bin", op: "??", l: left, r: parseOr() };
+      return left;
+    }
+
+    function parseOr() {
+      let left = parseAnd();
+      while (match("op", "||")) left = { k: "bin", op: "||", l: left, r: parseAnd() };
+      return left;
+    }
+
+    function parseAnd() {
+      let left = parseCmp();
+      while (match("op", "&&")) left = { k: "bin", op: "&&", l: left, r: parseCmp() };
+      return left;
+    }
+
+    function parseCmp() {
+      let left = parseAdd();
+      const tk = peek();
+      if (tk && ((tk.t === "op" && (tk.v === "===" || tk.v === "!==" || tk.v === "==" || tk.v === "!=" || tk.v === ">=" || tk.v === "<=")) || (tk.t === "punc" && (tk.v === ">" || tk.v === "<")))) {
+        next();
+        left = { k: "bin", op: tk.v, l: left, r: parseAdd() };
+      }
+      return left;
+    }
+
+    function parseAdd() {
+      let left = parseMul();
+      while (peek() && peek().t === "punc" && (peek().v === "+" || peek().v === "-")) {
+        const op = next().v;
+        left = { k: "bin", op, l: left, r: parseMul() };
+      }
+      return left;
+    }
+
+    function parseMul() {
+      let left = parseUnary();
+      while (peek() && peek().t === "punc" && (peek().v === "*" || peek().v === "/" || peek().v === "%")) {
+        const op = next().v;
+        left = { k: "bin", op, l: left, r: parseUnary() };
+      }
+      return left;
+    }
+
+    function parseUnary() {
+      if (depth >= MAX_DEPTH) return { k: "lit", v: undefined };
+      const tk = peek();
+      if (tk && tk.t === "punc" && (tk.v === "!" || tk.v === "-")) {
+        next();
+        depth++;
+        const arg = parseUnary();
+        depth--;
+        return { k: "un", op: tk.v, a: arg };
+      }
+      return parsePrimary();
+    }
+
+    function parsePrimary() {
+      if (depth >= MAX_DEPTH) return { k: "lit", v: undefined };
+      const tk = peek();
+      if (!tk) return { k: "lit", v: undefined };
+      if (tk.t === "num" || tk.t === "str" || tk.t === "lit") { next(); return { k: "lit", v: tk.v }; }
+      if (tk.t === "id") { next(); return { k: "path", p: tk.v }; }
+      if (tk.t === "punc" && tk.v === "(") {
+        next();
+        depth++;
+        const inner = parsePipes();
+        depth--;
+        match("punc", ")");
+        return inner;
+      }
+      next();
+      return { k: "lit", v: undefined };
+    }
+
+    const ast = parsePipes();
+    if (astCache.size >= MAX_AST_CACHE) {
+      const oldest = astCache.keys().next().value;
+      if (oldest !== undefined) astCache.delete(oldest);
+    }
+    astCache.set(key, ast);
+    return ast;
+  }
+
+  function evalAst(node, state) {
+    if (!node) return undefined;
+    switch (node.k) {
+      case "lit": return node.v;
+      case "path": return getPath(state, node.p);
+      case "un": {
+        const v = evalAst(node.a, state);
+        return node.op === "!" ? !v : -(Number(v) || 0);
+      }
+      case "tern":
+        return evalAst(node.c, state) ? evalAst(node.y, state) : evalAst(node.n, state);
+      case "pipe": {
+        const base = evalAst(node.expr, state);
+        const fn = PIPES[node.name];
+        if (typeof fn !== "function") return base;
+        const args = node.args.map((a) => evalAst(a, state));
+        return fn(base, ...args);
+      }
+      case "bin": {
+        if (node.op === "&&") { const l = evalAst(node.l, state); return l ? evalAst(node.r, state) : l; }
+        if (node.op === "||") { const l = evalAst(node.l, state); return l ? l : evalAst(node.r, state); }
+        if (node.op === "??") {
+          const l = evalAst(node.l, state);
+          return (l !== null && l !== undefined && l !== "") ? l : evalAst(node.r, state);
+        }
+        const l = evalAst(node.l, state);
+        const r = evalAst(node.r, state);
+        switch (node.op) {
+          case "===": case "==": return l === r || String(l) === String(r);
+          case "!==": case "!=": return !(l === r || String(l) === String(r));
+          case ">=": return Number(l) >= Number(r);
+          case "<=": return Number(l) <= Number(r);
+          case ">": return Number(l) > Number(r);
+          case "<": return Number(l) < Number(r);
+          case "+": {
+            if (typeof l === "string" || typeof r === "string") return String(l == null ? "" : l) + String(r == null ? "" : r);
+            const s = (Number(l) || 0) + (Number(r) || 0);
+            return Number.isFinite(s) ? s : 0;
+          }
+          case "-": { const s = (Number(l) || 0) - (Number(r) || 0); return Number.isFinite(s) ? s : 0; }
+          case "*": { const s = (Number(l) || 0) * (Number(r) || 0); return Number.isFinite(s) ? s : 0; }
+          case "/": { const d = Number(r) || 0; return d === 0 ? 0 : ((Number(l) || 0) / d); }
+          case "%": { const d = Number(r) || 0; return d === 0 ? 0 : ((Number(l) || 0) % d); }
+        }
       }
     }
-    if (s === "true") return true;
-    if (s === "false") return false;
-    if (s === "null") return null;
-    if ((s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))) return s.slice(1, -1);
-    if (/^-?\d+(?:\.\d+)?$/.test(s)) return Number(s);
-    return getPath(state, s);
+    return undefined;
   }
 
-  // Zero-eval expression evaluator supporting ??, ||, &&, !, comparisons, and dotted paths
   function evalExpr(rawExpr, state) {
-    const s = String(rawExpr || "").trim();
-    if (!s) return undefined;
-    if (s.includes("??")) {
-      const parts = s.split("??");
-      for (const p of parts) {
-        const v = evalExpr(p, state);
-        if (v !== null && v !== undefined && v !== "") return v;
-      }
-      return "";
-    }
-    if (s.includes("||")) {
-      const parts = s.split("||");
-      let last = false;
-      for (const p of parts) {
-        last = evalExpr(p, state);
-        if (last) return last;
-      }
-      return last;
-    }
-    if (s.includes("&&")) {
-      const parts = s.split("&&");
-      let last = true;
-      for (const p of parts) {
-        last = evalExpr(p, state);
-        if (!last) return last;
-      }
-      return last;
-    }
-    return evalAtom(s, state);
+    const ast = compileExpr(rawExpr);
+    return ast ? evalAst(ast, state) : undefined;
+  }
+
+  function storageFor(mode) {
+    try {
+      if (mode === "local") return window.localStorage;
+      if (mode === "session") return window.sessionStorage;
+    } catch (_e) {}
+    return null;
+  }
+
+  function persistKeyFor(root) {
+    const explicit = root.getAttribute("k-persist-key");
+    if (explicit) return "kongono:state:" + explicit;
+    const id = root.id || ("island-" + (++islandSeq));
+    return "kongono:state:" + window.location.pathname + ":" + id;
+  }
+
+  function saveIsland(island) {
+    if (!island || !island.persistStore || !island.persistKey) return;
+    try {
+      island.persistStore.setItem(island.persistKey, JSON.stringify(island.state));
+    } catch (_e) {}
   }
 
   function findIsland(el) {
@@ -281,7 +541,12 @@ final readonly class LiveMiddleware implements MiddlewareInterface
   }
 
   function initIsland(root) {
-    if (!root || islands.has(root)) return islands.get(root);
+    if (!root) return null;
+    if (islands.has(root)) {
+      const existing = islands.get(root);
+      renderIsland(existing);
+      return existing;
+    }
     let initial = Object.create(null);
     try {
       const parsed = JSON.parse(root.getAttribute("k-state") || "{}");
@@ -289,10 +554,53 @@ final readonly class LiveMiddleware implements MiddlewareInterface
         initial = cloneSafe(parsed);
       }
     } catch (_e) {}
-    const island = { root, state: cloneSafe(initial), initial: cloneSafe(initial) };
+
+    const persistMode = (root.getAttribute("k-persist") || "").trim().toLowerCase();
+    const persistStore = storageFor(persistMode);
+    const persistKey = persistStore ? persistKeyFor(root) : null;
+    const state = cloneSafe(initial);
+    if (persistStore && persistKey) {
+      try {
+        const savedRaw = persistStore.getItem(persistKey);
+        if (savedRaw) {
+          const saved = JSON.parse(savedRaw);
+          if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+            const safeSaved = cloneSafe(saved);
+            for (const k of Object.keys(initial)) {
+              if (k in safeSaved && !BLOCKED_KEYS.has(k)) state[k] = safeSaved[k];
+            }
+          }
+        }
+      } catch (_e) {}
+    }
+
+    const island = { root, state, initial: cloneSafe(initial), persistStore, persistKey };
     islands.set(root, island);
     renderIsland(island);
     return island;
+  }
+
+  function splitTopLevelArgs(raw) {
+    const out = [];
+    let cur = "";
+    let depth = 0;
+    let quote = null;
+    for (let i = 0; i < raw.length; i++) {
+      const ch = raw[i];
+      if (quote) {
+        cur += ch;
+        if (ch === "\\" && i + 1 < raw.length) { cur += raw[++i]; continue; }
+        if (ch === quote) quote = null;
+        continue;
+      }
+      if (ch === "'" || ch === '"') { quote = ch; cur += ch; continue; }
+      if (ch === "(") { depth++; cur += ch; continue; }
+      if (ch === ")") { depth = Math.max(0, depth - 1); cur += ch; continue; }
+      if (ch === "," && depth === 0) { out.push(cur.trim()); cur = ""; continue; }
+      cur += ch;
+    }
+    if (cur.trim() !== "") out.push(cur.trim());
+    return out;
   }
 
   function runActionList(rawActions, island, el, ev) {
@@ -302,19 +610,19 @@ final readonly class LiveMiddleware implements MiddlewareInterface
       const m = /^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.*)\)$/.exec(stmt);
       if (!m) continue;
       const fn = m[1];
-      const args = m[2].trim() ? m[2].split(",").map((a) => a.trim()) : [];
+      const args = m[2].trim() ? splitTopLevelArgs(m[2]) : [];
       if (fn === "toggle" && args[0]) {
         setPath(island.state, args[0], !Boolean(getPath(island.state, args[0])));
         dirty = true;
       } else if (fn === "set" && args[0] && args.length >= 2) {
-        setPath(island.state, args[0], parseLiteralOrPath(args.slice(1).join(","), island.state));
+        setPath(island.state, args[0], evalExpr(args.slice(1).join(","), island.state));
         dirty = true;
       } else if (fn === "inc" && args[0]) {
-        const step = args[1] ? Number(parseLiteralOrPath(args[1], island.state)) : 1;
+        const step = args[1] ? Number(evalExpr(args[1], island.state)) : 1;
         setPath(island.state, args[0], Number(getPath(island.state, args[0]) || 0) + (Number.isFinite(step) ? step : 1));
         dirty = true;
       } else if (fn === "dec" && args[0]) {
-        const step = args[1] ? Number(parseLiteralOrPath(args[1], island.state)) : 1;
+        const step = args[1] ? Number(evalExpr(args[1], island.state)) : 1;
         setPath(island.state, args[0], Number(getPath(island.state, args[0]) || 0) - (Number.isFinite(step) ? step : 1));
         dirty = true;
       } else if (fn === "reset") {
@@ -325,17 +633,20 @@ final readonly class LiveMiddleware implements MiddlewareInterface
         }
         dirty = true;
       } else if (fn === "dispatch" && args[0]) {
-        const name = String(parseLiteralOrPath(args[0], island.state));
+        const name = String(evalExpr(args[0], island.state) || args[0]);
         el.dispatchEvent(new CustomEvent(name, { bubbles: true, detail: { state: cloneSafe(island.state) } }));
       } else if (fn === "call" && args[0]) {
-        const name = String(parseLiteralOrPath(args[0], island.state));
+        const name = String(evalExpr(args[0], island.state) || args[0]);
         if (typeof customActions[name] === "function") {
           customActions[name](island.state, { el, ev, root: island.root });
           dirty = true;
         }
       }
     }
-    if (dirty) renderIsland(island);
+    if (dirty) {
+      saveIsland(island);
+      renderIsland(island);
+    }
   }
 
   function handleSignalEvent(eventType, ev) {
@@ -358,7 +669,7 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     }
   }
 
-  // Keyed DOM Morphing preserving active input focus, cursor selection, and k-ignore subtrees
+  // Keyed DOM Morphing preserving active input focus, dirty values, k-ignore subtrees, and Hybrid Bridge Island props
   function nodeKey(node) {
     if (!node || node.nodeType !== 1) return null;
     return node.getAttribute("k-key") || node.id || null;
@@ -393,6 +704,19 @@ final readonly class LiveMiddleware implements MiddlewareInterface
   }
 
   function morphNode(fromNode, toNode) {
+    if (fromNode.nodeType === 1 && fromNode.hasAttribute("data-k-island") && toNode.nodeType === 1 && toNode.hasAttribute("data-k-island")) {
+      const nextPropsRaw = toNode.getAttribute("data-k-props") || "{}";
+      if (fromNode.getAttribute("data-k-props") !== nextPropsRaw) {
+        fromNode.setAttribute("data-k-props", nextPropsRaw);
+        let parsed = {};
+        try { parsed = JSON.parse(nextPropsRaw); } catch (_e) {}
+        fromNode.dispatchEvent(new CustomEvent("kongono:island-props", {
+          bubbles: true,
+          detail: { component: fromNode.getAttribute("data-k-island") || "", props: parsed }
+        }));
+      }
+      return;
+    }
     if (fromNode.nodeType === 1 && fromNode.hasAttribute("k-ignore")) return;
     if (fromNode.nodeType !== toNode.nodeType || fromNode.nodeName !== toNode.nodeName) {
       fromNode.replaceWith(toNode.cloneNode(true));
@@ -419,7 +743,6 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     let cursor = fromParent.firstChild;
 
     for (const toChild of toNodes) {
-      // Drop dead whitespace-only text nodes ahead of a matched element so we never relocate/blur a focused node
       while (cursor && cursor.nodeType === 3 && toChild.nodeType === 1 && cursor.nodeValue.trim() === "") {
         const next = cursor.nextSibling;
         fromParent.removeChild(cursor);
@@ -461,30 +784,45 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     return meta ? (meta.getAttribute("content") || "") : "";
   }
 
-  function hydrate(root) {
+  function syncOnlineIndicators(root) {
+    const online = typeof navigator === "undefined" ? true : navigator.onLine !== false;
     const scope = root || document;
-    if (scope.nodeType === 1 && scope.hasAttribute("k-state")) initIsland(scope);
-    scope.querySelectorAll("[k-state]").forEach(initIsland);
-    connectStreams(scope);
+    scope.querySelectorAll("[k-online]").forEach((el) => {
+      el.hidden = !online;
+      el.style.display = online ? "" : "none";
+    });
+    scope.querySelectorAll("[k-offline]").forEach((el) => {
+      el.hidden = online;
+      el.style.display = online ? "none" : "";
+    });
   }
 
-  function performSwap(target, html, mode) {
-    if (!target || mode === "none") return;
-    if (mode === "delete") {
-      target.remove();
-      return;
+  function hydrate(root) {
+    const scope = root || document;
+    if (scope.nodeType === 1) {
+      const ancestor = scope.closest("[k-state]");
+      if (ancestor) initIsland(ancestor);
     }
+    scope.querySelectorAll("[k-state]").forEach(initIsland);
+    syncOnlineIndicators(scope);
+    connectStreams(scope);
+    connectPrefetch(scope);
+    connectSortables(scope);
+  }
+
+  function swapSingle(target, tplContent, mode) {
+    if (!target || mode === "none") return;
+    if (mode === "delete") { target.remove(); return; }
     if (mode === "morph" || mode === "morphInner") {
-      const tpl = document.createElement("template");
-      tpl.innerHTML = html;
-      if (mode === "morph" && tpl.content.childElementCount === 1 && target.parentNode) {
-        morphNode(target, tpl.content.firstElementChild);
+      if (mode === "morph" && tplContent.childElementCount === 1 && target.parentNode) {
+        morphNode(target, tplContent.firstElementChild);
       } else {
-        morphChildren(target, tpl.content);
+        morphChildren(target, tplContent);
       }
       hydrate(target.parentNode || document);
       return;
     }
+    const html = Array.from(tplContent.childNodes).map((n) => (n.nodeType === 1 ? n.outerHTML : n.textContent)).join("");
     if (mode === "outerHTML") {
       const parent = target.parentNode;
       target.outerHTML = html;
@@ -495,6 +833,34 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     } else {
       target.innerHTML = html;
       hydrate(target);
+    }
+  }
+
+  function performSwap(target, html, mode) {
+    const tpl = document.createElement("template");
+    tpl.innerHTML = html;
+
+    // Extract & apply Out-of-Band multi-region morphs ([kgn-oob][id]) before swapping primary target
+    const oobNodes = Array.from(tpl.content.children).filter((n) => n.nodeType === 1 && n.hasAttribute("kgn-oob") && n.id);
+    for (const oobEl of oobNodes) {
+      oobEl.remove();
+      const oobTarget = document.getElementById(oobEl.id);
+      if (!oobTarget) continue;
+      const rawOob = (oobEl.getAttribute("kgn-oob") || "").trim();
+      const oobMode = (!rawOob || rawOob === "true") ? "morph" : rawOob;
+      oobEl.removeAttribute("kgn-oob");
+      const wrap = document.createElement("template");
+      if (oobMode === "morphInner" || oobMode === "innerHTML") {
+        while (oobEl.firstChild) wrap.content.appendChild(oobEl.firstChild);
+      } else {
+        wrap.content.appendChild(oobEl);
+      }
+      swapSingle(oobTarget, wrap.content, oobMode);
+    }
+
+    const hasRemaining = tpl.content.childElementCount > 0 || (tpl.content.textContent || "").trim() !== "";
+    if (target && mode !== "none" && (hasRemaining || oobNodes.length === 0 || mode === "delete")) {
+      swapSingle(target, tpl.content, mode);
     }
   }
 
@@ -516,6 +882,143 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     return null;
   }
 
+  function invalidatePrefetch() {
+    prefetchCache.clear();
+  }
+
+  function getCachedPrefetch(url) {
+    const entry = prefetchCache.get(url);
+    if (!entry) return null;
+    if (Date.now() - entry.at > PREFETCH_TTL_MS) {
+      prefetchCache.delete(url);
+      return null;
+    }
+    return entry;
+  }
+
+  function prefetchUrl(rawUrl) {
+    const parsed = isSameOriginUrl(rawUrl);
+    if (!parsed) return;
+    const href = parsed.href;
+    if (getCachedPrefetch(href) || inflightPrefetch.has(href)) return;
+    const p = fetch(href, {
+      method: "GET",
+      headers: { "X-Kongono-Live": "true", "X-Kongono-Prefetch": "true", "Accept": "text/html" },
+      credentials: "same-origin"
+    }).then(async (res) => {
+      if (!res.ok) return;
+      const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+      if (!ct.startsWith("text/html")) return;
+      const text = await res.text();
+      if (prefetchCache.size >= MAX_PREFETCH) {
+        const oldest = prefetchCache.keys().next().value;
+        if (oldest !== undefined) prefetchCache.delete(oldest);
+      }
+      prefetchCache.set(href, {
+        at: Date.now(),
+        text,
+        swap: res.headers.get("X-Kongono-Swap") || "",
+        pushUrl: res.headers.get("X-Kongono-Push-Url") || "",
+        status: res.status
+      });
+    }).catch(() => {}).finally(() => inflightPrefetch.delete(href));
+    inflightPrefetch.set(href, p);
+  }
+
+  function connectPrefetch(root) {
+    if (typeof IntersectionObserver === "undefined") return;
+    const nodes = (root || document).querySelectorAll('[kgn-prefetch="visible"][kgn-get]');
+    if (nodes.length === 0) return;
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        io.unobserve(entry.target);
+        const url = entry.target.getAttribute("kgn-get");
+        if (url) prefetchUrl(url);
+      }
+    }, { rootMargin: "120px" });
+    nodes.forEach((n) => {
+      if (prefetchedVisible.has(n)) return;
+      prefetchedVisible.add(n);
+      io.observe(n);
+    });
+  }
+
+  // Offline-first resilient mutation queue with Idempotency-Key replay
+  function readOfflineQueue() {
+    try {
+      const raw = window.sessionStorage.getItem(OFFLINE_QUEUE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_e) {
+      return [];
+    }
+  }
+
+  function writeOfflineQueue(items) {
+    try {
+      window.sessionStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(items.slice(0, 50)));
+    } catch (_e) {}
+  }
+
+  function enqueueOffline(item) {
+    const queue = readOfflineQueue();
+    queue.push(item);
+    writeOfflineQueue(queue);
+    window.dispatchEvent(new CustomEvent("kongono:offline-queued", { detail: { pending: queue.length, item } }));
+  }
+
+  async function flushOfflineQueue() {
+    if (flushingQueue || (typeof navigator !== "undefined" && navigator.onLine === false)) return 0;
+    const queue = readOfflineQueue();
+    if (queue.length === 0) return 0;
+    flushingQueue = true;
+    let replayed = 0;
+    const remaining = [];
+    try {
+      for (let i = 0; i < queue.length; i++) {
+        const job = queue[i];
+        const parsed = isSameOriginUrl(job.url || "");
+        if (!parsed) continue;
+        const headers = {
+          "X-Kongono-Live": "true",
+          "Accept": "text/html",
+          "Idempotency-Key": job.idempotencyKey || ("kgn-" + Date.now() + "-" + i)
+        };
+        const csrf = getCsrf(null);
+        if (csrf) headers["X-CSRF-Token"] = csrf;
+        const init = { method: job.method || "POST", headers, credentials: "same-origin" };
+        if (Array.isArray(job.bodyEntries) && job.bodyEntries.length > 0 && init.method !== "GET") {
+          const fd = new FormData();
+          for (const [k, v] of job.bodyEntries) fd.append(k, v);
+          init.body = fd;
+        }
+        try {
+          const res = await fetch(parsed.href, init);
+          const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+          const text = await res.text();
+          if (ct.startsWith("text/html") && (res.ok || text.length > 0)) {
+            const target = job.targetSel ? document.querySelector(job.targetSel) : null;
+            applySwap(target, text, res.headers.get("X-Kongono-Swap") || job.swap || "morph", Boolean(job.useTransition));
+          }
+          replayed++;
+        } catch (_netErr) {
+          remaining.push(...queue.slice(i));
+          break;
+        }
+      }
+      writeOfflineQueue(remaining);
+      if (replayed > 0) {
+        invalidatePrefetch();
+        document.querySelectorAll("[data-kongono-queued]").forEach((el) => el.removeAttribute("data-kongono-queued"));
+        window.dispatchEvent(new CustomEvent("kongono:offline-flushed", { detail: { replayed, remaining: remaining.length } }));
+      }
+    } finally {
+      flushingQueue = false;
+    }
+    return replayed;
+  }
+
   async function dispatchLive(el, form) {
     const live = findLiveAttr(el);
     if (!live || !live.url) return;
@@ -531,21 +1034,41 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     const defaultSwap = el.getAttribute("kgn-swap") || "innerHTML";
     const useTransition = el.getAttribute("kgn-transition") === "true";
 
-    const headers = { "X-Kongono-Live": "true", "Accept": "text/html" };
-    const csrf = getCsrf(form || el);
-    if (csrf) headers["X-CSRF-Token"] = csrf;
-
-    const init = { method: live.method, headers, credentials: "same-origin" };
     let fetchUrl = targetUrl.href;
     if (live.method === "GET" && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA") && el.name) {
       const u = new URL(targetUrl.href);
       u.searchParams.set(el.name, el.value || "");
       fetchUrl = u.href;
-    } else if (form && live.method !== "GET") {
-      init.body = new FormData(form);
     }
 
-    // Optimistic UI with automatic rollback on failure
+    // Serve instant 0ms hit from speculative prefetch cache on GET
+    if (live.method === "GET") {
+      const cached = getCachedPrefetch(fetchUrl);
+      if (cached) {
+        if (cached.pushUrl && cached.pushUrl.startsWith("/") && !cached.pushUrl.startsWith("//") && !cached.pushUrl.startsWith("/\\") && window.history && window.history.pushState) {
+          try { window.history.pushState({}, "", cached.pushUrl); } catch (_e) {}
+        }
+        applySwap(target, cached.text, cached.swap || defaultSwap, useTransition);
+        el.dispatchEvent(new CustomEvent("kongono:swapped", { bubbles: true, detail: { status: cached.status, target, prefetched: true } }));
+        return;
+      }
+    } else {
+      invalidatePrefetch();
+    }
+
+    const headers = { "X-Kongono-Live": "true", "Accept": "text/html" };
+    const csrf = getCsrf(form || el);
+    if (csrf) headers["X-CSRF-Token"] = csrf;
+
+    const init = { method: live.method, headers, credentials: "same-origin" };
+    let serializedEntries = [];
+    if (form && live.method !== "GET") {
+      const fd = new FormData(form);
+      init.body = fd;
+      fd.forEach((v, k) => { if (typeof v === "string") serializedEntries.push([k, v]); });
+    }
+
+    // Optimistic UI with automatic rollback on failure (preserved when queued offline)
     const optText = el.getAttribute("kgn-optimistic-text");
     const optClass = el.getAttribute("kgn-optimistic-class");
     const prevText = optText !== null ? el.textContent : null;
@@ -555,8 +1078,25 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     const shouldDisable = el.hasAttribute("kgn-disable") && "disabled" in el;
     if (shouldDisable) el.disabled = true;
 
+    const allowOfflineQueue = el.getAttribute("kgn-offline") === "queue" && live.method !== "GET";
+    if (allowOfflineQueue && typeof navigator !== "undefined" && navigator.onLine === false) {
+      el.setAttribute("data-kongono-queued", "true");
+      if (shouldDisable) el.disabled = false;
+      enqueueOffline({
+        url: fetchUrl,
+        method: live.method,
+        bodyEntries: serializedEntries,
+        targetSel: targetSel || "",
+        swap: defaultSwap,
+        useTransition,
+        idempotencyKey: "kgn-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8)
+      });
+      return;
+    }
+
     el.setAttribute("aria-busy", "true");
     let succeeded = false;
+    let queuedOffline = false;
     try {
       const res = await fetch(fetchUrl, init);
       const finalUrl = isSameOriginUrl(res.url || fetchUrl);
@@ -587,11 +1127,25 @@ final readonly class LiveMiddleware implements MiddlewareInterface
           target.textContent = text;
         }
       }
-      el.dispatchEvent(new CustomEvent("kongono:swapped", { bubbles: true, detail: { status: res.status, target } }));
+      el.dispatchEvent(new CustomEvent("kongono:swapped", { bubbles: true, detail: { status: res.status, target, prefetched: false } }));
+    } catch (_netErr) {
+      if (allowOfflineQueue) {
+        queuedOffline = true;
+        el.setAttribute("data-kongono-queued", "true");
+        enqueueOffline({
+          url: fetchUrl,
+          method: live.method,
+          bodyEntries: serializedEntries,
+          targetSel: targetSel || "",
+          swap: defaultSwap,
+          useTransition,
+          idempotencyKey: "kgn-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8)
+        });
+      }
     } finally {
       el.removeAttribute("aria-busy");
       if (shouldDisable) el.disabled = false;
-      if (!succeeded) {
+      if (!succeeded && !queuedOffline) {
         if (prevText !== null) el.textContent = prevText;
         if (optClass) el.classList.toggle(optClass, hadOptClass);
       }
@@ -614,6 +1168,103 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     } else {
       dispatchLive(el, el.closest("form"));
     }
+  }
+
+  // Built-in zero-eval drag-and-drop & keyboard (Alt+Arrow) reordering (kgn-sortable)
+  async function syncSortableOrder(container, snapshot) {
+    const rawUrl = container.getAttribute("kgn-sortable") || "";
+    const targetUrl = isSameOriginUrl(rawUrl);
+    if (!targetUrl) return;
+    invalidatePrefetch();
+
+    const order = Array.from(container.children).map((c) => nodeKey(c)).filter(Boolean);
+    const fd = new FormData();
+    for (const key of order) fd.append("order[]", key);
+    const headers = { "X-Kongono-Live": "true", "Accept": "text/html" };
+    const csrf = getCsrf(container);
+    if (csrf) headers["X-CSRF-Token"] = csrf;
+
+    try {
+      const res = await fetch(targetUrl.href, { method: "POST", headers, body: fd, credentials: "same-origin" });
+      if (!res.ok) throw new Error("reorder_failed");
+      const text = await res.text();
+      const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+      if (ct.startsWith("text/html") && text.trim() !== "") {
+        const targetSel = container.getAttribute("kgn-target");
+        const target = targetSel ? document.querySelector(targetSel) : container;
+        applySwap(target, text, res.headers.get("X-Kongono-Swap") || container.getAttribute("kgn-swap") || "morph", container.getAttribute("kgn-transition") === "true");
+      }
+      container.dispatchEvent(new CustomEvent("kongono:reordered", { bubbles: true, detail: { order } }));
+    } catch (_e) {
+      for (const node of snapshot) container.appendChild(node);
+    }
+  }
+
+  function connectSortables(root) {
+    const containers = (root || document).querySelectorAll("[kgn-sortable]");
+    containers.forEach((container) => {
+      Array.from(container.children).forEach((child) => {
+        if (nodeKey(child)) {
+          child.setAttribute("draggable", "true");
+          child.setAttribute("data-sortable-item", "true");
+        }
+      });
+      if (sortables.has(container)) return;
+      let dragged = null;
+      let snapshot = [];
+      let changed = false;
+
+      container.addEventListener("dragstart", (ev) => {
+        const item = ev.target && ev.target.closest ? ev.target.closest("[data-sortable-item]") : null;
+        if (!item || item.parentElement !== container) return;
+        dragged = item;
+        snapshot = Array.from(container.children);
+        changed = false;
+        item.classList.add("is-dragging");
+        if (ev.dataTransfer) {
+          ev.dataTransfer.effectAllowed = "move";
+          try { ev.dataTransfer.setData("text/plain", nodeKey(item) || ""); } catch (_e) {}
+        }
+      });
+
+      container.addEventListener("dragover", (ev) => {
+        if (!dragged) return;
+        ev.preventDefault();
+        const over = ev.target && ev.target.closest ? ev.target.closest("[data-sortable-item]") : null;
+        if (!over || over === dragged || over.parentElement !== container) return;
+        const rect = over.getBoundingClientRect();
+        const after = (ev.clientY - rect.top) > (rect.height / 2);
+        container.insertBefore(dragged, after ? over.nextSibling : over);
+        changed = true;
+      });
+
+      container.addEventListener("dragend", () => {
+        if (!dragged) return;
+        dragged.classList.remove("is-dragging");
+        dragged = null;
+        if (changed) syncSortableOrder(container, snapshot);
+      });
+
+      container.addEventListener("keydown", (ev) => {
+        if (!ev.altKey || (ev.key !== "ArrowUp" && ev.key !== "ArrowDown")) return;
+        const item = ev.target && ev.target.closest ? ev.target.closest("[data-sortable-item]") : null;
+        if (!item || item.parentElement !== container) return;
+        const snap = Array.from(container.children);
+        if (ev.key === "ArrowUp" && item.previousElementSibling) {
+          ev.preventDefault();
+          container.insertBefore(item, item.previousElementSibling);
+          item.focus();
+          syncSortableOrder(container, snap);
+        } else if (ev.key === "ArrowDown" && item.nextElementSibling) {
+          ev.preventDefault();
+          container.insertBefore(item.nextElementSibling, item);
+          item.focus();
+          syncSortableOrder(container, snap);
+        }
+      });
+
+      sortables.set(container, true);
+    });
   }
 
   function connectStreams(root) {
@@ -651,6 +1302,21 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     dispatchLive(el, null);
   });
 
+  document.addEventListener("pointerover", (ev) => {
+    const el = ev.target && ev.target.closest ? ev.target.closest('[kgn-prefetch="hover"][kgn-get]') : null;
+    if (el) prefetchUrl(el.getAttribute("kgn-get"));
+  });
+
+  document.addEventListener("focusin", (ev) => {
+    const el = ev.target && ev.target.closest ? ev.target.closest('[kgn-prefetch="hover"][kgn-get]') : null;
+    if (el) prefetchUrl(el.getAttribute("kgn-get"));
+  });
+
+  document.addEventListener("pointerdown", (ev) => {
+    const el = ev.target && ev.target.closest ? ev.target.closest('[kgn-prefetch="mousedown"][kgn-get]') : null;
+    if (el) prefetchUrl(el.getAttribute("kgn-get"));
+  });
+
   document.addEventListener("submit", (ev) => {
     handleSignalEvent("submit", ev);
     const form = ev.target;
@@ -665,8 +1331,9 @@ final readonly class LiveMiddleware implements MiddlewareInterface
       if (el.hasAttribute("k-model")) {
         const island = findIsland(el);
         if (island) {
-          const val = el.type === "checkbox" ? el.checked : (el.type === "number" ? Number(el.value) : el.value);
+          const val = el.type === "checkbox" ? el.checked : (el.type === "number" || el.type === "range" ? Number(el.value) : el.value);
           setPath(island.state, el.getAttribute("k-model"), val);
+          saveIsland(island);
           renderIsland(island);
         }
       }
@@ -681,8 +1348,9 @@ final readonly class LiveMiddleware implements MiddlewareInterface
       if (el.hasAttribute("k-model")) {
         const island = findIsland(el);
         if (island) {
-          const val = el.type === "checkbox" ? el.checked : el.value;
+          const val = el.type === "checkbox" ? el.checked : (el.type === "number" || el.type === "range" ? Number(el.value) : el.value);
           setPath(island.state, el.getAttribute("k-model"), val);
+          saveIsland(island);
           renderIsland(island);
         }
       }
@@ -698,20 +1366,38 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     handleSignalEvent("keyup", ev);
   });
 
+  window.addEventListener("online", () => {
+    syncOnlineIndicators(document);
+    window.dispatchEvent(new CustomEvent("kongono:online"));
+    flushOfflineQueue();
+  });
+  window.addEventListener("offline", () => {
+    syncOnlineIndicators(document);
+    window.dispatchEvent(new CustomEvent("kongono:offline"));
+  });
+
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => hydrate(document));
+    document.addEventListener("DOMContentLoaded", () => { hydrate(document); flushOfflineQueue(); });
   } else {
     hydrate(document);
+    flushOfflineQueue();
   }
 
   window.KongonoLive = {
-    version: "2.0.0",
+    version: "2.5.0",
     connectStreams,
     hydrate,
+    prefetch: prefetchUrl,
+    invalidatePrefetch,
+    flushQueue: flushOfflineQueue,
+    pendingQueueCount: () => readOfflineQueue().length,
+    isOnline: () => (typeof navigator === "undefined" ? true : navigator.onLine !== false),
+    evaluate: (expr, state) => evalExpr(expr, cloneSafe(state || {})),
     morph: (target, html, outer = false) => performSwap(target, html, outer ? "morph" : "morphInner"),
     action: (name, fn) => { if (name && !BLOCKED_KEYS.has(name) && typeof fn === "function") customActions[name] = fn; },
+    pipe: (name, fn) => { if (name && !BLOCKED_KEYS.has(name) && typeof fn === "function") PIPES[name] = fn; },
     getState: (el) => { const i = findIsland(el); return i ? cloneSafe(i.state) : null; },
-    setState: (el, key, value) => { const i = findIsland(el); if (i) { setPath(i.state, key, value); renderIsland(i); } }
+    setState: (el, key, value) => { const i = findIsland(el); if (i) { setPath(i.state, key, value); saveIsland(i); renderIsland(i); } }
   };
 })();
 JS;

@@ -86,6 +86,7 @@ final class TemplateCompiler
         $output = $this->replaceCallback('/@bridgeScript\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)/', static fn(array $m): string => sprintf('<script src="%s" defer></script>', htmlspecialchars($m[1], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')), $output);
         $output = str_replace('@bridgeScript', '<script src="/_kongono/bridge.js" defer></script>', $output);
         $output = $this->replaceCallback('/@state\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php echo $__env->stateAttr(%s); ?>', $m[1]), $output);
+        $output = $this->replaceCallback('/@island\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php echo $__env->island(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/@safeHtml\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php echo $__env->safeHtml(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/@json\s*\((.+)\)/', static fn(array $m): string => sprintf('<?php echo json_encode(%s, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>', $m[1]), $output);
         $output = str_replace(['@php', '@endphp'], ['<?php', '?>'], $output);
