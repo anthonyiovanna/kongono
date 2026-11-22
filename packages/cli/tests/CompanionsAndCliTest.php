@@ -171,7 +171,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.8.1', $vOut);
+            self::assertStringContainsString('v1.9.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -786,6 +786,24 @@ PHP);
             $vulnAudit = (new SecurityAuditor())->audit($appDir, phpVersionOverride: '8.5.9');
             self::assertFalse($vulnAudit['passed']);
             self::assertContains('KGN-AUDIT-PHP-CVE', array_column($vulnAudit['findings'], 'code'));
+
+            // 7. BridgeScaffolder supports React 19, Vue 3, and Svelte 5 + TypeScriptPropsGenerator emits strict TS types
+            $bridgeGen = new \Kongono\Cli\Bridge\BridgeScaffolder();
+            foreach (['react', 'vue', 'svelte'] as $fw) {
+                $files = $bridgeGen->generate($fw);
+                self::assertArrayHasKey('vite.config.ts', $files);
+                self::assertArrayHasKey('resources/js/kongono-bridge.d.ts', $files);
+            }
+
+            $cli = new KongoCli(dirname(__DIR__, 3));
+            [$bCode, $bOut] = $cli->run(['bridge:init', 'react', '--app=' . $appDir]);
+            self::assertSame(0, $bCode);
+            self::assertStringContainsString('resources/js/app.tsx', $bOut);
+            self::assertFileExists($appDir . '/resources/js/app.tsx');
+
+            [$tCode, $tOut] = $cli->run(['bridge:types', '--app=' . $this->starterAppRoot]);
+            self::assertSame(0, $tCode);
+            self::assertStringContainsString('export interface CreateNoteInput', $tOut);
         } finally {
             $this->removeDir($tmp);
         }

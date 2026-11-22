@@ -49,6 +49,17 @@ final class RenderState
         return HtmlSanitizer::sanitize((string) $value);
     }
 
+    /** Encode an associative state array/DTO safely into a CSP-strict Kongono Live 2.0 `k-state="..."` attribute. */
+    public function stateAttr(mixed $state): string
+    {
+        $json = json_encode(
+            $state,
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT,
+        );
+
+        return 'k-state="' . htmlspecialchars($json, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '"';
+    }
+
     /** @param array<string, string|int|float> $params */
     public function translate(string $key, array $params = [], ?string $locale = null): string
     {

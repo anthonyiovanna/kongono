@@ -9,6 +9,8 @@ use Kongono\Ai\AiException;
 use Kongono\Ai\Eval\EvalCase;
 use Kongono\Ai\Eval\EvalRunner;
 use Kongono\Cli\Audit\SecurityAuditor;
+use Kongono\Cli\Bridge\BridgeScaffolder;
+use Kongono\Cli\Bridge\TypeScriptPropsGenerator;
 use Kongono\Cli\Companions\ChieBuilder;
 use Kongono\Cli\Companions\DiffRenderer;
 use Kongono\Cli\Companions\HanteiDebugger;
@@ -59,11 +61,13 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.8.1 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.9.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
                 'sdk:generate' => $this->cmdSdkGenerate($appRoot, $options),
+                'bridge:init' => $this->cmdBridgeInit($appRoot, $rest, $options),
+                'bridge:types' => $this->cmdBridgeTypes($appRoot, $options),
                 'mcp' => $this->cmdMcp($appRoot),
                 'audit' => $this->cmdAudit($appRoot, $options),
                 'eval' => $this->cmdEval($appRoot, $options),
@@ -1130,6 +1134,92 @@ final readonly class KongoCli
         }
 
         return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * Scaffold first-class React 19, Vue 3, or Svelte 5 SPA Bridge adapters (`kongo bridge:init react|vue|svelte`).
+     *
+     * @param list<string>               $args
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdBridgeInit(string $appRoot, array $args, array $options): array
+    {
+        $framework = $args[0] ?? (is_string($options['framework'] ?? null) ? $options['framework'] : 'react');
+        $force = isset($options['force']);
+        $files = (new BridgeScaffolder())->generate($framework);
+
+        $lines = [sprintf('Kongono Bridge (%s):', strtolower(trim($framework)))];
+        foreach ($files as $rel => $content) {
+            $dest = $appRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $rel);
+            if (is_file($dest) && !$force) {
+                $lines[] = sprintf('  [SKIP ] %s (already exists; pass --force to overwrite)', $rel);
+                continue;
+            }
+            $dir = dirname($dest);
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0o775, true);
+            }
+            file_put_contents($dest, $content);
+            $lines[] = sprintf('  [WRITE] %s', $rel);
+        }
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * Generate strict TypeScript prop & BackedEnum declarations from PHP 8.5 DTOs (`kongo bridge:types`).
+     *
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdBridgeTypes(string $appRoot, array $options): array
+    {
+        $srcDir = $appRoot . DIRECTORY_SEPARATOR . 'src';
+        /** @var list<class-string> $classes */
+        $classes = [];
+
+        if (is_dir($srcDir)) {
+            $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($srcDir));
+            foreach ($it as $file) {
+                if (!$file instanceof \SplFileInfo || !$file->isFile() || 'php' !== $file->getExtension()) {
+                    continue;
+                }
+                $contents = file_get_contents($file->getPathname());
+                if (false === $contents) {
+                    continue;
+                }
+                $ns = '';
+                if (1 === preg_match('/^\s*namespace\s+([^;]+);/m', $contents, $m)) {
+                    $ns = trim($m[1]) . '\\';
+                }
+                $matchCount = preg_match_all('/^\s*(?:final\s+)?(?:readonly\s+)?(?:class|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/m', $contents, $matches);
+                if (false !== $matchCount && $matchCount > 0) {
+                    foreach ($matches[1] as $short) {
+                        $fqcn = $ns . $short;
+                        if (str_ends_with($short, 'Controller') || str_ends_with($short, 'Middleware') || str_ends_with($short, 'Service') || str_ends_with($short, 'Store')) {
+                            continue;
+                        }
+                        if (class_exists($fqcn) || enum_exists($fqcn)) {
+                            /** @var class-string $fqcn */
+                            $classes[] = $fqcn;
+                        }
+                    }
+                }
+            }
+        }
+
+        sort($classes, SORT_STRING);
+        $dts = (new TypeScriptPropsGenerator())->generate($classes);
+        $outOpt = is_string($options['out'] ?? null) && '' !== trim($options['out']) ? trim($options['out']) : null;
+        if (null !== $outOpt) {
+            $context = ProjectContext::discover($appRoot);
+            $written = $context->writeFileContained($outOpt, $dts);
+
+            return [0, sprintf("Generated TypeScript Bridge types (%d PHP type(s)) -> %s\n", count($classes), $written)];
+        }
+
+        return [0, $dts];
     }
 
     /**

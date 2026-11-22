@@ -308,6 +308,13 @@ HTML,
         $engine = new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache');
         $rendered = $engine->render('prose', ['body' => '<p><strong>Safe</strong></p><script>evil()</script>']);
         self::assertSame('<article><p><strong>Safe</strong></p></article>', $rendered);
+
+        // @state(...) and @bridgeScript directives emit strict CSP-safe attributes & script tags
+        file_put_contents($this->tempDir . '/views/island.kgn.html', "<div @state(\$init)></div>\n@bridgeScript");
+        $islandHtml = $engine->render('island', ['init' => ['open' => false, 'label' => 'A & "B" </script>']]);
+        self::assertStringContainsString('k-state="', $islandHtml);
+        self::assertStringNotContainsString('</script>', substr($islandHtml, 0, strpos($islandHtml, '<script src="/_kongono/bridge.js"') ?: 0));
+        self::assertStringContainsString('<script src="/_kongono/bridge.js" defer></script>', $islandHtml);
     }
 
     private function removeDir(string $dir): void

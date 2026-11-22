@@ -1027,6 +1027,104 @@ final class HttpAppTest extends TestCase
             self::assertSame("{\"id\":\"item-{$i}\",\"title\":\"Title {$i}\"}", (string) $res->getBody());
         }
     }
+
+    public function testLive2RuntimeMorphingZeroEvalAndKongonoBridgeProtocol(): void
+    {
+        // 1. Live 2.0 runtime: zero eval / zero new Function, includes keyed morphing, signals, optimistic rollback & View Transitions
+        $liveJs = LiveMiddleware::scriptSource();
+        self::assertStringContainsString('version: "2.0.0"', $liveJs);
+        self::assertStringContainsString('morphChildren', $liveJs);
+        self::assertStringContainsString('BLOCKED_KEYS', $liveJs);
+        self::assertStringContainsString('startViewTransition', $liveJs);
+        self::assertStringContainsString('kgn-optimistic-text', $liveJs);
+        self::assertStringNotContainsString('eval(', $liveJs);
+        self::assertStringNotContainsString('new Function', $liveJs);
+
+        $frag = Response::fragment('<div id="c">ok</div>', swap: 'morph');
+        self::assertSame('morph', $frag->getHeaderLine('X-Kongono-Swap'));
+        try {
+            Response::fragment('<div>x</div>', swap: 'evil_swap');
+            self::fail('Expected invalid swap mode to fail.');
+        } catch (\InvalidArgumentException) {
+            self::addToAssertionCount(1);
+        }
+
+        // 2. Kongono Bridge (React/Vue/Svelte): initial HTML, SPA JSON, lazy partial reloads, 409 version mismatch, 422 errors, 303 redirect
+        $expensiveCalls = 0;
+        $bridgeMw = new \Kongono\Http\Bridge\BridgeMiddleware(
+            version: 'v-bundle-42',
+            sharedProps: static fn(): array => ['appName' => 'Kongono'],
+        );
+
+        $app = App::create(__DIR__)
+            ->middleware($bridgeMw)
+            ->routes(static function (Router $r) use (&$expensiveCalls): void {
+                $r->get('/projects/{id}', static function (int $id) use (&$expensiveCalls): Response {
+                    return Response::page('Projects/Show', [
+                        'id' => $id,
+                        'counter' => 99,
+                        'expensive' => static function () use (&$expensiveCalls): string {
+                            ++$expensiveCalls;
+
+                            return 'computed-heavy';
+                        },
+                    ]);
+                });
+                $r->post('/projects', static fn(RoutePrecedenceInputDto $dto): Response => Response::page('Projects/Show', ['title' => $dto->title]));
+                $r->delete('/projects/{id}', static fn(): Response => Response::redirect('/projects'));
+            });
+
+        // Bridge JS runtime served with ETag + zero eval
+        $jsRes = $app->handle(Request::create('GET', '/_kongono/bridge.js'));
+        self::assertSame(200, $jsRes->getStatusCode());
+        self::assertStringContainsString('window.KongonoBridge', (string) $jsRes->getBody());
+        self::assertStringNotContainsString('eval(', (string) $jsRes->getBody());
+        self::assertSame(304, $app->handle(Request::create('GET', '/_kongono/bridge.js', ['If-None-Match' => $jsRes->getHeaderLine('ETag')]))->getStatusCode());
+
+        // Initial browser GET returns strict HTML shell with escaped data-page & evaluates lazy prop
+        $htmlRes = $app->handle(Request::create('GET', '/projects/7'));
+        self::assertSame(200, $htmlRes->getStatusCode());
+        self::assertStringContainsString('text/html', $htmlRes->getHeaderLine('Content-Type'));
+        self::assertStringContainsString('data-page="', (string) $htmlRes->getBody());
+        self::assertStringContainsString('Projects/Show', (string) $htmlRes->getBody());
+        self::assertSame(1, $expensiveCalls);
+
+        // Partial reload evaluates ONLY requested prop `counter` and SKIPS `expensive` closure!
+        $partialRes = $app->handle(Request::create('GET', '/projects/7', [
+            'X-Kongono-Bridge' => 'true',
+            'X-Kongono-Bridge-Version' => 'v-bundle-42',
+            'X-Kongono-Bridge-Partial-Component' => 'Projects/Show',
+            'X-Kongono-Bridge-Partial-Data' => 'counter',
+        ]));
+        self::assertSame(200, $partialRes->getStatusCode());
+        self::assertSame('true', $partialRes->getHeaderLine('X-Kongono-Bridge'));
+        self::assertSame(1, $expensiveCalls); // Expensive closure was NOT invoked!
+        $partialJson = json_decode((string) $partialRes->getBody(), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($partialJson);
+        self::assertSame(['counter' => 99], $partialJson['props']);
+
+        // Stale bundle version on GET -> 409 Conflict with X-Kongono-Bridge-Location
+        $staleRes = $app->handle(Request::create('GET', '/projects/7?tab=tasks', [
+            'X-Kongono-Bridge' => 'true',
+            'X-Kongono-Bridge-Version' => 'v-bundle-old',
+        ]));
+        self::assertSame(409, $staleRes->getStatusCode());
+        self::assertSame('/projects/7?tab=tasks', $staleRes->getHeaderLine('X-Kongono-Bridge-Location'));
+
+        // ValidationException on Bridge POST -> 422 JSON errors
+        $valRes = $app->handle(Request::create('POST', '/projects', ['X-Kongono-Bridge' => 'true', 'Content-Type' => 'application/json'], '{}'));
+        self::assertSame(422, $valRes->getStatusCode());
+        self::assertSame('true', $valRes->getHeaderLine('X-Kongono-Bridge'));
+        self::assertStringContainsString('"errors"', (string) $valRes->getBody());
+
+        // 302 redirect on Bridge DELETE -> 303 See Other
+        $delRes = $app->handle(Request::create('DELETE', '/projects/7', ['X-Kongono-Bridge' => 'true']));
+        self::assertSame(303, $delRes->getStatusCode());
+
+        // Unsafe component path fails closed
+        $this->expectException(\InvalidArgumentException::class);
+        Response::page('../SecretAdmin');
+    }
 }
 
 final readonly class RoutePrecedenceInputDto

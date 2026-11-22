@@ -86,7 +86,7 @@ final class Response implements ResponseInterface
     }
 
     /**
-     * Create a Kongono\Live HTML fragment response for partial DOM swaps.
+     * Create a Kongono\Live HTML fragment response for partial DOM swaps or keyed DOM morphing.
      *
      * @param array<string, string|list<string>> $headers
      */
@@ -96,6 +96,7 @@ final class Response implements ResponseInterface
         array $headers = [],
         ?string $pushUrl = null,
         ?string $redirect = null,
+        ?string $swap = null,
     ): self {
         $response = new self($status, $headers, Stream::fromString($html));
         if (!$response->hasHeader('Content-Type')) {
@@ -105,6 +106,13 @@ final class Response implements ResponseInterface
             $response = $response->withHeader('Vary', 'X-Kongono-Live');
         }
         $response = $response->withHeader('X-Kongono-Live', 'fragment');
+        if (null !== $swap && '' !== $swap) {
+            $allowedSwaps = ['morph', 'morphInner', 'innerHTML', 'outerHTML', 'beforeend', 'afterbegin', 'delete', 'none'];
+            if (!in_array($swap, $allowedSwaps, true)) {
+                throw new InvalidArgumentException(sprintf('Unsupported Live swap mode "%s".', $swap));
+            }
+            $response = $response->withHeader('X-Kongono-Swap', $swap);
+        }
         if (null !== $pushUrl && '' !== $pushUrl) {
             self::assertSafeNavigationUrl($pushUrl, 'pushUrl');
             $response = $response->withHeader('X-Kongono-Push-Url', $pushUrl);
@@ -115,6 +123,106 @@ final class Response implements ResponseInterface
         }
 
         return $response;
+    }
+
+    /**
+     * Create a Kongono Bridge SPA page response for React, Vue, or Svelte frontends.
+     *
+     * When paired with `BridgeMiddleware` (or passed `$request`), initial browser navigations render
+     * a strict-CSP HTML shell carrying `data-page`, while SPA visits (`X-Kongono-Bridge: true`) return pure JSON.
+     *
+     * @param array<string, mixed>|object        $props   Associative prop map (values may be lazy Closures or PHP 8.5 DTOs)
+     * @param array<string, list<string>>        $errors
+     * @param array<string, string|list<string>> $headers
+     */
+    public static function page(
+        string $component,
+        array|object $props = [],
+        ?Request $request = null,
+        int $status = 200,
+        array $errors = [],
+        string $version = '1',
+        ?string $csrfToken = null,
+        array $headers = [],
+    ): self {
+        $propMap = is_array($props) ? $props : get_object_vars($props);
+        $payload = new Bridge\PagePayload(
+            component: $component,
+            props: $propMap,
+            url: null !== $request ? $request->path() : '/',
+            version: $version,
+            errors: $errors,
+            csrfToken: $csrfToken,
+        );
+
+        if (null !== $request) {
+            $resolved = $payload->resolve($request);
+            $json = json_encode(
+                $resolved,
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT,
+            );
+
+            if ($request->isBridge()) {
+                $resp = new self($status, $headers, Stream::fromString($json));
+                $resp->bridgePayload = $payload;
+
+                return $resp
+                    ->withHeader('Content-Type', 'application/json; charset=utf-8')
+                    ->withHeader('X-Kongono-Bridge', 'true')
+                    ->withHeader('Vary', 'X-Kongono-Bridge');
+            }
+
+            $escapedJson = htmlspecialchars($json, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $escapedTitle = htmlspecialchars($payload->component, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $html = sprintf(
+                "<!doctype html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>%s</title></head>\n<body><div id=\"app\" data-page=\"%s\"></div><script src=\"/_kongono/bridge.js\" defer></script></body>\n</html>",
+                $escapedTitle,
+                $escapedJson,
+            );
+
+            $resp = new self($status, $headers, Stream::fromString($html));
+            $resp->bridgePayload = $payload;
+
+            return $resp
+                ->withHeader('Content-Type', 'text/html; charset=utf-8')
+                ->withHeader('Vary', 'X-Kongono-Bridge');
+        }
+
+        // Deferred for BridgeMiddleware (avoids eagerly evaluating lazy closure props before inspecting partial-reload headers)
+        $hasLazy = false;
+        foreach ($propMap as $v) {
+            if ($v instanceof Closure) {
+                $hasLazy = true;
+                break;
+            }
+        }
+        $bodyHtml = '';
+        if (!$hasLazy) {
+            $json = json_encode(
+                $payload->resolve(),
+                JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT,
+            );
+            $bodyHtml = sprintf(
+                "<!doctype html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>%s</title></head>\n<body><div id=\"app\" data-page=\"%s\"></div><script src=\"/_kongono/bridge.js\" defer></script></body>\n</html>",
+                htmlspecialchars($payload->component, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+                htmlspecialchars($json, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            );
+        }
+
+        $resp = new self($status, $headers, Stream::fromString($bodyHtml));
+        $resp->bridgePayload = $payload;
+
+        return $resp
+            ->withHeader('Content-Type', 'text/html; charset=utf-8')
+            ->withHeader('Vary', 'X-Kongono-Bridge');
+    }
+
+    private ?Bridge\PagePayload $bridgePayload = null;
+
+    /** @internal Access the underlying PagePayload for BridgeMiddleware enrichment & custom layouts. */
+    public function bridgePayload(): ?Bridge\PagePayload
+    {
+        return $this->bridgePayload;
     }
 
     /** @param array<string, string|list<string>> $headers */

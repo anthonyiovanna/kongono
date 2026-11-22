@@ -720,6 +720,9 @@ final class App
 
     private function renderValidationError(Request $request, ValidationException $e): Response
     {
+        if ($request->isBridge()) {
+            return Response::json([...$e->toArray(), 'errors' => $e->errors], 422, ['X-Kongono-Bridge' => 'true', 'Vary' => 'X-Kongono-Bridge']);
+        }
         if ($request->expectsJson()) {
             return Response::json($e->toArray(), 422);
         }

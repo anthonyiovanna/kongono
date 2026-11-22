@@ -615,6 +615,40 @@ final class Request implements ServerRequestInterface
         return 'true' === strtolower(trim($this->getHeaderLine('X-Kongono-Live')));
     }
 
+    /** Returns true when invoked by the Kongono Bridge SPA runtime (`X-Kongono-Bridge: true`). */
+    public function isBridge(): bool
+    {
+        return 'true' === strtolower(trim($this->getHeaderLine('X-Kongono-Bridge')));
+    }
+
+    /** Return requested partial-reload prop keys (`X-Kongono-Bridge-Partial-Data: tasks,metrics`). */
+    /** @return list<string> */
+    public function bridgePartialData(): array
+    {
+        $raw = trim($this->getHeaderLine('X-Kongono-Bridge-Partial-Data'));
+        if ('' === $raw) {
+            return [];
+        }
+
+        $keys = [];
+        foreach (explode(',', $raw) as $part) {
+            $clean = trim($part);
+            if ('' !== $clean) {
+                $keys[] = $clean;
+            }
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    /** Return the component name requested for a Bridge partial reload (`X-Kongono-Bridge-Partial-Component`). */
+    public function bridgePartialComponent(): ?string
+    {
+        $raw = trim($this->getHeaderLine('X-Kongono-Bridge-Partial-Component'));
+
+        return '' !== $raw ? $raw : null;
+    }
+
     private static function readBoundedPhpInput(int $maxBodyBytes): Stream
     {
         $input = @fopen('php://input', 'rb');

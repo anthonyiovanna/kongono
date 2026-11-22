@@ -367,6 +367,16 @@ final class ParserFuzzTest extends TestCase
             if ($mutatedUrl !== $validUrl) {
                 self::assertFalse($signer->verify($mutatedUrl), "Mutated signed URL verified at seed {$this->seed} iter {$i}");
             }
+
+            // 5. Bridge PagePayload::validateComponent() rejects path traversal / XSS / control chars
+            $rawComp = $this->mutateString('Projects/Show');
+            try {
+                $validComp = \Kongono\Http\Bridge\PagePayload::validateComponent($rawComp);
+                self::assertStringNotContainsString('..', $validComp);
+                self::assertMatchesRegularExpression('/\A[A-Za-z0-9][A-Za-z0-9_\/\-]{0,127}\z/', $validComp);
+            } catch (InvalidArgumentException) {
+                // Expected fail-closed rejection on unsafe component names
+            }
         }
     }
 
