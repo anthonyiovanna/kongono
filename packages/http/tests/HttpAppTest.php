@@ -1194,6 +1194,166 @@ final class HttpAppTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         Response::page('../SecretAdmin');
     }
+
+    public function testHtmlFormValidationFlashesScrubbedOldInputAndRedirectsSameOriginOnly(): void
+    {
+        $tmpViews = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-flash-views-' . bin2hex(random_bytes(5));
+        mkdir($tmpViews, 0o777, true);
+        file_put_contents($tmpViews . '/signup.kgn.html', <<<'HTML'
+<form method="post" action="/signup">
+  <input name="email" value="@old('email')">
+  <input name="password" value="@old('password')">
+  <input name="_csrf" value="@old('_csrf')">
+  @error('email')
+  <p class="field-error">{{ $message }}</p>
+  @enderror
+</form>
+HTML);
+
+        try {
+            $store = new \Kongono\Http\Session\CacheSessionStore(new \Kongono\Core\Cache\MemoryCache());
+            $app = App::create(__DIR__, name: 'Form Flash Test')
+                ->views($tmpViews, $tmpViews . '/cache')
+                ->middleware(new \Kongono\Http\Session\SessionMiddleware($store))
+                ->routes(static function (Router $r): void {
+                    $r->get('/signup', static fn(\Kongono\View\ViewEngine $views): Response => Response::html($views->render('signup')));
+                    $r->post('/signup', static fn(HtmlSignupFormDto $input): Response => Response::html('OK:' . $input->email));
+                    $r->post('/api/orders', static fn(OpenApiArrayOrderDto $input): Response => Response::json(['ok' => true, 'count' => count($input->items)]));
+                });
+
+            // 1. Invalid HTML form POST with verified same-origin Referer -> 303 See Other + flashed errors & scrubbed old()
+            $post = Request::create(
+                method: 'POST',
+                uri: 'http://app.test/signup',
+                headers: ['Referer' => 'http://app.test/signup?step=1'],
+                parsedBody: [
+                    'email' => 'bad-email',
+                    'password' => 'TopSecret123!',
+                    '_csrf' => 'csrf-secret-value',
+                    'api_token' => 'tok-live-999',
+                ],
+            );
+            $res1 = $app->handle($post);
+            self::assertSame(303, $res1->getStatusCode());
+            self::assertSame('/signup?step=1', $res1->getHeaderLine('Location'));
+
+            $setCookie = $res1->getHeaderLine('Set-Cookie');
+            self::assertSame(1, preg_match('/kongono_session=([a-f0-9]+)/', $setCookie, $cm));
+            $sessionId = $cm[1];
+
+            // 2. Follow-up GET /signup receives flashed @error('email') and @old('email'), while password/_csrf/api_token are SCRUBBED!
+            $get1 = Request::create('GET', 'http://app.test/signup?step=1')->withCookieParams(['kongono_session' => $sessionId]);
+            $res2 = $app->handle($get1);
+            self::assertSame(200, $res2->getStatusCode());
+            $html1 = (string) $res2->getBody();
+            self::assertStringContainsString('value="bad-email"', $html1);
+            self::assertStringContainsString('<p class="field-error">The email field must be a valid email address.</p>', $html1);
+            self::assertStringNotContainsString('TopSecret123!', $html1);
+            self::assertStringNotContainsString('csrf-secret-value', $html1);
+            self::assertStringNotContainsString('tok-live-999', $html1);
+
+            // 3. Subsequent GET /signup sees ZERO flash state (one-request flash consumed; persistent-worker safe!)
+            $get2 = Request::create('GET', 'http://app.test/signup')->withCookieParams(['kongono_session' => $sessionId]);
+            $res3 = $app->handle($get2);
+            self::assertSame(200, $res3->getStatusCode());
+            $html2 = (string) $res3->getBody();
+            self::assertStringNotContainsString('bad-email', $html2);
+            self::assertStringNotContainsString('field-error', $html2);
+
+            // 4. Open-redirect defense: cross-origin, scheme-relative, and userinfo Referers NEVER redirect (fail closed to 422)
+            foreach (['https://evil.test/phish', '//evil.test/phish', 'http://app.test@evil.test/signup'] as $evilRef) {
+                $evilPost = Request::create(
+                    method: 'POST',
+                    uri: 'http://app.test/signup',
+                    headers: ['Referer' => $evilRef],
+                    parsedBody: ['email' => 'bad'],
+                );
+                $evilRes = $app->handle($evilPost);
+                self::assertSame(422, $evilRes->getStatusCode(), 'Cross-origin Referer must not redirect: ' . $evilRef);
+            }
+
+            // 5. Kongono Live requests stay 422 even with same-origin Referer
+            $livePost = Request::create(
+                method: 'POST',
+                uri: 'http://app.test/signup',
+                headers: ['Referer' => 'http://app.test/signup', 'X-Kongono-Live' => 'true'],
+                parsedBody: ['email' => 'bad'],
+            );
+            self::assertSame(422, $app->handle($livePost)->getStatusCode());
+
+            // 6. OpenApiGenerator emits typed ArrayOf item $ref, date, ipv4, and uuid formats
+            $spec = (new \Kongono\Http\OpenApi\OpenApiGenerator())->generate($app);
+            $components = is_array($spec['components'] ?? null) ? $spec['components'] : [];
+            $schemas = is_array($components['schemas'] ?? null) ? $components['schemas'] : [];
+            self::assertArrayHasKey('OpenApiArrayOrderDto', $schemas);
+            self::assertArrayHasKey('OpenApiLineItemDto', $schemas);
+            $orderSchema = is_array($schemas['OpenApiArrayOrderDto']) ? $schemas['OpenApiArrayOrderDto'] : [];
+            $orderProps = is_array($orderSchema['properties'] ?? null) ? $orderSchema['properties'] : [];
+            $itemsProp = is_array($orderProps['items'] ?? null) ? $orderProps['items'] : [];
+            $dateProp = is_array($orderProps['deliveryDate'] ?? null) ? $orderProps['deliveryDate'] : [];
+            $ipProp = is_array($orderProps['clientIp'] ?? null) ? $orderProps['clientIp'] : [];
+            self::assertSame(['$ref' => '#/components/schemas/OpenApiLineItemDto'], $itemsProp['items'] ?? null);
+            self::assertSame('date', $dateProp['format'] ?? null);
+            self::assertSame('ipv4', $ipProp['format'] ?? null);
+        } finally {
+            $entries = @scandir($tmpViews);
+            if (is_array($entries)) {
+                foreach ($entries as $e) {
+                    if ('.' === $e || '..' === $e) {
+                        continue;
+                    }
+                    $p = $tmpViews . DIRECTORY_SEPARATOR . $e;
+                    if (is_dir($p)) {
+                        $childEntries = scandir($p);
+                        if (is_array($childEntries)) {
+                            foreach ($childEntries as $ce) {
+                                if ('.' !== $ce && '..' !== $ce) {
+                                    @unlink($p . DIRECTORY_SEPARATOR . $ce);
+                                }
+                            }
+                        }
+                        @rmdir($p);
+                    } else {
+                        @unlink($p);
+                    }
+                }
+            }
+            @rmdir($tmpViews);
+        }
+    }
+}
+
+final readonly class HtmlSignupFormDto
+{
+    public function __construct(
+        #[Required, \Kongono\Validation\Attributes\Email]
+        public string $email,
+        #[Required, \Kongono\Validation\Attributes\Min(8)]
+        public string $password,
+    ) {}
+}
+
+final readonly class OpenApiLineItemDto
+{
+    public function __construct(
+        #[Required]
+        public string $sku,
+        #[Required]
+        public int $qty,
+    ) {}
+}
+
+final readonly class OpenApiArrayOrderDto
+{
+    /** @param list<OpenApiLineItemDto> $items */
+    public function __construct(
+        #[Required, \Kongono\Validation\Attributes\ArrayOf(OpenApiLineItemDto::class)]
+        public array $items,
+        #[Required, \Kongono\Validation\Attributes\Date]
+        public string $deliveryDate,
+        #[Required, \Kongono\Validation\Attributes\Ip(version: 'v4')]
+        public string $clientIp,
+    ) {}
 }
 
 final readonly class RoutePrecedenceInputDto

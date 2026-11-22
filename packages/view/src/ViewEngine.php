@@ -21,7 +21,7 @@ use Throwable;
  */
 final class ViewEngine
 {
-    private const string CACHE_VERSION = 'v6';
+    private const string CACHE_VERSION = 'v7';
 
     private readonly string $viewsPath;
     private readonly string $cachePath;
@@ -29,6 +29,12 @@ final class ViewEngine
 
     /** @var array<string, Closure(array<string, mixed>, RenderState): void> */
     private array $compiledRenderers = [];
+
+    /** @var array<string, list<string>> */
+    private array $flashErrors = [];
+
+    /** @var array<string, mixed> */
+    private array $flashOld = [];
 
     /**
      * @param ?Closure(string, array<string, string|int|float>, ?string): string $translator
@@ -83,6 +89,34 @@ final class ViewEngine
         return $this->autoReload;
     }
 
+    /**
+     * Return a lightweight request-scoped clone carrying flashed validation errors and old form input
+     * while sharing the parent's compiled renderer cache (zero static/global state).
+     *
+     * @param array<string, list<string>> $errors
+     * @param array<string, mixed>        $old
+     */
+    public function withFlash(array $errors = [], array $old = []): self
+    {
+        $clone = clone $this;
+        $clone->flashErrors = $errors;
+        $clone->flashOld = $old;
+
+        return $clone;
+    }
+
+    /** @return array<string, list<string>> */
+    public function flashErrors(): array
+    {
+        return $this->flashErrors;
+    }
+
+    /** @return array<string, mixed> */
+    public function flashOld(): array
+    {
+        return $this->flashOld;
+    }
+
     /** @param string|list<string> $entries */
     public function viteTags(string|array $entries): string
     {
@@ -110,18 +144,80 @@ final class ViewEngine
      */
     public function render(string $template, array $data = []): string
     {
-        $state = new RenderState($this);
+        $errors = $this->resolveErrors($data);
+        $old = $this->resolveOldInput($data);
+
+        if (!array_key_exists('errors', $data)) {
+            $data['errors'] = $errors;
+        }
+        if (!array_key_exists('old', $data)) {
+            $data['old'] = $old;
+        }
+
+        $state = new RenderState($this, $errors, $old);
         $content = $this->evaluate($template, $data, $state);
 
         $layout = $state->layout();
         if (null !== $layout) {
-            $layoutState = new RenderState($this);
+            $layoutState = new RenderState($this, $errors, $old);
             $layoutState->inheritSections($state->sections());
 
             return $this->evaluate($layout, $data, $layoutState);
         }
 
         return $content;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, list<string>>
+     */
+    private function resolveErrors(array $data): array
+    {
+        $raw = $data['errors'] ?? $data['_errors'] ?? null;
+        if (!is_array($raw)) {
+            return $this->flashErrors;
+        }
+
+        /** @var array<string, list<string>> $normalized */
+        $normalized = [];
+        foreach ($raw as $field => $messages) {
+            if (is_string($messages)) {
+                $normalized[(string) $field] = [$messages];
+            } elseif (is_array($messages)) {
+                $list = [];
+                foreach ($messages as $m) {
+                    if (is_string($m)) {
+                        $list[] = $m;
+                    }
+                }
+                if ([] !== $list) {
+                    $normalized[(string) $field] = $list;
+                }
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function resolveOldInput(array $data): array
+    {
+        $raw = $data['old'] ?? $data['_old'] ?? null;
+        if (!is_array($raw)) {
+            return $this->flashOld;
+        }
+
+        /** @var array<string, mixed> $out */
+        $out = [];
+        foreach ($raw as $k => $v) {
+            $out[(string) $k] = $v;
+        }
+
+        return $out;
     }
 
     /**

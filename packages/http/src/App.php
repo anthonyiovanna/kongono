@@ -16,6 +16,9 @@ use Kongono\Core\Kernel;
 use Kongono\Core\KernelState;
 use Kongono\Http\Routing\RouteMatch;
 use Kongono\Http\Routing\Router;
+use Kongono\Http\Session\Session;
+use Kongono\Validation\RuleInterface;
+use Kongono\Validation\ValidatableDtoInterface;
 use Kongono\Validation\ValidationException;
 use Kongono\Validation\Validator;
 use Kongono\View\ViewEngine;
@@ -603,7 +606,11 @@ final class App
             }
 
             if ('container' === $spec['kind'] && null !== $typeName) {
-                $args[] = $this->container->get($typeName);
+                $resolved = $this->container->get($typeName);
+                if ($resolved instanceof ViewEngine) {
+                    $resolved = $this->bindRequestFlashToView($resolved, $request);
+                }
+                $args[] = $resolved;
                 continue;
             }
 
@@ -613,7 +620,11 @@ final class App
             }
 
             if ('autowire' === $spec['kind'] && null !== $typeName) {
-                $args[] = $this->container->get($typeName);
+                $resolved = $this->container->get($typeName);
+                if ($resolved instanceof ViewEngine) {
+                    $resolved = $this->bindRequestFlashToView($resolved, $request);
+                }
+                $args[] = $resolved;
                 continue;
             }
 
@@ -662,7 +673,7 @@ final class App
         }
 
         $visited[$className] = true;
-        $hasRequiredOrValidatedField = false;
+        $hasRequiredOrValidatedField = $ref->implementsInterface(ValidatableDtoInterface::class);
         foreach ($ctor->getParameters() as $param) {
             $type = $param->getType();
             if (!$type instanceof ReflectionNamedType) {
@@ -693,7 +704,8 @@ final class App
                 $hasRequiredOrValidatedField = true;
             } else {
                 foreach ($param->getAttributes() as $attr) {
-                    if (str_starts_with($attr->getName(), 'Kongono\\Validation\\Attributes\\')) {
+                    $attrName = $attr->getName();
+                    if (str_starts_with($attrName, 'Kongono\\Validation\\Attributes\\') || is_subclass_of($attrName, RuleInterface::class)) {
                         $hasRequiredOrValidatedField = true;
                         break;
                     }
@@ -718,6 +730,21 @@ final class App
         };
     }
 
+    private function bindRequestFlashToView(ViewEngine $views, Request $request): ViewEngine
+    {
+        $session = $request->getAttribute(Session::class);
+        if (!$session instanceof Session) {
+            return $views;
+        }
+        $errors = $session->validationErrors();
+        $old = $session->oldInput();
+        if ([] === $errors && [] === $old) {
+            return $views;
+        }
+
+        return $views->withFlash($errors, $old);
+    }
+
     private function renderValidationError(Request $request, ValidationException $e): Response
     {
         if ($request->isBridge()) {
@@ -725,6 +752,20 @@ final class App
         }
         if ($request->expectsJson()) {
             return Response::json($e->toArray(), 422);
+        }
+
+        // Standard browser HTML form submission with active Session and verified same-origin Referer:
+        // flash validation errors + secret-scrubbed old() input and issue 303 See Other PRG redirect.
+        if (!$request->isLive()) {
+            $session = $request->getAttribute(Session::class);
+            if ($session instanceof Session) {
+                $safeBack = $this->resolveSafeSameOriginReferer($request);
+                if (null !== $safeBack) {
+                    $session->flashValidation($e->errors, $request->allInput());
+
+                    return Response::redirect($safeBack, 303);
+                }
+            }
         }
 
         $items = '';
@@ -738,6 +779,65 @@ final class App
             sprintf('<!doctype html><html><body><h1>Validation Failed</h1><ul>%s</ul></body></html>', $items),
             422,
         );
+    }
+
+    /**
+     * Validate that the `Referer` header points to the exact same origin as the request and
+     * normalize it to an origin-relative `/path?query` target (preventing open redirects).
+     */
+    private function resolveSafeSameOriginReferer(Request $request): ?string
+    {
+        $referer = trim($request->getHeaderLine('Referer'));
+        if ('' === $referer || false !== strpbrk($referer, "\r\n\0")) {
+            return null;
+        }
+
+        if (str_starts_with($referer, '/')) {
+            if (str_starts_with($referer, '//') || str_starts_with($referer, '/\\')) {
+                return null;
+            }
+
+            return $referer;
+        }
+
+        $parsed = parse_url($referer);
+        if (!is_array($parsed) || isset($parsed['user']) || isset($parsed['pass'])) {
+            return null;
+        }
+
+        $scheme = is_string($parsed['scheme'] ?? null) ? strtolower($parsed['scheme']) : '';
+        $host = is_string($parsed['host'] ?? null) ? strtolower($parsed['host']) : '';
+        if (!in_array($scheme, ['http', 'https'], true) || '' === $host) {
+            return null;
+        }
+
+        $reqUri = $request->getUri();
+        $reqHost = strtolower($reqUri->getHost());
+        if ('' === $reqHost) {
+            $hostHeader = trim($request->getHeaderLine('Host'));
+            $hostParts = '' !== $hostHeader ? parse_url('http://' . $hostHeader) : false;
+            $reqHost = is_array($hostParts) && is_string($hostParts['host'] ?? null) ? strtolower($hostParts['host']) : '';
+            $reqPort = is_array($hostParts) && is_int($hostParts['port'] ?? null) ? $hostParts['port'] : null;
+        } else {
+            $reqPort = $reqUri->getPort();
+        }
+
+        if ('' === $reqHost || $host !== $reqHost) {
+            return null;
+        }
+
+        $refPort = is_int($parsed['port'] ?? null) ? $parsed['port'] : null;
+        if ($refPort !== $reqPort) {
+            return null;
+        }
+
+        $path = is_string($parsed['path'] ?? null) && '' !== $parsed['path'] ? $parsed['path'] : '/';
+        if (!str_starts_with($path, '/') || str_starts_with($path, '//') || str_starts_with($path, '/\\')) {
+            return null;
+        }
+        $query = is_string($parsed['query'] ?? null) && '' !== $parsed['query'] ? '?' . $parsed['query'] : '';
+
+        return $path . $query;
     }
 
     private function renderHttpError(Request $request, HttpException $e): Response

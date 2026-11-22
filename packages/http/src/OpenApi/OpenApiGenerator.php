@@ -4,16 +4,24 @@ declare(strict_types=1);
 
 namespace Kongono\Http\OpenApi;
 
+use BackedEnum;
 use Closure;
 use Kongono\Http\App;
 use Kongono\Http\Request;
 use Kongono\Http\Routing\Route;
+use Kongono\Validation\Attributes\ArrayOf;
+use Kongono\Validation\Attributes\Between;
+use Kongono\Validation\Attributes\Date;
 use Kongono\Validation\Attributes\Email;
 use Kongono\Validation\Attributes\In;
+use Kongono\Validation\Attributes\Ip;
 use Kongono\Validation\Attributes\Max;
 use Kongono\Validation\Attributes\Min;
 use Kongono\Validation\Attributes\Required;
 use Kongono\Validation\Attributes\Url;
+use Kongono\Validation\Attributes\Uuid;
+use Kongono\Validation\RuleInterface;
+use Kongono\Validation\ValidatableDtoInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use ReflectionClass;
 use ReflectionFunction;
@@ -116,7 +124,7 @@ final class OpenApiGenerator
             }
             if ($allowsBody && $this->isInputDto($typeName, $registeredBindings)) {
                 $shortName = (new ReflectionClass($typeName))->getShortName();
-                $schemas[$shortName] = $this->buildDtoSchema($typeName);
+                $schemas[$shortName] = $this->buildDtoSchema($typeName, $schemas);
                 $operation['requestBody'] = [
                     'required' => true,
                     'content' => [
@@ -161,7 +169,7 @@ final class OpenApiGenerator
         }
 
         $visited[$className] = true;
-        $hasRequiredOrValidated = false;
+        $hasRequiredOrValidated = $ref->implementsInterface(ValidatableDtoInterface::class);
         foreach ($ctor->getParameters() as $p) {
             $type = $p->getType();
             if (!$type instanceof ReflectionNamedType) {
@@ -172,7 +180,7 @@ final class OpenApiGenerator
                 $isField = true;
             } else {
                 $pType = $type->getName();
-                if (is_subclass_of($pType, \BackedEnum::class)) {
+                if (is_subclass_of($pType, BackedEnum::class)) {
                     $isField = true;
                 } elseif (class_exists($pType) && $this->isInputDto($pType, $registeredBindings, $visited, $depth + 1)) {
                     $isField = true;
@@ -185,7 +193,8 @@ final class OpenApiGenerator
                 $hasRequiredOrValidated = true;
             } else {
                 foreach ($p->getAttributes() as $a) {
-                    if (str_starts_with($a->getName(), 'Kongono\\Validation\\Attributes\\')) {
+                    $attrName = $a->getName();
+                    if (str_starts_with($attrName, 'Kongono\\Validation\\Attributes\\') || is_subclass_of($attrName, RuleInterface::class)) {
                         $hasRequiredOrValidated = true;
                         break;
                     }
@@ -197,10 +206,11 @@ final class OpenApiGenerator
     }
 
     /**
-     * @param class-string $className
+     * @param class-string                        $className
+     * @param array<string, array<string, mixed>> $schemas
      * @return array<string, mixed>
      */
-    private function buildDtoSchema(string $className): array
+    private function buildDtoSchema(string $className, array &$schemas): array
     {
         $ref = new ReflectionClass($className);
         $ctor = $ref->getConstructor();
@@ -210,7 +220,7 @@ final class OpenApiGenerator
         if (null !== $ctor) {
             foreach ($ctor->getParameters() as $param) {
                 $name = $param->getName();
-                $propSchema = $this->buildParameterSchema($ref, $param, $required);
+                $propSchema = $this->buildParameterSchema($ref, $param, $required, $schemas);
                 $properties[$name] = $propSchema;
             }
         }
@@ -227,22 +237,18 @@ final class OpenApiGenerator
     }
 
     /**
-     * @param ReflectionClass<object> $class
-     * @param list<string>            $required
+     * @param ReflectionClass<object>             $class
+     * @param list<string>                        $required
+     * @param array<string, array<string, mixed>> $schemas
      * @return array<string, mixed>
      */
-    private function buildParameterSchema(ReflectionClass $class, ReflectionParameter $param, array &$required): array
+    private function buildParameterSchema(ReflectionClass $class, ReflectionParameter $param, array &$required, array &$schemas): array
     {
         $name = $param->getName();
         $type = $param->getType();
-        $jsonType = match ($type instanceof ReflectionNamedType ? $type->getName() : 'string') {
-            'int' => 'integer',
-            'float' => 'number',
-            'bool' => 'boolean',
-            'array' => 'array',
-            default => 'string',
-        };
-        $schema = ['type' => $jsonType];
+        $phpType = $type instanceof ReflectionNamedType ? $type->getName() : 'string';
+        $schema = $this->mapTypeToOpenApiSchema($phpType, $schemas);
+        $jsonType = is_string($schema['type'] ?? null) ? $schema['type'] : 'string';
 
         $attrs = [];
         foreach ($param->getAttributes() as $a) {
@@ -250,7 +256,7 @@ final class OpenApiGenerator
                 $attrs[] = $a->newInstance();
             }
         }
-        if ($class->hasProperty($name)) {
+        if (!$param->isPromoted() && $class->hasProperty($name)) {
             foreach ($class->getProperty($name)->getAttributes() as $a) {
                 if (str_starts_with($a->getName(), 'Kongono\\Validation\\Attributes\\')) {
                     $attrs[] = $a->newInstance();
@@ -263,15 +269,48 @@ final class OpenApiGenerator
             if ($attr instanceof Required) {
                 $isRequired = true;
             } elseif ($attr instanceof Min) {
-                $schema['string' === $jsonType ? 'minLength' : 'minimum'] = $attr->value;
+                $key = match ($jsonType) {
+                    'string' => 'minLength',
+                    'array' => 'minItems',
+                    default => 'minimum',
+                };
+                $schema[$key] = $attr->value;
             } elseif ($attr instanceof Max) {
-                $schema['string' === $jsonType ? 'maxLength' : 'maximum'] = $attr->value;
+                $key = match ($jsonType) {
+                    'string' => 'maxLength',
+                    'array' => 'maxItems',
+                    default => 'maximum',
+                };
+                $schema[$key] = $attr->value;
+            } elseif ($attr instanceof Between) {
+                if ('string' === $jsonType) {
+                    $schema['minLength'] = $attr->min;
+                    $schema['maxLength'] = $attr->max;
+                } elseif ('array' === $jsonType) {
+                    $schema['minItems'] = $attr->min;
+                    $schema['maxItems'] = $attr->max;
+                } else {
+                    $schema['minimum'] = $attr->min;
+                    $schema['maximum'] = $attr->max;
+                }
             } elseif ($attr instanceof Email) {
                 $schema['format'] = 'email';
             } elseif ($attr instanceof Url) {
                 $schema['format'] = 'uri';
+            } elseif ($attr instanceof Uuid) {
+                $schema['format'] = 'uuid';
+            } elseif ($attr instanceof Date) {
+                $schema['format'] = null !== $attr->format && str_contains($attr->format, 'H') ? 'date-time' : 'date';
+            } elseif ($attr instanceof Ip) {
+                $schema['format'] = match ($attr->version) {
+                    'v4' => 'ipv4',
+                    'v6' => 'ipv6',
+                    default => 'ip',
+                };
             } elseif ($attr instanceof In) {
                 $schema['enum'] = $attr->allowed;
+            } elseif ($attr instanceof ArrayOf && 'array' === $jsonType) {
+                $schema['items'] = $this->mapTypeToOpenApiSchema($attr->type, $schemas);
             }
         }
 
@@ -280,5 +319,46 @@ final class OpenApiGenerator
         }
 
         return $schema;
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $schemas
+     * @return array<string, mixed>
+     */
+    private function mapTypeToOpenApiSchema(string $phpType, array &$schemas): array
+    {
+        if (in_array($phpType, ['string', 'int', 'float', 'bool', 'array'], true)) {
+            return [
+                'type' => match ($phpType) {
+                    'int' => 'integer',
+                    'float' => 'number',
+                    'bool' => 'boolean',
+                    'array' => 'array',
+                    default => 'string',
+                },
+            ];
+        }
+
+        if (is_subclass_of($phpType, BackedEnum::class)) {
+            $cases = array_map(static fn(BackedEnum $c): int|string => $c->value, $phpType::cases());
+            $isInt = [] !== $cases && is_int($cases[0]);
+
+            return [
+                'type' => $isInt ? 'integer' : 'string',
+                'enum' => $cases,
+            ];
+        }
+
+        if (class_exists($phpType) && !(str_starts_with($phpType, 'Kongono\\') && !str_contains($phpType, '\\Tests\\'))) {
+            $short = (new ReflectionClass($phpType))->getShortName();
+            if (!isset($schemas[$short])) {
+                $schemas[$short] = [];
+                $schemas[$short] = $this->buildDtoSchema($phpType, $schemas);
+            }
+
+            return ['$ref' => '#/components/schemas/' . $short];
+        }
+
+        return ['type' => 'string'];
     }
 }

@@ -17,9 +17,53 @@ final class RenderState
 
     private int $slotDepth = 0;
 
+    /**
+     * @param array<string, list<string>> $validationErrors
+     * @param array<string, mixed>        $oldInput
+     */
     public function __construct(
         private readonly ViewEngine $engine,
+        private readonly array $validationErrors = [],
+        private readonly array $oldInput = [],
     ) {}
+
+    /** Retrieve a previously submitted form value (supports dot-notation like `shipping.city`). */
+    public function old(string $field, mixed $default = ''): mixed
+    {
+        if (array_key_exists($field, $this->oldInput)) {
+            return $this->oldInput[$field];
+        }
+        if (!str_contains($field, '.')) {
+            return $default;
+        }
+
+        $cursor = $this->oldInput;
+        foreach (explode('.', $field) as $segment) {
+            if (!is_array($cursor) || !array_key_exists($segment, $cursor)) {
+                return $default;
+            }
+            $cursor = $cursor[$segment];
+        }
+
+        return $cursor;
+    }
+
+    /** Return the first validation error message for `$field`, or `null`. */
+    public function firstError(string $field): ?string
+    {
+        return $this->validationErrors[$field][0] ?? null;
+    }
+
+    public function hasError(string $field): bool
+    {
+        return null !== $this->firstError($field);
+    }
+
+    /** @return list<string> */
+    public function fieldErrors(string $field): array
+    {
+        return $this->validationErrors[$field] ?? [];
+    }
 
     public function escape(mixed $value): string
     {
@@ -167,6 +211,13 @@ final class RenderState
     /** @param array<string, mixed> $data */
     public function renderPartial(string $template, array $data = []): string
     {
+        if (!array_key_exists('errors', $data) && [] !== $this->validationErrors) {
+            $data['errors'] = $this->validationErrors;
+        }
+        if (!array_key_exists('old', $data) && [] !== $this->oldInput) {
+            $data['old'] = $this->oldInput;
+        }
+
         return $this->engine->render($template, $data);
     }
 
@@ -174,6 +225,12 @@ final class RenderState
     public function renderComponent(string $template, array $props, string $slot): string
     {
         $props['slot'] = $slot;
+        if (!array_key_exists('errors', $props) && [] !== $this->validationErrors) {
+            $props['errors'] = $this->validationErrors;
+        }
+        if (!array_key_exists('old', $props) && [] !== $this->oldInput) {
+            $props['old'] = $this->oldInput;
+        }
 
         return $this->engine->render($template, $props);
     }

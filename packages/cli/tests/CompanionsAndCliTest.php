@@ -171,7 +171,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.11.0', $vOut);
+            self::assertStringContainsString('v1.12.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -805,6 +805,11 @@ PHP);
             self::assertSame(0, $tCode);
             self::assertStringContainsString('export interface CreateNoteInput', $tOut);
 
+            $arrayDts = (new \Kongono\Cli\Bridge\TypeScriptPropsGenerator())->generate([BridgeOrderPayloadDto::class]);
+            self::assertStringContainsString('export interface BridgeLineItemDto {', $arrayDts);
+            self::assertStringContainsString('readonly items: BridgeLineItemDto[];', $arrayDts);
+            self::assertStringContainsString('readonly tags: string[];', $arrayDts);
+
             // 8. `kongo ui:add` scaffolds zero-npm strict-CSP accessible UI primitives that pass SecurityAuditor cleanly
             [$uCode, $uOut] = $cli->run(['ui:add', 'all', '--app=' . $appDir]);
             self::assertSame(0, $uCode);
@@ -1061,4 +1066,26 @@ PHP);
     {
         return var_export($value, true);
     }
+}
+
+final readonly class BridgeLineItemDto
+{
+    public function __construct(
+        public string $sku,
+        public int $qty,
+    ) {}
+}
+
+final readonly class BridgeOrderPayloadDto
+{
+    /**
+     * @param list<BridgeLineItemDto> $items
+     * @param list<string>            $tags
+     */
+    public function __construct(
+        #[\Kongono\Validation\Attributes\ArrayOf(BridgeLineItemDto::class)]
+        public array $items,
+        #[\Kongono\Validation\Attributes\ArrayOf('string')]
+        public array $tags,
+    ) {}
 }

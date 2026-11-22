@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Cli\Bridge;
 
 use BackedEnum;
+use Kongono\Validation\Attributes\ArrayOf;
 use ReflectionClass;
 use ReflectionEnum;
 use ReflectionNamedType;
@@ -104,6 +105,16 @@ final readonly class TypeScriptPropsGenerator
     {
         $type = $prop->getType();
         if ($type instanceof ReflectionNamedType) {
+            if ('array' === $type->getName()) {
+                $arrayOfAttrs = $prop->getAttributes(ArrayOf::class);
+                if ([] !== $arrayOfAttrs) {
+                    $arrayOf = $arrayOfAttrs[0]->newInstance();
+                    $itemTs = $this->mapNamedType($arrayOf->type, $referenced);
+                    $mapped = $itemTs . '[]';
+
+                    return $type->allowsNull() ? $mapped . ' | null' : $mapped;
+                }
+            }
             $mapped = $this->mapNamedType($type->getName(), $referenced);
 
             return $type->allowsNull() && 'null' !== $mapped ? $mapped . ' | null' : $mapped;

@@ -7,6 +7,28 @@ namespace Kongono\Http\Session;
 /** Persistent-runtime-safe session object (never touches PHP $_SESSION superglobal). */
 final class Session
 {
+    public const string FLASH_ERRORS_KEY = '_validation_errors';
+    public const string FLASH_OLD_INPUT_KEY = '_old_input';
+
+    /** @var list<string> Field name fragments that must NEVER be flashed into old() input */
+    private const array SENSITIVE_INPUT_FRAGMENTS = [
+        'password',
+        'passwd',
+        'passphrase',
+        'secret',
+        'token',
+        'csrf',
+        'api_key',
+        'apikey',
+        'private_key',
+        'cvv',
+        'cvc',
+        'card_number',
+        'credit_card',
+        'ssn',
+        'authorization',
+    ];
+
     private bool $dirty = false;
     private bool $regenerated = false;
     private bool $invalidated = false;
@@ -119,6 +141,158 @@ final class Session
     public function getFlash(string $key, mixed $default = null): mixed
     {
         return $this->flashIncoming[$key] ?? $default;
+    }
+
+    /**
+     * Flash validation errors and secret-scrubbed form input for the next request
+     * (used automatically on HTML form redirect-back).
+     *
+     * @param array<string, list<string>> $errors
+     * @param array<string, mixed>        $rawInput
+     */
+    public function flashValidation(array $errors, array $rawInput = []): void
+    {
+        $this->flash(self::FLASH_ERRORS_KEY, $errors);
+        $this->flash(self::FLASH_OLD_INPUT_KEY, self::scrubSensitiveInput($rawInput));
+    }
+
+    /**
+     * Return incoming flashed validation errors from the previous request (`field => list<string>`).
+     *
+     * @return array<string, list<string>>
+     */
+    public function validationErrors(): array
+    {
+        $raw = $this->getFlash(self::FLASH_ERRORS_KEY, []);
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        /** @var array<string, list<string>> $normalized */
+        $normalized = [];
+        foreach ($raw as $field => $messages) {
+            if (!is_array($messages)) {
+                continue;
+            }
+            $list = [];
+            foreach ($messages as $msg) {
+                if (is_string($msg)) {
+                    $list[] = $msg;
+                }
+            }
+            if ([] !== $list) {
+                $normalized[(string) $field] = $list;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /** Return the first flashed validation error for `$field`, or `null` if none. */
+    public function error(string $field): ?string
+    {
+        $errors = $this->validationErrors();
+
+        return $errors[$field][0] ?? null;
+    }
+
+    public function hasError(string $field): bool
+    {
+        return null !== $this->error($field);
+    }
+
+    /**
+     * Return all incoming secret-scrubbed flashed input from the previous request.
+     *
+     * @return array<string, mixed>
+     */
+    public function oldInput(): array
+    {
+        $raw = $this->getFlash(self::FLASH_OLD_INPUT_KEY, []);
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        /** @var array<string, mixed> $out */
+        $out = [];
+        foreach ($raw as $k => $v) {
+            $out[(string) $k] = $v;
+        }
+
+        return $out;
+    }
+
+    /** Retrieve a previously submitted form value (supports dot-notation like `shipping.city`). */
+    public function old(string $field, mixed $default = ''): mixed
+    {
+        $old = $this->oldInput();
+        if (array_key_exists($field, $old)) {
+            return $old[$field];
+        }
+        if (!str_contains($field, '.')) {
+            return $default;
+        }
+
+        $cursor = $old;
+        foreach (explode('.', $field) as $segment) {
+            if (!is_array($cursor) || !array_key_exists($segment, $cursor)) {
+                return $default;
+            }
+            $cursor = $cursor[$segment];
+        }
+
+        return $cursor;
+    }
+
+    /**
+     * Return `['errors' => ..., 'old' => ...]` ready to pass into `ViewEngine::render()` if needed.
+     *
+     * @return array{errors: array<string, list<string>>, old: array<string, mixed>}
+     */
+    public function viewFlashData(): array
+    {
+        return [
+            'errors' => $this->validationErrors(),
+            'old' => $this->oldInput(),
+        ];
+    }
+
+    /**
+     * Recursively remove passwords, CSRF tokens, secrets, and card fields before flashing old input.
+     *
+     * @param array<mixed> $input
+     * @return array<string, mixed>
+     */
+    public static function scrubSensitiveInput(array $input, int $depth = 0): array
+    {
+        if ($depth > 8) {
+            return [];
+        }
+
+        /** @var array<string, mixed> $clean */
+        $clean = [];
+        foreach ($input as $key => $value) {
+            $keyStr = (string) $key;
+            $lower = strtolower($keyStr);
+            $sensitive = false;
+            foreach (self::SENSITIVE_INPUT_FRAGMENTS as $fragment) {
+                if (str_contains($lower, $fragment)) {
+                    $sensitive = true;
+                    break;
+                }
+            }
+            if ($sensitive) {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $clean[$keyStr] = self::scrubSensitiveInput($value, $depth + 1);
+            } elseif (is_string($value) || is_int($value) || is_float($value) || is_bool($value) || null === $value) {
+                $clean[$keyStr] = $value;
+            }
+        }
+
+        return $clean;
     }
 
     /** Rotate session ID (call on login/privilege change to prevent session fixation). */

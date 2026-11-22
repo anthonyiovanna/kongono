@@ -78,8 +78,11 @@ final class TemplateCompiler
         $output = str_replace('@else', '<?php else: ?>', $output);
         $output = str_replace('@endif', '<?php endif; ?>', $output);
 
-        // 6b. @t('key', [...]) auto-escaped translation, @vite(...) asset tags, @liveScript, @safeHtml($html), @json($value) & @php ... @endphp
+        // 6b. @t('key', [...]) auto-escaped translation, @old('field', $default), @error('field')...@enderror, @vite(...), @liveScript, @safeHtml($html), @json($value) & @php ... @endphp
         $output = $this->replaceCallback('/@t\s*\((.+?)\)/', static fn(array $m): string => sprintf('<?php echo $__env->translate(%s); ?>', $m[1]), $output);
+        $output = $this->replaceCallback('/@old\s*\(((?:[^()]|\([^()]*\))+)\)/', static fn(array $m): string => sprintf('<?php echo $__env->escape($__env->old(%s)); ?>', $m[1]), $output);
+        $output = $this->replaceCallback('/@error\s*\(((?:[^()]|\([^()]*\))+)\)/', static fn(array $m): string => sprintf('<?php if (null !== ($message = $__env->firstError(%s))): ?>', $m[1]), $output);
+        $output = str_replace('@enderror', '<?php endif; ?>', $output);
         $output = $this->replaceCallback('/@vite\s*\((.+?)\)/', static fn(array $m): string => sprintf('<?php echo $__env->vite(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/@liveScript\s*\(\s*[\'"]([^\'"]+)[\'"]\s*\)/', static fn(array $m): string => sprintf('<script src="%s" defer></script>', htmlspecialchars($m[1], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')), $output);
         $output = str_replace('@liveScript', '<script src="/_kongono/live.js?v=2.5.0" defer></script>', $output);

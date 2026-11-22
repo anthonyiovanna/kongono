@@ -6,6 +6,7 @@ namespace Kongono\Validation;
 
 use BackedEnum;
 use Kongono\Core\CoreException;
+use Kongono\Validation\Attributes\ArrayOf;
 use Kongono\Validation\Attributes\Between;
 use Kongono\Validation\Attributes\Confirmed;
 use Kongono\Validation\Attributes\Email;
@@ -14,6 +15,7 @@ use Kongono\Validation\Attributes\Max;
 use Kongono\Validation\Attributes\Min;
 use Kongono\Validation\Attributes\Regex;
 use Kongono\Validation\Attributes\Required;
+use Kongono\Validation\Attributes\RequiredIf;
 use Kongono\Validation\Attributes\Url;
 use Kongono\Validation\Attributes\Uuid;
 use ReflectionClass;
@@ -21,7 +23,12 @@ use ReflectionEnum;
 use ReflectionNamedType;
 use ReflectionParameter;
 
-/** Validates raw request/input arrays into strictly typed PHP 8.5 DTOs (including BackedEnums and nested DTOs). */
+/**
+ * Validates raw request/input arrays into strictly typed PHP 8.5 DTOs
+ * (supporting BackedEnums, nested DTOs, typed `#[ArrayOf]` collections,
+ * `#[RequiredIf]` conditionals, custom `RuleInterface` attributes, and
+ * `ValidatableDtoInterface` cross-field checks).
+ */
 final class Validator
 {
     private const int MAX_NESTING_DEPTH = 16;
@@ -37,6 +44,8 @@ final class Validator
      *     allowsNull: bool,
      *     isRequired: bool,
      *     requiredMessage: ?string,
+     *     requiredIf: list<RequiredIf>,
+     *     arrayOf: ?ArrayOf,
      *     attributes: list<object>
      * }>>
      */
@@ -63,7 +72,10 @@ final class Validator
 
         $schema = $this->schemaCache[$dtoClass] ??= $this->compileSchema($dtoClass);
         if ([] === $schema) {
-            return new $dtoClass();
+            $dto = new $dtoClass();
+            $this->runDtoHook($dto);
+
+            return $dto;
         }
 
         $errors = [];
@@ -76,8 +88,11 @@ final class Validator
             $fieldErrors = [];
 
             if (!$present || null === $raw || (is_string($raw) && '' === trim($raw))) {
+                $conditionalError = $this->checkRequiredIf($field['requiredIf'], $name, $input);
                 if ($field['isRequired']) {
                     $fieldErrors[] = $field['requiredMessage'] ?? sprintf('The %s field is required.', $name);
+                } elseif (null !== $conditionalError) {
+                    $fieldErrors[] = $conditionalError;
                 } elseif ($field['hasDefault']) {
                     $arguments[] = $field['default'];
                     continue;
@@ -113,6 +128,18 @@ final class Validator
                 continue;
             }
 
+            if ('array' === $field['typeName'] && null !== $field['arrayOf'] && is_array($coerced)) {
+                $itemErrors = [];
+                $hydratedItems = $this->validateArrayItems($coerced, $field['arrayOf'], $name, $input, $depth, $itemErrors);
+                if ([] !== $itemErrors) {
+                    foreach ($itemErrors as $itemField => $msgs) {
+                        $errors[$itemField] = $msgs;
+                    }
+                    continue;
+                }
+                $coerced = $hydratedItems;
+            }
+
             $arguments[] = $coerced;
         }
 
@@ -120,7 +147,105 @@ final class Validator
             throw new ValidationException($errors);
         }
 
-        return new $dtoClass(...$arguments);
+        $dto = new $dtoClass(...$arguments);
+        $this->runDtoHook($dto);
+
+        return $dto;
+    }
+
+    private function runDtoHook(object $dto): void
+    {
+        if (!$dto instanceof ValidatableDtoInterface) {
+            return;
+        }
+
+        $rawErrors = $dto->validate();
+        if ([] === $rawErrors) {
+            return;
+        }
+
+        /** @var array<string, list<string>> $normalized */
+        $normalized = [];
+        foreach ($rawErrors as $field => $messages) {
+            $list = is_array($messages)
+                ? array_values(array_filter($messages, 'is_string'))
+                : [$messages];
+            if ([] !== $list) {
+                $normalized[$field] = $list;
+            }
+        }
+
+        if ([] !== $normalized) {
+            throw new ValidationException($normalized);
+        }
+    }
+
+    /**
+     * @param list<RequiredIf>     $conditions
+     * @param array<string, mixed> $allInput
+     */
+    private function checkRequiredIf(array $conditions, string $field, array $allInput): ?string
+    {
+        foreach ($conditions as $condition) {
+            if ($condition->isTriggered($allInput)) {
+                return $condition->message ?? sprintf('The %s field is required.', $field);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<mixed>                 $items
+     * @param array<string, mixed>         $allInput
+     * @param array<string, list<string>>  $errors
+     * @return array<mixed>
+     */
+    private function validateArrayItems(
+        array $items,
+        ArrayOf $arrayOf,
+        string $fieldName,
+        array $allInput,
+        int $depth,
+        array &$errors,
+    ): array {
+        if (count($items) > $arrayOf->maxItems) {
+            $errors[$fieldName] = [
+                $arrayOf->message ?? sprintf('The %s field must contain at most %d items.', $fieldName, $arrayOf->maxItems),
+            ];
+
+            return [];
+        }
+
+        $validated = [];
+        foreach ($items as $idx => $rawItem) {
+            $itemKey = $fieldName . '.' . (string) $idx;
+            try {
+                [$coercedItem, $itemTypeError] = $this->coerceByTypeName($arrayOf->type, $rawItem, $itemKey, $depth + 1);
+            } catch (ValidationException $nested) {
+                foreach ($nested->errors as $subField => $subMessages) {
+                    $errors[$itemKey . '.' . $subField] = $subMessages;
+                }
+                continue;
+            }
+
+            if (null !== $itemTypeError) {
+                $errors[$itemKey][] = $arrayOf->message ?? $itemTypeError;
+                continue;
+            }
+
+            if ([] !== $arrayOf->rules) {
+                $itemRuleErrors = $this->checkAttributes($arrayOf->rules, $coercedItem, $itemKey, $allInput);
+                if ([] !== $itemRuleErrors) {
+                    $errors[$itemKey] = $itemRuleErrors;
+                    continue;
+                }
+            }
+
+            $validated[$idx] = $coercedItem;
+        }
+
+        return $validated;
     }
 
     /**
@@ -133,6 +258,8 @@ final class Validator
      *     allowsNull: bool,
      *     isRequired: bool,
      *     requiredMessage: ?string,
+     *     requiredIf: list<RequiredIf>,
+     *     arrayOf: ?ArrayOf,
      *     attributes: list<object>
      * }>
      */
@@ -148,6 +275,13 @@ final class Validator
         foreach ($constructor->getParameters() as $parameter) {
             $attributes = $this->collectAttributes($reflection, $parameter);
             $requiredAttr = $this->findAttribute($attributes, Required::class);
+            $arrayOfAttr = $this->findAttribute($attributes, ArrayOf::class);
+            $requiredIfAttrs = [];
+            foreach ($attributes as $attr) {
+                if ($attr instanceof RequiredIf) {
+                    $requiredIfAttrs[] = $attr;
+                }
+            }
             $type = $parameter->getType();
             $hasDefault = $parameter->isDefaultValueAvailable();
 
@@ -159,6 +293,8 @@ final class Validator
                 'allowsNull' => $parameter->allowsNull(),
                 'isRequired' => null !== $requiredAttr,
                 'requiredMessage' => $requiredAttr?->message,
+                'requiredIf' => $requiredIfAttrs,
+                'arrayOf' => $arrayOfAttr,
                 'attributes' => $attributes,
             ];
         }
@@ -176,32 +312,16 @@ final class Validator
         foreach ($parameter->getAttributes() as $attribute) {
             $instances[] = $attribute->newInstance();
         }
-        if ($class->hasProperty($parameter->getName())) {
+        // Promoted constructor parameters already carry property attributes on $parameter;
+        // only inspect $property separately for non-promoted properties to avoid duplicating repeatable attributes.
+        if (!$parameter->isPromoted() && $class->hasProperty($parameter->getName())) {
             $property = $class->getProperty($parameter->getName());
             foreach ($property->getAttributes() as $attribute) {
-                $instance = $attribute->newInstance();
-                if (!$this->containsClass($instances, $instance::class)) {
-                    $instances[] = $instance;
-                }
+                $instances[] = $attribute->newInstance();
             }
         }
 
         return $instances;
-    }
-
-    /**
-     * @param list<object> $instances
-     * @param class-string $class
-     */
-    private function containsClass(array $instances, string $class): bool
-    {
-        foreach ($instances as $instance) {
-            if ($instance instanceof $class) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -314,7 +434,12 @@ final class Validator
         $errors = [];
 
         foreach ($attributes as $attribute) {
-            if ($attribute instanceof Min) {
+            if ($attribute instanceof RuleInterface) {
+                $error = $attribute->validate($value, $name, $allInput);
+                if (null !== $error) {
+                    $errors[] = $error;
+                }
+            } elseif ($attribute instanceof Min) {
                 if (is_string($value)) {
                     if (mb_strlen($value) < $attribute->value) {
                         $errors[] = $attribute->message ?? sprintf('The %s field must be at least %s characters.', $name, (string) $attribute->value);

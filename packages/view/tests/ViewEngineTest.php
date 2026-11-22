@@ -331,6 +331,42 @@ HTML,
         }
     }
 
+    public function testOldAndErrorDirectivesEscapeXssAndIsolateFlashAcrossPersistentRenders(): void
+    {
+        mkdir($this->tempDir . '/views/partials', 0o777, true);
+        file_put_contents($this->tempDir . '/views/partials/city.kgn.html', '<input name="city" value="@old(\'shipping.city\', \'Tokyo\')">');
+        file_put_contents($this->tempDir . '/views/signup.kgn.html', <<<'HTML'
+<form method="post">
+  <input name="email" value="@old('email', 'guest@example.com')">
+  @error('email')
+  <span class="err">{{ $message }}</span>
+  @enderror
+  @include('partials/city')
+</form>
+HTML);
+
+        $baseEngine = new ViewEngine($this->tempDir . '/views', $this->tempDir . '/cache');
+        $flashedEngine = $baseEngine->withFlash(
+            errors: ['email' => ['The email field must be a valid email address.']],
+            old: [
+                'email' => '"><script>alert(1)</script>',
+                'shipping' => ['city' => 'Kyoto'],
+            ],
+        );
+
+        $rendered = $flashedEngine->render('signup');
+        self::assertStringContainsString('&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', $rendered);
+        self::assertStringNotContainsString('<script>alert(1)</script>', $rendered);
+        self::assertStringContainsString('<span class="err">The email field must be a valid email address.</span>', $rendered);
+        self::assertStringContainsString('value="Kyoto"', $rendered);
+
+        // Persistent-worker safety: the shared base ViewEngine MUST remain clean with zero leaked flash state!
+        $cleanRender = $baseEngine->render('signup');
+        self::assertStringContainsString('value="guest@example.com"', $cleanRender);
+        self::assertStringContainsString('value="Tokyo"', $cleanRender);
+        self::assertStringNotContainsString('class="err"', $cleanRender);
+    }
+
     private function removeDir(string $dir): void
     {
         if (!is_dir($dir)) {
