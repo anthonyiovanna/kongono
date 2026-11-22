@@ -1321,6 +1321,58 @@ HTML);
             @rmdir($tmpViews);
         }
     }
+
+    public function testSignedLocalStorageDownloadStreamsSafelyAndSandboxesInlineSvg(): void
+    {
+        $storage = new \Kongono\Storage\MemoryStorage();
+        $disks = new \Kongono\Storage\StorageDisks(['private' => $storage], default: 'private');
+        $urls = new \Kongono\Storage\SignedLocalUrl('storage-signing-secret-key-at-least-32-bytes', '/_storage/download');
+
+        $pdfBytes = "%PDF-1.7\n%Kongono invoice stream test\n" . str_repeat('0123456789', 100);
+        $storage->put('invoices/2026/inv-42.pdf', $pdfBytes, 'application/pdf');
+
+        $app = App::create(__DIR__, name: 'Storage Download Test')
+            ->instance(\Kongono\Storage\StorageDisks::class, $disks)
+            ->instance(\Kongono\Storage\SignedLocalUrl::class, $urls)
+            ->routes(static function (Router $r): void {
+                $r->get('/_storage/download', static function (
+                    Request $request,
+                    \Kongono\Storage\StorageDisks $disks,
+                    \Kongono\Storage\SignedLocalUrl $urls,
+                ): Response {
+                    $verified = $urls->verify((string) $request->getUri());
+                    if (null === $verified) {
+                        throw new HttpException(403, 'Invalid or expired download link.');
+                    }
+
+                    return Response::fromStorage($disks->disk($verified['disk']), $verified['key'], $verified['name']);
+                });
+            });
+
+        $signedUrl = $urls->temporaryDownloadUrl('invoices/2026/inv-42.pdf', expiresSeconds: 300, downloadName: 'Invoice #42.pdf', disk: 'private');
+        $ok = $app->handle(Request::create('GET', $signedUrl));
+        self::assertSame(200, $ok->getStatusCode());
+        self::assertSame('application/pdf', $ok->getHeaderLine('Content-Type'));
+        self::assertSame('nosniff', $ok->getHeaderLine('X-Content-Type-Options'));
+        self::assertStringContainsString('attachment; filename="Invoice #42.pdf"', $ok->getHeaderLine('Content-Disposition'));
+        self::assertInstanceOf(Response::class, $ok);
+        self::assertTrue($ok->isStreaming());
+        self::assertSame($pdfBytes, $ok->bodyString());
+
+        // Tampered link fails closed with 403
+        $tampered = $app->handle(Request::create('GET', str_replace('inv-42.pdf', 'inv-99.pdf', $signedUrl)));
+        self::assertSame(403, $tampered->getStatusCode());
+
+        // Missing file returns 404
+        $missingUrl = $urls->temporaryDownloadUrl('invoices/missing.pdf', expiresSeconds: 300, disk: 'private');
+        self::assertSame(404, $app->handle(Request::create('GET', $missingUrl))->getStatusCode());
+
+        // Inline SVG download forces CSP sandbox + strips CRLF/quote filename injection
+        $svgRes = Response::download('<svg></svg>', "evil\"\r\nX-Injected: 1.svg", 'image/svg+xml', inline: true);
+        self::assertSame('sandbox', $svgRes->getHeaderLine('Content-Security-Policy'));
+        self::assertStringNotContainsString("\r", $svgRes->getHeaderLine('Content-Disposition'));
+        self::assertStringContainsString('inline; filename=', $svgRes->getHeaderLine('Content-Disposition'));
+    }
 }
 
 final readonly class HtmlSignupFormDto

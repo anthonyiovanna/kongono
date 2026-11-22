@@ -56,6 +56,17 @@ final readonly class LocalStorage implements StorageInterface
         return $this->withKeyLock($cleanKey, fn(): WriteResult => $this->putUnlocked($cleanKey, $contents, $contentType, $metadata));
     }
 
+    public function putStream(string $key, mixed $stream, string $contentType = 'application/octet-stream', array $metadata = []): WriteResult
+    {
+        if (!is_resource($stream)) {
+            throw new StorageException('putStream() requires an open PHP stream resource.');
+        }
+
+        $cleanKey = $this->normalizeKey($key);
+
+        return $this->withKeyLock($cleanKey, fn(): WriteResult => $this->putStreamUnlocked($cleanKey, $stream, $contentType, $metadata));
+    }
+
     public function putIfAbsent(string $key, string $contents, string $contentType = 'application/octet-stream', array $metadata = []): WriteResult
     {
         $cleanKey = $this->normalizeKey($key);
@@ -103,6 +114,70 @@ final readonly class LocalStorage implements StorageInterface
         }
 
         return $bytes;
+    }
+
+    public function getStream(string $key): mixed
+    {
+        $cleanKey = $this->normalizeKey($key);
+        $path = $this->objectPath($cleanKey);
+        if (!is_file($path)) {
+            return null;
+        }
+        $this->assertContainedExisting($path);
+        $handle = @fopen($path, 'rb');
+        if (false === $handle) {
+            throw new StorageException(sprintf('Unable to open stored object stream "%s".', $cleanKey));
+        }
+
+        return $handle;
+    }
+
+    public function copy(string $fromKey, string $toKey): WriteResult
+    {
+        $cleanFrom = $this->normalizeKey($fromKey);
+        $cleanTo = $this->normalizeKey($toKey);
+        $srcMeta = $this->metaUnlocked($cleanFrom);
+        if (null === $srcMeta) {
+            return new WriteResult(StorageOutcome::Absent);
+        }
+        if ($cleanFrom === $cleanTo) {
+            return new WriteResult(StorageOutcome::Replaced, $srcMeta);
+        }
+
+        $srcStream = $this->getStream($cleanFrom);
+        if (null === $srcStream) {
+            return new WriteResult(StorageOutcome::Absent);
+        }
+
+        try {
+            return $this->putStream($cleanTo, $srcStream, $srcMeta->contentType, $srcMeta->metadata);
+        } finally {
+            if (is_resource($srcStream)) {
+                fclose($srcStream);
+            }
+        }
+    }
+
+    public function move(string $fromKey, string $toKey): WriteResult
+    {
+        $cleanFrom = $this->normalizeKey($fromKey);
+        $cleanTo = $this->normalizeKey($toKey);
+        if ($cleanFrom === $cleanTo) {
+            $existing = $this->metaUnlocked($cleanFrom);
+
+            return null !== $existing
+                ? new WriteResult(StorageOutcome::Replaced, $existing)
+                : new WriteResult(StorageOutcome::Absent);
+        }
+
+        $copied = $this->copy($cleanFrom, $cleanTo);
+        if (!$copied->succeeded()) {
+            return $copied;
+        }
+
+        $this->delete($cleanFrom);
+
+        return $copied;
     }
 
     public function meta(string $key): ?ObjectMeta
@@ -203,6 +278,88 @@ final readonly class LocalStorage implements StorageInterface
         );
 
         $this->atomicWrite($path, $contents);
+        $this->atomicWrite($this->metaPath($cleanKey), json_encode($meta->toArray(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+
+        return new WriteResult($existed ? StorageOutcome::Replaced : StorageOutcome::Created, $meta);
+    }
+
+    /**
+     * @param resource              $stream
+     * @param array<string, string> $metadata
+     */
+    private function putStreamUnlocked(string $cleanKey, mixed $stream, string $contentType, array $metadata): WriteResult
+    {
+        $path = $this->objectPath($cleanKey);
+        $this->assertNoSymlinksInPath($path);
+        $existed = is_file($path);
+
+        $dir = dirname($path);
+        if (!is_dir($dir) && !@mkdir($dir, 0o750, true) && !is_dir($dir)) {
+            throw new StorageException(sprintf('Unable to create storage subdirectory "%s".', $dir));
+        }
+
+        $realDir = realpath($dir);
+        $prefix = rtrim($this->root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (false === $realDir || ($realDir !== $this->root && !str_starts_with($realDir . DIRECTORY_SEPARATOR, $prefix))) {
+            throw new StorageException('Storage target directory escapes the configured storage root.');
+        }
+        if (is_link($path)) {
+            throw new StorageException('Symlinks are not permitted inside contained storage.');
+        }
+
+        $tmp = $path . '.' . bin2hex(random_bytes(12)) . '.tmp';
+        $dest = @fopen($tmp, 'xb');
+        if (false === $dest) {
+            throw new StorageException('Failed to create temporary storage file.');
+        }
+
+        $hashCtx = hash_init('sha256');
+        $size = 0;
+
+        try {
+            @chmod($tmp, 0o600);
+            while (!feof($stream)) {
+                $chunk = fread($stream, 65536);
+                if (false === $chunk) {
+                    throw new StorageException('Failed to read from input stream.');
+                }
+                if ('' === $chunk) {
+                    break;
+                }
+                $written = fwrite($dest, $chunk);
+                if (false === $written || $written !== strlen($chunk)) {
+                    throw new StorageException('Failed to write temporary storage file.');
+                }
+                hash_update($hashCtx, $chunk);
+                $size += $written;
+            }
+            fflush($dest);
+            fclose($dest);
+        } catch (\Throwable $e) {
+            if (is_resource($dest)) {
+                fclose($dest);
+            }
+            @unlink($tmp);
+            throw $e;
+        }
+
+        if (!@rename($tmp, $path)) {
+            @unlink($path);
+            if (!@rename($tmp, $path)) {
+                @unlink($tmp);
+                throw new StorageException('Failed to atomically publish storage file.');
+            }
+        }
+
+        $meta = new ObjectMeta(
+            key: $cleanKey,
+            size: $size,
+            sha256: hash_final($hashCtx),
+            version: bin2hex(random_bytes(16)),
+            contentType: $contentType,
+            updatedAt: gmdate(DATE_ATOM),
+            metadata: $metadata,
+        );
         $this->atomicWrite($this->metaPath($cleanKey), json_encode($meta->toArray(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
 
         return new WriteResult($existed ? StorageOutcome::Replaced : StorageOutcome::Created, $meta);

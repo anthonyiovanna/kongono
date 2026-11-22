@@ -6,6 +6,7 @@ namespace Kongono\Http;
 
 use Closure;
 use InvalidArgumentException;
+use Kongono\Storage\StorageInterface;
 use Psr\Http\Message\MessageInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
@@ -318,6 +319,124 @@ final class Response implements ResponseInterface
         $response->streamProducer = $producer;
 
         return $response;
+    }
+
+    /**
+     * Create a safe file download or inline file response from a `string` buffer or an open PHP `resource` stream.
+     *
+     * Automatically sanitizes filenames against header injection (emitting RFC 5987 UTF-8 `filename*`),
+     * enforces `X-Content-Type-Options: nosniff`, sandboxes inline HTML/SVG via CSP, and streams
+     * PHP resources in 64 KB chunks without buffering the entire file in memory.
+     *
+     * @param string|resource                    $contentsOrStream
+     * @param array<string, string|list<string>> $headers
+     */
+    public static function download(
+        mixed $contentsOrStream,
+        string $filename,
+        string $contentType = 'application/octet-stream',
+        bool $inline = false,
+        ?int $contentLength = null,
+        ?string $etag = null,
+        array $headers = [],
+    ): self {
+        $cleanType = trim($contentType);
+        if ('' === $cleanType || false !== strpbrk($cleanType, "\r\n\0")) {
+            throw new InvalidArgumentException('Invalid Content-Type for download response.');
+        }
+
+        $cleanName = trim((string) preg_replace('/[\x00-\x1f\x7f\/\\\\"]+/', '_', basename($filename)));
+        if ('' === $cleanName) {
+            $cleanName = 'download';
+        }
+        $asciiFallback = trim((string) preg_replace('/[^\x20-\x7E]/', '_', $cleanName));
+        if ('' === $asciiFallback) {
+            $asciiFallback = 'download';
+        }
+
+        $disposition = $inline ? 'inline' : 'attachment';
+        $headers['Content-Type'] = $cleanType;
+        $headers['Content-Disposition'] = sprintf(
+            '%s; filename="%s"; filename*=UTF-8\'\'%s',
+            $disposition,
+            $asciiFallback,
+            rawurlencode($cleanName),
+        );
+        $headers['X-Content-Type-Options'] = 'nosniff';
+        if (null !== $contentLength && $contentLength >= 0) {
+            $headers['Content-Length'] = (string) $contentLength;
+        }
+        if (null !== $etag && '' !== trim($etag)) {
+            $headers['ETag'] = trim($etag);
+        }
+
+        $lowerType = strtolower(explode(';', $cleanType, 2)[0]);
+        if ($inline && in_array($lowerType, ['image/svg+xml', 'text/html', 'application/xhtml+xml'], true)) {
+            $headers['Content-Security-Policy'] = 'sandbox';
+        }
+
+        if (is_resource($contentsOrStream)) {
+            return self::stream(static function () use ($contentsOrStream): iterable {
+                try {
+                    while (!feof($contentsOrStream)) {
+                        $chunk = fread($contentsOrStream, 65536);
+                        if (false === $chunk || '' === $chunk) {
+                            break;
+                        }
+                        yield $chunk;
+                    }
+                } finally {
+                    if (is_resource($contentsOrStream)) {
+                        fclose($contentsOrStream);
+                    }
+                }
+            }, 200, $headers);
+        }
+
+        if (!is_string($contentsOrStream)) {
+            throw new InvalidArgumentException('Response::download() expects a string or an open PHP stream resource.');
+        }
+
+        if (!isset($headers['Content-Length'])) {
+            $headers['Content-Length'] = (string) strlen($contentsOrStream);
+        }
+
+        return new self(200, $headers, Stream::fromString($contentsOrStream));
+    }
+
+    /**
+     * Stream an object directly from any `StorageInterface` (LocalStorage, S3Storage, MemoryStorage)
+     * as a hardened HTTP download or inline response. Throws HTTP 404 when the key does not exist.
+     *
+     * @param array<string, string|list<string>> $headers
+     */
+    public static function fromStorage(
+        StorageInterface $storage,
+        string $key,
+        ?string $downloadName = null,
+        bool $inline = false,
+        array $headers = [],
+    ): self {
+        $meta = $storage->meta($key);
+        if (null === $meta) {
+            throw new HttpException(404, 'Stored file not found.');
+        }
+        $stream = $storage->getStream($key);
+        if (null === $stream) {
+            throw new HttpException(404, 'Stored file not found.');
+        }
+
+        $etag = '' !== $meta->version ? '"' . trim($meta->version, '"') . '"' : null;
+
+        return self::download(
+            contentsOrStream: $stream,
+            filename: $downloadName ?? basename($meta->key),
+            contentType: $meta->contentType,
+            inline: $inline,
+            contentLength: $meta->size > 0 ? $meta->size : null,
+            etag: $etag,
+            headers: $headers,
+        );
     }
 
     /**

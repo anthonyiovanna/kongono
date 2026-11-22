@@ -20,6 +20,27 @@ final class MemoryStorage implements StorageInterface
         return new WriteResult($existed ? StorageOutcome::Replaced : StorageOutcome::Created, $meta);
     }
 
+    public function putStream(string $key, mixed $stream, string $contentType = 'application/octet-stream', array $metadata = []): WriteResult
+    {
+        if (!is_resource($stream)) {
+            throw new StorageException('putStream() requires an open PHP stream resource.');
+        }
+
+        $buf = '';
+        while (!feof($stream)) {
+            $chunk = fread($stream, 65536);
+            if (false === $chunk) {
+                throw new StorageException('Failed to read from input stream.');
+            }
+            if ('' === $chunk) {
+                break;
+            }
+            $buf .= $chunk;
+        }
+
+        return $this->put($key, $buf, $contentType, $metadata);
+    }
+
     public function putIfAbsent(string $key, string $contents, string $contentType = 'application/octet-stream', array $metadata = []): WriteResult
     {
         $key = $this->normalizeKey($key);
@@ -48,6 +69,58 @@ final class MemoryStorage implements StorageInterface
         $key = $this->normalizeKey($key);
 
         return $this->objects[$key]['bytes'] ?? null;
+    }
+
+    public function getStream(string $key): mixed
+    {
+        $bytes = $this->get($key);
+        if (null === $bytes) {
+            return null;
+        }
+
+        $handle = fopen('php://temp', 'r+b');
+        if (false === $handle) {
+            throw new StorageException('Unable to open temporary memory stream.');
+        }
+        fwrite($handle, $bytes);
+        rewind($handle);
+
+        return $handle;
+    }
+
+    public function copy(string $fromKey, string $toKey): WriteResult
+    {
+        $cleanFrom = $this->normalizeKey($fromKey);
+        $cleanTo = $this->normalizeKey($toKey);
+        if (!isset($this->objects[$cleanFrom])) {
+            return new WriteResult(StorageOutcome::Absent);
+        }
+        if ($cleanFrom === $cleanTo) {
+            return new WriteResult(StorageOutcome::Replaced, $this->objects[$cleanFrom]['meta']);
+        }
+
+        $entry = $this->objects[$cleanFrom];
+
+        return $this->put($cleanTo, $entry['bytes'], $entry['meta']->contentType, $entry['meta']->metadata);
+    }
+
+    public function move(string $fromKey, string $toKey): WriteResult
+    {
+        $cleanFrom = $this->normalizeKey($fromKey);
+        $cleanTo = $this->normalizeKey($toKey);
+        if ($cleanFrom === $cleanTo) {
+            return isset($this->objects[$cleanFrom])
+                ? new WriteResult(StorageOutcome::Replaced, $this->objects[$cleanFrom]['meta'])
+                : new WriteResult(StorageOutcome::Absent);
+        }
+
+        $copied = $this->copy($cleanFrom, $cleanTo);
+        if (!$copied->succeeded()) {
+            return $copied;
+        }
+        unset($this->objects[$cleanFrom]);
+
+        return $copied;
     }
 
     public function meta(string $key): ?ObjectMeta

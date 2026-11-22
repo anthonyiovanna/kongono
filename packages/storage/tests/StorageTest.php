@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Kongono\Storage\Tests;
 
+use Kongono\Http\UploadedFile;
 use Kongono\Storage\LocalStorage;
 use Kongono\Storage\MemoryStorage;
 use Kongono\Storage\S3Storage;
+use Kongono\Storage\SignedLocalUrl;
 use Kongono\Storage\SigV4Signer;
+use Kongono\Storage\StorageDisks;
 use Kongono\Storage\StorageException;
 use Kongono\Storage\StorageInterface;
 use Kongono\Storage\StorageOutcome;
+use Kongono\Storage\UploadedFileStore;
 use PHPUnit\Framework\TestCase;
 
 final class StorageTest extends TestCase
@@ -124,6 +128,37 @@ final class StorageTest extends TestCase
         self::assertSame(StorageOutcome::Conflict, $storage->delete('docs/hello.txt', 'wrong'));
         self::assertSame(StorageOutcome::Deleted, $storage->delete('docs/hello.txt', $replaced->meta->version));
         self::assertFalse($storage->exists('docs/hello.txt'));
+
+        // v1.13.0: streaming putStream / getStream (>128KB multi-chunk) + copy() + move()
+        $bigPayload = str_repeat("kongono-stream-chunk-0123456789\n", 5000);
+        $in = fopen('php://temp', 'r+b');
+        self::assertIsResource($in);
+        fwrite($in, $bigPayload);
+        rewind($in);
+        $streamPut = $storage->putStream('exports/report.txt', $in, 'text/plain', ['kind' => 'report']);
+        fclose($in);
+        self::assertSame(StorageOutcome::Created, $streamPut->outcome);
+        self::assertNotNull($streamPut->meta);
+        self::assertSame(strlen($bigPayload), $streamPut->meta->size);
+        self::assertSame(hash('sha256', $bigPayload), $streamPut->meta->sha256);
+
+        $out = $storage->getStream('exports/report.txt');
+        self::assertIsResource($out);
+        $readBack = stream_get_contents($out);
+        fclose($out);
+        self::assertSame($bigPayload, $readBack);
+        self::assertNull($storage->getStream('exports/does-not-exist.txt'));
+
+        $copied = $storage->copy('exports/report.txt', 'archive/report-copy.txt');
+        self::assertTrue($copied->succeeded());
+        self::assertSame($bigPayload, $storage->get('archive/report-copy.txt'));
+        self::assertTrue($storage->exists('exports/report.txt'));
+
+        $moved = $storage->move('archive/report-copy.txt', 'archive/report-final.txt');
+        self::assertTrue($moved->succeeded());
+        self::assertFalse($storage->exists('archive/report-copy.txt'));
+        self::assertSame($bigPayload, $storage->get('archive/report-final.txt'));
+        self::assertSame(StorageOutcome::Absent, $storage->copy('missing/nope.txt', 'archive/x.txt')->outcome);
     }
 
     public function testStorageRejectsAlternateDataStreamsAndS3XxePayloads(): void
@@ -275,6 +310,190 @@ final class StorageTest extends TestCase
                 }
             }
         }
+    }
+
+    public function testS3PaginationNativeServerSideCopyMoveAndStreams(): void
+    {
+        $calls = [];
+        $s3 = new S3Storage(
+            bucket: 'media-bucket',
+            accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
+            secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+            region: 'us-east-1',
+            endpoint: 'https://r2.example.com',
+            httpSender: static function (string $method, string $url, array $headers, string $body) use (&$calls): array {
+                $calls[] = ['method' => $method, 'url' => $url, 'headers' => $headers, 'body' => $body];
+
+                if ('GET' === $method && str_contains($url, 'list-type=2')) {
+                    if (str_contains($url, 'continuation-token=tok-page-2')) {
+                        return [
+                            'status' => 200,
+                            'headers' => [],
+                            'body' => '<ListBucketResult><IsTruncated>false</IsTruncated>'
+                                . '<Contents><Key>logs/3.txt</Key><Size>3</Size><ETag>"e3"</ETag><LastModified>2026-11-22T00:00:00Z</LastModified></Contents>'
+                                . '</ListBucketResult>',
+                        ];
+                    }
+
+                    return [
+                        'status' => 200,
+                        'headers' => [],
+                        'body' => '<ListBucketResult><IsTruncated>true</IsTruncated><NextContinuationToken>tok-page-2</NextContinuationToken>'
+                            . '<Contents><Key>logs/1.txt</Key><Size>1</Size><ETag>"e1"</ETag><LastModified>2026-11-22T00:00:00Z</LastModified></Contents>'
+                            . '<Contents><Key>logs/2.txt</Key><Size>2</Size><ETag>"e2"</ETag><LastModified>2026-11-22T00:00:00Z</LastModified></Contents>'
+                            . '</ListBucketResult>',
+                    ];
+                }
+
+                if ('PUT' === $method && isset($headers['x-amz-copy-source'])) {
+                    return [
+                        'status' => 200,
+                        'headers' => [],
+                        'body' => '<CopyObjectResult><ETag>"copied-etag-77"</ETag></CopyObjectResult>',
+                    ];
+                }
+
+                if ('PUT' === $method) {
+                    return ['status' => 200, 'headers' => ['etag' => '"stream-etag"'], 'body' => ''];
+                }
+
+                if ('GET' === $method) {
+                    return ['status' => 200, 'headers' => ['content-type' => 'text/plain'], 'body' => 'streamed s3 payload'];
+                }
+
+                return ['status' => 204, 'headers' => [], 'body' => ''];
+            },
+        );
+
+        // 1. Paginated ListObjectsV2 follows NextContinuationToken across pages
+        $all = $s3->list('logs/');
+        self::assertCount(3, $all);
+        self::assertSame(['logs/1.txt', 'logs/2.txt', 'logs/3.txt'], array_map(static fn($m): string => $m->key, $all));
+
+        // maxKeys caps early without fetching extra pages
+        $capped = $s3->list('logs/', maxKeys: 2);
+        self::assertCount(2, $capped);
+
+        // 2. Native S3 server-side copy & move
+        $copyRes = $s3->copy('logs/1.txt', 'archive/1.txt');
+        self::assertSame(StorageOutcome::Created, $copyRes->outcome);
+        self::assertSame('copied-etag-77', $copyRes->meta?->version);
+
+        $copyCall = end($calls);
+        self::assertIsArray($copyCall);
+        self::assertSame('/media-bucket/logs/1.txt', $copyCall['headers']['x-amz-copy-source'] ?? null);
+
+        $moveRes = $s3->move('logs/2.txt', 'archive/2.txt');
+        self::assertTrue($moveRes->succeeded());
+        $lastCall = end($calls);
+        self::assertIsArray($lastCall);
+        self::assertSame('DELETE', $lastCall['method']);
+
+        // 3. putStream & getStream on S3
+        $in = fopen('php://temp', 'r+b');
+        self::assertIsResource($in);
+        fwrite($in, 'streamed s3 payload');
+        rewind($in);
+        $putStream = $s3->putStream('uploads/demo.txt', $in, 'text/plain');
+        fclose($in);
+        self::assertSame('stream-etag', $putStream->meta?->version);
+
+        $out = $s3->getStream('uploads/demo.txt');
+        self::assertIsResource($out);
+        self::assertSame('streamed s3 payload', stream_get_contents($out));
+        fclose($out);
+    }
+
+    public function testStorageDisksSignedLocalUrlAndUploadedFileStoreHardening(): void
+    {
+        // 1. StorageDisks named registry
+        $publicDisk = new MemoryStorage();
+        $privateDisk = new LocalStorage($this->tempDir);
+        $disks = new StorageDisks(['public' => $publicDisk, 'private' => $privateDisk], default: 'private');
+
+        self::assertSame('private', $disks->defaultName());
+        self::assertSame(['private', 'public'], $disks->names());
+        self::assertSame($privateDisk, $disks->disk());
+        self::assertSame($publicDisk, $disks->disk('public'));
+        self::assertTrue($disks->has('public'));
+
+        try {
+            $disks->disk('nonexistent');
+            self::fail('Expected unknown disk to throw.');
+        } catch (StorageException $e) {
+            self::assertStringContainsString('not registered', $e->getMessage());
+        }
+
+        // 2. UploadedFileStore: magic-byte sniffing accepts true PNG/PDF and blocks spoofed PHP/SVG/HTML & oversized uploads
+        $uploader = new UploadedFileStore(
+            storage: $privateDisk,
+            allowedMimeTypes: ['image/png', 'application/pdf'],
+            maxBytes: 1024,
+        );
+
+        $validPng = "\x89PNG\r\n\x1A\n" . str_repeat("\x00", 32);
+        $pngUpload = UploadedFile::fromString($validPng, '../../evil/avatar.php', 'application/x-httpd-php');
+        $stored = $uploader->store($pngUpload, prefix: 'avatars');
+        self::assertSame(StorageOutcome::Created, $stored->outcome);
+        self::assertNotNull($stored->meta);
+        self::assertStringStartsWith('avatars/', $stored->meta->key);
+        self::assertStringEndsWith('.png', $stored->meta->key);
+        self::assertSame('image/png', $stored->meta->contentType);
+        self::assertSame($validPng, $privateDisk->get($stored->meta->key));
+
+        // Disguised PHP script claiming to be image/png MUST be rejected!
+        $phpSpoof = UploadedFile::fromString('<?php system($_GET["c"]); ?>', 'photo.png', 'image/png');
+        try {
+            $uploader->store($phpSpoof);
+            self::fail('Expected disguised PHP payload to be rejected.');
+        } catch (StorageException $e) {
+            self::assertStringContainsString('application/x-httpd-php', $e->getMessage());
+        }
+
+        // Disguised SVG XSS claiming to be image/png MUST be rejected!
+        $svgSpoof = UploadedFile::fromString('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>', 'icon.png', 'image/png');
+        try {
+            $uploader->store($svgSpoof);
+            self::fail('Expected disguised SVG payload to be rejected.');
+        } catch (StorageException $e) {
+            self::assertStringContainsString('image/svg+xml', $e->getMessage());
+        }
+
+        // Oversized payload exceeding maxBytes MUST be rejected!
+        $tooBig = UploadedFile::fromString("\x89PNG\r\n\x1A\n" . str_repeat('A', 2048), 'huge.png', 'image/png');
+        try {
+            $uploader->store($tooBig);
+            self::fail('Expected oversized upload to be rejected.');
+        } catch (StorageException $e) {
+            self::assertStringContainsString('exceeds maximum allowed size', $e->getMessage());
+        }
+
+        // 3. SignedLocalUrl generates, verifies, and rejects tampered/expired/HPP URLs
+        $signer = new SignedLocalUrl('super-secret-storage-signing-key-32b', 'https://app.example.com/_storage/download');
+        $url = $signer->temporaryDownloadUrl(
+            key: $stored->meta->key,
+            expiresSeconds: 600,
+            downloadName: 'user-avatar.png',
+            disk: 'private',
+            now: 1700000000,
+        );
+
+        $verified = $signer->verify($url, now: 1700000100);
+        self::assertNotNull($verified);
+        self::assertSame($stored->meta->key, $verified['key']);
+        self::assertSame('private', $verified['disk']);
+        self::assertSame('user-avatar.png', $verified['name']);
+
+        // Path-only verification works seamlessly when passing request path+query
+        $pathOnly = (string) parse_url($url, PHP_URL_PATH) . '?' . (string) parse_url($url, PHP_URL_QUERY);
+        self::assertNotNull($signer->verify($pathOnly, now: 1700000100));
+
+        // Expired URL fails closed
+        self::assertNull($signer->verify($url, now: 1700000700));
+        // Tampered filename fails closed
+        self::assertNull($signer->verify(str_replace('user-avatar.png', 'other.png', $url), now: 1700000100));
+        // Duplicate query parameter (HPP) fails closed
+        self::assertNull($signer->verify($url . '&key=secrets.txt', now: 1700000100));
     }
 
     private function removeDir(string $dir): void
