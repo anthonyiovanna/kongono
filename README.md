@@ -10,9 +10,9 @@
 
 Kongono is a modern, zero-legacy **PHP 8.5+** application framework built from the ground up — **zero Symfony packages, zero third-party runtime libraries, zero mutable static state, and zero magic global facades** — designed for persistent runtimes (`kongo serve`, FrankenPHP, RoadRunner, PHP-FPM), hardened against autonomous AI attacks, and featuring **three built-in AI companions**:
 
-- **Oshie (`kongo oshie`)** — Interactive AI tutor that teaches Kongono grounded in your live app.
-- **Chie (`kongo chie`)** — Project-aware AI builder & scaffolder that reads your `ApplicationGraph` and proposes clean PHP 8.5 code.
-- **Hantei (`kongo hantei`)** — AI debugger, failure analyzer, and PHPUnit 13 test generator.
+- <img src="site/assets/companions/oshie.svg" width="18" height="18" align="absmiddle" alt="Oshie"> **Oshie (`kongo oshie`)** — Interactive AI tutor that teaches Kongono grounded in your live app.
+- <img src="site/assets/companions/chie.svg" width="18" height="18" align="absmiddle" alt="Chie"> **Chie (`kongo chie`)** — Project-aware AI builder & scaffolder that reads your `ApplicationGraph` and proposes clean PHP 8.5 code.
+- <img src="site/assets/companions/hantei.svg" width="18" height="18" align="absmiddle" alt="Hantei"> **Hantei (`kongo hantei`)** — AI debugger, failure analyzer, and PHPUnit 13 test generator.
 
 ---
 

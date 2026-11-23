@@ -1439,6 +1439,7 @@ HTML;
         $diagPane = null !== $diagnosticData
             ? '<div class="dock-pane dock-pane-diag">' . $diagnosticHtml . '</div>'
             : '';
+        $hanteiIcon = KongonoBrand::hanteiSvg(16, 'kgn-err-hantei');
 
         return <<<HTML
     <section class="dock">
@@ -1449,7 +1450,7 @@ HTML;
 
       <div class="dock-tabs">
         <div class="dock-tab-list">
-          <label for="kgn-tab-hantei" class="dock-tab">Hantei AI</label>
+          <label for="kgn-tab-hantei" class="dock-tab">{$hanteiIcon}<span>Hantei AI</span></label>
           {$diagTab}
           <label for="kgn-tab-request" class="dock-tab">Request</label>
           <label for="kgn-tab-llm" class="dock-tab">LLM Packet</label>

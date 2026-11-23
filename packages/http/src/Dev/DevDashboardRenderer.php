@@ -24,6 +24,9 @@ final class DevDashboardRenderer
         $safeBase = htmlspecialchars(rtrim($basePath, '/'), ENT_QUOTES, 'UTF-8');
         $phpVersion = htmlspecialchars(PHP_VERSION, ENT_QUOTES, 'UTF-8');
         $brandSvg = KongonoBrand::markSvg(24, 'kgn-dev-gm');
+        $oshieSvg = KongonoBrand::oshieSvg(22, 'kgn-dev-oshie');
+        $chieSvg = KongonoBrand::chieSvg(22, 'kgn-dev-chie');
+        $hanteiSvg = KongonoBrand::hanteiSvg(22, 'kgn-dev-hantei');
 
         $head = <<<HTML
 <!doctype html>
@@ -81,6 +84,8 @@ final class DevDashboardRenderer
     .panel { display: none; }
     .panel.active { display: block; }
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+    .ai-head { display: inline-flex; align-items: center; gap: 0.55rem; margin: 0 0 0.75rem; font-size: 1rem; font-weight: 560; }
+    .ai-input { flex: 1; min-width: 240px; padding: 0.45rem 0.7rem; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--bg); color: var(--text); font: inherit; font-size: 0.84rem; }
     table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
     th, td { text-align: left; padding: 0.58rem 0.65rem; border-bottom: 1px solid var(--border); }
     th { color: var(--muted); font-weight: 500; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -161,7 +166,7 @@ final class DevDashboardRenderer
 
   <section id="tab-ai" class="panel">
     <div class="card">
-      <h3>Oshie — Interactive Kongono Tutor</h3>
+      <h3 class="ai-head">{$oshieSvg}<span>Oshie — Interactive Kongono Tutor</span></h3>
       <div class="toolbar">
         <select id="oshieLesson" class="btn">
           <option value="">Ask a question below...</option>
@@ -178,23 +183,23 @@ final class DevDashboardRenderer
           <option value="ai">Lesson: Multi-Provider AI, Hybrid RAG &amp; Evals</option>
           <option value="ops-deploy">Lesson: /_ops, FrankenPHP &amp; Scaffolding</option>
         </select>
-        <input id="oshieInput" type="text" placeholder="Ask Oshie anything about your Kongono app..." style="flex:1;min-width:240px;padding:0.45rem 0.7rem;border-radius:6px;border:1px solid #334155;background:#020617;color:#f8fafc;">
+        <input id="oshieInput" class="ai-input" type="text" placeholder="Ask Oshie anything about your Kongono app...">
         <button class="btn" id="oshieSend">Ask Oshie</button>
       </div>
       <pre id="oshieOut">Pick a lesson or ask a question to study Kongono right inside Dev Studio.</pre>
     </div>
     <div class="card">
-      <h3>Chie — Project-Aware AI Builder (Safe Diff Preview)</h3>
+      <h3 class="ai-head">{$chieSvg}<span>Chie — Project-Aware AI Builder (Safe Diff Preview)</span></h3>
       <div class="toolbar">
-        <input id="chieInput" type="text" placeholder="Describe what to build (e.g. Add a /api/stats endpoint)..." style="flex:1;min-width:260px;padding:0.45rem 0.7rem;border-radius:6px;border:1px solid #334155;background:#020617;color:#f8fafc;">
+        <input id="chieInput" class="ai-input" type="text" placeholder="Describe what to build (e.g. Add a /api/stats endpoint)...">
         <button class="btn" id="chieSend">Preview Diff with Chie</button>
       </div>
       <pre id="chieOut">Chie previews unified diffs against your live ApplicationGraph without modifying disk from the browser. Run `kongo chie "..." --apply` in your terminal to write approved changes.</pre>
     </div>
     <div class="card">
-      <h3>Hantei — Instant Error &amp; Diagnostic Debugger</h3>
+      <h3 class="ai-head">{$hanteiSvg}<span>Hantei — Instant Error &amp; Diagnostic Debugger</span></h3>
       <div class="toolbar">
-        <input id="hanteiInput" type="text" placeholder="Paste an error message or KGN-* diagnostic code..." style="flex:1;min-width:260px;padding:0.45rem 0.7rem;border-radius:6px;border:1px solid #334155;background:#020617;color:#f8fafc;">
+        <input id="hanteiInput" class="ai-input" type="text" placeholder="Paste an error message or KGN-* diagnostic code...">
         <button class="btn" id="hanteiSend">Diagnose with Hantei</button>
       </div>
       <pre id="hanteiOut">Hantei automatically scrubs secrets before diagnosing errors against your ApplicationGraph.</pre>

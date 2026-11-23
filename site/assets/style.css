@@ -306,6 +306,14 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
   border-radius: var(--radius);
   padding: 1.35rem;
 }
+.card-companion {
+  display: flex;
+  align-items: center;
+  gap: 0.62rem;
+  margin-bottom: 0.72rem;
+}
+.card-companion .tag { margin-bottom: 0; }
+.companion-ico { width: 30px; height: 30px; display: block; flex-shrink: 0; }
 .card h3 { margin: 0 0 0.45rem; font-size: 1.02rem; font-weight: 560; letter-spacing: -0.015em; color: var(--text-strong); }
 .card p { margin: 0; color: var(--text); font-size: 0.9rem; }
 .card .tag {

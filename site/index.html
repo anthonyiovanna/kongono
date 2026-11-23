@@ -247,17 +247,26 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
 
         <div class="grid-3">
           <div class="card">
-            <span class="tag">Oshie (教え) &middot; Learn</span>
+            <div class="card-companion">
+              <img class="companion-ico" src="assets/companions/oshie.svg" width="30" height="30" alt="Oshie icon">
+              <span class="tag">Oshie (教え) &middot; Learn</span>
+            </div>
             <h3>Interactive AI Tutor &amp; Grader</h3>
             <p>12 lessons + 6 verifiable hands-on exercises (<code>kongo oshie --exercise</code>), live CLI &amp; SSE streaming, <code>AGENTS.md</code> grounding, <code>--progress</code> tracking, and live <code>DevInspector</code> trace awareness.</p>
           </div>
           <div class="card">
-            <span class="tag">Chie (知恵) &middot; Build</span>
+            <div class="card-companion">
+              <img class="companion-ico" src="assets/companions/chie.svg" width="30" height="30" alt="Chie icon">
+              <span class="tag">Chie (知恵) &middot; Build</span>
+            </div>
             <h3>Self-Verifying AI Builder</h3>
             <p>Inspects code &amp; live DB schema via <code>AgentPrincipal</code>, applies surgical patches (<code>action: "patch"</code>), supports <code>--interactive</code> diff approval and <code>--continue</code>, and auto-repairs across PHPStan + PHPUnit + lint + security gates (<code>--apply --verify</code>).</p>
           </div>
           <div class="card">
-            <span class="tag">Hantei (判定) &middot; Debug &amp; Review</span>
+            <div class="card-companion">
+              <img class="companion-ico" src="assets/companions/hantei.svg" width="30" height="30" alt="Hantei icon">
+              <span class="tag">Hantei (判定) &middot; Debug &amp; Review</span>
+            </div>
             <h3>AI Debugger, Watcher &amp; PR Reviewer</h3>
             <p>Tool-equipped root-cause diagnosis (CLI, <code>/_kongono</code> traces, <code>/_ops</code> DLQ jobs, <code>hantei watch</code>), closed-loop <code>hantei fix</code>, CI SARIF 2.1.0 <code>hantei review</code>, and PHPUnit 13 test generation — all secret-scrubbed.</p>
           </div>

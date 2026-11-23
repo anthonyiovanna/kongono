@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Kongono\Http\Brand;
 
 /**
- * Canonical pure-vector Kongono brand mark (Gunmetal × Platinum · Solid Katana-Cut Hanko).
+ * Canonical pure-vector Kongono brand marks:
+ *  - Core mark: Gunmetal × Platinum Solid Katana-Cut Hanko
+ *  - Oshie (AI Tutor): Gunmetal × Sapphire Sensei Dialogue (O5)
+ *  - Chie (AI Builder): Gunmetal × Hisui Jade Graph Forge (C5)
+ *  - Hantei (AI Debugger & Judge): Gunmetal × Urushi Crimson Forensic Lens (H5)
  *
  * Stateless helper shared across built-in error pages, Dev Studio, Ops Dashboard,
  * and OpenAPI Docs without external requests or mutable global state.
@@ -22,10 +26,7 @@ final readonly class KongonoBrand
      */
     public static function markSvg(int $size = 24, string $gradId = 'kgn-mark-gm'): string
     {
-        $safeId = preg_replace('/[^A-Za-z0-9_-]/', '', $gradId);
-        if (null === $safeId || '' === $safeId) {
-            $safeId = 'kgn-mark-gm';
-        }
+        $safeId = self::sanitizeId($gradId, 'kgn-mark-gm');
         $px = max(12, $size);
 
         return sprintf(
@@ -69,5 +70,92 @@ final readonly class KongonoBrand
             self::CRESCENT_PATH,
             self::BLADE_PATH,
         );
+    }
+
+    /**
+     * Oshie (`kongo oshie`) — Sensei Dialogue in Gunmetal × Sapphire alloy.
+     */
+    public static function oshieSvg(int $size = 24, string $gradId = 'kgn-oshie-gm'): string
+    {
+        return self::companionSvg(
+            size: $size,
+            gradId: self::sanitizeId($gradId, 'kgn-oshie-gm'),
+            topColor: '#486285',
+            botColor: '#1d2b3f',
+            rimColor: '#bfdbfe',
+            inner: '<path fill-rule="evenodd" clip-rule="evenodd" d="M20 15H44A6 6 0 0 1 50 21V36A6 6 0 0 1 44 42H27.5L17 50V42A6 6 0 0 1 14 36.8V21A6 6 0 0 1 20 15ZM32 20L29.2 25.7L23.5 28.5L29.2 31.3L32 37L34.8 31.3L40.5 28.5L34.8 25.7L32 20Z" fill="#f4f8ff"/>',
+        );
+    }
+
+    /**
+     * Chie (`kongo chie`) — Graph Forge in Gunmetal × Hisui Jade alloy.
+     */
+    public static function chieSvg(int $size = 24, string $gradId = 'kgn-chie-gm'): string
+    {
+        return self::companionSvg(
+            size: $size,
+            gradId: self::sanitizeId($gradId, 'kgn-chie-gm'),
+            topColor: '#3d685e',
+            botColor: '#182f2a',
+            rimColor: '#a7f3d0',
+            inner: '<path d="M20 21V43H43V25M24 21H35" stroke="#f2fbf8" stroke-width="3.6" opacity="0.46"/>'
+                . '<circle cx="20" cy="21" r="5" fill="#f2fbf8" opacity="0.68"/>'
+                . '<circle cx="20" cy="43" r="5" fill="#f2fbf8" opacity="0.68"/>'
+                . '<circle cx="43" cy="43" r="5" fill="#f2fbf8" opacity="0.68"/>'
+                . '<polygon points="43,12.5 51.5,21 43,29.5 34.5,21" fill="#f2fbf8"/>',
+        );
+    }
+
+    /**
+     * Hantei (`kongo hantei`) — Forensic Lens in Gunmetal × Urushi Crimson alloy.
+     */
+    public static function hanteiSvg(int $size = 24, string $gradId = 'kgn-hantei-gm'): string
+    {
+        return self::companionSvg(
+            size: $size,
+            gradId: self::sanitizeId($gradId, 'kgn-hantei-gm'),
+            topColor: '#784148',
+            botColor: '#32191e',
+            rimColor: '#fecdd3',
+            inner: '<circle cx="28.5" cy="28.5" r="13" stroke="#fff5f5" stroke-width="4.6"/>'
+                . '<line x1="38.2" y1="38.2" x2="50.5" y2="50.5" stroke="#fff5f5" stroke-width="6.2" stroke-linecap="butt"/>'
+                . '<polygon points="28.5,22.2 34.8,28.5 28.5,34.8 22.2,28.5" fill="#fff5f5"/>',
+        );
+    }
+
+    private static function companionSvg(
+        int $size,
+        string $gradId,
+        string $topColor,
+        string $botColor,
+        string $rimColor,
+        string $inner,
+    ): string {
+        $px = max(12, $size);
+
+        return sprintf(
+            '<svg width="%d" height="%d" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+            . '<defs><linearGradient id="%s" x1="6" y1="6" x2="58" y2="58" gradientUnits="userSpaceOnUse">'
+            . '<stop offset="0%%" stop-color="%s"/><stop offset="100%%" stop-color="%s"/>'
+            . '</linearGradient></defs>'
+            . '<rect x="6" y="6" width="52" height="52" rx="11" fill="url(#%s)" stroke="%s" stroke-opacity="0.24" stroke-width="1"/>'
+            . '%s'
+            . '</svg>',
+            $px,
+            $px,
+            $gradId,
+            $topColor,
+            $botColor,
+            $gradId,
+            $rimColor,
+            $inner,
+        );
+    }
+
+    private static function sanitizeId(string $gradId, string $fallback): string
+    {
+        $safeId = preg_replace('/[^A-Za-z0-9_-]/', '', $gradId);
+
+        return null !== $safeId && '' !== $safeId ? $safeId : $fallback;
     }
 }
