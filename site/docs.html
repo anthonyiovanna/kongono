@@ -110,7 +110,7 @@ php vendor/bin/kongo doctor</code></pre>
               <tr><td><code>Kongono\Jobs\</code></td><td><code>Queue</code>, persistent/daemon <code>Worker</code> (multi-queue priority draining, <code>JobMiddlewareInterface</code>), DLQ <code>listFailed</code>/<code>retryFailed</code>/<code>flushFailed</code>, atomic <code>uniqueKey</code> dedup, parallel <code>JobBatch</code> + <code>BatchDispatcher</code>, durable <code>Workflow</code>, <code>PostgresQueueDriver</code> (<code>FOR UPDATE SKIP LOCKED</code>), Lua-atomic <code>RedisQueueDriver</code>, <code>MemoryQueueDriver</code>, cron <code>Scheduler</code></td></tr>
               <tr><td><code>Kongono\Mail\</code></td><td><code>Mailer</code>, <code>SmtpTransport</code> (STARTTLS), <code>ResendTransport</code>, <code>LogTransport</code>, <code>MemoryTransport</code>, <code>MailNotificationChannel</code></td></tr>
               <tr><td><code>Kongono\Ai\</code></td><td><code>AiClient</code> (OpenAI, Anthropic, Gemini, Groq, Ollama + live streaming), <code>PromptGuard</code> + <code>UntrustedInput</code>, <code>EvalRunner</code>, <code>PgVectorStore</code> (HNSW/GIN) + <code>MemoryVectorStore</code>, <code>HybridSearch</code> (RRF), <code>KnowledgeBase</code>, <code>structured()</code>, governed <code>AgentPrincipal</code>/<code>RequiresApproval</code>/<code>AgentRunner</code>, native <code>McpServer</code></td></tr>
-              <tr><td><code>Kongono\Cli\</code></td><td>Unified <code>kongo</code> CLI + <strong>Oshie</strong>, <strong>Chie</strong>, <strong>Hantei</strong> companions + 12-tool <code>KongonoMcpFactory</code></td></tr>
+              <tr><td><code>Kongono\Cli\</code></td><td>Unified <code>kongo</code> CLI + <strong>Oshie</strong>, <strong>Chie</strong>, <strong>Hantei</strong> companions + 15-tool <code>KongonoMcpFactory</code></td></tr>
             </tbody>
           </table>
         </div>
@@ -327,14 +327,17 @@ $answer = $kb-&gt;ask('How does key rotation work?', $ai);</code></pre>
 
       <section id="ai-companions">
         <h2>14. Built-In AI Companions &amp; 12-Tool MCP Server</h2>
-        <p>Every Kongono app ships with three built-in AI companions (with live token streaming, trace &amp; DLQ awareness, token/cost telemetry, and hard <code>KONGONO_AI_MAX_COST_USD</code> caps) plus a capability-governed JSON-RPC 2.0 MCP server:</p>
-<pre><code>php vendor/bin/kongo oshie --interactive                              # Streaming AI tutor REPL (12 lessons + live trace context)
+        <p>Every Kongono app ships with three tool-equipped AI companions (live streaming, code/schema inspection, persistent local sessions, per-companion model routing with automatic provider failover, and hard <code>KONGONO_AI_MAX_COST_USD</code> caps) plus a capability-governed 15-tool JSON-RPC 2.0 MCP server:</p>
+<pre><code>php vendor/bin/kongo oshie --progress                                 # Lesson progress &amp; tailored project exercises
 php vendor/bin/kongo oshie "Why is /api/notes slow?" --stream         # Live token streaming + token/cost telemetry footer
 php vendor/bin/kongo chie "Add a /api/posts CRUD" --interactive       # Approve or skip each unified file diff [y/n/a/q]
-php vendor/bin/kongo chie "Add a /api/posts CRUD" --apply --verify    # Self-verifying build loop (tests + MigrationLinter + auto-repair)
-php vendor/bin/kongo hantei check                                     # Run tests &amp; AI-diagnose failures
+php vendor/bin/kongo chie "Add a /api/posts CRUD" --apply --verify    # Multi-gate verify (syntax, PHPStan, tests, lint, audit)
+php vendor/bin/kongo chie "Now add rate limiting" --continue          # Iterate on your last Chie plan
+php vendor/bin/kongo hantei fix --apply --verify                      # Diagnose failure -&gt; Chie patch -&gt; re-verify
+php vendor/bin/kongo hantei review --base=main --format=sarif         # CI-ready Kongono invariant &amp; security diff review
 php vendor/bin/kongo hantei queue-failed --queue=default              # Diagnose dead-lettered background jobs (secret-scrubbed)
-php vendor/bin/kongo mcp                                              # Start stdio MCP server</code></pre>
+php vendor/bin/kongo eval --companions                                # Oshie/Chie/Hantei zero-hallucination &amp; safety evals
+php vendor/bin/kongo mcp                                              # Start 15-tool stdio MCP server</code></pre>
         <h3>Connect Antigravity, Cursor, Claude Code, or Codex via MCP</h3>
 <pre><code>{
   "mcpServers": {
@@ -344,7 +347,7 @@ php vendor/bin/kongo mcp                                              # Start st
     }
   }
 }</code></pre>
-        <p>Exposed read-only, secret-scrubbed MCP tools (<code>.env</code> reads explicitly blocked): <code>kongono_graph</code>, <code>kongono_openapi</code>, <code>kongono_sdk_generate</code>, <code>kongono_routes</code>, <code>kongono_audit</code>, <code>kongono_eval</code>, <code>kongono_migrate_lint</code>, <code>kongono_test_route</code>, <code>kongono_deploy_preview</code>, <code>kongono_list_files</code>, <code>kongono_read_file</code>, and <code>kongono_oshie_lesson</code>.</p>
+        <p>Exposed read-only, secret-scrubbed MCP tools (<code>.env</code> reads explicitly blocked): <code>kongono_graph</code>, <code>kongono_openapi</code>, <code>kongono_sdk_generate</code>, <code>kongono_routes</code>, <code>kongono_inspect_schema</code>, <code>kongono_audit</code>, <code>kongono_eval</code>, <code>kongono_migrate_lint</code>, <code>kongono_test_route</code>, <code>kongono_deploy_preview</code>, <code>kongono_list_files</code>, <code>kongono_read_file</code>, <code>kongono_oshie_lesson</code>, <code>kongono_hantei_diagnose</code>, and <code>kongono_chie_preview</code>.</p>
       </section>
 
       <section id="observability">

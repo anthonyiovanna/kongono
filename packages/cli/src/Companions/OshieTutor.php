@@ -293,6 +293,67 @@ PROMPT;
         return $out;
     }
 
+    /**
+     * Recommend next hands-on lessons tailored to uncompleted topics and gaps in the live ApplicationGraph.
+     *
+     * @param list<string> $completedLessons
+     * @return list<array{lesson: string, title: string, reason: string}>
+     */
+    public function recommendExercises(ProjectContext $context, array $completedLessons = []): array
+    {
+        $done = array_flip($completedLessons);
+        /** @var list<array{lesson: string, title: string, reason: string}> $recs */
+        $recs = [];
+
+        $add = static function (string $id, string $reason) use (&$recs, $done): void {
+            if (isset($done[$id]) || !isset(self::LESSONS[$id])) {
+                return;
+            }
+            foreach ($recs as $existing) {
+                if ($existing['lesson'] === $id) {
+                    return;
+                }
+            }
+            $recs[] = [
+                'lesson' => $id,
+                'title' => self::LESSONS[$id]['title'],
+                'reason' => $reason,
+            ];
+        };
+
+        $graph = $context->graph;
+        if (null !== $graph) {
+            if ([] === $graph->routes) {
+                $add('routing', 'Your app has no registered attribute routes yet — start by adding a #[Get] controller.');
+            }
+            if ([] === $graph->views) {
+                $add('views', 'No compiled .kgn.html templates discovered yet — add a view with automatic XSS escaping.');
+            }
+            $hasSecurityMw = false;
+            foreach ($graph->middleware as $mw) {
+                if (str_contains(strtolower($mw), 'auth') || str_contains(strtolower($mw), 'security') || str_contains(strtolower($mw), 'csrf')) {
+                    $hasSecurityMw = true;
+                    break;
+                }
+            }
+            if (!$hasSecurityMw) {
+                $add('security', 'No authentication or security middleware detected on the pipeline — try SessionAuth, PATs, and Gate.');
+            }
+            if ([] === $context->inspectSchema()['tables']) {
+                $add('database', 'No database tables discovered yet — scaffold a migration with `kongo make:migration`.');
+            }
+        }
+
+        foreach (array_keys(self::LESSONS) as $id) {
+            if (count($recs) >= 3) {
+                break;
+            }
+            $add($id, self::LESSONS[$id]['summary']);
+        }
+
+        return array_slice($recs, 0, 3);
+    }
+
     /** Deliver a lesson (offline guide, or AI-personalized to the user's app when an AI client is available). */
     public function teachLesson(string $lessonId, ProjectContext $context): string
     {

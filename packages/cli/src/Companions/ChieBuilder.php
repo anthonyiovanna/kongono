@@ -13,7 +13,7 @@ use Kongono\Ai\Message;
 use Kongono\Ai\Security\PromptGuard;
 use Kongono\Ai\Security\UntrustedInput;
 use Kongono\Ai\ToolCall;
-use Kongono\Ai\ToolDefinition;
+use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Database\MigrationLinter;
 use Kongono\Core\CoreException;
@@ -75,58 +75,49 @@ PROMPT;
      *     telemetry: CompanionTelemetry
      * }
      */
-    public function build(string $instruction, ProjectContext $context, bool $apply = false, ?float $maxCostUsd = null): array
-    {
+    public function build(
+        string $instruction,
+        ProjectContext $context,
+        bool $apply = false,
+        ?float $maxCostUsd = null,
+        ?string $previousContext = null,
+    ): array {
         $cap = $maxCostUsd ?? CompanionTelemetry::maxCostFromEnv();
         $principal = new AgentPrincipal(
             id: 'chie-builder',
             role: 'Kongono Project Builder',
-            allowedTools: ['list_files', 'read_file', 'inspect_graph'],
-            maxSteps: 6,
-            maxToolCalls: 8,
-            maxCostUsd: max(0.0, $cap),
+            allowedTools: CompanionTools::NAMES,
+            maxSteps: 8,
+            maxToolCalls: 14,
+            maxCostUsd: 'ollama' === strtolower($this->ai->providerName()) ? 0.0 : max(0.0, $cap),
         );
 
-        $tools = [
-            new ToolDefinition('list_files', 'List relative file paths in the Kongono project.'),
-            new ToolDefinition('inspect_graph', 'Inspect the live ApplicationGraph JSON (routes, services, middleware, views).'),
-            new ToolDefinition(
-                'read_file',
-                'Read a secret-scrubbed file from the project.',
-                [
-                    'type' => 'object',
-                    'properties' => [
-                        'path' => ['type' => 'string', 'description' => 'Relative file path from project root'],
-                    ],
-                    'required' => ['path'],
-                ],
-            ),
-        ];
-
+        $tools = CompanionTools::definitions();
         $guard = new PromptGuard();
         $protectedSystem = $guard->buildProtectedSystemPrompt(self::SYSTEM_PROMPT);
 
+        $userParts = [
+            "Current project summary (untrusted repository contents):\n"
+                . $guard->wrapUntrusted(new UntrustedInput($context->promptSummary(), source: 'project_summary')),
+        ];
+        if (null !== $previousContext && '' !== trim($previousContext)) {
+            $userParts[] = "Previous Chie session context (untrusted prior plan):\n"
+                . $guard->wrapUntrusted(new UntrustedInput(substr(SecretScrubber::scrub($previousContext), 0, 6000), source: 'prior_session'));
+        }
+        $userParts[] = "Build task:\n" . $instruction;
+
         $messages = [
             Message::system($protectedSystem['prompt']),
-            Message::user(sprintf(
-                "Current project summary (untrusted repository contents):\n%s\n\nBuild task:\n%s",
-                $guard->wrapUntrusted(new UntrustedInput($context->promptSummary(), source: 'project_summary')),
-                $instruction,
-            )),
+            Message::user(implode("\n\n", $userParts)),
         ];
 
         $runner = new AgentRunner($this->ai, $principal);
         $start = hrtime(true);
-        $receipt = $runner->run($messages, $tools, static function (ToolCall $call) use ($context): string {
-            return match ($call->name) {
-                'list_files' => implode("\n", $context->listFiles()),
-                'inspect_graph' => null !== $context->graph ? $context->graph->toJson() : '{"graph":null}',
-                'read_file' => is_string($call->arguments['path'] ?? null)
-                    ? $context->readFileSafe($call->arguments['path'])
-                    : 'Error: missing string "path" argument.',
-                default => 'Error: unknown tool.',
-            };
-        });
+        $receipt = $runner->run(
+            $messages,
+            $tools,
+            static fn(ToolCall $call): string => CompanionTools::execute($call, $context),
+        );
         $durationMs = (hrtime(true) - $start) / 1_000_000;
 
         $telemetry = CompanionTelemetry::fromUsage($receipt->provider, $receipt->model, $receipt->usage, $durationMs, $cap);
@@ -189,11 +180,13 @@ PROMPT;
     }
 
     /**
-     * Self-healing Chie -> Hantei verification loop (`kongo chie "..." --apply --verify`):
-     * generates code, validates PHP syntax, applies changes, runs the verification command (e.g. PHPStan/PHPUnit)
-     * plus migration linting when migrations are modified, and feeds scrubbed failures back to Chie for bounded repair.
+     * Self-healing Chie -> Hantei multi-gate verification loop (`kongo chie "..." --apply --verify`):
+     * generates code, validates PHP syntax, applies changes, runs the primary verification command (e.g. PHPUnit),
+     * any extra quality gates (e.g. PHPStan / PHP-CS-Fixer), `MigrationLinter` when migrations change, and
+     * `SecurityAuditor` critical checks — feeding scrubbed failures back to Chie for bounded repair.
      *
-     * @param list<string> $verifyCommand
+     * @param list<string>                                            $verifyCommand
+     * @param list<array{name: string, command: list<string>}>        $extraVerifyCommands
      * @return array{
      *     summary: string,
      *     changes: list<array{path: string, action: string, explanation: string, content: string}>,
@@ -203,6 +196,7 @@ PROMPT;
      *     rolled_back: bool,
      *     attempts: int,
      *     verify_output: string,
+     *     gates: list<array{name: string, passed: bool}>,
      *     provider: string,
      *     model: string,
      *     telemetry: CompanionTelemetry
@@ -216,6 +210,9 @@ PROMPT;
         int $maxRepairs = 2,
         ?float $maxCostUsd = null,
         bool $rollbackOnFailure = false,
+        array $extraVerifyCommands = [],
+        bool $runSecurityAudit = true,
+        ?string $previousContext = null,
     ): array {
         $cap = $maxCostUsd ?? CompanionTelemetry::maxCostFromEnv();
         $maxAttempts = 1 + max(0, $maxRepairs);
@@ -227,6 +224,8 @@ PROMPT;
         $verified = false;
         $rolledBack = false;
         $lastVerifyOutput = '';
+        /** @var list<array{name: string, passed: bool}> $lastGates */
+        $lastGates = [];
         $attempts = 0;
         $lastPlan = null;
 
@@ -239,7 +238,13 @@ PROMPT;
             }
 
             ++$attempts;
-            $plan = $this->build($currentInstruction, $context, apply: false, maxCostUsd: $remainingCap);
+            $plan = $this->build(
+                $currentInstruction,
+                $context,
+                apply: false,
+                maxCostUsd: $remainingCap,
+                previousContext: 1 === $attempt ? $previousContext : null,
+            );
             $lastPlan = $plan;
             $totalTelemetry = null === $totalTelemetry
                 ? $plan['telemetry']
@@ -252,10 +257,15 @@ PROMPT;
                 }
             }
 
+            /** @var list<array{name: string, passed: bool}> $gates */
+            $gates = [];
             try {
                 $appliedNow = $this->applyChanges($plan['changes'], $context);
                 $allApplied = array_values(array_unique([...$allApplied, ...$appliedNow]));
+                $gates[] = ['name' => 'syntax', 'passed' => true];
             } catch (CoreException $e) {
+                $gates[] = ['name' => 'syntax', 'passed' => false];
+                $lastGates = $gates;
                 $lastVerifyOutput = SecretScrubber::scrub($e->getMessage());
                 if ($attempt < $maxAttempts) {
                     $currentInstruction = self::buildRepairInstruction($instruction, $lastVerifyOutput, $attempt);
@@ -264,10 +274,32 @@ PROMPT;
                 break;
             }
 
-            $check = $hantei->runCheck($verifyCommand, $context, diagnoseWithAi: false);
-            $verifyOutput = $check['output'];
-            $verifyPassed = 0 === $check['exit_code'];
+            $verifyOutputs = [];
+            $verifyPassed = true;
 
+            // Extra quality gates first (e.g. PHPStan Level 9 / PHP-CS-Fixer)
+            foreach ($extraVerifyCommands as $extra) {
+                $extraRes = $hantei->runCheck($extra['command'], $context, diagnoseWithAi: false);
+                $ok = 0 === $extraRes['exit_code'];
+                $gates[] = ['name' => $extra['name'], 'passed' => $ok];
+                if (!$ok) {
+                    $verifyPassed = false;
+                    $verifyOutputs[] = sprintf("--- Gate [%s] FAILED ---\n%s", $extra['name'], $extraRes['output']);
+                }
+            }
+
+            // Primary test gate (PHPUnit / custom check)
+            $check = $hantei->runCheck($verifyCommand, $context, diagnoseWithAi: false);
+            $primaryOk = 0 === $check['exit_code'];
+            $gates[] = ['name' => 'tests', 'passed' => $primaryOk];
+            if (!$primaryOk) {
+                $verifyPassed = false;
+                $verifyOutputs[] = $check['output'];
+            } elseif ('' !== trim($check['output'])) {
+                $verifyOutputs[] = $check['output'];
+            }
+
+            // Zero-downtime MigrationLinter gate whenever migrations/ changed
             $touchedMigration = false;
             foreach ($appliedNow as $path) {
                 if (str_starts_with(ltrim(str_replace('\\', '/', $path), '/'), 'migrations/')) {
@@ -277,17 +309,35 @@ PROMPT;
             }
             if ($touchedMigration) {
                 $lintReport = (new MigrationLinter())->lintDirectory($context->rootPath . DIRECTORY_SEPARATOR . 'migrations');
+                $gates[] = ['name' => 'migration-lint', 'passed' => $lintReport['passed']];
                 if (!$lintReport['passed']) {
                     $verifyPassed = false;
                     $lintLines = array_map(
                         static fn(array $f): string => sprintf('[%s] %s: %s', strtoupper($f['severity']), $f['file'], $f['message']),
                         $lintReport['findings'],
                     );
-                    $verifyOutput = trim($verifyOutput . "\nMigration lint errors:\n" . implode("\n", $lintLines));
+                    $verifyOutputs[] = "Migration lint errors:\n" . implode("\n", $lintLines);
                 }
             }
 
-            $lastVerifyOutput = SecretScrubber::scrub($verifyOutput);
+            // SecurityAuditor critical-finding gate (blocks raw HTML XSS, secrets, Symfony leakage, etc.)
+            if ($runSecurityAudit) {
+                $auditReport = (new SecurityAuditor())->audit($context->rootPath, $context->app, attack: false);
+                $gates[] = ['name' => 'security-audit', 'passed' => $auditReport['passed']];
+                if (!$auditReport['passed']) {
+                    $verifyPassed = false;
+                    $critLines = [];
+                    foreach ($auditReport['findings'] as $f) {
+                        if ('critical' === $f['severity']) {
+                            $critLines[] = sprintf('[CRITICAL] %s (%s): %s', $f['code'], $f['location'], $f['message']);
+                        }
+                    }
+                    $verifyOutputs[] = "Security audit critical findings:\n" . implode("\n", $critLines);
+                }
+            }
+
+            $lastGates = $gates;
+            $lastVerifyOutput = SecretScrubber::scrub(trim(implode("\n\n", array_filter($verifyOutputs, static fn(string $s): bool => '' !== trim($s)))));
             if ($verifyPassed) {
                 $verified = true;
                 break;
@@ -316,6 +366,7 @@ PROMPT;
             'rolled_back' => $rolledBack,
             'attempts' => $attempts,
             'verify_output' => $lastVerifyOutput,
+            'gates' => $lastGates,
             'provider' => $lastPlan['provider'],
             'model' => $lastPlan['model'],
             'telemetry' => $totalTelemetry,

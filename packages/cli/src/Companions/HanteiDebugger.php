@@ -5,13 +5,18 @@ declare(strict_types=1);
 namespace Kongono\Cli\Companions;
 
 use Closure;
+use Kongono\Ai\Agent\AgentPrincipal;
+use Kongono\Ai\Agent\AgentRunner;
 use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
 use Kongono\Ai\Message;
 use Kongono\Ai\Security\PromptGuard;
 use Kongono\Ai\Security\UntrustedInput;
+use Kongono\Ai\ToolCall;
+use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Database\MigrationLinter;
 use Kongono\Core\CoreException;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Http\Dev\TestExporter;
@@ -102,9 +107,10 @@ PROMPT;
     }
 
     /**
-     * Diagnose a failure log and return both the explanation and structured token/cost/latency telemetry.
+     * Diagnose a failure log using read-only inspection tools (`search_code`, `read_file`, `inspect_graph`, `inspect_schema`)
+     * and return both the explanation and structured token/cost/latency telemetry.
      *
-     * @return array{diagnosis: string, telemetry: ?CompanionTelemetry}
+     * @return array{diagnosis: string, telemetry: ?CompanionTelemetry, tools_used: list<string>}
      */
     public function diagnoseWithTelemetry(string $failureText, ProjectContext $context, ?float $maxCostUsd = null): array
     {
@@ -114,11 +120,15 @@ PROMPT;
                 'diagnosis' => "Hantei AI diagnosis requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST).\n"
                     . "Scrubbed diagnostic captured:\n" . substr($safeFailure, 0, 1000),
                 'telemetry' => null,
+                'tools_used' => [],
             ];
         }
 
         $guard = new PromptGuard();
-        $protectedSystem = $guard->buildProtectedSystemPrompt(self::DEBUG_SYSTEM_PROMPT);
+        $protectedSystem = $guard->buildProtectedSystemPrompt(
+            self::DEBUG_SYSTEM_PROMPT
+            . "\n\nYou also have read-only project tools (`list_files`, `read_file` with line ranges, `search_code`, `inspect_graph`, `inspect_schema`). Use them whenever inspecting a stack-trace file, route, or database table helps pinpoint the exact root cause.",
+        );
 
         $prompt = sprintf(
             "Project context (untrusted repository metadata):\n%s\n\nFailure / Diagnostic output (secret-scrubbed untrusted log):\n%s",
@@ -126,22 +136,46 @@ PROMPT;
             $guard->wrapUntrusted(new UntrustedInput(substr($safeFailure, 0, 8000), source: 'failure_log')),
         );
 
+        $principal = new AgentPrincipal(
+            id: 'hantei-debugger',
+            role: 'Kongono AI Debugger',
+            allowedTools: CompanionTools::NAMES,
+            maxSteps: 5,
+            maxToolCalls: 8,
+            maxTokens: 1_000_000,
+            maxCostUsd: 0.0,
+        );
+        $runner = new AgentRunner($this->ai, $principal);
+
         $start = hrtime(true);
-        $response = $this->ai->chat(new ChatRequest([
-            Message::system($protectedSystem['prompt']),
-            Message::user($prompt),
-        ], temperature: 0.2));
+        $receipt = $runner->run(
+            [
+                Message::system($protectedSystem['prompt']),
+                Message::user($prompt),
+            ],
+            CompanionTools::definitions(),
+            static fn(ToolCall $call): string => CompanionTools::execute($call, $context),
+        );
         $durationMs = (hrtime(true) - $start) / 1_000_000;
 
-        $inspected = $guard->inspectOutput($response->text, $protectedSystem['canary']);
+        $inspected = $guard->inspectOutput($receipt->finalText, $protectedSystem['canary']);
         if (!$inspected['safe']) {
             throw new CoreException('Hantei output blocked by PromptGuard due to suspected prompt injection or canary exfiltration.');
         }
 
-        $telemetry = CompanionTelemetry::fromUsage($response->provider, $response->model, $response->usage, $durationMs, $maxCostUsd);
+        $telemetry = CompanionTelemetry::fromUsage($receipt->provider, $receipt->model, $receipt->usage, $durationMs, $maxCostUsd);
         $telemetry->assertWithinBudget('Hantei');
 
-        return ['diagnosis' => $inspected['output'], 'telemetry' => $telemetry];
+        $toolsUsed = array_values(array_unique(array_map(
+            static fn(array $entry): string => $entry['tool'],
+            $receipt->toolAudit,
+        )));
+
+        return [
+            'diagnosis' => $inspected['output'],
+            'telemetry' => $telemetry,
+            'tools_used' => $toolsUsed,
+        ];
     }
 
     /**
@@ -280,6 +314,379 @@ PROMPT;
             'diagnosis' => $res['diagnosis'],
             'telemetry' => $res['telemetry'],
         ];
+    }
+
+    /**
+     * Closed-loop Debug -> Patch -> Verify workflow (`kongo hantei fix`):
+     * diagnoses the failure with Hantei's project tools, hands the scrubbed root cause to Chie to propose
+     * minimal targeted fixes, and optionally applies + verifies them with bounded auto-repair.
+     *
+     * @param list<string>                                     $verifyCommand
+     * @param list<array{name: string, command: list<string>}> $extraVerifyCommands
+     * @return array{
+     *     diagnosis: string,
+     *     summary: string,
+     *     changes: list<array{path: string, action: string, explanation: string, content: string}>,
+     *     next_steps: list<string>,
+     *     applied: list<string>,
+     *     verified: bool,
+     *     rolled_back: bool,
+     *     attempts: int,
+     *     verify_output: string,
+     *     tools_used: list<string>,
+     *     telemetry: CompanionTelemetry
+     * }
+     */
+    public function diagnoseAndFix(
+        string $failureText,
+        ProjectContext $context,
+        ChieBuilder $chie,
+        array $verifyCommand = [],
+        bool $apply = false,
+        bool $verify = false,
+        int $maxRepairs = 2,
+        ?float $maxCostUsd = null,
+        bool $rollbackOnFailure = false,
+        array $extraVerifyCommands = [],
+        bool $runSecurityAudit = true,
+    ): array {
+        $cap = $maxCostUsd ?? CompanionTelemetry::maxCostFromEnv();
+        $safeFailure = SecretScrubber::scrub($failureText);
+        $diag = $this->diagnoseWithTelemetry($safeFailure, $context, $cap);
+        $diagTelemetry = $diag['telemetry'];
+
+        $remainingCap = $cap > 0.0 && null !== $diagTelemetry
+            ? max(0.0, $cap - $diagTelemetry->estimatedCostUsd)
+            : $cap;
+
+        $fixInstruction = sprintf(
+            "Fix the following verified failure using minimal, surgical PHP 8.5 Kongono changes (do not break unrelated code).\n\nFailure output:\n%s\n\nHantei root-cause diagnosis:\n%s",
+            substr($safeFailure, 0, 4000),
+            substr(SecretScrubber::scrub($diag['diagnosis']), 0, 3000),
+        );
+
+        if ($verify && $apply && [] !== $verifyCommand) {
+            $plan = $chie->buildAndVerify(
+                instruction: $fixInstruction,
+                context: $context,
+                hantei: $this,
+                verifyCommand: $verifyCommand,
+                maxRepairs: $maxRepairs,
+                maxCostUsd: $remainingCap,
+                rollbackOnFailure: $rollbackOnFailure,
+                extraVerifyCommands: $extraVerifyCommands,
+                runSecurityAudit: $runSecurityAudit,
+            );
+            $mergedTelemetry = null !== $diagTelemetry ? $diagTelemetry->merge($plan['telemetry']) : $plan['telemetry'];
+            $mergedTelemetry->assertWithinBudget('Hantei Fix');
+
+            return [
+                'diagnosis' => $diag['diagnosis'],
+                'summary' => $plan['summary'],
+                'changes' => $plan['changes'],
+                'next_steps' => $plan['next_steps'],
+                'applied' => $plan['applied'],
+                'verified' => $plan['verified'],
+                'rolled_back' => $plan['rolled_back'],
+                'attempts' => $plan['attempts'],
+                'verify_output' => $plan['verify_output'],
+                'tools_used' => $diag['tools_used'],
+                'telemetry' => $mergedTelemetry,
+            ];
+        }
+
+        $plan = $chie->build($fixInstruction, $context, apply: $apply, maxCostUsd: $remainingCap);
+        $mergedTelemetry = null !== $diagTelemetry ? $diagTelemetry->merge($plan['telemetry']) : $plan['telemetry'];
+        $mergedTelemetry->assertWithinBudget('Hantei Fix');
+
+        return [
+            'diagnosis' => $diag['diagnosis'],
+            'summary' => $plan['summary'],
+            'changes' => $plan['changes'],
+            'next_steps' => $plan['next_steps'],
+            'applied' => $plan['applied'],
+            'verified' => false,
+            'rolled_back' => false,
+            'attempts' => 1,
+            'verify_output' => '',
+            'tools_used' => $diag['tools_used'],
+            'telemetry' => $mergedTelemetry,
+        ];
+    }
+
+    /**
+     * Review a git diff against deterministic Kongono invariants (persistent-runtime safety, superglobals,
+     * SecurityAuditor, MigrationLinter, leaked secrets) plus optional AI architectural review (`kongo hantei review`).
+     *
+     * @return array{
+     *     passed: bool,
+     *     counts: array{critical: int, warning: int, info: int},
+     *     findings: list<array{severity: 'critical'|'warning'|'info', rule: string, file: string, line: int, message: string}>,
+     *     ai_review: ?string,
+     *     telemetry: ?CompanionTelemetry
+     * }
+     */
+    public function reviewDiff(string $diffText, ProjectContext $context, ?float $maxCostUsd = null): array
+    {
+        /** @var list<array{severity: 'critical'|'warning'|'info', rule: string, file: string, line: int, message: string}> $findings */
+        $findings = [];
+
+        // 1. Deterministic diff line analysis (added lines only)
+        $currentFile = 'diff';
+        $currentLine = 1;
+        $diffLines = preg_split("/\r\n|\n|\r/", $diffText);
+        if (false !== $diffLines) {
+            foreach ($diffLines as $rawLine) {
+                if (str_starts_with($rawLine, '+++ b/')) {
+                    $currentFile = trim(substr($rawLine, 6));
+                    continue;
+                }
+                if (1 === preg_match('/\A@@ -\d+(?:,\d+)? \+(\d+)/', $rawLine, $hunkMatch)) {
+                    $currentLine = (int) $hunkMatch[1];
+                    continue;
+                }
+                if (str_starts_with($rawLine, '+') && !str_starts_with($rawLine, '+++')) {
+                    $added = substr($rawLine, 1);
+                    $this->scanAddedDiffLine($currentFile, $currentLine, $added, $findings);
+                    ++$currentLine;
+                } elseif (!str_starts_with($rawLine, '-')) {
+                    ++$currentLine;
+                }
+            }
+        }
+
+        // 2. Deterministic SecurityAuditor & MigrationLinter checks
+        $audit = (new SecurityAuditor())->audit($context->rootPath, $context->app, attack: false);
+        foreach ($audit['findings'] as $f) {
+            $findings[] = [
+                'severity' => $f['severity'],
+                'rule' => $f['code'],
+                'file' => $f['location'],
+                'line' => 1,
+                'message' => $f['message'],
+            ];
+        }
+
+        $migReport = (new MigrationLinter())->lintDirectory($context->rootPath . DIRECTORY_SEPARATOR . 'migrations');
+        foreach ($migReport['findings'] as $mf) {
+            $findings[] = [
+                'severity' => $mf['severity'],
+                'rule' => $mf['code'],
+                'file' => 'migrations/' . $mf['file'],
+                'line' => 1,
+                'message' => $mf['message'],
+            ];
+        }
+
+        // 3. Optional AI architectural review (FrankenPHP worker leaks, N+1, auth/validation boundaries)
+        $aiReview = null;
+        $telemetry = null;
+        if (null !== $this->ai && '' !== trim($diffText)) {
+            $guard = new PromptGuard();
+            $protectedSystem = $guard->buildProtectedSystemPrompt(
+                "You are Hantei (判定), Kongono's strict PHP 8.5 code reviewer. Review the git diff for:\n"
+                . "1. Persistent-runtime mutable static/global state leaks (FrankenPHP/RoadRunner hazards)\n"
+                . "2. Missing #[Authenticated]/#[Can]/#[Idempotent] or DTO validation boundaries\n"
+                . "3. N+1 SQL queries (recommend BatchLoader::hasMany/belongsTo)\n"
+                . "4. Secret disclosure or unsafe raw HTML output.\n"
+                . "Be concise, list file:line findings grouped by severity, or reply 'LGTM — no Kongono invariant issues detected.' if clean.",
+            );
+            $safeDiff = substr(SecretScrubber::scrub($diffText), 0, 12000);
+            $prompt = sprintf(
+                "Project context (untrusted):\n%s\n\nGit diff to review (untrusted):\n%s",
+                $guard->wrapUntrusted(new UntrustedInput($context->promptSummary(), source: 'project_summary')),
+                $guard->wrapUntrusted(new UntrustedInput($safeDiff, source: 'git_diff')),
+            );
+
+            $start = hrtime(true);
+            $response = $this->ai->chat(new ChatRequest([
+                Message::system($protectedSystem['prompt']),
+                Message::user($prompt),
+            ], temperature: 0.1));
+            $durationMs = (hrtime(true) - $start) / 1_000_000;
+
+            $inspected = $guard->inspectOutput($response->text, $protectedSystem['canary']);
+            if (!$inspected['safe']) {
+                throw new CoreException('Hantei review output blocked by PromptGuard.');
+            }
+            $aiReview = $inspected['output'];
+            $telemetry = CompanionTelemetry::fromUsage($response->provider, $response->model, $response->usage, $durationMs, $maxCostUsd);
+            $telemetry->assertWithinBudget('Hantei Review');
+        }
+
+        $counts = ['critical' => 0, 'warning' => 0, 'info' => 0];
+        foreach ($findings as $item) {
+            ++$counts[$item['severity']];
+        }
+
+        return [
+            'passed' => 0 === $counts['critical'],
+            'counts' => $counts,
+            'findings' => $findings,
+            'ai_review' => $aiReview,
+            'telemetry' => $telemetry,
+        ];
+    }
+
+    /**
+     * Format a `reviewDiff()` report as GitHub-flavored Markdown (ideal for CLI and PR comments).
+     *
+     * @param array{
+     *     passed: bool,
+     *     counts: array{critical: int, warning: int, info: int},
+     *     findings: list<array{severity: 'critical'|'warning'|'info', rule: string, file: string, line: int, message: string}>,
+     *     ai_review: ?string,
+     *     telemetry: ?CompanionTelemetry
+     * } $report
+     */
+    public static function formatReviewMarkdown(array $report): string
+    {
+        $lines = [
+            sprintf(
+                '## Hantei Code Review — %s (%d critical, %d warning, %d info)',
+                $report['passed'] ? 'PASS' : 'FAILED',
+                $report['counts']['critical'],
+                $report['counts']['warning'],
+                $report['counts']['info'],
+            ),
+            '',
+        ];
+
+        if ([] === $report['findings']) {
+            $lines[] = '- Deterministic Kongono checks: **0 findings**.';
+        } else {
+            foreach ($report['findings'] as $f) {
+                $lines[] = sprintf(
+                    '- **[%s]** `%s` (`%s:%d`): %s',
+                    strtoupper($f['severity']),
+                    $f['rule'],
+                    $f['file'],
+                    $f['line'],
+                    $f['message'],
+                );
+            }
+        }
+
+        if (null !== $report['ai_review'] && '' !== trim($report['ai_review'])) {
+            $lines[] = '';
+            $lines[] = '### AI Architectural Review';
+            $lines[] = $report['ai_review'];
+        }
+
+        if (null !== $report['telemetry']) {
+            $lines[] = '';
+            $lines[] = $report['telemetry']->formatFooter();
+        }
+
+        return implode("\n", $lines) . "\n";
+    }
+
+    /**
+     * Format a `reviewDiff()` report as SARIF 2.1.0 JSON for GitHub Code Scanning / CI integration.
+     *
+     * @param array{
+     *     passed: bool,
+     *     counts: array{critical: int, warning: int, info: int},
+     *     findings: list<array{severity: 'critical'|'warning'|'info', rule: string, file: string, line: int, message: string}>,
+     *     ai_review: ?string,
+     *     telemetry: ?CompanionTelemetry
+     * } $report
+     */
+    public static function formatReviewSarif(array $report): string
+    {
+        $results = [];
+        foreach ($report['findings'] as $f) {
+            $level = match ($f['severity']) {
+                'critical' => 'error',
+                'warning' => 'warning',
+                'info' => 'note',
+            };
+            $results[] = [
+                'ruleId' => $f['rule'],
+                'level' => $level,
+                'message' => ['text' => $f['message']],
+                'locations' => [[
+                    'physicalLocation' => [
+                        'artifactLocation' => ['uri' => $f['file']],
+                        'region' => ['startLine' => max(1, $f['line'])],
+                    ],
+                ]],
+            ];
+        }
+
+        $sarif = [
+            '$schema' => 'https://json.schemastore.org/sarif-2.1.0.json',
+            'version' => '2.1.0',
+            'runs' => [[
+                'tool' => [
+                    'driver' => [
+                        'name' => 'Kongono Hantei',
+                        'version' => '1.18.0',
+                        'informationUri' => 'https://github.com/anthonyiovanna/kongono',
+                    ],
+                ],
+                'results' => $results,
+            ]],
+        ];
+
+        return json_encode($sarif, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+    }
+
+    /**
+     * @param list<array{severity: 'critical'|'warning'|'info', rule: string, file: string, line: int, message: string}> $findings
+     */
+    private function scanAddedDiffLine(string $file, int $line, string $content, array &$findings): void
+    {
+        $isPhp = str_ends_with(strtolower($file), '.php');
+        $isTest = str_starts_with(strtolower($file), 'tests/') || str_contains(strtolower($file), '/tests/');
+
+        // Hardcoded secret pattern in any added line
+        if (SecretScrubber::scrub($content) !== $content && !$isTest) {
+            $findings[] = [
+                'severity' => 'critical',
+                'rule' => 'KGN-REV-SECRET-LEAK',
+                'file' => $file,
+                'line' => $line,
+                'message' => 'Added line appears to contain a hardcoded API token or secret credential.',
+            ];
+        }
+
+        if (!$isPhp) {
+            return;
+        }
+
+        // Mutable static property (FrankenPHP / persistent-runtime state leak hazard)
+        if (!$isTest && 1 === preg_match('/\b(?:public|protected|private)\s+static\s+(?!readonly\b)(?:[?\\\\a-zA-Z0-9_|]+\s+)?\$[a-zA-Z_]/', $content)) {
+            $findings[] = [
+                'severity' => 'critical',
+                'rule' => 'KGN-REV-MUTABLE-STATIC',
+                'file' => $file,
+                'line' => $line,
+                'message' => 'Mutable static property breaks persistent-runtime isolation (FrankenPHP/RoadRunner). Store state in scoped services instead.',
+            ];
+        }
+
+        // Raw PHP superglobal usage outside bootstrap/entry
+        if (!$isTest && 1 === preg_match('/\$_(?:GET|POST|REQUEST|SESSION|COOKIE)\b/', $content)) {
+            $findings[] = [
+                'severity' => 'warning',
+                'rule' => 'KGN-REV-SUPERGLOBAL',
+                'file' => $file,
+                'line' => $line,
+                'message' => 'Avoid raw PHP superglobals; inject Kongono\\Http\\Request, Session, or validated readonly DTOs instead.',
+            ];
+        }
+
+        // Legacy Laravel/Symfony API creep
+        if (1 === preg_match('/\b(?:Illuminate\\\\|Symfony\\\\Component\\\\|Route::get\(|Auth::user\(|DB::table\()/', $content)) {
+            $findings[] = [
+                'severity' => 'critical',
+                'rule' => 'KGN-REV-LEGACY-API',
+                'file' => $file,
+                'line' => $line,
+                'message' => 'Forbidden Laravel/Symfony API detected; use native Kongono PHP 8.5 APIs.',
+            ];
+        }
     }
 
     /**

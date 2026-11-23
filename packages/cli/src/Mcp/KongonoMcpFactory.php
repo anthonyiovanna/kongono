@@ -5,10 +5,15 @@ declare(strict_types=1);
 namespace Kongono\Cli\Mcp;
 
 use Kongono\Ai\Agent\AgentPrincipal;
+use Kongono\Ai\AiClient;
+use Kongono\Ai\AiException;
 use Kongono\Ai\Eval\EvalRunner;
 use Kongono\Ai\Mcp\McpServer;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Cli\Audit\SecurityAuditor;
+use Kongono\Cli\Companions\ChieBuilder;
+use Kongono\Cli\Companions\DiffRenderer;
+use Kongono\Cli\Companions\HanteiDebugger;
 use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Database\MigrationLinter;
@@ -36,6 +41,7 @@ final class KongonoMcpFactory
         'kongono_openapi',
         'kongono_sdk_generate',
         'kongono_routes',
+        'kongono_inspect_schema',
         'kongono_audit',
         'kongono_eval',
         'kongono_migrate_lint',
@@ -44,14 +50,28 @@ final class KongonoMcpFactory
         'kongono_list_files',
         'kongono_read_file',
         'kongono_oshie_lesson',
+        'kongono_hantei_diagnose',
+        'kongono_chie_preview',
     ];
 
-    public static function forApp(string $appRoot, ?App $loadedApp = null): McpServer
+    public static function forApp(string $appRoot, ?App $loadedApp = null, ?AiClient $aiOverride = null): McpServer
     {
         $app = $loadedApp ?? self::tryLoadApp($appRoot);
         $context = null !== $app
-            ? new ProjectContext($appRoot, $app->graph())
+            ? new ProjectContext($appRoot, $app->graph(), $app)
             : ProjectContext::discover($appRoot);
+
+        $tryAi = static function (string $companion) use ($aiOverride): ?AiClient {
+            if (null !== $aiOverride) {
+                return $aiOverride;
+            }
+
+            try {
+                return AiClient::fromEnvForCompanion($companion);
+            } catch (AiException) {
+                return null;
+            }
+        };
 
         $principal = new AgentPrincipal(
             id: 'kongono-mcp-client',
@@ -160,6 +180,18 @@ final class KongonoMcpFactory
 
                 return implode("\n", $lines);
             },
+        );
+
+        $server->registerTool(
+            new ToolDefinition(
+                name: 'kongono_inspect_schema',
+                description: 'Inspect live database schema metadata (tables, columns, types, nullability, indexes) strictly without reading row data.',
+                parametersSchema: [
+                    'type' => 'object',
+                    'properties' => (object) [],
+                ],
+            ),
+            static fn(): string => json_encode($context->inspectSchema(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
         );
 
         $server->registerTool(
@@ -392,6 +424,92 @@ final class KongonoMcpFactory
                 }
 
                 return $oshie->teachLesson($topic, $context);
+            },
+        );
+
+        $server->registerTool(
+            new ToolDefinition(
+                name: 'kongono_hantei_diagnose',
+                description: 'Run Hantei (判定) against an error log, stack trace, or Kongono diagnostic code using secret-scrubbed project/schema inspection.',
+                parametersSchema: [
+                    'type' => 'object',
+                    'required' => ['diagnostic'],
+                    'properties' => [
+                        'diagnostic' => [
+                            'type' => 'string',
+                            'description' => 'Error message, stack trace, or KGN-* diagnostic text to analyze.',
+                        ],
+                    ],
+                ],
+            ),
+            static function (array $args) use ($context, $tryAi): string {
+                $diagnostic = is_string($args['diagnostic'] ?? null) ? trim($args['diagnostic']) : '';
+                if ('' === $diagnostic) {
+                    throw new \InvalidArgumentException('Parameter "diagnostic" is required.');
+                }
+                $hantei = new HanteiDebugger($tryAi('hantei'));
+                $res = $hantei->diagnoseWithTelemetry($diagnostic, $context);
+
+                return json_encode([
+                    'diagnosis' => $res['diagnosis'],
+                    'tools_used' => $res['tools_used'],
+                    'telemetry' => $res['telemetry']?->toArray(),
+                ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            },
+        );
+
+        $server->registerTool(
+            new ToolDefinition(
+                name: 'kongono_chie_preview',
+                description: 'Run Chie (知恵) in strictly read-only diff-preview mode (never modifies disk) to propose PHP 8.5 Kongono changes with unified diffs.',
+                parametersSchema: [
+                    'type' => 'object',
+                    'required' => ['instruction'],
+                    'properties' => [
+                        'instruction' => [
+                            'type' => 'string',
+                            'description' => 'Feature or code change to plan against this Kongono project.',
+                        ],
+                    ],
+                ],
+            ),
+            static function (array $args) use ($context, $tryAi): string {
+                $instruction = is_string($args['instruction'] ?? null) ? trim($args['instruction']) : '';
+                if ('' === $instruction) {
+                    throw new \InvalidArgumentException('Parameter "instruction" is required.');
+                }
+                $ai = $tryAi('chie');
+                if (null === $ai) {
+                    return json_encode([
+                        'summary' => 'Chie preview requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST).',
+                        'diffs' => [],
+                    ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+                }
+
+                $plan = (new ChieBuilder($ai))->build($instruction, $context, apply: false);
+                $diffs = [];
+                foreach ($plan['changes'] as $change) {
+                    $before = null;
+                    try {
+                        $before = $context->readFileSafe($change['path']);
+                    } catch (Throwable) {
+                        $before = null;
+                    }
+                    $diffs[] = [
+                        'path' => $change['path'],
+                        'action' => $change['action'],
+                        'explanation' => $change['explanation'],
+                        'diff' => DiffRenderer::render($change['path'], $before, $change['content']),
+                    ];
+                }
+
+                return json_encode([
+                    'summary' => $plan['summary'],
+                    'diffs' => $diffs,
+                    'next_steps' => $plan['next_steps'],
+                    'telemetry' => $plan['telemetry']->toArray(),
+                    'apply_command' => sprintf('php vendor/bin/kongo chie %s --apply --verify', escapeshellarg($instruction)),
+                ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
             },
         );
 

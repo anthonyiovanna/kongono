@@ -27,13 +27,13 @@ final readonly class DevStudioCompanions
         ?AiClient $aiOverride = null,
         ?float $maxCostUsd = null,
     ): DevDashboardMiddleware {
-        $tryAi = static function () use ($aiOverride): ?AiClient {
+        $tryAi = static function (string $companion) use ($aiOverride): ?AiClient {
             if (null !== $aiOverride) {
                 return $aiOverride;
             }
 
             try {
-                return AiClient::fromEnv();
+                return AiClient::fromEnvForCompanion($companion);
             } catch (AiException) {
                 return null;
             }
@@ -44,8 +44,8 @@ final readonly class DevStudioCompanions
             inspector: $inspector,
             prefix: $prefix,
             oshieHandler: static function (string $question, ?string $lesson) use ($app, $inspector, $baseDir, $tryAi, $maxCostUsd): string {
-                $ctx = new ProjectContext($baseDir, $app->graph());
-                $oshie = new OshieTutor($tryAi());
+                $ctx = new ProjectContext($baseDir, $app->graph(), $app);
+                $oshie = new OshieTutor($tryAi('oshie'));
 
                 if (null !== $lesson) {
                     return $oshie->teachLesson($lesson, $ctx);
@@ -63,15 +63,15 @@ final readonly class DevStudioCompanions
                     : $res['reply'];
             },
             hanteiHandler: static function (string $diagnostic) use ($app, $baseDir, $tryAi, $maxCostUsd): string {
-                $ctx = new ProjectContext($baseDir, $app->graph());
-                $res = (new HanteiDebugger($tryAi()))->diagnoseWithTelemetry($diagnostic, $ctx, $maxCostUsd);
+                $ctx = new ProjectContext($baseDir, $app->graph(), $app);
+                $res = (new HanteiDebugger($tryAi('hantei')))->diagnoseWithTelemetry($diagnostic, $ctx, $maxCostUsd);
 
                 return null !== $res['telemetry']
                     ? $res['diagnosis'] . "\n\n" . $res['telemetry']->formatFooter()
                     : $res['diagnosis'];
             },
             chieHandler: static function (string $instruction) use ($app, $baseDir, $tryAi, $maxCostUsd): array {
-                $ai = $tryAi();
+                $ai = $tryAi('chie');
                 if (null === $ai) {
                     return [
                         'summary' => 'Chie preview requires an AI provider. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST in .env.',
@@ -80,7 +80,7 @@ final readonly class DevStudioCompanions
                     ];
                 }
 
-                $ctx = new ProjectContext($baseDir, $app->graph());
+                $ctx = new ProjectContext($baseDir, $app->graph(), $app);
                 $plan = (new ChieBuilder($ai))->build($instruction, $ctx, apply: false, maxCostUsd: $maxCostUsd);
                 $diffs = [];
                 foreach ($plan['changes'] as $change) {
@@ -107,8 +107,8 @@ final readonly class DevStudioCompanions
                 ];
             },
             oshieStreamHandler: static function (string $question, ?string $lesson, Closure $onDelta) use ($app, $inspector, $baseDir, $tryAi, $maxCostUsd): array {
-                $ctx = new ProjectContext($baseDir, $app->graph());
-                $oshie = new OshieTutor($tryAi());
+                $ctx = new ProjectContext($baseDir, $app->graph(), $app);
+                $oshie = new OshieTutor($tryAi('oshie'));
 
                 if (null !== $lesson) {
                     $reply = $oshie->teachLesson($lesson, $ctx);
@@ -131,8 +131,8 @@ final readonly class DevStudioCompanions
                 ];
             },
             hanteiStreamHandler: static function (string $diagnostic, Closure $onDelta) use ($app, $baseDir, $tryAi, $maxCostUsd): array {
-                $ctx = new ProjectContext($baseDir, $app->graph());
-                $res = (new HanteiDebugger($tryAi()))->diagnoseStream($diagnostic, $ctx, $onDelta, $maxCostUsd);
+                $ctx = new ProjectContext($baseDir, $app->graph(), $app);
+                $res = (new HanteiDebugger($tryAi('hantei')))->diagnoseStream($diagnostic, $ctx, $onDelta, $maxCostUsd);
 
                 return [
                     'diagnosis' => $res['diagnosis'],
@@ -140,8 +140,8 @@ final readonly class DevStudioCompanions
                 ];
             },
             hanteiTraceHandler: static function (array $trace) use ($app, $baseDir, $tryAi, $maxCostUsd): array {
-                $ctx = new ProjectContext($baseDir, $app->graph());
-                $res = (new HanteiDebugger($tryAi()))->diagnoseTrace($trace, $ctx, $maxCostUsd);
+                $ctx = new ProjectContext($baseDir, $app->graph(), $app);
+                $res = (new HanteiDebugger($tryAi('hantei')))->diagnoseTrace($trace, $ctx, $maxCostUsd);
 
                 return [
                     'trace_id' => $res['trace_id'],

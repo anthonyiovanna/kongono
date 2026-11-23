@@ -382,8 +382,9 @@ $dto = $ai->structured($ticketText, TicketSummaryDto::class);
 - Prompt injection & canary defense: `Kongono\Ai\Security\PromptGuard` + `UntrustedInput`.
 - Governed agents: `Kongono\Ai\Agent\AgentPrincipal`, `RequiresApproval`, `AgentRunner` (token & USD cost budgets).
 - RAG: `Kongono\Ai\Embedding\KnowledgeBase` + `PgVectorStore` / `MemoryVectorStore` + `HybridSearch`.
-- Evals: `Kongono\Ai\Eval\EvalRunner` + `php vendor/bin/kongo eval --redteam`.
-- MCP: `php vendor/bin/kongo mcp` exposes 12 read-only, secret-scrubbed JSON-RPC 2.0 tools (`kongono_graph`, `kongono_openapi`, `kongono_sdk_generate`, `kongono_routes`, `kongono_audit`, `kongono_eval`, `kongono_migrate_lint`, `kongono_test_route`, `kongono_deploy_preview`, `kongono_list_files`, `kongono_read_file`, `kongono_oshie_lesson`).
+- Evals: `Kongono\Ai\Eval\EvalRunner` + `php vendor/bin/kongo eval --redteam` + `php vendor/bin/kongo eval --companions`.
+- Resilience & per-companion routing: `FallbackProvider`, `AiClient::fromEnvForCompanion()`, `KONGONO_{OSHIE,CHIE,HANTEI}_{PROVIDER,MODEL}`, `KONGONO_AI_FALLBACK_PROVIDERS`, `KONGONO_AI_MAX_COST_USD`.
+- MCP: `php vendor/bin/kongo mcp` exposes 15 read-only, secret-scrubbed JSON-RPC 2.0 tools (`kongono_graph`, `kongono_openapi`, `kongono_sdk_generate`, `kongono_routes`, `kongono_inspect_schema`, `kongono_audit`, `kongono_eval`, `kongono_migrate_lint`, `kongono_test_route`, `kongono_deploy_preview`, `kongono_list_files`, `kongono_read_file`, `kongono_oshie_lesson`, `kongono_hantei_diagnose`, `kongono_chie_preview`).
 
 ---
 
@@ -418,10 +419,16 @@ php vendor/bin/kongo new my-app --starter=saas   # minimal | api | saas
 php vendor/bin/kongo auth:init --mode=both       # web | api | both
 php vendor/bin/kongo make:resource Post          # migration, DTOs, repo, controller, test
 php vendor/bin/kongo make:job SendInvoice        # also policy|middleware|factory|rule|mail
+php vendor/bin/kongo oshie --progress
 php vendor/bin/kongo oshie "Why is /api/notes slow?" --stream
 php vendor/bin/kongo chie "Add a /api/stats endpoint" --interactive
 php vendor/bin/kongo chie "Add a /api/stats endpoint" --apply --verify --rollback-on-failure
+php vendor/bin/kongo chie "Now add pagination" --continue
+php vendor/bin/kongo hantei fix --apply --verify
+php vendor/bin/kongo hantei review --base=main --format=sarif
+php vendor/bin/kongo hantei history
 php vendor/bin/kongo hantei queue-failed --queue=default
+php vendor/bin/kongo eval --companions
 php vendor/bin/kongo skills:install --target=both
 php vendor/bin/kongo mcp
 php vendor/bin/kongo check

@@ -22,6 +22,7 @@ use Kongono\Ai\Eval\EvalRunner;
 use Kongono\Ai\Mcp\McpServer;
 use Kongono\Ai\Message;
 use Kongono\Ai\Provider\AnthropicProvider;
+use Kongono\Ai\Provider\FallbackProvider;
 use Kongono\Ai\Provider\GeminiProvider;
 use Kongono\Ai\Provider\GroqProvider;
 use Kongono\Ai\Provider\OllamaProvider;
@@ -1024,6 +1025,131 @@ final class AiProvidersAndAgentTest extends TestCase
 
             self::assertSame('groq', $envClient->providerName());
             self::assertSame('llama-3.1-8b-instant', $envClient->defaultModel());
+        } finally {
+            foreach ($envKeys as $k) {
+                if (null === $backupEnv[$k]) {
+                    unset($_ENV[$k]);
+                } else {
+                    $_ENV[$k] = $backupEnv[$k];
+                }
+                if (null === $backupServer[$k]) {
+                    unset($_SERVER[$k]);
+                } else {
+                    $_SERVER[$k] = $backupServer[$k];
+                }
+                if (false === $backupGetEnv[$k]) {
+                    putenv($k);
+                } else {
+                    putenv($k . '=' . $backupGetEnv[$k]);
+                }
+            }
+        }
+    }
+
+    public function testFallbackProviderRetriesTransientErrorsAndPerCompanionRoutingWorks(): void
+    {
+        // 1. Primary returns 429 twice (retried once, then fails over to Groq backup!)
+        $primaryTransport = new FakeTransport(
+            new HttpResponse(429, '{"error":{"message":"Rate limit exceeded"}}'),
+            new HttpResponse(429, '{"error":{"message":"Rate limit exceeded"}}'),
+        );
+        $backupTransport = new FakeTransport(
+            new HttpResponse(200, json_encode([
+                'model' => 'llama-3.3-70b-versatile',
+                'choices' => [['message' => ['role' => 'assistant', 'content' => 'Recovered via Groq backup!']]],
+                'usage' => ['prompt_tokens' => 40, 'completion_tokens' => 12],
+            ], JSON_THROW_ON_ERROR)),
+        );
+        $sleptMs = [];
+        $fallback = new FallbackProvider(
+            providers: [
+                new OpenAiProvider('sk-primary', 'gpt-4.1', transport: $primaryTransport),
+                new GroqProvider('gsk-backup', 'llama-3.3-70b-versatile', transport: $backupTransport),
+            ],
+            maxRetriesPerProvider: 1,
+            baseBackoffMs: 50,
+            sleeper: static function (int $ms) use (&$sleptMs): void {
+                $sleptMs[] = $ms;
+            },
+        );
+        $client = new AiClient($fallback);
+
+        $res = $client->chat(new ChatRequest([Message::user('Hello resilience')]));
+        self::assertSame('groq', $res->provider);
+        self::assertSame('Recovered via Groq backup!', $res->text);
+        self::assertSame([50], $sleptMs);
+        self::assertCount(2, $primaryTransport->recorded);
+        self::assertCount(1, $backupTransport->recorded);
+
+        // 2. Streaming failover works when primary fails before emitting deltas
+        $streamFailPrimary = new FakeTransport(new HttpResponse(503, 'Service unavailable'));
+        $streamOkBackup = new FakeTransport(
+            new HttpResponse(200, json_encode([
+                'model' => 'llama-3.3-70b-versatile',
+                'choices' => [['message' => ['role' => 'assistant', 'content' => 'Streamed from backup']]],
+            ], JSON_THROW_ON_ERROR)),
+        );
+        $streamClient = new AiClient(new FallbackProvider(
+            [
+                new OpenAiProvider('sk-primary', transport: $streamFailPrimary),
+                new GroqProvider('gsk-backup', transport: $streamOkBackup),
+            ],
+            maxRetriesPerProvider: 0,
+            baseBackoffMs: 0,
+        ));
+        $deltas = [];
+        $streamRes = $streamClient->chatStream(
+            new ChatRequest([Message::user('Stream failover')]),
+            static function (string $d) use (&$deltas): void {
+                $deltas[] = $d;
+            },
+        );
+        self::assertSame('groq', $streamRes->provider);
+        self::assertSame(['Streamed from backup'], $deltas);
+
+        // 3. AiClient::fromEnvForCompanion() routes Oshie/Chie/Hantei to distinct providers & models with automatic failover
+        $envKeys = [
+            'KONGONO_AI_PROVIDER',
+            'KONGONO_AI_MODEL',
+            'KONGONO_AI_FALLBACK_PROVIDERS',
+            'KONGONO_OSHIE_PROVIDER',
+            'KONGONO_OSHIE_MODEL',
+            'KONGONO_CHIE_PROVIDER',
+            'KONGONO_CHIE_MODEL',
+            'KONGONO_HANTEI_PROVIDER',
+            'KONGONO_HANTEI_MODEL',
+            'OPENAI_API_KEY',
+            'ANTHROPIC_API_KEY',
+            'GEMINI_API_KEY',
+            'GROQ_API_KEY',
+            'OLLAMA_HOST',
+        ];
+        $backupEnv = [];
+        $backupServer = [];
+        $backupGetEnv = [];
+        foreach ($envKeys as $k) {
+            $backupEnv[$k] = $_ENV[$k] ?? null;
+            $backupServer[$k] = $_SERVER[$k] ?? null;
+            $backupGetEnv[$k] = getenv($k);
+            unset($_ENV[$k], $_SERVER[$k]);
+            putenv($k);
+        }
+
+        try {
+            $_ENV['OPENAI_API_KEY'] = 'sk-openai-test-1234567890';
+            $_ENV['GROQ_API_KEY'] = 'gsk-groq-test-1234567890abcd';
+            $_ENV['KONGONO_OSHIE_PROVIDER'] = 'groq';
+            $_ENV['KONGONO_OSHIE_MODEL'] = 'llama-3.1-8b-instant';
+            $_ENV['KONGONO_CHIE_PROVIDER'] = 'openai';
+            $_ENV['KONGONO_CHIE_MODEL'] = 'gpt-4.1';
+
+            $oshieClient = AiClient::fromEnvForCompanion('oshie', $backupTransport);
+            self::assertSame('groq', $oshieClient->providerName());
+            self::assertSame('llama-3.1-8b-instant', $oshieClient->defaultModel());
+
+            $chieClient = AiClient::fromEnvForCompanion('chie', $backupTransport);
+            self::assertSame('openai', $chieClient->providerName());
+            self::assertSame('gpt-4.1', $chieClient->defaultModel());
         } finally {
             foreach ($envKeys as $k) {
                 if (null === $backupEnv[$k]) {

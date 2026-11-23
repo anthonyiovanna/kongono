@@ -14,6 +14,8 @@ use Kongono\Cli\Auth\AuthScaffolder;
 use Kongono\Cli\Bridge\BridgeScaffolder;
 use Kongono\Cli\Bridge\TypeScriptPropsGenerator;
 use Kongono\Cli\Companions\ChieBuilder;
+use Kongono\Cli\Companions\CompanionEvalSuite;
+use Kongono\Cli\Companions\CompanionSessionStore;
 use Kongono\Cli\Companions\DiffRenderer;
 use Kongono\Cli\Companions\HanteiDebugger;
 use Kongono\Cli\Companions\OshieTutor;
@@ -1237,11 +1239,36 @@ final readonly class KongoCli
     private function cmdOshie(string $appRoot, array $args, array $options): array
     {
         $context = ProjectContext::discover($appRoot);
-        $oshie = new OshieTutor($this->tryAiClient());
+        $oshie = new OshieTutor($this->tryAiClient('oshie'));
+        $sessions = new CompanionSessionStore($context->rootPath);
         $maxCost = $this->parseMaxCost($options);
 
         if (isset($options['interactive'])) {
             return $this->runOshieRepl($oshie, $context, $maxCost);
+        }
+
+        if (isset($options['progress'])) {
+            $progress = $sessions->oshieProgress();
+            $completed = $progress['completed_lessons'];
+            $doneMap = array_flip($completed);
+            $all = $oshie->listLessons();
+
+            $lines = [
+                sprintf('Kongono Oshie — Learning Progress (%d/%d lessons completed):', count($completed), count($all)),
+            ];
+            foreach ($all as $id => $meta) {
+                $tag = isset($doneMap[$id]) ? 'DONE' : 'TODO';
+                $lines[] = sprintf('  [%-4s] %-12s %s', $tag, $id, $meta['title']);
+            }
+            $recs = $oshie->recommendExercises($context, $completed);
+            if ([] !== $recs) {
+                $lines[] = "\nRecommended next exercises for this project:";
+                foreach ($recs as $rec) {
+                    $lines[] = sprintf('  -> kongo oshie --lesson %s  (%s)', $rec['lesson'], $rec['reason']);
+                }
+            }
+
+            return [0, implode("\n", $lines) . "\n"];
         }
 
         if (isset($options['lessons'])) {
@@ -1249,13 +1276,19 @@ final readonly class KongoCli
             foreach ($oshie->listLessons() as $id => $meta) {
                 $lines[] = sprintf('  %-12s %s — %s', $id, $meta['title'], $meta['summary']);
             }
-            $lines[] = "\nRun: kongo oshie --lesson <id>  or  kongo oshie \"<your question>\" [--stream]";
+            $lines[] = "\nRun: kongo oshie --lesson <id>  |  kongo oshie --progress  |  kongo oshie \"<your question>\" [--stream]";
 
             return [0, implode("\n", $lines) . "\n"];
         }
 
         if (isset($options['lesson']) && is_string($options['lesson'])) {
-            return [0, $oshie->teachLesson($options['lesson'], $context) . "\n"];
+            $lessonId = trim($options['lesson']);
+            $reply = $oshie->teachLesson($lessonId, $context);
+            if (array_key_exists($lessonId, $oshie->listLessons())) {
+                $sessions->recordOshieLesson($lessonId);
+            }
+
+            return [0, $reply . "\n"];
         }
 
         $question = trim(implode(' ', $args));
@@ -1291,15 +1324,25 @@ final readonly class KongoCli
     {
         $instruction = trim(implode(' ', $args));
         if ('' === $instruction) {
-            return [1, "Usage: kongo chie \"<what to build>\" [--app=path] [--apply] [--verify] [--interactive] [--max-repairs=2] [--rollback-on-failure]\n"];
+            return [1, "Usage: kongo chie \"<what to build>\" [--app=path] [--apply] [--verify] [--interactive] [--continue] [--max-repairs=2] [--rollback-on-failure]\n"];
         }
 
-        $ai = $this->tryAiClient();
+        $ai = $this->tryAiClient('chie');
         if (null === $ai) {
             return [1, "Chie requires an AI provider. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST.\n"];
         }
 
         $context = ProjectContext::discover($appRoot);
+        $sessions = new CompanionSessionStore($context->rootPath);
+        $previousContext = null;
+        if (isset($options['continue'])) {
+            $prev = $sessions->lastChieSession();
+            if (null === $prev) {
+                return [1, "No previous Chie session found for this project. Run `kongo chie \"<task>\"` first.\n"];
+            }
+            $previousContext = $prev['context_prompt'];
+        }
+
         $builder = new ChieBuilder($ai);
         $maxCost = $this->parseMaxCost($options);
         $apply = isset($options['apply']);
@@ -1316,8 +1359,9 @@ final readonly class KongoCli
             $maxRepairs = min(5, max(0, $maxRepairsRaw));
             $rollbackOnFailure = isset($options['rollback-on-failure']);
 
-            $hantei = new HanteiDebugger($ai);
+            $hantei = new HanteiDebugger($this->tryAiClient('hantei') ?? $ai);
             $verifyCmd = $this->resolveVerifyCommand($appRoot);
+            $extraGates = $this->resolveExtraVerifyCommands($appRoot);
             $report = $builder->buildAndVerify(
                 instruction: $instruction,
                 context: $context,
@@ -1326,7 +1370,10 @@ final readonly class KongoCli
                 maxRepairs: $maxRepairs,
                 maxCostUsd: $maxCost,
                 rollbackOnFailure: $rollbackOnFailure,
+                extraVerifyCommands: $extraGates,
+                previousContext: $previousContext,
             );
+            $sessions->saveChiePlan($instruction, $report['summary'], $report['changes'], $report['rolled_back'] ? [] : $report['applied']);
 
             $lines = [
                 sprintf(
@@ -1337,8 +1384,15 @@ final readonly class KongoCli
                     $report['verified'] ? 'VERIFIED' : ($report['rolled_back'] ? 'FAILED — ROLLED BACK' : 'FAILED'),
                     $report['attempts'],
                 ),
-                '',
             ];
+            if ([] !== $report['gates']) {
+                $gateLabels = array_map(
+                    static fn(array $g): string => sprintf('%s:%s', $g['name'], $g['passed'] ? 'PASS' : 'FAIL'),
+                    $report['gates'],
+                );
+                $lines[] = 'Gates: ' . implode(' | ', $gateLabels);
+            }
+            $lines[] = '';
             foreach ($report['changes'] as $change) {
                 $status = $report['rolled_back'] ? 'ROLLED BACK' : 'WRITTEN';
                 $lines[] = sprintf('[%s] (%s) %s — %s', $status, $change['action'], $change['path'], $change['explanation']);
@@ -1359,10 +1413,11 @@ final readonly class KongoCli
         }
 
         if ($interactive) {
-            return $this->runChieInteractive($builder, $instruction, $context, $maxCost);
+            return $this->runChieInteractive($builder, $instruction, $context, $maxCost, $sessions, $previousContext);
         }
 
-        $result = $builder->build($instruction, $context, $apply, $maxCost);
+        $result = $builder->build($instruction, $context, $apply, $maxCost, $previousContext);
+        $sessions->saveChiePlan($instruction, $result['summary'], $result['changes'], $result['applied']);
 
         $lines = [
             sprintf('Chie (%s / %s): %s', $result['provider'], $result['model'], $result['summary']),
@@ -1383,7 +1438,7 @@ final readonly class KongoCli
             }
         }
         if (!$apply && [] !== $result['changes']) {
-            $lines[] = "\nRe-run with --apply, --apply --verify, or --interactive to write changes to disk.";
+            $lines[] = "\nRe-run with --apply, --apply --verify, --interactive, or --continue to iterate.";
         }
         if ([] !== $result['next_steps']) {
             $lines[] = "\nNext steps:";
@@ -1404,8 +1459,10 @@ final readonly class KongoCli
         string $instruction,
         ProjectContext $context,
         ?float $maxCostUsd,
+        CompanionSessionStore $sessions,
+        ?string $previousContext = null,
     ): array {
-        $result = $builder->build($instruction, $context, apply: false, maxCostUsd: $maxCostUsd);
+        $result = $builder->build($instruction, $context, apply: false, maxCostUsd: $maxCostUsd, previousContext: $previousContext);
         $lines = [
             sprintf('Chie Interactive Review (%s / %s): %s', $result['provider'], $result['model'], $result['summary']),
             '',
@@ -1472,6 +1529,7 @@ final readonly class KongoCli
         $applied = [] !== $approvedPaths
             ? $builder->applyChanges($result['changes'], $context, $approvedPaths)
             : [];
+        $sessions->saveChiePlan($instruction, $result['summary'], $result['changes'], $applied);
 
         $appliedSet = array_flip($approvedPaths);
         foreach ($result['changes'] as $change) {
@@ -1500,8 +1558,121 @@ final readonly class KongoCli
         $sub = $args[0] ?? 'check';
         $rest = array_slice($args, 1);
         $context = ProjectContext::discover($appRoot);
-        $hantei = new HanteiDebugger($this->tryAiClient());
+        $sessions = new CompanionSessionStore($context->rootPath);
+        $hanteiAi = $this->tryAiClient('hantei');
+        $hantei = new HanteiDebugger($hanteiAi);
         $maxCost = $this->parseMaxCost($options);
+
+        if ('history' === $sub) {
+            $limitRaw = is_string($options['limit'] ?? null) && ctype_digit($options['limit']) ? (int) $options['limit'] : 10;
+            $items = $sessions->hanteiHistory(max(1, min(25, $limitRaw)));
+            if ([] === $items) {
+                return [0, "No Hantei diagnosis history recorded yet for this project.\n"];
+            }
+            $lines = [sprintf('Hantei Diagnosis History (%d most recent):', count($items))];
+            foreach ($items as $idx => $item) {
+                $lines[] = sprintf(
+                    '  %d. [%s] (%s) %s — %s',
+                    $idx + 1,
+                    $item['timestamp'],
+                    $item['kind'],
+                    $item['subject'],
+                    str_replace(["\r", "\n"], ' ', substr($item['diagnosis_excerpt'], 0, 120)),
+                );
+            }
+
+            return [0, implode("\n", $lines) . "\n"];
+        }
+
+        if ('review' === $sub) {
+            $base = is_string($options['base'] ?? null) && '' !== trim($options['base']) ? trim($options['base']) : 'main';
+            $format = is_string($options['format'] ?? null) ? strtolower(trim($options['format'])) : 'markdown';
+            $noAi = isset($options['no-ai']);
+            $reviewer = $noAi ? new HanteiDebugger(null) : $hantei;
+
+            $diff = $this->collectGitDiff($context->rootPath, $base);
+            $report = $reviewer->reviewDiff($diff, $context, $maxCost);
+            $sessions->recordHanteiDiagnosis(
+                'review',
+                'git diff vs ' . $base,
+                sprintf('passed=%s critical=%d warning=%d', $report['passed'] ? 'true' : 'false', $report['counts']['critical'], $report['counts']['warning']),
+                $report['telemetry']?->provider,
+            );
+
+            $output = 'sarif' === $format
+                ? HanteiDebugger::formatReviewSarif($report)
+                : HanteiDebugger::formatReviewMarkdown($report);
+
+            return [$report['passed'] ? 0 : 1, $output];
+        }
+
+        if ('fix' === $sub) {
+            $chieAi = $this->tryAiClient('chie') ?? $hanteiAi;
+            if (null === $chieAi) {
+                return [1, "Hantei fix requires an AI provider. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST.\n"];
+            }
+            $apply = isset($options['apply']);
+            $verify = isset($options['verify']);
+            if ($verify && !$apply) {
+                return [1, "Hantei fix --verify requires --apply (e.g. kongo hantei fix --apply --verify).\n"];
+            }
+
+            $verifyCmd = $this->resolveVerifyCommand($appRoot);
+            $failureInput = trim(implode(' ', $rest));
+            if ('' === $failureInput) {
+                $check = $hantei->runCheck($verifyCmd, $context, diagnoseWithAi: false);
+                if (0 === $check['exit_code']) {
+                    return [0, "All checks already pass — nothing for Hantei to fix.\n"];
+                }
+                $failureInput = $check['output'];
+            }
+
+            $maxRepairsRaw = is_string($options['max-repairs'] ?? null) && ctype_digit($options['max-repairs'])
+                ? (int) $options['max-repairs']
+                : 2;
+            $report = $hantei->diagnoseAndFix(
+                failureText: $failureInput,
+                context: $context,
+                chie: new ChieBuilder($chieAi),
+                verifyCommand: $verifyCmd,
+                apply: $apply,
+                verify: $verify,
+                maxRepairs: min(5, max(0, $maxRepairsRaw)),
+                maxCostUsd: $maxCost,
+                rollbackOnFailure: isset($options['rollback-on-failure']),
+                extraVerifyCommands: $this->resolveExtraVerifyCommands($appRoot),
+            );
+            $sessions->recordHanteiDiagnosis('fix', substr($failureInput, 0, 120), $report['diagnosis'], $report['telemetry']->provider);
+            $sessions->saveChiePlan('Hantei fix: ' . substr($failureInput, 0, 120), $report['summary'], $report['changes'], $report['rolled_back'] ? [] : $report['applied']);
+
+            $lines = [
+                '--- Hantei Root-Cause Diagnosis ---',
+                $report['diagnosis'],
+                '',
+                sprintf('--- Chie Patch Plan: %s ---', $report['summary']),
+            ];
+            foreach ($report['changes'] as $change) {
+                $status = $verify ? ($report['rolled_back'] ? 'ROLLED BACK' : 'WRITTEN') : ($apply ? 'WRITTEN' : 'PREVIEW');
+                $lines[] = sprintf('[%s] (%s) %s — %s', $status, $change['action'], $change['path'], $change['explanation']);
+                if (!$apply) {
+                    $before = null;
+                    try {
+                        $before = $context->readFileSafe($change['path']);
+                    } catch (Throwable) {
+                        $before = null;
+                    }
+                    $lines[] = DiffRenderer::render($change['path'], $before, $change['content']);
+                }
+            }
+            if (!$apply && [] !== $report['changes']) {
+                $lines[] = "\nRe-run with --apply or --apply --verify to write and verify this fix.";
+            }
+            $lines[] = "\n" . $report['telemetry']->formatFooter();
+
+            $exitCode = ($verify && !$report['verified']) ? 1 : 0;
+
+            return [$exitCode, implode("\n", $lines) . "\n"];
+        }
 
         if ('debug' === $sub) {
             $input = trim(implode(' ', $rest));
@@ -1512,6 +1683,7 @@ final readonly class KongoCli
             if (isset($options['stream'])) {
                 $writer = $this->resolveStreamWriter();
                 $res = $hantei->diagnoseStream($input, $context, $writer, $maxCost);
+                $sessions->recordHanteiDiagnosis('debug', $input, $res['diagnosis'], $res['telemetry']?->provider);
                 $tail = null !== $res['telemetry']
                     ? "\n\n" . $res['telemetry']->formatFooter() . "\n"
                     : "\n";
@@ -1520,6 +1692,7 @@ final readonly class KongoCli
             }
 
             $res = $hantei->diagnoseWithTelemetry($input, $context, $maxCost);
+            $sessions->recordHanteiDiagnosis('debug', $input, $res['diagnosis'], $res['telemetry']?->provider);
             $out = $res['diagnosis'] . "\n";
             if (null !== $res['telemetry']) {
                 $out .= "\n" . $res['telemetry']->formatFooter() . "\n";
@@ -1558,6 +1731,7 @@ final readonly class KongoCli
             }
 
             $diag = $hantei->diagnoseFailedJob($selected, $context, $maxCost);
+            $sessions->recordHanteiDiagnosis('queue-failed', $diag['job_type'] . ' #' . $diag['job_id'], $diag['diagnosis'], $diag['telemetry']?->provider);
             $lines = [
                 sprintf(
                     'Hantei Dead-Letter Job Diagnosis — #%s (%s) on queue "%s" [attempts: %d/%d]:',
@@ -1596,13 +1770,14 @@ final readonly class KongoCli
             $report = $hantei->runCheck($cmd, new ProjectContext($this->workingDirectory, $context->graph));
             $out = $report['output'] . "\n";
             if (null !== $report['diagnosis']) {
+                $sessions->recordHanteiDiagnosis('check', 'phpunit', $report['diagnosis'], $hanteiAi?->providerName());
                 $out .= "\n--- Hantei AI Diagnosis ---\n" . $report['diagnosis'] . "\n";
             }
 
             return [$report['exit_code'], $out];
         }
 
-        return [1, "Unknown hantei subcommand. Use: check | debug \"<error>\" [--stream] | queue-failed [<job-id>] | generate-tests <file>\n"];
+        return [1, "Unknown hantei subcommand. Use: check | debug \"<error>\" [--stream] | fix [\"<error>\"] [--apply] [--verify] | review [--base=main] [--format=markdown|sarif] | history | queue-failed [<job-id>] | generate-tests <file>\n"];
     }
 
     /**
@@ -1889,9 +2064,15 @@ final readonly class KongoCli
             : $appRoot . DIRECTORY_SEPARATOR . 'evals' . DIRECTORY_SEPARATOR . 'suite.php';
 
         $forceRedTeam = isset($options['redteam']);
+        $evalCompanions = isset($options['companions']);
         $useLive = isset($options['live']);
 
-        if (!$forceRedTeam && is_file($suitePath)) {
+        if ($evalCompanions) {
+            $ai = $useLive ? $this->tryAiClient() : null;
+            $context = ProjectContext::discover($appRoot);
+            $report = (new CompanionEvalSuite())->run($context, $ai);
+            $modeLabel = null !== $ai ? 'AI Companions Benchmark (Live LLM)' : 'AI Companions Benchmark (Offline Invariants)';
+        } elseif (!$forceRedTeam && is_file($suitePath)) {
             $loaded = require $suitePath;
             if (!is_array($loaded)) {
                 return [1, sprintf("Eval suite %s must return a list of Kongono\\Ai\\Eval\\EvalCase objects.\n", $suitePath)];
@@ -1905,7 +2086,7 @@ final readonly class KongoCli
             }
             $ai = $this->tryAiClient();
             if (null === $ai) {
-                return [1, "Custom AI eval suite requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST), or pass --redteam for offline PromptGuard red-teaming.\n"];
+                return [1, "Custom AI eval suite requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST), or pass --redteam / --companions for offline evals.\n"];
             }
             $report = $runner->runCases($cases, $ai);
             $modeLabel = 'Custom Eval Suite (' . basename($suitePath) . ')';
@@ -1932,14 +2113,16 @@ final readonly class KongoCli
         return [$report->passed ? 0 : 1, implode("\n", $lines) . "\n"];
     }
 
-    private function tryAiClient(): ?AiClient
+    private function tryAiClient(?string $companion = null): ?AiClient
     {
         if (null !== $this->aiOverride) {
             return $this->aiOverride;
         }
 
         try {
-            return AiClient::fromEnv();
+            return null !== $companion
+                ? AiClient::fromEnvForCompanion($companion)
+                : AiClient::fromEnv();
         } catch (AiException) {
             return null;
         }
@@ -2046,7 +2229,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target', 'mode', 'starter', 'max-repairs', 'max-cost'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target', 'mode', 'starter', 'max-repairs', 'max-cost', 'base', 'format'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -2129,6 +2312,80 @@ final readonly class KongoCli
         }
 
         return $cmd;
+    }
+
+    /** @return list<array{name: string, command: list<string>}> */
+    private function resolveExtraVerifyCommands(string $appRoot): array
+    {
+        /** @var list<array{name: string, command: list<string>}> $gates */
+        $gates = [];
+
+        $phpstanBin = null;
+        foreach ([
+            $appRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpstan',
+            $this->workingDirectory . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpstan',
+        ] as $candidate) {
+            if (is_file($candidate)) {
+                $phpstanBin = $candidate;
+                break;
+            }
+        }
+        if (null !== $phpstanBin) {
+            foreach (['phpstan.neon', 'phpstan.neon.dist'] as $cfg) {
+                $cfgPath = $appRoot . DIRECTORY_SEPARATOR . $cfg;
+                if (is_file($cfgPath)) {
+                    $gates[] = [
+                        'name' => 'phpstan',
+                        'command' => [PHP_BINARY, '-d', 'memory_limit=512M', $phpstanBin, 'analyse', '--configuration=' . $cfgPath, '--no-progress'],
+                    ];
+                    break;
+                }
+            }
+        }
+
+        return $gates;
+    }
+
+    private function collectGitDiff(string $projectRoot, string $baseRef): string
+    {
+        if (1 !== preg_match('/\A[A-Za-z0-9._\/\-~^]+\z/', $baseRef) || str_starts_with($baseRef, '-')) {
+            throw new CoreException(sprintf('Unsafe git base ref "%s".', $baseRef));
+        }
+
+        // Prefer working tree + staged changes when present; otherwise compare against baseRef...HEAD
+        [$wcCode, $wcDiff] = $this->runGitCommand($projectRoot, ['diff', '--no-color']);
+        [$stCode, $stDiff] = $this->runGitCommand($projectRoot, ['diff', '--cached', '--no-color']);
+        $local = trim((0 === $wcCode ? $wcDiff : '') . "\n" . (0 === $stCode ? $stDiff : ''));
+        if ('' !== $local) {
+            return $local;
+        }
+
+        [$refCode, $refDiff] = $this->runGitCommand($projectRoot, ['diff', '--no-color', $baseRef . '...HEAD']);
+        if (0 === $refCode && '' !== trim($refDiff)) {
+            return $refDiff;
+        }
+
+        return '';
+    }
+
+    /**
+     * @param list<string> $args
+     * @return array{0: int, 1: string}
+     */
+    private function runGitCommand(string $projectRoot, array $args): array
+    {
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $proc = @proc_open(['git', ...$args], $descriptors, $pipes, $projectRoot);
+        if (!is_resource($proc)) {
+            return [1, ''];
+        }
+        fclose($pipes[0]);
+        $out = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $code = proc_close($proc);
+
+        return [$code, false === $out ? '' : $out];
     }
 
     /** @return array{0: int, 1: string} */
@@ -2249,17 +2506,23 @@ Core Commands:
   test                                                  Run PHPUnit test suite
   version                                               Show Kongono & PHP version
 
-Built-in AI Companions (OpenAI, Anthropic, Gemini, Groq, or local Ollama; cap spend via KONGONO_AI_MAX_COST_USD):
+Built-in AI Companions (per-companion routing: KONGONO_{OSHIE,CHIE,HANTEI}_MODEL, auto-failover, cap: KONGONO_AI_MAX_COST_USD):
   oshie --lessons                                       List built-in learning lessons
-  oshie --lesson <id>                                   Study a lesson (AI-tailored when configured)
+  oshie --lesson <id>                                   Study a lesson & record progress (AI-tailored when configured)
+  oshie --progress                                      Track completed lessons & get tailored project exercises
   oshie --interactive                                   Start multi-turn streaming interactive AI tutor REPL
   oshie "<question>" [--stream] [--max-cost=0.10]       Ask Oshie anything about Kongono or your app
-  chie "<what to build>" [--apply] [--verify]           Generate Kongono code (preview by default; --verify self-heals)
+  chie "<what to build>" [--apply] [--verify]           Generate Kongono code (multi-gate PHPStan+tests+lint+audit auto-repair)
+  chie "<follow-up>" --continue [--apply]               Iterate on your previous Chie build session
   chie "<what to build>" --interactive                  Approve or reject each proposed file diff interactively
   hantei check                                          Run tests & diagnose failures with AI
-  hantei debug "<error or diagnostic>" [--stream]       Diagnose an error against your live app
+  hantei debug "<error or diagnostic>" [--stream]       Diagnose an error using live code & schema tools
+  hantei fix ["<error>"] [--apply] [--verify]           Diagnose a failure, hand off minimal patch to Chie, and verify
+  hantei review [--base=main] [--format=markdown|sarif] Review git diff for Kongono invariants (CI/SARIF ready)
+  hantei history [--limit=10]                           List recent Hantei diagnoses for this project
   hantei queue-failed [<job-id>] [--queue=default]      Diagnose a failed/dead-lettered background job with AI
   hantei generate-tests <relative/file.php> [--apply]   Generate PHPUnit 13 tests for a file
+  eval --companions [--live] [--json]                   Run Oshie/Chie/Hantei zero-hallucination & safety benchmarks
 
 TEXT;
     }

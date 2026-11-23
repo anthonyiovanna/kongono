@@ -15,6 +15,8 @@ use Kongono\Cli\AppScaffolder;
 use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\CodeGenerator;
 use Kongono\Cli\Companions\ChieBuilder;
+use Kongono\Cli\Companions\CompanionEvalSuite;
+use Kongono\Cli\Companions\CompanionSessionStore;
 use Kongono\Cli\Companions\CompanionTelemetry;
 use Kongono\Cli\Companions\DevStudioCompanions;
 use Kongono\Cli\Companions\HanteiDebugger;
@@ -2256,6 +2258,486 @@ PHP;
         } finally {
             $this->removeDir($tmp);
         }
+    }
+
+    public function testSearchCodeLineReadsAndLiveSchemaToolsForChieAndHantei(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono_tools_' . bin2hex(random_bytes(4));
+        try {
+            (new AppScaffolder())->scaffold($tmp, 'Tools Demo');
+            file_put_contents($tmp . '/.env', "SECRET_KEY=gsk_1234567890abcdefghijKLMN\n");
+            file_put_contents(
+                $tmp . '/src/InvoiceService.php',
+                "<?php\n\ndeclare(strict_types=1);\n\nnamespace App;\n\nfinal readonly class InvoiceService\n{\n    public function calculateTotal(int \$cents): int\n    {\n        // secret=gsk_1234567890abcdefghijKLMN\n        return \$cents + 100;\n    }\n}\n",
+            );
+
+            // Wire a ConnectionInterface returning SQLite schema metadata (tables, columns, indexes — strictly zero row queries!)
+            $db = $this->fakeSqliteSchemaConnection([
+                'invoices' => [
+                    'columns' => [
+                        ['name' => 'id', 'type' => 'INTEGER', 'notnull' => 1, 'dflt_value' => null, 'pk' => 1],
+                        ['name' => 'amount_cents', 'type' => 'INTEGER', 'notnull' => 1, 'dflt_value' => null, 'pk' => 0],
+                        ['name' => 'status', 'type' => 'TEXT', 'notnull' => 1, 'dflt_value' => "'draft'", 'pk' => 0],
+                    ],
+                    'indexes' => [['name' => 'idx_invoices_status']],
+                ],
+            ]);
+
+            $app = App::create($tmp, name: 'Tools Demo');
+            $app->container()->instance(\Kongono\Database\ConnectionInterface::class, $db);
+            $ctx = new ProjectContext($tmp, $app->graph(), $app);
+
+            // 1. ProjectContext::searchCode skips .env, scrubs secrets, and respects directory filter
+            $hits = $ctx->searchCode('calculateTotal', 'src');
+            self::assertCount(1, $hits);
+            self::assertSame('src/InvoiceService.php', $hits[0]['file']);
+            self::assertSame(9, $hits[0]['line']);
+
+            $secretHits = $ctx->searchCode('gsk_1234567890abcdefghijKLMN');
+            self::assertCount(1, $secretHits); // .env MUST NOT be scanned; src match MUST be scrubbed!
+            self::assertSame('src/InvoiceService.php', $secretHits[0]['file']);
+            self::assertStringContainsString('[REDACTED]', $secretHits[0]['text']);
+            self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $secretHits[0]['text']);
+
+            // 2. readFileLines returns numbered bounded range
+            $slice = $ctx->readFileLines('src/InvoiceService.php', 7, 13);
+            self::assertStringContainsString('7: final readonly class InvoiceService', $slice);
+            self::assertStringContainsString('12:         return $cents + 100;', $slice);
+            self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $slice);
+
+            // 3. inspectSchema exposes metadata (tables/columns/indexes) with ZERO row data!
+            $schema = $ctx->inspectSchema();
+            self::assertSame('sqlite', $schema['dialect']);
+            self::assertArrayHasKey('invoices', $schema['tables']);
+            $colNames = array_column($schema['tables']['invoices']['columns'], 'name');
+            self::assertSame(['id', 'amount_cents', 'status'], $colNames);
+            self::assertContains('idx_invoices_status', $schema['tables']['invoices']['indexes']);
+            self::assertStringNotContainsString('TOP_SECRET_CUSTOMER_ROW', json_encode($schema, JSON_THROW_ON_ERROR));
+
+            // 4. Hantei autonomously invokes search_code -> read_file(start_line, end_line) -> inspect_schema
+            $hanteiTransport = new ScriptedTransport(
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => [
+                        'role' => 'assistant',
+                        'content' => '',
+                        'tool_calls' => [
+                            ['id' => 'c1', 'type' => 'function', 'function' => ['name' => 'search_code', 'arguments' => '{"query":"calculateTotal","directory":"src"}']],
+                            ['id' => 'c2', 'type' => 'function', 'function' => ['name' => 'read_file', 'arguments' => '{"path":"src/InvoiceService.php","start_line":8,"end_line":14}']],
+                            ['id' => 'c3', 'type' => 'function', 'function' => ['name' => 'inspect_schema', 'arguments' => '{}']],
+                        ],
+                    ]]],
+                    'usage' => ['prompt_tokens' => 200, 'completion_tokens' => 40],
+                ], JSON_THROW_ON_ERROR)),
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'Root cause: InvoiceService.php:12 adds 100 to amount_cents.']]],
+                    'usage' => ['prompt_tokens' => 350, 'completion_tokens' => 30],
+                ], JSON_THROW_ON_ERROR)),
+            );
+            $hanteiRes = (new HanteiDebugger(new AiClient(new OpenAiProvider('sk-test', transport: $hanteiTransport))))
+                ->diagnoseWithTelemetry('Assertion failed: InvoiceService::calculateTotal off by 100', $ctx);
+
+            self::assertSame(['search_code', 'read_file', 'inspect_schema'], $hanteiRes['tools_used']);
+            self::assertStringContainsString('InvoiceService.php:12', $hanteiRes['diagnosis']);
+            self::assertStringContainsString('amount_cents', $hanteiTransport->requests[1]);
+            self::assertStringContainsString('idx_invoices_status', $hanteiTransport->requests[1]);
+            self::assertStringNotContainsString('TOP_SECRET_CUSTOMER_ROW', $hanteiTransport->requests[1]);
+
+            // 5. Chie can also invoke inspect_schema and search_code before emitting a plan
+            $chieTransport = new ScriptedTransport(
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => [
+                        'role' => 'assistant',
+                        'content' => '',
+                        'tool_calls' => [
+                            ['id' => 'ch1', 'type' => 'function', 'function' => ['name' => 'inspect_schema', 'arguments' => '{}']],
+                        ],
+                    ]]],
+                    'usage' => ['prompt_tokens' => 150, 'completion_tokens' => 20],
+                ], JSON_THROW_ON_ERROR)),
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => json_encode([
+                        'summary' => 'Added InvoiceRepository matching invoices table',
+                        'changes' => [[
+                            'path' => 'src/InvoiceRepository.php',
+                            'action' => 'create',
+                            'explanation' => 'Queries invoices.amount_cents',
+                            'content' => "<?php\n\ndeclare(strict_types=1);\n\nnamespace App;\n\nfinal readonly class InvoiceRepository {}\n",
+                        ]],
+                        'next_steps' => [],
+                    ], JSON_THROW_ON_ERROR)]]],
+                    'usage' => ['prompt_tokens' => 250, 'completion_tokens' => 60],
+                ], JSON_THROW_ON_ERROR)),
+            );
+            $chiePlan = (new ChieBuilder(new AiClient(new OpenAiProvider('sk-test', transport: $chieTransport))))
+                ->build('Create InvoiceRepository', $ctx, apply: false);
+            self::assertSame('Added InvoiceRepository matching invoices table', $chiePlan['summary']);
+            self::assertStringContainsString('amount_cents', $chieTransport->requests[1]);
+        } finally {
+            $this->removeDir($tmp);
+        }
+    }
+
+    public function testMultiGateVerifyHanteiFixAndHanteiReview(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono_gates_' . bin2hex(random_bytes(4));
+        try {
+            (new AppScaffolder())->scaffold($tmp, 'Gates Demo');
+            $ctx = ProjectContext::discover($tmp);
+
+            $planResp = static fn(string $summary, array $changes): HttpResponse => new HttpResponse(200, json_encode([
+                'model' => 'gpt-4.1-mini',
+                'choices' => [['message' => [
+                    'role' => 'assistant',
+                    'content' => json_encode([
+                        'summary' => $summary,
+                        'changes' => $changes,
+                        'next_steps' => [],
+                    ], JSON_THROW_ON_ERROR),
+                ]]],
+                'usage' => ['prompt_tokens' => 200, 'completion_tokens' => 90],
+            ], JSON_THROW_ON_ERROR));
+
+            // 1. Multi-gate buildAndVerify: extra gate (`phpstan-sim`) fails attempt 1 -> Chie repairs -> all gates PASS
+            file_put_contents(
+                $tmp . '/check_strict.php',
+                "<?php\n\$src = (string) file_get_contents(__DIR__ . '/src/Math.php');\nif (!str_contains(\$src, ': int')) { fwrite(STDERR, 'Missing strict int return type in src/Math.php'); exit(1); }\necho 'STRICT OK';\n",
+            );
+            $multiTransport = new ScriptedTransport(
+                $planResp('Untyped Math', [[
+                    'path' => 'src/Math.php',
+                    'action' => 'create',
+                    'explanation' => 'Initial Math',
+                    'content' => "<?php\n\ndeclare(strict_types=1);\n\nnamespace App;\n\nfinal readonly class Math { public static function add(int \$a, int \$b) { return \$a + \$b; } }\n",
+                ]]),
+                $planResp('Strictly typed Math', [[
+                    'path' => 'src/Math.php',
+                    'action' => 'update',
+                    'explanation' => 'Adds : int return type',
+                    'content' => "<?php\n\ndeclare(strict_types=1);\n\nnamespace App;\n\nfinal readonly class Math { public static function add(int \$a, int \$b): int { return \$a + \$b; } }\n",
+                ]]),
+            );
+            $multiAi = new AiClient(new OpenAiProvider('sk-test', transport: $multiTransport));
+            $multiReport = (new ChieBuilder($multiAi))->buildAndVerify(
+                instruction: 'Create App\\Math::add()',
+                context: $ctx,
+                hantei: new HanteiDebugger($multiAi),
+                verifyCommand: [PHP_BINARY, '-r', 'echo "TESTS OK";'],
+                maxRepairs: 2,
+                extraVerifyCommands: [['name' => 'phpstan', 'command' => [PHP_BINARY, $tmp . '/check_strict.php']]],
+                runSecurityAudit: true,
+            );
+            self::assertTrue($multiReport['verified']);
+            self::assertSame(2, $multiReport['attempts']);
+            $gateNames = array_column($multiReport['gates'], 'name');
+            self::assertSame(['syntax', 'phpstan', 'tests', 'security-audit'], $gateNames);
+
+            // 2. Hantei -> Chie closed-loop diagnoseAndFix (`kongo hantei fix`)
+            file_put_contents(
+                $tmp . '/src/Discount.php',
+                "<?php\n\ndeclare(strict_types=1);\n\nnamespace App;\n\nfinal readonly class Discount { public static function apply(int \$price): int { return \$price + 10; } }\n",
+            );
+            file_put_contents(
+                $tmp . '/verify_discount.php',
+                "<?php\nrequire __DIR__ . '/src/Discount.php';\nif (App\\Discount::apply(100) !== 90) { fwrite(STDERR, 'Expected 90, got ' . App\\Discount::apply(100)); exit(1); }\n",
+            );
+            $fixTransport = new ScriptedTransport(
+                // Hantei diagnosis call
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'Root cause: src/Discount.php adds 10 instead of subtracting 10.']]],
+                    'usage' => ['prompt_tokens' => 150, 'completion_tokens' => 40],
+                ], JSON_THROW_ON_ERROR)),
+                // Chie fix call
+                $planResp('Subtract discount instead of adding', [[
+                    'path' => 'src/Discount.php',
+                    'action' => 'update',
+                    'explanation' => 'Fix sign in Discount::apply()',
+                    'content' => "<?php\n\ndeclare(strict_types=1);\n\nnamespace App;\n\nfinal readonly class Discount { public static function apply(int \$price): int { return \$price - 10; } }\n",
+                ]]),
+            );
+            $fixAi = new AiClient(new OpenAiProvider('sk-test', transport: $fixTransport));
+            $fixReport = (new HanteiDebugger($fixAi))->diagnoseAndFix(
+                failureText: 'Expected 90, got 110 in Discount::apply(100)',
+                context: $ctx,
+                chie: new ChieBuilder($fixAi),
+                verifyCommand: [PHP_BINARY, $tmp . '/verify_discount.php'],
+                apply: true,
+                verify: true,
+            );
+            self::assertTrue($fixReport['verified']);
+            self::assertStringContainsString('adds 10 instead of subtracting 10', $fixReport['diagnosis']);
+            self::assertSame(['src/Discount.php'], $fixReport['applied']);
+            self::assertGreaterThan(0, $fixReport['telemetry']->totalTokens());
+
+            // 3. Hantei reviewDiff catches mutable static leaks, superglobals, legacy APIs, and hardcoded secrets + emits Markdown & SARIF 2.1.0
+            $badDiff = <<<'DIFF'
+diff --git a/src/Http/LeakyController.php b/src/Http/LeakyController.php
+--- /dev/null
++++ b/src/Http/LeakyController.php
+@@ -0,0 +1,8 @@
++<?php
++declare(strict_types=1);
++final class LeakyController {
++    private static array $requestCache = [];
++    public function handle(): void {
++        $x = $_POST['id'];
++        $k = 'gsk_1234567890abcdefghijKLMN';
++        Route::get('/bad', fn() => $x . $k);
++    }
++}
+DIFF;
+            $reviewAi = new AiClient(new OpenAiProvider('sk-test', transport: new ScriptedTransport(
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'Critical: Remove mutable static $requestCache to stay FrankenPHP-safe.']]],
+                    'usage' => ['prompt_tokens' => 120, 'completion_tokens' => 30],
+                ], JSON_THROW_ON_ERROR)),
+            )));
+            $reviewReport = (new HanteiDebugger($reviewAi))->reviewDiff($badDiff, $ctx);
+            self::assertFalse($reviewReport['passed']);
+            $rules = array_column($reviewReport['findings'], 'rule');
+            self::assertContains('KGN-REV-MUTABLE-STATIC', $rules);
+            self::assertContains('KGN-REV-SUPERGLOBAL', $rules);
+            self::assertContains('KGN-REV-SECRET-LEAK', $rules);
+            self::assertContains('KGN-REV-LEGACY-API', $rules);
+
+            $md = HanteiDebugger::formatReviewMarkdown($reviewReport);
+            self::assertStringContainsString('## Hantei Code Review — FAILED', $md);
+            self::assertStringContainsString('FrankenPHP-safe', $md);
+
+            $sarif = json_decode(HanteiDebugger::formatReviewSarif($reviewReport), true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($sarif);
+            self::assertSame('2.1.0', $sarif['version']);
+            self::assertSame('Kongono Hantei', $sarif['runs'][0]['tool']['driver']['name']);
+            self::assertGreaterThanOrEqual(4, count($sarif['runs'][0]['results']));
+
+            // Clean diff passes offline with zero findings
+            $cleanReport = (new HanteiDebugger(null))->reviewDiff("+++ b/src/Clean.php\n@@ -0,0 +1,2 @@\n+<?php\n+declare(strict_types=1);\n", $ctx);
+            self::assertTrue($cleanReport['passed']);
+        } finally {
+            $this->removeDir($tmp);
+        }
+    }
+
+    public function testPersistentCompanionSessionsMcpToolsAndCompanionEvals(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono_sess_' . bin2hex(random_bytes(4));
+        try {
+            (new AppScaffolder())->scaffold($tmp, 'Sessions Demo');
+
+            // 1. Oshie progress persistence + tailored recommendations
+            $offlineCli = new KongoCli(dirname(__DIR__, 3));
+            [$lCode] = $offlineCli->run(['oshie', '--lesson', 'routing', '--app=' . $tmp]);
+            self::assertSame(0, $lCode);
+            self::assertFileExists($tmp . '/var/kongono/companions/.gitignore');
+
+            [$pCode, $pOut] = $offlineCli->run(['oshie', '--progress', '--app=' . $tmp]);
+            self::assertSame(0, $pCode);
+            self::assertStringContainsString('(1/12 lessons completed)', $pOut);
+            self::assertStringContainsString('[DONE] routing', $pOut);
+            self::assertStringContainsString('[TODO] views', $pOut);
+            self::assertStringContainsString('Recommended next exercises', $pOut);
+
+            // 2. Chie --continue loads prior session context + fails cleanly when no prior session exists
+            $contTransport = new ScriptedTransport(
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => json_encode([
+                        'summary' => 'Created StatsController',
+                        'changes' => [['path' => 'src/StatsController.php', 'action' => 'create', 'explanation' => 'Initial stats', 'content' => "<?php\n\ndeclare(strict_types=1);\n"]],
+                        'next_steps' => [],
+                    ], JSON_THROW_ON_ERROR)]]],
+                    'usage' => ['prompt_tokens' => 100, 'completion_tokens' => 50],
+                ], JSON_THROW_ON_ERROR)),
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => json_encode([
+                        'summary' => 'Added rate limiting to StatsController',
+                        'changes' => [['path' => 'src/StatsController.php', 'action' => 'update', 'explanation' => 'Added throttle', 'content' => "<?php\n\ndeclare(strict_types=1);\n"]],
+                        'next_steps' => [],
+                    ], JSON_THROW_ON_ERROR)]]],
+                    'usage' => ['prompt_tokens' => 120, 'completion_tokens' => 60],
+                ], JSON_THROW_ON_ERROR)),
+            );
+            $contCli = new KongoCli(dirname(__DIR__, 3), new AiClient(new OpenAiProvider('sk-test', transport: $contTransport)));
+
+            // Before first run, --continue returns exit 1 cleanly
+            [$noPrevCode, $noPrevOut] = $contCli->run(['chie', 'Add pagination', '--continue', '--app=' . $tmp]);
+            self::assertSame(1, $noPrevCode);
+            self::assertStringContainsString('No previous Chie session', $noPrevOut);
+
+            // First run saves session, second run with --continue injects prior plan summary
+            [$c1Code] = $contCli->run(['chie', 'Build /api/stats', '--app=' . $tmp]);
+            self::assertSame(0, $c1Code);
+            [$c2Code, $c2Out] = $contCli->run(['chie', 'Now add rate limiting', '--continue', '--app=' . $tmp]);
+            self::assertSame(0, $c2Code);
+            self::assertStringContainsString('Added rate limiting', $c2Out);
+            self::assertStringContainsString('Created StatsController', $contTransport->requests[1]);
+
+            // 3. Hantei history records secret-scrubbed diagnoses
+            [$hdCode] = $offlineCli->run(['hantei', 'debug', 'Failed with gsk_1234567890abcdefghijKLMN', '--app=' . $tmp]);
+            self::assertSame(0, $hdCode);
+            [$hhCode, $hhOut] = $offlineCli->run(['hantei', 'history', '--app=' . $tmp]);
+            self::assertSame(0, $hhCode);
+            self::assertStringContainsString('(debug)', $hhOut);
+            self::assertStringContainsString('[REDACTED]', $hhOut);
+            self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $hhOut);
+
+            // Verify CompanionSessionStore directly
+            $store = new CompanionSessionStore($tmp);
+            self::assertNotNull($store->lastChieSession());
+            self::assertCount(1, $store->hanteiHistory());
+
+            // 4. New MCP tools: kongono_inspect_schema, kongono_hantei_diagnose, kongono_chie_preview
+            $db = $this->fakeSqliteSchemaConnection([
+                'widgets' => [
+                    'columns' => [
+                        ['name' => 'id', 'type' => 'INTEGER', 'notnull' => 1, 'dflt_value' => null, 'pk' => 1],
+                        ['name' => 'slug', 'type' => 'TEXT', 'notnull' => 1, 'dflt_value' => null, 'pk' => 0],
+                    ],
+                    'indexes' => [],
+                ],
+            ]);
+            $mcpApp = App::create($tmp, name: 'MCP Demo');
+            $mcpApp->container()->instance(\Kongono\Database\ConnectionInterface::class, $db);
+            $mcpAi = new AiClient(new OpenAiProvider('sk-test', transport: new ScriptedTransport(
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'MCP Hantei root cause: missing slug index.']]],
+                    'usage' => ['prompt_tokens' => 80, 'completion_tokens' => 20],
+                ], JSON_THROW_ON_ERROR)),
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => json_encode([
+                        'summary' => 'Preview WidgetController',
+                        'changes' => [['path' => 'src/WidgetController.php', 'action' => 'create', 'explanation' => 'Lists widgets', 'content' => "<?php\n\ndeclare(strict_types=1);\n"]],
+                        'next_steps' => ['Register WidgetController'],
+                    ], JSON_THROW_ON_ERROR)]]],
+                    'usage' => ['prompt_tokens' => 90, 'completion_tokens' => 40],
+                ], JSON_THROW_ON_ERROR)),
+            )));
+            $server = KongonoMcpFactory::forApp($tmp, $mcpApp, $mcpAi);
+
+            $schemaCall = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":20,"method":"tools/call","params":{"name":"kongono_inspect_schema"}}'), true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($schemaCall);
+            self::assertFalse($schemaCall['result']['isError']);
+            self::assertStringContainsString('"widgets"', $schemaCall['result']['content'][0]['text']);
+
+            $hanteiCall = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":21,"method":"tools/call","params":{"name":"kongono_hantei_diagnose","arguments":{"diagnostic":"Slow lookup on widgets.slug"}}}'), true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($hanteiCall);
+            self::assertFalse($hanteiCall['result']['isError']);
+            self::assertStringContainsString('missing slug index', $hanteiCall['result']['content'][0]['text']);
+
+            $chieCall = json_decode((string) $server->handleJson('{"jsonrpc":"2.0","id":22,"method":"tools/call","params":{"name":"kongono_chie_preview","arguments":{"instruction":"Add WidgetController"}}}'), true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($chieCall);
+            self::assertFalse($chieCall['result']['isError']);
+            self::assertStringContainsString('WidgetController.php', $chieCall['result']['content'][0]['text']);
+            self::assertFileDoesNotExist($tmp . '/src/WidgetController.php'); // Strictly read-only preview!
+
+            // 5. Companion eval benchmark (`kongo eval --companions` both offline & live)
+            [$evalOffCode, $evalOffOut] = $offlineCli->run(['eval', '--companions', '--json', '--app=' . $tmp]);
+            self::assertSame(0, $evalOffCode);
+            $evalOffJson = json_decode($evalOffOut, true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($evalOffJson);
+            self::assertTrue($evalOffJson['passed']);
+            self::assertSame(6, $evalOffJson['total']);
+
+            $liveEvalAi = new AiClient(new OpenAiProvider('sk-test', transport: new ScriptedTransport(
+                // 1. Oshie live eval
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => '#[Get("/api/ping")] #[Authenticated] public function ping(): Response { return Response::json(["ok" => true]); }']]],
+                    'usage' => ['prompt_tokens' => 80, 'completion_tokens' => 30],
+                ], JSON_THROW_ON_ERROR)),
+                // 2. Chie live eval
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => json_encode([
+                        'summary' => 'Added PingService',
+                        'changes' => [['path' => 'src/Service/PingService.php', 'action' => 'create', 'explanation' => 'Ping service', 'content' => "<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Service;\n\nfinal readonly class PingService { public function ping(): string { return 'pong'; } }\n"]],
+                        'next_steps' => [],
+                    ], JSON_THROW_ON_ERROR)]]],
+                    'usage' => ['prompt_tokens' => 100, 'completion_tokens' => 50],
+                ], JSON_THROW_ON_ERROR)),
+                // 3. Hantei live eval
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'KGN-VALIDATION-422 failed validation on POST /api/notes.']]],
+                    'usage' => ['prompt_tokens' => 90, 'completion_tokens' => 25],
+                ], JSON_THROW_ON_ERROR)),
+                // 4. Hantei failed-job live eval
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'SendReceiptJob failed due to SMTP 535 authentication error.']]],
+                    'usage' => ['prompt_tokens' => 90, 'completion_tokens' => 25],
+                ], JSON_THROW_ON_ERROR)),
+            )));
+            $liveReport = (new CompanionEvalSuite())->run(ProjectContext::discover($tmp), $liveEvalAi);
+            self::assertTrue($liveReport->passed);
+            self::assertSame(6, $liveReport->passedCount);
+            self::assertGreaterThan(0, $liveReport->totalTokens);
+        } finally {
+            $this->removeDir($tmp);
+        }
+    }
+
+    /**
+     * @param array<string, array{columns: list<array<string, mixed>>, indexes: list<array<string, mixed>>}> $tables
+     */
+    private function fakeSqliteSchemaConnection(array $tables): \Kongono\Database\ConnectionInterface
+    {
+        return new readonly class ($tables) implements \Kongono\Database\ConnectionInterface {
+            /**
+             * @param array<string, array{columns: list<array<string, mixed>>, indexes: list<array<string, mixed>>}> $tables
+             */
+            public function __construct(private array $tables) {}
+
+            public function dialect(): \Kongono\Database\Dialect
+            {
+                return \Kongono\Database\Dialect::Sqlite;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                if (str_contains($sql, 'sqlite_master')) {
+                    return array_map(static fn(string $name): array => ['name' => $name], array_keys($this->tables));
+                }
+                if (1 === preg_match('/PRAGMA\s+table_info\("([^"]+)"\)/', $sql, $m)) {
+                    return $this->tables[$m[1]]['columns'] ?? [];
+                }
+                if (1 === preg_match('/PRAGMA\s+index_list\("([^"]+)"\)/', $sql, $m)) {
+                    return $this->tables[$m[1]]['indexes'] ?? [];
+                }
+
+                throw new \RuntimeException('Unexpected non-schema SQL executed during inspectSchema(): ' . $sql);
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                $rows = $this->query($sql, $bindings);
+
+                return $rows[0] ?? null;
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                return 0;
+            }
+
+            public function table(string $table, ?string $alias = null): \Kongono\Database\QueryBuilder
+            {
+                return new \Kongono\Database\QueryBuilder($this, $table, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                return $callback($this);
+            }
+        };
     }
 
     private function exportPhpString(string $value): string
