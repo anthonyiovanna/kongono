@@ -201,11 +201,11 @@ PHP,
 declare(strict_types=1);
 
 use App\Http\HomeController;
+use Kongono\Cli\Companions\DevStudioCompanions;
 use Kongono\Core\Config;
 use Kongono\Core\EnvLoader;
 use Kongono\Core\Health\HealthCheck;
 use Kongono\Http\App;
-use Kongono\Http\Dev\DevDashboardMiddleware;
 use Kongono\Http\Dev\DevInspector;
 use Kongono\Security\Middleware\SecurityHeadersMiddleware;
 
@@ -224,7 +224,7 @@ EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
     ->controller(HomeController::class);
 
 \$app->middleware(
-    new DevDashboardMiddleware(\$app, \$inspector),
+    DevStudioCompanions::middleware(\$app, \$inspector, \$baseDir),
     new SecurityHeadersMiddleware(),
 );
 
@@ -244,6 +244,7 @@ use App\Http\ApiAuthController;
 use App\Http\HomeController;
 use App\Security\MemoryUserStore;
 use App\Security\UserStoreInterface;
+use Kongono\Cli\Companions\DevStudioCompanions;
 use Kongono\Core\Cache\AtomicCacheInterface;
 use Kongono\Core\Cache\CacheInterface;
 use Kongono\Core\Cache\MemoryCache;
@@ -252,7 +253,6 @@ use Kongono\Core\EnvLoader;
 use Kongono\Core\Health\HealthCheck;
 use Kongono\Core\Telemetry\Metrics;
 use Kongono\Http\App;
-use Kongono\Http\Dev\DevDashboardMiddleware;
 use Kongono\Http\Dev\DevInspector;
 use Kongono\Http\Ops\OpsDashboardMiddleware;
 use Kongono\Jobs\MemoryQueueDriver;
@@ -302,6 +302,7 @@ EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
     ->controller(ApiAuthController::class);
 
 \$app->middleware(
+    DevStudioCompanions::middleware(\$app, \$inspector, \$baseDir),
     new BearerAuthMiddleware(\$tokens->toBearerResolver(), required: false),
     new RateLimitMiddleware(\$cache, maxRequests: 120, windowSeconds: 60),
     new OpsDashboardMiddleware(
@@ -313,7 +314,6 @@ EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
         inspector: \$inspector,
         gate: \$gate,
     ),
-    new DevDashboardMiddleware(\$app, \$inspector),
     new SecurityHeadersMiddleware(),
 );
 
@@ -334,6 +334,7 @@ use App\Http\HomeController;
 use App\Http\WebAuthController;
 use App\Security\MemoryUserStore;
 use App\Security\UserStoreInterface;
+use Kongono\Cli\Companions\DevStudioCompanions;
 use Kongono\Core\Cache\AtomicCacheInterface;
 use Kongono\Core\Cache\CacheInterface;
 use Kongono\Core\Cache\MemoryCache;
@@ -342,7 +343,6 @@ use Kongono\Core\EnvLoader;
 use Kongono\Core\Health\HealthCheck;
 use Kongono\Core\Telemetry\Metrics;
 use Kongono\Http\App;
-use Kongono\Http\Dev\DevDashboardMiddleware;
 use Kongono\Http\Dev\DevInspector;
 use Kongono\Http\Live\LiveMiddleware;
 use Kongono\Http\Ops\OpsDashboardMiddleware;
@@ -412,6 +412,7 @@ EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
     ->controller(ApiAuthController::class);
 
 \$app->middleware(
+    DevStudioCompanions::middleware(\$app, \$inspector, \$baseDir),
     new SessionMiddleware(\$sessionStore, secure: \$secureCookies),
     new SessionAuthMiddleware(auth: \$sessionAuth),
     new BearerAuthMiddleware(\$tokens->toBearerResolver(), required: false),
@@ -431,7 +432,6 @@ EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
             return \$session instanceof Session ? \$signer->generateCsrfToken(\$session->id()) : null;
         },
     ),
-    new DevDashboardMiddleware(\$app, \$inspector),
     new SecurityHeadersMiddleware(),
 );
 

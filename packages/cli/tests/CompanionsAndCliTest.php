@@ -12,7 +12,9 @@ use Kongono\Cli\AppScaffolder;
 use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\CodeGenerator;
 use Kongono\Cli\Companions\ChieBuilder;
+use Kongono\Cli\Companions\DevStudioCompanions;
 use Kongono\Cli\Companions\HanteiDebugger;
+use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Database\MigrationLinter;
 use Kongono\Cli\Deploy\DeployBlueprintGenerator;
@@ -21,10 +23,16 @@ use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Cli\Sdk\SdkGenerator;
 use Kongono\Cli\Skills\SkillsInstaller;
 use Kongono\Core\CoreException;
+use Kongono\Http\App;
+use Kongono\Http\Dev\DevInspector;
+use Kongono\Http\Testing\TestClient;
 use PHPUnit\Framework\TestCase;
 
 final class ScriptedTransport implements HttpTransportInterface
 {
+    /** @var list<string> */
+    public array $requests = [];
+
     /** @var list<HttpResponse> */
     private array $responses;
 
@@ -35,6 +43,8 @@ final class ScriptedTransport implements HttpTransportInterface
 
     public function postJson(string $url, array $headers, string $jsonBody, int $timeoutSeconds = 60): HttpResponse
     {
+        $this->requests[] = $jsonBody;
+
         return array_shift($this->responses) ?? new HttpResponse(500, '{}');
     }
 }
@@ -1609,6 +1619,173 @@ PHP;
 
         self::assertSame(0, $exit, sprintf('Starter "%s" probe failed: %s %s', $preset, $stdout, $stderr));
         self::assertStringContainsString('STARTER_OK:' . $preset, $stdout);
+    }
+
+    public function testOshieChieHanteiHardeningMultiTurnToolLoopsAndDevStudioBridge(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-trio-test-' . bin2hex(random_bytes(5));
+        (new AppScaffolder())->scaffold($tmp, 'Trio Demo');
+
+        try {
+            $ctx = ProjectContext::discover($tmp);
+
+            // 1. Oshie: 12 offline lessons, multi-turn converse() REPL, and PromptGuard canary blocking
+            $offlineOshie = new OshieTutor();
+            $lessons = $offlineOshie->listLessons();
+            self::assertCount(12, $lessons);
+            foreach (['routing', 'views', 'live-bridge', 'validation', 'database', 'auth', 'security', 'storage', 'jobs', 'testing', 'ai', 'ops-deploy'] as $id) {
+                self::assertArrayHasKey($id, $lessons);
+                self::assertStringContainsString('# Lesson:', $offlineOshie->teachLesson($id, $ctx));
+            }
+
+            $replTransport = new ScriptedTransport(
+                new HttpResponse(200, json_encode(['model' => 'gpt-4.1-mini', 'choices' => [['message' => ['role' => 'assistant', 'content' => 'Turn 1: use #[Get].']]]], JSON_THROW_ON_ERROR)),
+                new HttpResponse(200, json_encode(['model' => 'gpt-4.1-mini', 'choices' => [['message' => ['role' => 'assistant', 'content' => 'Turn 2: inject Request.']]]], JSON_THROW_ON_ERROR)),
+            );
+            $onlineOshie = new OshieTutor(new AiClient(new OpenAiProvider('sk-test', transport: $replTransport)));
+            $turn1 = $onlineOshie->converse('How do routes work?', [], $ctx);
+            self::assertSame('Turn 1: use #[Get].', $turn1['reply']);
+            self::assertCount(3, $turn1['history']);
+            self::assertStringContainsString('<untrusted_data', $turn1['history'][0]->content);
+
+            $turn2 = $onlineOshie->converse('And Request?', $turn1['history'], $ctx);
+            self::assertSame('Turn 2: inject Request.', $turn2['reply']);
+            self::assertCount(5, $turn2['history']);
+
+            // Canary leak in Oshie ask() must fail closed
+            $canaryEchoTransport = new class implements HttpTransportInterface {
+                public function postJson(string $url, array $headers, string $jsonBody, int $timeoutSeconds = 60): HttpResponse
+                {
+                    preg_match('/kgn_canary_[a-f0-9]{24}/i', $jsonBody, $m);
+                    $leaked = $m[0] ?? 'none';
+
+                    return new HttpResponse(200, json_encode(['model' => 'gpt-4.1-mini', 'choices' => [['message' => ['role' => 'assistant', 'content' => 'Leaked ' . $leaked]]]], JSON_THROW_ON_ERROR));
+                }
+            };
+            try {
+                (new OshieTutor(new AiClient(new OpenAiProvider('sk-test', transport: $canaryEchoTransport))))->ask('Hi', $ctx);
+                self::fail('Expected Oshie PromptGuard to block canary exfiltration.');
+            } catch (CoreException $e) {
+                self::assertStringContainsString('PromptGuard', $e->getMessage());
+            }
+
+            // 2. Chie: full multi-step tool loop (list_files -> read_file -> prose + fenced JSON -> --apply write)
+            $validPhp = "<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Http;\n\nfinal readonly class PingController {}\n";
+            $chieTransport = new ScriptedTransport(
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => [
+                        'role' => 'assistant',
+                        'content' => '',
+                        'tool_calls' => [
+                            ['id' => 'call_1', 'type' => 'function', 'function' => ['name' => 'list_files', 'arguments' => '{}']],
+                            ['id' => 'call_2', 'type' => 'function', 'function' => ['name' => 'read_file', 'arguments' => '{"path":"src/Http/HomeController.php"}']],
+                        ],
+                    ]]],
+                ], JSON_THROW_ON_ERROR)),
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => [
+                        'role' => 'assistant',
+                        'content' => "Sure! Here is your build plan:\n```json\n" . json_encode([
+                            'summary' => 'Added PingController',
+                            'changes' => [[
+                                'path' => 'src/Http/PingController.php',
+                                'action' => 'create',
+                                'explanation' => 'Health ping controller',
+                                'content' => $validPhp,
+                            ]],
+                            'next_steps' => ['Register PingController'],
+                        ], JSON_THROW_ON_ERROR) . "\n```\nHope that helps!",
+                    ]]],
+                ], JSON_THROW_ON_ERROR)),
+            );
+            $chie = new ChieBuilder(new AiClient(new OpenAiProvider('sk-test', transport: $chieTransport)));
+            $applied = $chie->build('Add a PingController', $ctx, apply: true);
+            self::assertSame(['src/Http/PingController.php'], $applied['applied']);
+            self::assertFileExists($tmp . '/src/Http/PingController.php');
+            self::assertCount(2, $chieTransport->requests);
+
+            // Chie rejects broken PHP syntax before writing on --apply
+            $brokenTransport = new ScriptedTransport(
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => [
+                        'role' => 'assistant',
+                        'content' => json_encode([
+                            'summary' => 'Broken file',
+                            'changes' => [[
+                                'path' => 'src/Http/BrokenController.php',
+                                'action' => 'create',
+                                'explanation' => 'Oops',
+                                'content' => "<?php\nfinal class Broken { function bad( {\n",
+                            ]],
+                            'next_steps' => [],
+                        ], JSON_THROW_ON_ERROR),
+                    ]]],
+                ], JSON_THROW_ON_ERROR)),
+            );
+            try {
+                (new ChieBuilder(new AiClient(new OpenAiProvider('sk-test', transport: $brokenTransport))))->build('Break it', $ctx, apply: true);
+                self::fail('Expected Chie --apply to reject broken PHP syntax.');
+            } catch (CoreException $e) {
+                self::assertStringContainsString('syntax validation', $e->getMessage());
+            }
+            self::assertFileDoesNotExist($tmp . '/src/Http/BrokenController.php');
+
+            // 3. Hantei: failing runCheck() scrubs secrets & invokes AI diagnosis, generateTests(--apply) writes valid PHP
+            $hanteiTransport = new ScriptedTransport(
+                new HttpResponse(200, json_encode(['model' => 'gpt-4.1-mini', 'choices' => [['message' => ['role' => 'assistant', 'content' => 'Root cause: non-zero exit.']]]], JSON_THROW_ON_ERROR)),
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => [
+                        'role' => 'assistant',
+                        'content' => "Here is the PHPUnit test:\n```php\n<?php\n\ndeclare(strict_types=1);\n\nnamespace App\\Tests;\n\nuse PHPUnit\\Framework\\TestCase;\n\nfinal class HomeControllerTest extends TestCase\n{\n    public function testOk(): void { self::assertTrue(true); }\n}\n```\n",
+                    ]]],
+                ], JSON_THROW_ON_ERROR)),
+            );
+            $hantei = new HanteiDebugger(new AiClient(new OpenAiProvider('sk-test', transport: $hanteiTransport)));
+            $checkRes = $hantei->runCheck([PHP_BINARY, '-r', 'fwrite(STDERR, "Boom gsk_1234567890abcdefghijKLMN"); exit(1);'], $ctx);
+            self::assertSame(1, $checkRes['exit_code']);
+            self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $checkRes['output']);
+            self::assertStringContainsString('[REDACTED]', $checkRes['output']);
+            self::assertSame('Root cause: non-zero exit.', $checkRes['diagnosis']);
+
+            $genRes = $hantei->generateTests('src/Http/HomeController.php', $ctx, apply: true);
+            self::assertTrue($genRes['written']);
+            self::assertSame('tests/Http/HomeControllerTest.php', $genRes['target_path']);
+            self::assertFileExists($tmp . '/tests/Http/HomeControllerTest.php');
+
+            // Hantei canary exfiltration check
+            try {
+                (new HanteiDebugger(new AiClient(new OpenAiProvider('sk-test', transport: $canaryEchoTransport))))->diagnose('Error 500', $ctx);
+                self::fail('Expected Hantei PromptGuard to block canary exfiltration.');
+            } catch (CoreException $e) {
+                self::assertStringContainsString('PromptGuard', $e->getMessage());
+            }
+
+            // 4. DevStudioCompanions wires all 3 browser endpoints cleanly (and fail-closes when debug=false)
+            $studioApp = App::create($tmp, name: 'Studio Demo')->config(['app' => ['debug' => true]]);
+            $studioInspector = new DevInspector();
+            $studioApp->middleware(DevStudioCompanions::middleware($studioApp, $studioInspector, $tmp));
+            $studioClient = new TestClient($studioApp);
+
+            $studioClient->postJson('/_kongono/api/oshie', ['lesson' => 'testing'])
+                ->assertOk()
+                ->assertSee('TestClient');
+            $studioClient->postJson('/_kongono/api/hantei', ['diagnostic' => 'Failed with gsk_1234567890abcdefghijKLMN'])
+                ->assertOk()
+                ->assertSee('[REDACTED]');
+            $studioClient->postJson('/_kongono/api/chie', ['instruction' => 'Add /ping'])
+                ->assertOk()
+                ->assertSee('GROQ_API_KEY');
+
+            $prodApp = App::create($tmp, name: 'Prod Demo')->config(['app' => ['debug' => false]]);
+            $prodApp->middleware(DevStudioCompanions::middleware($prodApp, new DevInspector(), $tmp));
+            (new TestClient($prodApp))->postJson('/_kongono/api/oshie', ['lesson' => 'routing'])->assertNotFound();
+        } finally {
+            $this->removeDir($tmp);
+        }
     }
 
     private function exportPhpString(string $value): string

@@ -175,7 +175,7 @@ $app->middleware(
             $ai = $tryAi();
             if (null === $ai) {
                 return [
-                    'summary' => 'Chie preview requires an AI provider. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST in .env.',
+                    'summary' => 'Chie preview requires an AI provider. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST in .env.',
                     'diffs' => [],
                     'apply_command' => sprintf('php bin/kongo chie %s --apply', escapeshellarg($instruction)),
                 ];
