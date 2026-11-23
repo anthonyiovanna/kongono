@@ -13,6 +13,7 @@ use Kongono\Http\HttpException;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Jobs\Batch\JobBatch;
+use Kongono\Jobs\Job;
 use Kongono\Jobs\QueueDriverInterface;
 use Kongono\Security\Gate;
 use Kongono\Security\Principal;
@@ -35,9 +36,10 @@ final readonly class OpsDashboardMiddleware implements MiddlewareInterface
     private OpsDashboardRenderer $renderer;
 
     /**
-     * @param list<string>                              $queues            Monitored queue names (also serves as strict allowlist for POST actions)
-     * @param (Closure(): list<JobBatch>)|null          $batchesProvider   Optional provider returning tracked JobBatch snapshots
-     * @param (Closure(ServerRequestInterface): ?string)|null $csrfTokenProvider Optional CSRF token resolver for HTML forms
+     * @param list<string>                                                      $queues             Monitored queue names (also serves as strict allowlist for POST actions)
+     * @param (Closure(): list<JobBatch>)|null                                  $batchesProvider    Optional provider returning tracked JobBatch snapshots
+     * @param (Closure(ServerRequestInterface): ?string)|null                   $csrfTokenProvider  Optional CSRF token resolver for HTML forms
+     * @param (Closure(Job): array{diagnosis: string, footer?: ?string})|null   $diagnoseJobHandler Optional Hantei DLQ diagnosis callback (protected by `ops.view`)
      */
     public function __construct(
         private string $appName = 'Kongono App',
@@ -52,6 +54,7 @@ final readonly class OpsDashboardMiddleware implements MiddlewareInterface
         private string $viewCapability = 'ops.view',
         private string $manageCapability = 'ops.manage',
         private ?Closure $csrfTokenProvider = null,
+        private ?Closure $diagnoseJobHandler = null,
     ) {
         $this->renderer = new OpsDashboardRenderer();
     }
@@ -86,7 +89,67 @@ final readonly class OpsDashboardMiddleware implements MiddlewareInterface
             return $this->handleQueueFlush($request, $base);
         }
 
+        if ($path === $base . '/queues/diagnose' && 'POST' === $method) {
+            $this->gate->authorize($typedPrincipal, $this->viewCapability);
+
+            return $this->handleQueueDiagnose($request, $base);
+        }
+
         throw new HttpException(404, 'Ops endpoint not found.');
+    }
+
+    private function handleQueueDiagnose(ServerRequestInterface $request, string $base): ResponseInterface
+    {
+        if (null === $this->queueDriver) {
+            throw new HttpException(400, 'No queue driver attached to OpsDashboardMiddleware.');
+        }
+        if (null === $this->diagnoseJobHandler) {
+            return $this->hardenHeaders(Response::json(['error' => 'Hantei DLQ diagnosis is not configured on OpsDashboardMiddleware.'], 501));
+        }
+
+        $input = $this->extractInput($request);
+        $queue = $this->resolveAllowedQueue($input['queue'] ?? null);
+        $jobId = is_string($input['job_id'] ?? null) ? trim($input['job_id']) : '';
+
+        $selected = null;
+        foreach ($this->queueDriver->listFailed($queue, 50) as $job) {
+            if ('' === $jobId || $job->id === $jobId) {
+                $selected = $job;
+                break;
+            }
+        }
+
+        if (null === $selected) {
+            throw new HttpException(404, sprintf('Failed job "%s" not found in queue "%s".', '' !== $jobId ? $jobId : '(latest)', $queue));
+        }
+
+        $result = ($this->diagnoseJobHandler)($selected);
+        $diagnosis = SecretScrubber::scrub($result['diagnosis']);
+        $footer = isset($result['footer']) ? SecretScrubber::scrub($result['footer']) : null;
+
+        if ($this->wantsJson($request)) {
+            return $this->hardenHeaders(Response::json([
+                'action' => 'diagnose',
+                'queue' => $queue,
+                'job_id' => $selected->id,
+                'job_type' => $selected->type,
+                'diagnosis' => $diagnosis,
+                'footer' => $footer,
+            ]));
+        }
+
+        $notice = sprintf(
+            'Hantei Diagnosis for #%s (%s): %s%s',
+            $selected->id,
+            $selected->type,
+            $diagnosis,
+            null !== $footer && '' !== $footer ? "\n" . $footer : '',
+        );
+        if ($this->isLiveRequest($request)) {
+            return $this->respondWithSnapshot($request, $base, $notice);
+        }
+
+        return $this->respondWithSnapshot($request, $base, $notice);
     }
 
     private function handleQueueRetry(ServerRequestInterface $request, string $base): ResponseInterface
@@ -151,13 +214,14 @@ final readonly class OpsDashboardMiddleware implements MiddlewareInterface
         }
 
         $csrfToken = null !== $this->csrfTokenProvider ? ($this->csrfTokenProvider)($request) : null;
+        $canDiagnose = null !== $this->diagnoseJobHandler;
         if ($this->isLiveRequest($request)) {
-            $frag = Response::fragment($this->renderer->renderPanel($snapshot, $base, $csrfToken, $notice), swap: 'morph');
+            $frag = Response::fragment($this->renderer->renderPanel($snapshot, $base, $csrfToken, $notice, $canDiagnose), swap: 'morph');
 
             return $this->hardenHeaders($frag);
         }
 
-        $html = $this->renderer->renderPage($snapshot, $base, $csrfToken, $notice);
+        $html = $this->renderer->renderPage($snapshot, $base, $csrfToken, $notice, $canDiagnose);
 
         return $this->hardenHeaders(Response::html($html));
     }

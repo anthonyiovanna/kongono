@@ -240,7 +240,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.18.0', $vOut);
+            self::assertStringContainsString('v1.19.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -2537,7 +2537,7 @@ DIFF;
 
             [$pCode, $pOut] = $offlineCli->run(['oshie', '--progress', '--app=' . $tmp]);
             self::assertSame(0, $pCode);
-            self::assertStringContainsString('(1/12 lessons completed)', $pOut);
+            self::assertStringContainsString('(1/12 lessons, 0/6 exercises verified)', $pOut);
             self::assertStringContainsString('[DONE] routing', $pOut);
             self::assertStringContainsString('[TODO] views', $pOut);
             self::assertStringContainsString('Recommended next exercises', $pOut);
@@ -2680,6 +2680,201 @@ DIFF;
             self::assertTrue($liveReport->passed);
             self::assertSame(6, $liveReport->passedCount);
             self::assertGreaterThan(0, $liveReport->totalTokens);
+        } finally {
+            $this->removeDir($tmp);
+        }
+    }
+
+    public function testChieSurgicalPatchesAgentsMdGroundingOshieExercisesOpsDiagnoseAndHanteiWatch(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono_v119_' . bin2hex(random_bytes(4));
+        try {
+            (new AppScaffolder())->scaffold($tmp, 'V119 Demo');
+
+            // 1. Auto-load AGENTS.md team conventions into promptSummary() (scrubbed + wrapped in UntrustedInput)
+            file_put_contents(
+                $tmp . '/AGENTS.md',
+                "# Team Rules\n- Always suffix money variables with _cents.\n- Never leak gsk_1234567890abcdefghijKLMN.\n",
+            );
+            $ctx = ProjectContext::discover($tmp);
+            $summary = $ctx->promptSummary();
+            self::assertStringContainsString('Project conventions (AGENTS.md):', $summary);
+            self::assertStringContainsString('suffix money variables with _cents', $summary);
+            self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $summary);
+            self::assertStringContainsString('[REDACTED]', $summary);
+
+            // 2. Chie surgical search-and-replace patches (`action: "patch"`) preserve unrelated lines & fail closed on non-unique/missing blocks
+            $existingFile = <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace App;
+
+final readonly class PricingService
+{
+    public const int TAX_BPS = 500;
+
+    public function subtotalCents(int $unitCents, int $qty): int
+    {
+        return $unitCents * $qty;
+    }
+
+    public function label(): string
+    {
+        return 'standard';
+    }
+}
+PHP;
+            file_put_contents($tmp . '/src/PricingService.php', $existingFile . "\n");
+
+            $patchTransport = new ScriptedTransport(
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => json_encode([
+                        'summary' => 'Patched TAX_BPS and label cleanly',
+                        'changes' => [[
+                            'path' => 'src/PricingService.php',
+                            'action' => 'patch',
+                            'explanation' => 'Update tax rate to 825 bps without touching subtotalCents()',
+                            'edits' => [
+                                ['search' => 'public const int TAX_BPS = 500;', 'replace' => 'public const int TAX_BPS = 825;'],
+                                ['search' => "return 'standard';", 'replace' => "return 'enterprise';"],
+                            ],
+                        ]],
+                        'next_steps' => [],
+                    ], JSON_THROW_ON_ERROR)]]],
+                    'usage' => ['prompt_tokens' => 110, 'completion_tokens' => 45],
+                ], JSON_THROW_ON_ERROR)),
+            );
+            $patchPlan = (new ChieBuilder(new AiClient(new OpenAiProvider('sk-test', transport: $patchTransport))))
+                ->build('Update tax rate and label', $ctx, apply: true);
+
+            self::assertSame(['src/PricingService.php'], $patchPlan['applied']);
+            $patchedDisk = (string) file_get_contents($tmp . '/src/PricingService.php');
+            self::assertStringContainsString('TAX_BPS = 825;', $patchedDisk);
+            self::assertStringContainsString("return 'enterprise';", $patchedDisk);
+            self::assertStringContainsString('return $unitCents * $qty;', $patchedDisk);
+            // AGENTS.md rule was delivered to Chie inside UntrustedInput!
+            self::assertStringContainsString('suffix money variables with _cents', $patchTransport->requests[0]);
+
+            // Ambiguous / missing search block fails closed
+            try {
+                ChieBuilder::applyPatchEdits("foo\nfoo\n", [['search' => 'foo', 'replace' => 'bar']], 'src/PricingService.php');
+                self::fail('Expected ambiguous patch search block to fail closed.');
+            } catch (CoreException $e) {
+                self::assertStringContainsString('matched 2 times', $e->getMessage());
+            }
+            try {
+                ChieBuilder::applyPatchEdits("foo\n", [['search' => 'missing', 'replace' => 'bar']], 'src/PricingService.php');
+                self::fail('Expected missing patch search block to fail closed.');
+            } catch (CoreException $e) {
+                self::assertStringContainsString('not found', $e->getMessage());
+            }
+
+            // 3. Oshie verifiable hands-on exercises (`--exercises` & `--exercise <id>`)
+            $cli = new KongoCli(dirname(__DIR__, 3));
+            [$exListCode, $exListOut] = $cli->run(['oshie', '--exercises', '--app=' . $tmp]);
+            self::assertSame(0, $exListCode);
+            self::assertStringContainsString('routing', $exListOut);
+            self::assertStringContainsString('database', $exListOut);
+
+            [$routeExCode, $routeExOut] = $cli->run(['oshie', '--exercise', 'routing', '--app=' . $this->starterAppRoot]);
+            self::assertSame(0, $routeExCode);
+            self::assertStringContainsString('(PASS)', $routeExOut);
+
+            [$viewsExCode, $viewsExOut] = $cli->run(['oshie', '--exercise', 'views', '--app=' . $tmp]);
+            self::assertSame(0, $viewsExCode);
+            self::assertStringContainsString('(PASS)', $viewsExOut);
+            self::assertStringContainsString('recorded in your Oshie progress', $viewsExOut);
+
+            [$dbExCode, $dbExOut] = $cli->run(['oshie', '--exercise', 'database', '--app=' . $tmp]);
+            self::assertSame(1, $dbExCode);
+            self::assertStringContainsString('(NEEDS WORK)', $dbExOut);
+            self::assertStringContainsString('make:migration', $dbExOut);
+
+            [$progCode, $progOut] = $cli->run(['oshie', '--progress', '--app=' . $tmp]);
+            self::assertSame(0, $progCode);
+            self::assertStringContainsString('1/6 exercises verified', $progOut);
+
+            // 4. Gate-protected /_ops 1-click Hantei DLQ diagnosis
+            $driver = new \Kongono\Jobs\MemoryQueueDriver();
+            $driver->push('emails', 'App\\Jobs\\WelcomeMailJob', ['email' => 'a@b.test', 'token' => 'gsk_1234567890abcdefghijKLMN'], maxAttempts: 1);
+            $reserved = $driver->reserve('emails');
+            self::assertNotNull($reserved);
+            $driver->markFailed($reserved, \Kongono\Jobs\JobStatus::Dead, 'SMTP timeout with key gsk_1234567890abcdefghijKLMN');
+
+            $gate = new \Kongono\Security\Gate();
+            $gate->define('ops.view', static fn(\Kongono\Security\Principal $p): bool => $p->hasCapability('ops.view'));
+            $gate->define('ops.manage', static fn(\Kongono\Security\Principal $p): bool => $p->hasCapability('ops.manage'));
+
+            $opsApp = App::create($tmp, name: 'Ops AI Demo');
+            $opsAi = new AiClient(new OpenAiProvider('sk-test', transport: new ScriptedTransport(
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'Root cause: SMTP upstream timed out — check Resend/SMTP host.']]],
+                    'usage' => ['prompt_tokens' => 110, 'completion_tokens' => 24],
+                ], JSON_THROW_ON_ERROR)),
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'Live morph diagnosis: check SMTP credentials.']]],
+                    'usage' => ['prompt_tokens' => 110, 'completion_tokens' => 20],
+                ], JSON_THROW_ON_ERROR)),
+            )));
+            $opsApp->middleware(new \Kongono\Http\Ops\OpsDashboardMiddleware(
+                appName: 'Ops AI Demo',
+                queueDriver: $driver,
+                queues: ['emails'],
+                gate: $gate,
+                diagnoseJobHandler: DevStudioCompanions::opsJobDiagnoser($opsApp, $tmp, $opsAi),
+            ));
+
+            // Unauthenticated -> fail-closed 401; authenticated without ops.view -> fail-closed 403
+            (new TestClient($opsApp))->postJson('/_ops/queues/diagnose', ['queue' => 'emails', 'job_id' => $reserved->id])->assertUnauthorized();
+            (new TestClient($opsApp))->actingAs(new \Kongono\Security\Principal('u0', \Kongono\Security\PrincipalKind::Human, ['notes.read']))
+                ->postJson('/_ops/queues/diagnose', ['queue' => 'emails', 'job_id' => $reserved->id])->assertForbidden();
+
+            $viewer = new \Kongono\Security\Principal('u1', \Kongono\Security\PrincipalKind::Human, ['ops.view']);
+            $opsClient = (new TestClient($opsApp))->actingAs($viewer);
+
+            // HTML dashboard shows the Diagnose button on dead-lettered rows
+            $opsClient->get('/_ops')->assertOk()->assertSee('/_ops/queues/diagnose')->assertSee('Diagnose');
+
+            // JSON diagnose returns scrubbed root cause + telemetry footer
+            $diagJsonRes = $opsClient->postJson('/_ops/queues/diagnose', ['queue' => 'emails', 'job_id' => $reserved->id]);
+            $diagJsonRes->assertOk();
+            $diagPayload = $diagJsonRes->json();
+            self::assertIsArray($diagPayload);
+            self::assertSame('diagnose', $diagPayload['action']);
+            self::assertSame($reserved->id, $diagPayload['job_id']);
+            self::assertStringContainsString('SMTP upstream timed out', (string) $diagPayload['diagnosis']);
+            self::assertStringContainsString('[openai/gpt-4.1-mini', (string) $diagPayload['footer']);
+
+            // Live 2.5 morph fragment also renders the diagnosis banner cleanly
+            $opsClient->withLive()->postForm('/_ops/queues/diagnose', ['queue' => 'emails', 'job_id' => $reserved->id])
+                ->assertOk()
+                ->assertSee('Live morph diagnosis');
+
+            // 5. CLI `kongo hantei watch` (log mode + queue DLQ mode with --once)
+            mkdir($tmp . '/logs', 0o775, true);
+            file_put_contents(
+                $tmp . '/logs/app.log',
+                "[2026-11-22] INFO Booted cleanly\n[2026-11-22] ERROR KGN-DB-500 Deadlock detected with token gsk_1234567890abcdefghijKLMN\n",
+            );
+            $watchTransport = new ScriptedTransport(
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'Wrap concurrent updates in deterministic lock ordering.']]],
+                    'usage' => ['prompt_tokens' => 95, 'completion_tokens' => 22],
+                ], JSON_THROW_ON_ERROR)),
+            );
+            $watchCli = new KongoCli(dirname(__DIR__, 3), new AiClient(new OpenAiProvider('sk-test', transport: $watchTransport)));
+            [$wCode, $wOut] = $watchCli->run(['hantei', 'watch', '--log=logs/app.log', '--once', '--app=' . $tmp]);
+            self::assertSame(0, $wCode);
+            self::assertStringContainsString('[Hantei Watch — logs/app.log (1 error line(s))]', $wOut);
+            self::assertStringContainsString('deterministic lock ordering', $wOut);
+            self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $watchTransport->requests[0]);
+            self::assertStringContainsString('[REDACTED]', $watchTransport->requests[0]);
         } finally {
             $this->removeDir($tmp);
         }

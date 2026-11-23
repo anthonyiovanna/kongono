@@ -39,24 +39,59 @@ final readonly class CompanionSessionStore
         if (!in_array($clean, $completed, true)) {
             $completed[] = $clean;
         }
+        $exercises = is_array($data['completed_exercises'] ?? null)
+            ? array_values(array_filter($data['completed_exercises'], 'is_string'))
+            : [];
 
         $this->writeJson('oshie.json', [
             'completed_lessons' => $completed,
+            'completed_exercises' => $exercises,
             'updated_at' => gmdate('c'),
         ]);
     }
 
-    /** @return array{completed_lessons: list<string>, updated_at: ?string} */
+    public function recordOshieExercise(string $exerciseId): void
+    {
+        $clean = trim($exerciseId);
+        if ('' === $clean) {
+            return;
+        }
+        $data = $this->readJson('oshie.json');
+        $completed = is_array($data['completed_lessons'] ?? null)
+            ? array_values(array_filter($data['completed_lessons'], 'is_string'))
+            : [];
+        $exercises = is_array($data['completed_exercises'] ?? null)
+            ? array_values(array_filter($data['completed_exercises'], 'is_string'))
+            : [];
+        if (!in_array($clean, $exercises, true)) {
+            $exercises[] = $clean;
+        }
+        if (!in_array($clean, $completed, true)) {
+            $completed[] = $clean;
+        }
+
+        $this->writeJson('oshie.json', [
+            'completed_lessons' => $completed,
+            'completed_exercises' => $exercises,
+            'updated_at' => gmdate('c'),
+        ]);
+    }
+
+    /** @return array{completed_lessons: list<string>, completed_exercises: list<string>, updated_at: ?string} */
     public function oshieProgress(): array
     {
         $data = $this->readJson('oshie.json');
         $completed = is_array($data['completed_lessons'] ?? null)
             ? array_values(array_filter($data['completed_lessons'], 'is_string'))
             : [];
+        $exercises = is_array($data['completed_exercises'] ?? null)
+            ? array_values(array_filter($data['completed_exercises'], 'is_string'))
+            : [];
         $updated = is_string($data['updated_at'] ?? null) ? $data['updated_at'] : null;
 
         return [
             'completed_lessons' => $completed,
+            'completed_exercises' => $exercises,
             'updated_at' => $updated,
         ];
     }

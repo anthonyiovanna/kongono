@@ -4,6 +4,19 @@ All notable changes to the **Kongono Framework** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-11-22
+
+### Added
+
+- **Next-Gen AI Companion Triplets — Oshie, Chie & Hantei (`kongono/ai`, `kongono/cli`, `kongono/http`):**
+  - **Self-Verifying Multi-Gate Build Loop (`kongo chie "..." --apply --verify`):** Validates PHP syntax (`php -l`), applies surgical search-and-replace patches (`action: "patch"` with strict unique-match validation) or new files, runs PHPStan + PHPUnit + `MigrationLinter` + `SecurityAuditor`, feeds secret-scrubbed failures back to Chie for bounded auto-repair (`--max-repairs`), and atomically rolls back snapshots on exhaustion (`--rollback-on-failure`).
+  - **Per-File Interactive Diff Approval & Iterative Sessions (`--interactive`, `--continue`, `--progress`, `history`):** Approve or skip each unified diff interactively (`[y]es / [n]o / [a]ll / [q]uit`), persist secret-scrubbed gitignored local sessions in `var/kongono/companions/` (`CompanionSessionStore`), and auto-load team conventions from `AGENTS.md` / `.kongono/companions.md` inside `PromptGuard` boundaries.
+  - **Shared Project & Live Schema Intelligence Tools (`CompanionTools`):** Equips both Chie and Hantei with governed read-only `list_files`, `read_file` (with line ranges), `search_code`, `inspect_graph`, and metadata-only `inspect_schema` (SQLite, PostgreSQL, MySQL — zero row data).
+  - **Live Token Streaming (CLI & `/_kongono` Dev Studio SSE):** Added `--stream` to `kongo oshie` and `kongo hantei debug`, streaming multi-turn `kongo oshie --interactive`, and `POST /_kongono/api/{oshie,hantei}/stream` (`Response::sse()` + `SseEvent::json()`), plus OpenAI/Groq streaming `usage` extraction.
+  - **Live Traces, Dead-Letter Jobs, `/_ops` Diagnose & Local Watcher:** Passed live `DevInspector` slow-request / N+1 traces into Oshie, added 1-click `POST /_kongono/api/hantei/trace/{id}` (root-cause diagnosis + PHPUnit 13 `TestExporter` regression test), `kongo hantei queue-failed`, `Gate`-protected (`ops.view`) `POST /_ops/queues/diagnose` (`DevStudioCompanions::opsJobDiagnoser()`), and `kongo hantei watch [--log=file] [--queue=default]`.
+  - **Closed-Loop `hantei fix`, CI-Ready `hantei review` (SARIF 2.1.0), Verifiable Oshie Exercises & 15-Tool MCP:** Added `kongo hantei fix`, `kongo hantei review [--base=main] [--format=markdown|sarif]` + ready-to-copy [docs/ci-hantei-review.yml](docs/ci-hantei-review.yml), proof-based `kongo oshie --exercises` / `--exercise <id>` grading, and 3 new read-only MCP tools (`kongono_inspect_schema`, `kongono_hantei_diagnose`, `kongono_chie_preview`).
+  - **Resilient Multi-Provider Failover, Per-Companion Routing, Cost Caps & Companion Evals:** Added `FallbackProvider` (transient 429/5xx retries + ordered failover), `AiClient::fromEnvForCompanion()` (`KONGONO_{OSHIE,CHIE,HANTEI}_{PROVIDER,MODEL}`), `CompanionTelemetry` with fail-closed `KONGONO_AI_MAX_COST_USD` / `--max-cost` caps, and `kongo eval --companions` (`CompanionEvalSuite`).
+
 ## [1.18.0] - 2026-11-22
 
 ### Added

@@ -435,6 +435,32 @@ final readonly class ProjectContext
         return $fullPath;
     }
 
+    /**
+     * Load optional project-specific AI engineering guidelines from `AGENTS.md`, `.kongono/companions.md`,
+     * or `CLAUDE.md` (bounded and secret-scrubbed; intended to be wrapped in PromptGuard UntrustedInput).
+     *
+     * @param int<256, 32768> $maxBytes
+     */
+    public function projectInstructions(int $maxBytes = 3500): ?string
+    {
+        foreach (['.kongono/companions.md', 'AGENTS.md', 'CLAUDE.md'] as $candidate) {
+            $full = $this->rootPath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $candidate);
+            if (!is_file($full) || is_link($full)) {
+                continue;
+            }
+            try {
+                $content = trim($this->readFileSafe($candidate, $maxBytes));
+                if ('' !== $content) {
+                    return $content;
+                }
+            } catch (CoreException) {
+                continue;
+            }
+        }
+
+        return null;
+    }
+
     /** Build a concise, secret-scrubbed summary prompt block describing the current Kongono project. */
     public function promptSummary(): string
     {
@@ -442,6 +468,11 @@ final readonly class ProjectContext
             'Project root: ' . basename($this->rootPath),
             'Files: ' . implode(', ', $this->listFiles(60)),
         ];
+
+        $instructions = $this->projectInstructions();
+        if (null !== $instructions) {
+            $lines[] = "Project conventions (AGENTS.md):\n" . $instructions;
+        }
 
         if (null !== $this->graph) {
             $lines[] = 'Live ApplicationGraph JSON:';

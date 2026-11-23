@@ -54,10 +54,11 @@ jobs:
           KONGONO_FUZZ_ITERATIONS: '600'
         run: composer fuzz
 
-      - name: Self-Audit Attack Simulation & AI Red-Team Eval
+      - name: Self-Audit Attack Simulation & AI Evals
         run: |
           php bin/kongo audit --attack --strict --app=examples/starter-app
           php bin/kongo eval --redteam --app=examples/starter-app
+          php bin/kongo eval --companions --app=examples/starter-app
 
   integration:
     name: Live PostgreSQL (pgvector + RLS) & Redis Integration

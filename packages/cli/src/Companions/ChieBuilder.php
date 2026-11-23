@@ -31,20 +31,24 @@ final readonly class ChieBuilder
     private const string SYSTEM_PROMPT = <<<'PROMPT'
 You are Chie (知恵), the built-in AI code builder for Kongono v1.18+ (pure PHP 8.5.13+, zero Symfony, zero mutable static state, zero global magic facades).
 
-You can inspect the project's files and live ApplicationGraph via tools before generating code.
+You can inspect the project's files, code search matches, live ApplicationGraph, and live DB schema via tools before generating code.
 When you are ready with your final answer, respond ONLY with a valid JSON object matching this exact structure:
 {
   "summary": "Brief description of what you built",
   "changes": [
     {
       "path": "relative/path/from/project/root.php",
-      "action": "create|update",
-      "explanation": "Why this file is created or updated",
-      "content": "Full file contents (valid PHP 8.5 with declare(strict_types=1); or .kgn.html)"
+      "action": "create|update|patch",
+      "explanation": "Why this file is created, updated, or patched",
+      "content": "Full file contents (required for create/update; omit for patch)",
+      "edits": [
+        {"search": "exact unique existing code block", "replace": "replacement code block"}
+      ]
     }
   ],
   "next_steps": ["Optional reminder such as registering a route in app/bootstrap.php"]
 }
+Prefer `"action": "patch"` with minimal exact `"edits"` when editing existing files so unrelated code is never dropped. Use `"action": "create"` with full `"content"` for new files.
 
 Exact Kongono v1.18+ rules & namespaces:
 - Always start every PHP file with `<?php` and `declare(strict_types=1);`. Use `final readonly class`, backed enums, and native attributes.
@@ -128,7 +132,7 @@ PROMPT;
             throw new CoreException('Chie output blocked by PromptGuard due to suspected prompt injection or canary exfiltration.');
         }
 
-        $plan = $this->parsePlan($inspected['output']);
+        $plan = $this->parsePlan($inspected['output'], $context);
         $applied = $apply ? $this->applyChanges($plan['changes'], $context) : [];
 
         return [
@@ -425,26 +429,105 @@ PROMPT;
     }
 
     /**
+     * Apply ordered exact search-and-replace edits to an existing file's content.
+     * Each search block must match uniquely (count === 1) so ambiguous or stale patches fail closed.
+     *
+     * @param list<array{search: string, replace: string}> $edits
+     */
+    public static function applyPatchEdits(string $original, array $edits, string $path): string
+    {
+        if ([] === $edits) {
+            throw new CoreException(sprintf('Chie patch for "%s" supplied zero edits.', $path));
+        }
+
+        $working = $original;
+        foreach ($edits as $idx => $edit) {
+            $search = $edit['search'];
+            $replace = $edit['replace'];
+            if ('' === $search) {
+                throw new CoreException(sprintf('Chie patch edit #%d for "%s" has an empty search block.', $idx + 1, $path));
+            }
+
+            $occurrences = substr_count($working, $search);
+            if (0 === $occurrences) {
+                // Retry with normalized LF line endings for cross-platform CRLF files
+                $normWorking = str_replace("\r\n", "\n", $working);
+                $normSearch = str_replace("\r\n", "\n", $search);
+                $occurrences = substr_count($normWorking, $normSearch);
+                if (1 === $occurrences) {
+                    $working = $normWorking;
+                    $search = $normSearch;
+                    $replace = str_replace("\r\n", "\n", $replace);
+                }
+            }
+
+            if (0 === $occurrences) {
+                throw new CoreException(sprintf('Chie patch edit #%d for "%s" failed: search block not found in existing file.', $idx + 1, $path));
+            }
+            if ($occurrences > 1) {
+                throw new CoreException(sprintf('Chie patch edit #%d for "%s" failed: search block matched %d times (must match uniquely).', $idx + 1, $path, $occurrences));
+            }
+
+            $pos = strpos($working, $search);
+            if (false === $pos) {
+                throw new CoreException(sprintf('Chie patch edit #%d for "%s" failed: search block not found.', $idx + 1, $path));
+            }
+            $working = substr_replace($working, $replace, $pos, strlen($search));
+        }
+
+        return $working;
+    }
+
+    /**
      * @return array{
      *     summary: string,
      *     changes: list<array{path: string, action: string, explanation: string, content: string}>,
      *     next_steps: list<string>
      * }
      */
-    private function parsePlan(string $raw): array
+    private function parsePlan(string $raw, ProjectContext $context): array
     {
         $decoded = self::decodeJsonObjectResilient($raw);
 
         $changes = [];
         if (isset($decoded['changes']) && is_array($decoded['changes'])) {
             foreach ($decoded['changes'] as $item) {
-                if (!is_array($item) || !is_string($item['path'] ?? null) || !is_string($item['content'] ?? null)) {
+                if (!is_array($item) || !is_string($item['path'] ?? null)) {
+                    continue;
+                }
+                $path = $item['path'];
+                $action = is_string($item['action'] ?? null) ? strtolower(trim($item['action'])) : 'create';
+                $explanation = is_string($item['explanation'] ?? null) ? $item['explanation'] : '';
+
+                if ('patch' === $action && is_array($item['edits'] ?? null)) {
+                    /** @var list<array{search: string, replace: string}> $edits */
+                    $edits = [];
+                    foreach ($item['edits'] as $rawEdit) {
+                        if (is_array($rawEdit) && is_string($rawEdit['search'] ?? null) && is_string($rawEdit['replace'] ?? null)) {
+                            $edits[] = [
+                                'search' => $rawEdit['search'],
+                                'replace' => $rawEdit['replace'],
+                            ];
+                        }
+                    }
+                    $existing = $this->readRawTargetForPatch($path, $context);
+                    $patched = self::applyPatchEdits($existing, $edits, $path);
+                    $changes[] = [
+                        'path' => $path,
+                        'action' => 'patch',
+                        'explanation' => $explanation,
+                        'content' => $patched,
+                    ];
+                    continue;
+                }
+
+                if (!is_string($item['content'] ?? null)) {
                     continue;
                 }
                 $changes[] = [
-                    'path' => $item['path'],
-                    'action' => is_string($item['action'] ?? null) ? $item['action'] : 'create',
-                    'explanation' => is_string($item['explanation'] ?? null) ? $item['explanation'] : '',
+                    'path' => $path,
+                    'action' => '' !== $action ? $action : 'create',
+                    'explanation' => $explanation,
                     'content' => $item['content'],
                 ];
             }
@@ -464,6 +547,22 @@ PROMPT;
             'changes' => $changes,
             'next_steps' => $nextSteps,
         ];
+    }
+
+    private function readRawTargetForPatch(string $relativePath, ProjectContext $context): string
+    {
+        self::assertAllowedChieWriteTarget($relativePath);
+        // Validate containment & non-symlink safety via ProjectContext::readFileSafe() first
+        $context->readFileSafe($relativePath);
+
+        $normalized = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
+        $full = $context->rootPath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalized);
+        $raw = file_get_contents($full);
+        if (false === $raw) {
+            throw new CoreException(sprintf('Unable to read "%s" for patching.', $relativePath));
+        }
+
+        return $raw;
     }
 
     /**

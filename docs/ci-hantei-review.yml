@@ -1,0 +1,55 @@
+# Drop this file into `.github/workflows/hantei-review.yml` in any Kongono v1.19+ application
+# to run deterministic Kongono invariant checks (persistent-runtime leaks, secrets, SecurityAuditor,
+# MigrationLinter) and upload SARIF 2.1.0 findings directly to GitHub Code Scanning on every PR.
+name: Kongono Hantei Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  hantei-review:
+    name: Hantei Diff Review & AI Evals
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: curl, dom, json, mbstring, openssl, pdo, sodium
+          tools: composer:v2
+
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run Hantei Diff Review (SARIF 2.1.0)
+        id: review
+        continue-on-error: true
+        run: |
+          php vendor/bin/kongo hantei review --base="origin/${{ github.base_ref }}" --format=sarif --no-ai > hantei-review.sarif
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always() && hashFiles('hantei-review.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: hantei-review.sarif
+
+      - name: Run PromptGuard Red-Team & Companion Evals
+        run: |
+          php vendor/bin/kongo eval --redteam
+          php vendor/bin/kongo eval --companions
+
+      - name: Fail Job if Critical Hantei Review Findings Detected
+        if: steps.review.outcome == 'failure'
+        run: |
+          php vendor/bin/kongo hantei review --base="origin/${{ github.base_ref }}" --format=markdown --no-ai
+          exit 1

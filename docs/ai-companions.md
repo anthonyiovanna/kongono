@@ -21,19 +21,21 @@ Optional overrides:
 
 ## 1. Oshie (教え) — Learn Kongono
 
-Oshie ships with **12 built-in lessons** (works offline or AI-personalized), live token streaming (`--stream` and `/_kongono/api/oshie/stream`), `PromptGuard` isolation, persistent local progress tracking (`--progress` under gitignored `var/kongono/companions/`), and automatic awareness of recent `/_kongono` `DevInspector` slow-request and N+1 SQL traces:
+Oshie ships with **12 built-in lessons**, **6 deterministically graded hands-on exercises** (`--exercises` / `--exercise <id>`), live token streaming (`--stream` and `/_kongono/api/oshie/stream`), `PromptGuard` isolation, automatic `AGENTS.md` project grounding, persistent local progress tracking (`--progress` under gitignored `var/kongono/companions/`), and automatic awareness of recent `/_kongono` `DevInspector` slow-request and N+1 SQL traces:
 
 ```bash
 php bin/kongo oshie --lessons
 php bin/kongo oshie --lesson routing
-php bin/kongo oshie --progress                                           # Completed lessons + tailored project exercises
+php bin/kongo oshie --exercises                                          # List 6 verifiable hands-on exercises
+php bin/kongo oshie --exercise routing                                   # Grade exercise against your live project
+php bin/kongo oshie --progress                                           # Completed lessons, verified exercises & recommendations
 php bin/kongo oshie --interactive                                        # Streaming multi-turn REPL
 php bin/kongo oshie "Why is /api/notes slow?" --stream --max-cost=0.10
 ```
 
 ## 2. Chie (知恵) — Build with Kongono
 
-Chie runs under a governed `AgentPrincipal` with 5 read-only inspection tools (`list_files`, `read_file` with line ranges, `search_code`, `inspect_graph`, and live `inspect_schema` metadata), previews every proposed change as a unified diff, runs `php -l` syntax checks before writing, and supports **multi-gate self-verifying repair loops** (`--apply --verify` running syntax → PHPStan → PHPUnit → `MigrationLinter` → `SecurityAuditor`), **per-file interactive diff approval** (`--interactive`), and **iterative session continuation** (`--continue`):
+Chie runs under a governed `AgentPrincipal` with 5 read-only inspection tools (`list_files`, `read_file` with line ranges, `search_code`, `inspect_graph`, and live `inspect_schema` metadata), automatically reads your project's `AGENTS.md` conventions, supports surgical search-and-replace patches (`action: "patch"`) alongside new files, previews every change as a unified diff, runs `php -l` syntax checks before writing, and supports **multi-gate self-verifying repair loops** (`--apply --verify` running syntax → PHPStan → PHPUnit → `MigrationLinter` → `SecurityAuditor`), **per-file interactive diff approval** (`--interactive`), and **iterative session continuation** (`--continue`):
 
 ```bash
 php bin/kongo chie "Add a /api/stats endpoint returning note count and queue stats"
@@ -45,13 +47,14 @@ php bin/kongo chie "Add a /api/stats endpoint" --apply --verify --rollback-on-fa
 
 ## 3. Hantei (判定) — Debug, Review & Test
 
-Hantei uses the same governed read-only tools (`search_code`, `read_file`, `inspect_graph`, `inspect_schema`) to open exact stack-trace lines and inspect DB tables, scrubs credentials via `SecretScrubber`, streams live diagnoses (`--stream` and `/_kongono/api/hantei/stream`), diagnoses live `/_kongono` traces with PHPUnit 13 regression test export (`POST /_kongono/api/hantei/trace/{id}`), diagnoses dead-lettered background jobs (`queue-failed`), hands off fixes to Chie (`fix`), reviews git diffs for Kongono invariants (`review --format=markdown|sarif`), tracks local diagnosis history (`history`), and generates syntax-checked PHPUnit 13 tests:
+Hantei uses the same governed read-only tools (`search_code`, `read_file`, `inspect_graph`, `inspect_schema`) to open exact stack-trace lines and inspect DB tables, scrubs credentials via `SecretScrubber`, streams live diagnoses (`--stream` and `/_kongono/api/hantei/stream`), diagnoses live `/_kongono` traces (`POST /_kongono/api/hantei/trace/{id}`), diagnoses dead-lettered background jobs in CLI (`queue-failed`) and inside `/_ops` (`POST /_ops/queues/diagnose` via `DevStudioCompanions::opsJobDiagnoser()`), watches error logs/failed queues live (`watch`), hands off fixes to Chie (`fix`), reviews git diffs for Kongono invariants (`review --format=markdown|sarif`, ready-to-copy workflow in [docs/ci-hantei-review.yml](ci-hantei-review.yml)), tracks local diagnosis history (`history`), and generates syntax-checked PHPUnit 13 tests:
 
 ```bash
 php bin/kongo hantei check
 php bin/kongo hantei debug "KGN-VALIDATION-422 on POST /api/notes" --stream
 php bin/kongo hantei fix --apply --verify                                # Diagnose failing tests -> Chie patch -> re-verify
 php bin/kongo hantei review --base=main --format=sarif                   # CI-ready Kongono invariant & security diff review
+php bin/kongo hantei watch --log=var/log/app.log                         # Tail local error log or failed queue live
 php bin/kongo hantei history                                             # Recent scrubbed diagnoses for this project
 php bin/kongo hantei queue-failed --queue=default
 php bin/kongo hantei generate-tests src/Http/NoteController.php --apply

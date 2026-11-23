@@ -77,7 +77,7 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.18.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.19.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
@@ -1247,14 +1247,57 @@ final readonly class KongoCli
             return $this->runOshieRepl($oshie, $context, $maxCost);
         }
 
+        if (isset($options['exercises'])) {
+            $progress = $sessions->oshieProgress();
+            $doneMap = array_flip($progress['completed_exercises']);
+            $lines = ['Kongono Oshie — Verifiable Hands-On Exercises:'];
+            foreach ($oshie->listExercises() as $id => $meta) {
+                $tag = isset($doneMap[$id]) ? 'DONE' : 'TODO';
+                $lines[] = sprintf('  [%-4s] %-12s %s — %s', $tag, $id, $meta['title'], $meta['goal']);
+            }
+            $lines[] = "\nGrade an exercise against your project: kongo oshie --exercise <id>";
+
+            return [0, implode("\n", $lines) . "\n"];
+        }
+
+        if (isset($options['exercise']) && is_string($options['exercise'])) {
+            $report = $oshie->verifyExercise($options['exercise'], $context);
+            if ($report['passed']) {
+                $sessions->recordOshieExercise($report['exercise']);
+            }
+            $lines = [
+                sprintf('Oshie Exercise [%s] — %s (%s)', $report['exercise'], $report['title'], $report['passed'] ? 'PASS' : 'NEEDS WORK'),
+                '  Goal: ' . $report['goal'],
+                '',
+            ];
+            foreach ($report['checks'] as $chk) {
+                $lines[] = sprintf('  [%-4s] %s — %s', $chk['passed'] ? 'PASS' : 'FAIL', $chk['label'], $chk['detail']);
+            }
+            if (!$report['passed']) {
+                $lines[] = "\nHint: " . $report['hint'];
+            } else {
+                $lines[] = "\nExercise verified and recorded in your Oshie progress!";
+            }
+
+            return [$report['passed'] ? 0 : 1, implode("\n", $lines) . "\n"];
+        }
+
         if (isset($options['progress'])) {
             $progress = $sessions->oshieProgress();
             $completed = $progress['completed_lessons'];
+            $completedEx = $progress['completed_exercises'];
             $doneMap = array_flip($completed);
             $all = $oshie->listLessons();
+            $allEx = $oshie->listExercises();
 
             $lines = [
-                sprintf('Kongono Oshie — Learning Progress (%d/%d lessons completed):', count($completed), count($all)),
+                sprintf(
+                    'Kongono Oshie — Learning Progress (%d/%d lessons, %d/%d exercises verified):',
+                    count($completed),
+                    count($all),
+                    count($completedEx),
+                    count($allEx),
+                ),
             ];
             foreach ($all as $id => $meta) {
                 $tag = isset($doneMap[$id]) ? 'DONE' : 'TODO';
@@ -1267,6 +1310,7 @@ final readonly class KongoCli
                     $lines[] = sprintf('  -> kongo oshie --lesson %s  (%s)', $rec['lesson'], $rec['reason']);
                 }
             }
+            $lines[] = "\nVerify hands-on exercises: kongo oshie --exercises  |  kongo oshie --exercise <id>";
 
             return [0, implode("\n", $lines) . "\n"];
         }
@@ -1563,6 +1607,10 @@ final readonly class KongoCli
         $hantei = new HanteiDebugger($hanteiAi);
         $maxCost = $this->parseMaxCost($options);
 
+        if ('watch' === $sub) {
+            return $this->runHanteiWatch($appRoot, $context, $hantei, $sessions, $options, $maxCost);
+        }
+
         if ('history' === $sub) {
             $limitRaw = is_string($options['limit'] ?? null) && ctype_digit($options['limit']) ? (int) $options['limit'] : 10;
             $items = $sessions->hanteiHistory(max(1, min(25, $limitRaw)));
@@ -1777,7 +1825,135 @@ final readonly class KongoCli
             return [$report['exit_code'], $out];
         }
 
-        return [1, "Unknown hantei subcommand. Use: check | debug \"<error>\" [--stream] | fix [\"<error>\"] [--apply] [--verify] | review [--base=main] [--format=markdown|sarif] | history | queue-failed [<job-id>] | generate-tests <file>\n"];
+        return [1, "Unknown hantei subcommand. Use: check | debug \"<error>\" [--stream] | fix [\"<error>\"] [--apply] [--verify] | review [--base=main] [--format=markdown|sarif] | watch [--log=file] [--queue=default] | history | queue-failed [<job-id>] | generate-tests <file>\n"];
+    }
+
+    /**
+     * Local dev watcher inspecting newly dead-lettered jobs or newly logged errors and printing
+     * secret-scrubbed Hantei root-cause diagnoses as they occur.
+     *
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function runHanteiWatch(
+        string $appRoot,
+        ProjectContext $context,
+        HanteiDebugger $hantei,
+        CompanionSessionStore $sessions,
+        array $options,
+        ?float $maxCost,
+    ): array {
+        $logOpt = is_string($options['log'] ?? null) && '' !== trim($options['log']) ? trim($options['log']) : null;
+        $queueOpt = is_string($options['queue'] ?? null) && '' !== trim($options['queue']) ? trim($options['queue']) : 'default';
+        $interval = is_string($options['interval'] ?? null) && ctype_digit($options['interval'])
+            ? max(1, min(60, (int) $options['interval']))
+            : 2;
+        $once = isset($options['once']);
+        $maxCycles = $once
+            ? 1
+            : (is_string($options['max-cycles'] ?? null) && ctype_digit($options['max-cycles']) ? max(1, (int) $options['max-cycles']) : 0);
+
+        $lines = [];
+        $diagnosedCount = 0;
+
+        if (null !== $logOpt) {
+            // Validate contained readable path (never allows .env, keys, or traversal)
+            $safeFullText = $context->readFileSafe($logOpt, 131072);
+            $offset = 0;
+            $cycle = 0;
+
+            while (0 === $maxCycles || $cycle < $maxCycles) {
+                ++$cycle;
+                $current = 1 === $cycle ? $safeFullText : $context->readFileSafe($logOpt, 131072);
+                $chunk = $offset < strlen($current) ? substr($current, $offset) : '';
+                $offset = strlen($current);
+
+                if ('' !== trim($chunk)) {
+                    $errorLines = [];
+                    $splitLines = preg_split("/\r\n|\n|\r/", $chunk);
+                    foreach (false !== $splitLines ? $splitLines : [] as $logLine) {
+                        if (1 === preg_match('/\b(?:ERROR|CRITICAL|EMERGENCY|ALERT|FATAL|EXCEPTION|KGN-)\b|Stack trace:/i', $logLine)) {
+                            $errorLines[] = SecretScrubber::scrub(trim($logLine));
+                        }
+                    }
+                    if ([] !== $errorLines) {
+                        $excerpt = implode("\n", array_slice($errorLines, -15));
+                        $diag = $hantei->diagnoseWithTelemetry($excerpt, $context, $maxCost);
+                        $sessions->recordHanteiDiagnosis('watch-log', $logOpt, $diag['diagnosis'], $diag['telemetry']?->provider);
+                        ++$diagnosedCount;
+
+                        $block = sprintf(
+                            "[Hantei Watch — %s (%d error line(s))]\n%s%s\n",
+                            $logOpt,
+                            count($errorLines),
+                            $diag['diagnosis'],
+                            null !== $diag['telemetry'] ? "\n" . $diag['telemetry']->formatFooter() : '',
+                        );
+                        $lines[] = $block;
+                        if (!$once) {
+                            fwrite(STDOUT, $block . "\n");
+                        }
+                    }
+                }
+
+                if (0 !== $maxCycles && $cycle >= $maxCycles) {
+                    break;
+                }
+                sleep($interval);
+            }
+
+            if (0 === $diagnosedCount) {
+                return [0, sprintf("Hantei Watch inspected \"%s\": 0 error lines found.\n", $logOpt)];
+            }
+
+            return [0, implode("\n", $lines)];
+        }
+
+        // Queue DLQ watch mode
+        $driver = $this->resolveQueueDriver($appRoot, $error);
+        if (null === $driver) {
+            return [1, ($error ?? "No queue driver configured.\n") . "Tip: pass --log=<relative/path.log> to watch a log file instead.\n"];
+        }
+
+        /** @var array<string, true> $seenIds */
+        $seenIds = [];
+        $cycle = 0;
+        while (0 === $maxCycles || $cycle < $maxCycles) {
+            ++$cycle;
+            foreach ($driver->listFailed($queueOpt, 20) as $job) {
+                if (isset($seenIds[$job->id])) {
+                    continue;
+                }
+                $seenIds[$job->id] = true;
+                $diag = $hantei->diagnoseFailedJob($job, $context, $maxCost);
+                $sessions->recordHanteiDiagnosis('watch-queue', $job->type . ' #' . $job->id, $diag['diagnosis'], $diag['telemetry']?->provider);
+                ++$diagnosedCount;
+
+                $block = sprintf(
+                    "[Hantei Watch — Failed Job #%s (%s) on queue \"%s\"]\n%s%s\n",
+                    $job->id,
+                    $job->type,
+                    $job->queue,
+                    $diag['diagnosis'],
+                    null !== $diag['telemetry'] ? "\n" . $diag['telemetry']->formatFooter() : '',
+                );
+                $lines[] = $block;
+                if (!$once) {
+                    fwrite(STDOUT, $block . "\n");
+                }
+            }
+
+            if (0 !== $maxCycles && $cycle >= $maxCycles) {
+                break;
+            }
+            sleep($interval);
+        }
+
+        if (0 === $diagnosedCount) {
+            return [0, sprintf("Hantei Watch inspected queue \"%s\": 0 newly failed jobs.\n", $queueOpt)];
+        }
+
+        return [0, implode("\n", $lines)];
     }
 
     /**
@@ -2229,7 +2405,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target', 'mode', 'starter', 'max-repairs', 'max-cost', 'base', 'format'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'exercise', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target', 'mode', 'starter', 'max-repairs', 'max-cost', 'base', 'format', 'log', 'interval', 'max-cycles'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -2509,16 +2685,19 @@ Core Commands:
 Built-in AI Companions (per-companion routing: KONGONO_{OSHIE,CHIE,HANTEI}_MODEL, auto-failover, cap: KONGONO_AI_MAX_COST_USD):
   oshie --lessons                                       List built-in learning lessons
   oshie --lesson <id>                                   Study a lesson & record progress (AI-tailored when configured)
-  oshie --progress                                      Track completed lessons & get tailored project exercises
+  oshie --exercises                                     List verifiable hands-on Kongono exercises
+  oshie --exercise <id>                                 Grade a hands-on exercise against your live project
+  oshie --progress                                      Track completed lessons, verified exercises & recommendations
   oshie --interactive                                   Start multi-turn streaming interactive AI tutor REPL
   oshie "<question>" [--stream] [--max-cost=0.10]       Ask Oshie anything about Kongono or your app
-  chie "<what to build>" [--apply] [--verify]           Generate Kongono code (multi-gate PHPStan+tests+lint+audit auto-repair)
+  chie "<what to build>" [--apply] [--verify]           Generate/patch Kongono code (multi-gate PHPStan+tests+lint+audit auto-repair)
   chie "<follow-up>" --continue [--apply]               Iterate on your previous Chie build session
   chie "<what to build>" --interactive                  Approve or reject each proposed file diff interactively
   hantei check                                          Run tests & diagnose failures with AI
   hantei debug "<error or diagnostic>" [--stream]       Diagnose an error using live code & schema tools
   hantei fix ["<error>"] [--apply] [--verify]           Diagnose a failure, hand off minimal patch to Chie, and verify
   hantei review [--base=main] [--format=markdown|sarif] Review git diff for Kongono invariants (CI/SARIF ready)
+  hantei watch [--log=file] [--queue=default] [--once]  Tail error logs or failed queues and auto-diagnose live
   hantei history [--limit=10]                           List recent Hantei diagnoses for this project
   hantei queue-failed [<job-id>] [--queue=default]      Diagnose a failed/dead-lettered background job with AI
   hantei generate-tests <relative/file.php> [--apply]   Generate PHPUnit 13 tests for a file

@@ -11,6 +11,7 @@ use Kongono\Cli\Context\ProjectContext;
 use Kongono\Http\App;
 use Kongono\Http\Dev\DevDashboardMiddleware;
 use Kongono\Http\Dev\DevInspector;
+use Kongono\Jobs\Job;
 use Throwable;
 
 /**
@@ -151,5 +152,36 @@ final readonly class DevStudioCompanions
                 ];
             },
         );
+    }
+
+    /**
+     * One-line factory returning a `diagnoseJobHandler` callback for `OpsDashboardMiddleware` (`/_ops/queues/diagnose`),
+     * wired with Hantei's secret-scrubbed dead-letter job diagnosis and per-companion model routing.
+     *
+     * @return Closure(Job): array{diagnosis: string, footer: ?string}
+     */
+    public static function opsJobDiagnoser(
+        App $app,
+        string $baseDir,
+        ?AiClient $aiOverride = null,
+        ?float $maxCostUsd = null,
+    ): Closure {
+        return static function (Job $job) use ($app, $baseDir, $aiOverride, $maxCostUsd): array {
+            $ai = $aiOverride;
+            if (null === $ai) {
+                try {
+                    $ai = AiClient::fromEnvForCompanion('hantei');
+                } catch (AiException) {
+                    $ai = null;
+                }
+            }
+            $ctx = new ProjectContext($baseDir, $app->graph(), $app);
+            $res = (new HanteiDebugger($ai))->diagnoseFailedJob($job, $ctx, $maxCostUsd);
+
+            return [
+                'diagnosis' => $res['diagnosis'],
+                'footer' => $res['telemetry']?->formatFooter(),
+            ];
+        };
     }
 }

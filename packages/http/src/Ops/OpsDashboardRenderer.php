@@ -27,13 +27,13 @@ use Kongono\Core\Diagnostics\SecretScrubber;
 final readonly class OpsDashboardRenderer
 {
     /** @param OpsSnapshot $snapshot */
-    public function renderPage(array $snapshot, string $basePath, ?string $csrfToken = null, ?string $notice = null): string
+    public function renderPage(array $snapshot, string $basePath, ?string $csrfToken = null, ?string $notice = null, bool $canDiagnose = false): string
     {
         $title = self::e($snapshot['app']) . ' — Kongono Ops Dashboard';
         $metaCsrf = null !== $csrfToken && '' !== $csrfToken
             ? sprintf('<meta name="csrf-token" content="%s">', self::e($csrfToken))
             : '';
-        $panel = $this->renderPanel($snapshot, $basePath, $csrfToken, $notice);
+        $panel = $this->renderPanel($snapshot, $basePath, $csrfToken, $notice, $canDiagnose);
 
         return <<<HTML
 <!doctype html>
@@ -82,7 +82,7 @@ HTML;
     }
 
     /** @param OpsSnapshot $snapshot */
-    public function renderPanel(array $snapshot, string $basePath, ?string $csrfToken = null, ?string $notice = null): string
+    public function renderPanel(array $snapshot, string $basePath, ?string $csrfToken = null, ?string $notice = null, bool $canDiagnose = false): string
     {
         $csrfInput = null !== $csrfToken && '' !== $csrfToken
             ? sprintf('<input type="hidden" name="_csrf" value="%s">', self::e($csrfToken))
@@ -166,12 +166,24 @@ HTML;
         } else {
             $parts[] = '<table><thead><tr><th>Job ID</th><th>Queue</th><th>Type</th><th>Status</th><th>Attempts</th><th>Last Error</th><th>Action</th></tr></thead><tbody>';
             foreach ($snapshot['failed_jobs'] as $job) {
+                $diagnoseForm = $canDiagnose
+                    ? sprintf(
+                        ' <form class="inline" method="POST" action="%s/queues/diagnose" kgn-post="%s/queues/diagnose" kgn-target="#ops-dashboard-root">%s'
+                        . '<input type="hidden" name="queue" value="%s"><input type="hidden" name="job_id" value="%s">'
+                        . '<button class="btn btn-ghost" type="submit">Diagnose</button></form>',
+                        self::e($basePath),
+                        self::e($basePath),
+                        $csrfInput,
+                        self::e($job['queue']),
+                        self::e($job['id']),
+                    )
+                    : '';
                 $parts[] = sprintf(
                     '<tr><td><code>%s</code></td><td><code>%s</code></td><td><code>%s</code></td>'
                     . '<td><span class="pill pill-bad">%s</span></td><td>%d/%d</td><td>%s</td>'
-                    . '<td><form class="inline" method="POST" action="%s/queues/retry" kgn-post="%s/queues/retry" kgn-target="#ops-dashboard-root">%s'
+                    . '<td><div class="actions"><form class="inline" method="POST" action="%s/queues/retry" kgn-post="%s/queues/retry" kgn-target="#ops-dashboard-root">%s'
                     . '<input type="hidden" name="queue" value="%s"><input type="hidden" name="job_id" value="%s">'
-                    . '<button class="btn" type="submit">Retry</button></form></td></tr>',
+                    . '<button class="btn" type="submit">Retry</button></form>%s</div></td></tr>',
                     self::e($job['id']),
                     self::e($job['queue']),
                     self::e($job['type']),
@@ -184,6 +196,7 @@ HTML;
                     $csrfInput,
                     self::e($job['queue']),
                     self::e($job['id']),
+                    $diagnoseForm,
                 );
             }
             $parts[] = '</tbody></table>';

@@ -621,7 +621,7 @@ PROMPT;
                 'tool' => [
                     'driver' => [
                         'name' => 'Kongono Hantei',
-                        'version' => '1.18.0',
+                        'version' => '1.19.0',
                         'informationUri' => 'https://github.com/anthonyiovanna/kongono',
                     ],
                 ],

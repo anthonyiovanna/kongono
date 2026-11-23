@@ -10,7 +10,9 @@ use Kongono\Ai\ChatRequest;
 use Kongono\Ai\Message;
 use Kongono\Ai\Security\PromptGuard;
 use Kongono\Ai\Security\UntrustedInput;
+use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Database\MigrationLinter;
 use Kongono\Core\CoreException;
 use Kongono\Core\Diagnostics\SecretScrubber;
 
@@ -278,9 +280,100 @@ Teaching style:
 - End with one short hands-on next step they can try in their project.
 PROMPT;
 
+    /** @var array<string, array{title: string, goal: string, hint: string}> */
+    private const array EXERCISES = [
+        'routing' => [
+            'title' => 'Build an Attribute-Routed Controller',
+            'goal' => 'Register at least one HTTP route backed by a strict PHP 8.5 controller in src/ using #[Get]/#[Post]/#[Prefix].',
+            'hint' => 'Run `php vendor/bin/kongo make:controller Ping` and register it with `$app->controller(PingController::class)` in app/bootstrap.php.',
+        ],
+        'validation' => [
+            'title' => 'Create a Validated Readonly Input DTO',
+            'goal' => 'Add a `final readonly class` DTO under src/ using Kongono validation attributes (#[Required], #[Email], #[Min], #[Max], etc.).',
+            'hint' => 'Run `php vendor/bin/kongo make:dto CreatePostInput` and decorate constructor properties with `Kongono\\Validation\\Attributes\\*`.',
+        ],
+        'security' => [
+            'title' => 'Harden Auth & Security Baseline',
+            'goal' => 'Ensure `SecurityAuditor` passes with 0 critical findings and wire either auth/security middleware or #[Authenticated]/#[Can]/Gate::define().',
+            'hint' => 'Run `php vendor/bin/kongo auth:init --mode=both` or add `#[Authenticated]` + `SecurityHeadersMiddleware` in app/bootstrap.php.',
+        ],
+        'database' => [
+            'title' => 'Author a Zero-Downtime Migration',
+            'goal' => 'Create at least one migration in migrations/*.php that passes `MigrationLinter` with 0 critical findings.',
+            'hint' => 'Run `php vendor/bin/kongo make:migration CreatePosts --table=posts` and verify with `php vendor/bin/kongo migrate:lint`.',
+        ],
+        'testing' => [
+            'title' => 'Write a Global-Free TestClient Test',
+            'goal' => 'Add a PHPUnit 13 test under tests/ extending TestCase and using TestClient, DatabaseTestHelper, FrozenClock, or SafeHttpClient::fake().',
+            'hint' => 'Run `php vendor/bin/kongo make:test HomeFlow` and assert routes via `(new TestClient($app))->get("/")->assertOk()`.',
+        ],
+        'views' => [
+            'title' => 'Render an XSS-Safe Compiled .kgn.html View',
+            'goal' => 'Create at least one `.kgn.html` template under views/ with zero unescaped HTML XSS findings.',
+            'hint' => 'Create `views/welcome.kgn.html` using `{{ $title }}` auto-escaping and render it with `$views->render("welcome", [...])`.',
+        ],
+    ];
+
     public function __construct(
         private ?AiClient $ai = null,
     ) {}
+
+    /** @return array<string, array{title: string, goal: string, hint: string}> */
+    public function listExercises(): array
+    {
+        return self::EXERCISES;
+    }
+
+    /**
+     * Deterministically grade a hands-on Kongono exercise against the live project.
+     *
+     * @return array{
+     *     exercise: string,
+     *     title: string,
+     *     goal: string,
+     *     passed: bool,
+     *     checks: list<array{label: string, passed: bool, detail: string}>,
+     *     hint: string
+     * }
+     */
+    public function verifyExercise(string $exerciseId, ProjectContext $context): array
+    {
+        $id = strtolower(trim($exerciseId));
+        if (!isset(self::EXERCISES[$id])) {
+            throw new CoreException(sprintf(
+                'Unknown exercise "%s". Available exercises: %s.',
+                $exerciseId,
+                implode(', ', array_keys(self::EXERCISES)),
+            ));
+        }
+
+        $meta = self::EXERCISES[$id];
+        $checks = match ($id) {
+            'routing' => $this->gradeRoutingExercise($context),
+            'validation' => $this->gradeValidationExercise($context),
+            'security' => $this->gradeSecurityExercise($context),
+            'database' => $this->gradeDatabaseExercise($context),
+            'testing' => $this->gradeTestingExercise($context),
+            'views' => $this->gradeViewsExercise($context),
+        };
+
+        $allPassed = [] !== $checks;
+        foreach ($checks as $check) {
+            if (!$check['passed']) {
+                $allPassed = false;
+                break;
+            }
+        }
+
+        return [
+            'exercise' => $id,
+            'title' => $meta['title'],
+            'goal' => $meta['goal'],
+            'passed' => $allPassed,
+            'checks' => $checks,
+            'hint' => $meta['hint'],
+        ];
+    }
 
     /** @return array<string, array{title: string, summary: string}> */
     public function listLessons(): array
@@ -578,5 +671,173 @@ PROMPT;
         }
 
         return $inspected['output'];
+    }
+
+    /** @return list<array{label: string, passed: bool, detail: string}> */
+    private function gradeRoutingExercise(ProjectContext $context): array
+    {
+        $routeCount = null !== $context->graph ? count($context->graph->routes) : 0;
+        $attrHits = array_merge(
+            $context->searchCode('#[Get(', 'src', 5),
+            $context->searchCode('#[Post(', 'src', 5),
+            $context->searchCode('#[Prefix(', 'src', 5),
+        );
+        $strictHits = $context->searchCode('declare(strict_types=1);', 'src', 5);
+
+        return [
+            [
+                'label' => 'Registered routes in ApplicationGraph',
+                'passed' => $routeCount > 0,
+                'detail' => $routeCount > 0 ? sprintf('%d route(s) active.', $routeCount) : 'No routes registered in app/bootstrap.php.',
+            ],
+            [
+                'label' => 'PHP 8.5 routing attributes in src/',
+                'passed' => [] !== $attrHits,
+                'detail' => [] !== $attrHits ? sprintf('Found attribute route in %s:%d.', $attrHits[0]['file'], $attrHits[0]['line']) : 'No #[Get]/#[Post]/#[Prefix] attributes found under src/.',
+            ],
+            [
+                'label' => 'Strict types enabled in src/',
+                'passed' => [] !== $strictHits,
+                'detail' => [] !== $strictHits ? 'declare(strict_types=1); verified.' : 'Add declare(strict_types=1); to your controllers.',
+            ],
+        ];
+    }
+
+    /** @return list<array{label: string, passed: bool, detail: string}> */
+    private function gradeValidationExercise(ProjectContext $context): array
+    {
+        $readonlyHits = $context->searchCode('readonly class', 'src', 10);
+        $attrHits = array_merge(
+            $context->searchCode('#[Required', 'src', 5),
+            $context->searchCode('#[Email', 'src', 5),
+            $context->searchCode('#[Min(', 'src', 5),
+            $context->searchCode('#[Max(', 'src', 5),
+            $context->searchCode('Kongono\\Validation\\Attributes', 'src', 5),
+        );
+
+        return [
+            [
+                'label' => 'Readonly class under src/',
+                'passed' => [] !== $readonlyHits,
+                'detail' => [] !== $readonlyHits ? sprintf('Found readonly class in %s:%d.', $readonlyHits[0]['file'], $readonlyHits[0]['line']) : 'No readonly DTO class found under src/.',
+            ],
+            [
+                'label' => 'Kongono Validation attribute used',
+                'passed' => [] !== $attrHits,
+                'detail' => [] !== $attrHits ? sprintf('Found validation attribute in %s:%d.', $attrHits[0]['file'], $attrHits[0]['line']) : 'No #[Required]/#[Min]/#[Email] attributes found under src/.',
+            ],
+        ];
+    }
+
+    /** @return list<array{label: string, passed: bool, detail: string}> */
+    private function gradeSecurityExercise(ProjectContext $context): array
+    {
+        $audit = (new SecurityAuditor())->audit($context->rootPath, $context->app, attack: false);
+        $hasAuthOrMw = false;
+        if (null !== $context->graph) {
+            foreach ($context->graph->middleware as $mw) {
+                $lower = strtolower($mw);
+                if (str_contains($lower, 'auth') || str_contains($lower, 'csrf') || str_contains($lower, 'security') || str_contains($lower, 'ratelimit')) {
+                    $hasAuthOrMw = true;
+                    break;
+                }
+            }
+        }
+        if (!$hasAuthOrMw) {
+            $secHits = array_merge(
+                $context->searchCode('#[Authenticated', 'src', 3),
+                $context->searchCode('#[Can(', 'src', 3),
+                $context->searchCode('Gate::define', 'src', 3),
+                $context->searchCode('SessionAuth', 'app', 3),
+            );
+            $hasAuthOrMw = [] !== $secHits;
+        }
+
+        return [
+            [
+                'label' => 'SecurityAuditor zero critical findings',
+                'passed' => $audit['passed'],
+                'detail' => sprintf('Audit score %d/100 (%d critical finding(s)).', $audit['score'], $audit['counts']['critical']),
+            ],
+            [
+                'label' => 'Auth, Gate, or security middleware configured',
+                'passed' => $hasAuthOrMw,
+                'detail' => $hasAuthOrMw ? 'Security controls detected.' : 'Add #[Authenticated], Gate::define(), or SecurityHeadersMiddleware/CsrfMiddleware.',
+            ],
+        ];
+    }
+
+    /** @return list<array{label: string, passed: bool, detail: string}> */
+    private function gradeDatabaseExercise(ProjectContext $context): array
+    {
+        $migDir = $context->rootPath . DIRECTORY_SEPARATOR . 'migrations';
+        $lint = (new MigrationLinter())->lintDirectory($migDir);
+
+        return [
+            [
+                'label' => 'Migration file exists in migrations/',
+                'passed' => $lint['files_scanned'] > 0,
+                'detail' => sprintf('%d migration file(s) scanned.', $lint['files_scanned']),
+            ],
+            [
+                'label' => 'MigrationLinter zero-downtime pass',
+                'passed' => $lint['passed'],
+                'detail' => $lint['passed'] ? 'Zero critical DDL hazards.' : sprintf('%d critical migration hazard(s) detected.', $lint['counts']['critical']),
+            ],
+        ];
+    }
+
+    /** @return list<array{label: string, passed: bool, detail: string}> */
+    private function gradeTestingExercise(ProjectContext $context): array
+    {
+        $testCases = $context->searchCode('extends TestCase', 'tests', 5);
+        $helpers = array_merge(
+            $context->searchCode('TestClient', 'tests', 5),
+            $context->searchCode('DatabaseTestHelper', 'tests', 5),
+            $context->searchCode('FrozenClock', 'tests', 5),
+            $context->searchCode('SafeHttpClient::fake', 'tests', 5),
+        );
+
+        return [
+            [
+                'label' => 'PHPUnit TestCase in tests/',
+                'passed' => [] !== $testCases,
+                'detail' => [] !== $testCases ? sprintf('Found test class in %s:%d.', $testCases[0]['file'], $testCases[0]['line']) : 'No PHPUnit TestCase found in tests/.',
+            ],
+            [
+                'label' => 'Kongono global-free testing helper used',
+                'passed' => [] !== $helpers,
+                'detail' => [] !== $helpers ? sprintf('Found helper usage in %s:%d.', $helpers[0]['file'], $helpers[0]['line']) : 'Use TestClient, DatabaseTestHelper, FrozenClock, or SafeHttpClient::fake() in tests/.',
+            ],
+        ];
+    }
+
+    /** @return list<array{label: string, passed: bool, detail: string}> */
+    private function gradeViewsExercise(ProjectContext $context): array
+    {
+        $views = array_values(array_filter(
+            $context->listFiles(200),
+            static fn(string $f): bool => str_starts_with($f, 'views/') && str_ends_with($f, '.kgn.html'),
+        ));
+        $audit = (new SecurityAuditor())->audit($context->rootPath, $context->app, attack: false);
+        $xssCrit = 0;
+        foreach ($audit['findings'] as $f) {
+            if ('critical' === $f['severity'] && str_contains(strtolower($f['code']), 'xss')) {
+                ++$xssCrit;
+            }
+        }
+
+        return [
+            [
+                'label' => 'Compiled .kgn.html template in views/',
+                'passed' => [] !== $views,
+                'detail' => [] !== $views ? sprintf('Found %d template(s), e.g. %s.', count($views), $views[0]) : 'No .kgn.html template found under views/.',
+            ],
+            [
+                'label' => 'Zero unescaped raw HTML XSS hazards',
+                'passed' => 0 === $xssCrit,
+                'detail' => 0 === $xssCrit ? 'All templates pass XSS audit.' : sprintf('%d raw XSS hazard(s) detected.', $xssCrit),
+            ],
+        ];
     }
 }
