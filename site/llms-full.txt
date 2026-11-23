@@ -390,7 +390,7 @@ $dto = $ai->structured($ticketText, TicketSummaryDto::class);
 
 ## 11. Built-In `/_ops` Operations Dashboard (`Kongono\Http\Ops`)
 
-Mount `Kongono\Http\Ops\OpsDashboardMiddleware` with a `Gate` defining `ops.view` (read-only) and `ops.manage` (dead-letter retry/flush), plus an explicit queue allowlist. Renders a zero-npm, strict-CSP Live 2.5 dashboard with queue depths, 1-click DLQ retry/flush, `JobBatch` progress, `HealthCheck`, `Metrics::snapshot()`, and recent traces. Fails closed by default.
+Mount `Kongono\Http\Ops\OpsDashboardMiddleware` with a `Gate` defining `ops.view` (read-only + 1-click Hantei DLQ diagnosis via `POST /_ops/queues/diagnose` using `DevStudioCompanions::opsJobDiagnoser()`) and `ops.manage` (dead-letter retry/flush), plus an explicit queue allowlist. Renders a zero-npm, strict-CSP Live 2.5 dashboard with queue depths, 1-click DLQ retry/flush/diagnose, `JobBatch` progress, `HealthCheck`, `Metrics::snapshot()`, and recent traces. Fails closed by default.
 
 ---
 
@@ -419,6 +419,7 @@ php vendor/bin/kongo new my-app --starter=saas   # minimal | api | saas
 php vendor/bin/kongo auth:init --mode=both       # web | api | both
 php vendor/bin/kongo make:resource Post          # migration, DTOs, repo, controller, test
 php vendor/bin/kongo make:job SendInvoice        # also policy|middleware|factory|rule|mail
+php vendor/bin/kongo oshie --exercise routing
 php vendor/bin/kongo oshie --progress
 php vendor/bin/kongo oshie "Why is /api/notes slow?" --stream
 php vendor/bin/kongo chie "Add a /api/stats endpoint" --interactive
@@ -426,6 +427,7 @@ php vendor/bin/kongo chie "Add a /api/stats endpoint" --apply --verify --rollbac
 php vendor/bin/kongo chie "Now add pagination" --continue
 php vendor/bin/kongo hantei fix --apply --verify
 php vendor/bin/kongo hantei review --base=main --format=sarif
+php vendor/bin/kongo hantei watch --log=var/log/app.log
 php vendor/bin/kongo hantei history
 php vendor/bin/kongo hantei queue-failed --queue=default
 php vendor/bin/kongo eval --companions

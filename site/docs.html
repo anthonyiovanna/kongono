@@ -68,7 +68,7 @@
     </aside>
 
     <article class="docs-content">
-      <h1>Kongono v1.18 Documentation</h1>
+      <h1>Kongono v1.19 Documentation</h1>
       <p class="hero-lead" style="margin:0 0 1.25rem;max-width:none;">
         Everything you need to build, test, secure, and scale modern PHP 8.5.13+ applications with zero Symfony runtime dependencies and zero mutable global state.
       </p>
@@ -326,15 +326,17 @@ $answer = $kb-&gt;ask('How does key rotation work?', $ai);</code></pre>
       </section>
 
       <section id="ai-companions">
-        <h2>14. Built-In AI Companions &amp; 12-Tool MCP Server</h2>
-        <p>Every Kongono app ships with three tool-equipped AI companions (live streaming, code/schema inspection, persistent local sessions, per-companion model routing with automatic provider failover, and hard <code>KONGONO_AI_MAX_COST_USD</code> caps) plus a capability-governed 15-tool JSON-RPC 2.0 MCP server:</p>
-<pre><code>php vendor/bin/kongo oshie --progress                                 # Lesson progress &amp; tailored project exercises
+        <h2>14. Built-In AI Companions &amp; 15-Tool MCP Server</h2>
+        <p>Every Kongono app ships with three tool-equipped AI companions (live streaming, code/schema inspection, surgical patches, automatic <code>AGENTS.md</code> grounding, persistent local sessions, per-companion model routing with automatic provider failover, and hard <code>KONGONO_AI_MAX_COST_USD</code> caps) plus a capability-governed 15-tool JSON-RPC 2.0 MCP server:</p>
+<pre><code>php vendor/bin/kongo oshie --exercise routing                         # Grade hands-on Kongono exercises against your app
+php vendor/bin/kongo oshie --progress                                 # Lesson &amp; exercise progress + tailored recommendations
 php vendor/bin/kongo oshie "Why is /api/notes slow?" --stream         # Live token streaming + token/cost telemetry footer
 php vendor/bin/kongo chie "Add a /api/posts CRUD" --interactive       # Approve or skip each unified file diff [y/n/a/q]
 php vendor/bin/kongo chie "Add a /api/posts CRUD" --apply --verify    # Multi-gate verify (syntax, PHPStan, tests, lint, audit)
 php vendor/bin/kongo chie "Now add rate limiting" --continue          # Iterate on your last Chie plan
 php vendor/bin/kongo hantei fix --apply --verify                      # Diagnose failure -&gt; Chie patch -&gt; re-verify
 php vendor/bin/kongo hantei review --base=main --format=sarif         # CI-ready Kongono invariant &amp; security diff review
+php vendor/bin/kongo hantei watch --log=var/log/app.log               # Tail local error logs or failed queues live
 php vendor/bin/kongo hantei queue-failed --queue=default              # Diagnose dead-lettered background jobs (secret-scrubbed)
 php vendor/bin/kongo eval --companions                                # Oshie/Chie/Hantei zero-hallucination &amp; safety evals
 php vendor/bin/kongo mcp                                              # Start 15-tool stdio MCP server</code></pre>
@@ -353,7 +355,7 @@ php vendor/bin/kongo mcp                                              # Start 15
       <section id="observability">
         <h2>15. <code>/_ops</code> Operations, Dev Studio &amp; SDK Generator</h2>
         <ul>
-          <li><strong>Built-In Operations Dashboard (<code>/_ops</code>):</strong> Mount <code>OpsDashboardMiddleware</code> for a zero-npm, strict-CSP Live 2.5 control plane gated fail-closed by <code>Gate</code> abilities (<code>ops.view</code> for reads, <code>ops.manage</code> for dead-letter retry/flush) — showing live queue depths, active <code>JobBatch</code> progress bars, <code>HealthCheck</code> status, <code>Metrics::snapshot()</code>, and recent request traces.</li>
+          <li><strong>Built-In Operations Dashboard (<code>/_ops</code>):</strong> Mount <code>OpsDashboardMiddleware</code> for a zero-npm, strict-CSP Live 2.5 control plane gated fail-closed by <code>Gate</code> abilities (<code>ops.view</code> for reads and 1-click Hantei DLQ diagnosis via <code>POST /_ops/queues/diagnose</code>, <code>ops.manage</code> for dead-letter retry/flush) — showing live queue depths, active <code>JobBatch</code> progress bars, <code>HealthCheck</code> status, <code>Metrics::snapshot()</code>, and recent request traces.</li>
           <li><strong>Kongono Dev Studio (<code>/_kongono</code>):</strong> Live request/SQL trace viewer, in-process time-travel replay (<code>/_kongono/api/replay/{id}</code>), 1-click Hantei trace diagnosis + PHPUnit 13 regression test export (<code>POST /_kongono/api/hantei/trace/{id}</code>), live SSE streaming for <strong>Oshie &amp; Hantei</strong> (<code>/_kongono/api/{oshie,hantei}/stream</code>), <code>ApplicationGraph</code> inspector, and interactive <strong>Chie</strong> diff preview &amp; <strong>MCP</strong> studio. Automatically returns <code>404</code> when <code>APP_DEBUG=false</code>.</li>
           <li><strong>Multi-Platform SDKs (<code>kongo sdk:generate</code>):</strong> Emit typed <strong>TypeScript</strong>, <strong>Swift 6</strong>, <strong>Kotlin</strong>, and <strong>Dart</strong> clients straight from your PHP 8.5 attribute routes and DTOs.</li>
           <li><strong>Feature Flags &amp; Resilience:</strong> Deterministic percentage rollouts (<code>$features-&gt;rollout('new_ui', 25)</code> + <code>#[Feature]</code>), <code>Retry</code>, <code>CircuitBreaker</code>, <code>GET /health</code>, Prometheus <code>GET /metrics</code>, and <code>Server-Timing</code> headers via <code>Tracer</code>.</li>
@@ -380,7 +382,7 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app</code></pre>
               <tr><td><code>kongo tinker [--eval="expr"]</code></td><td>Interactive PHP 8.5 REPL (or one-liner eval) with live <code>$app</code> &amp; <code>$container</code></td></tr>
               <tr><td><code>kongo doctor</code> / <code>env:check</code></td><td>Verify PHP 8.5.13+, extensions, env keys, AI provider config &amp; live app graph</td></tr>
               <tr><td><code>kongo audit --attack --strict</code></td><td>Graph-driven security audit + automated in-process red-team simulations</td></tr>
-              <tr><td><code>kongo eval [--redteam]</code></td><td>Run AI DTO accuracy/budget evals and 12-vector prompt-injection red-team battery</td></tr>
+              <tr><td><code>kongo eval [--redteam|--companions]</code></td><td>Run AI DTO accuracy/budget evals, 12-vector red-team battery, or 6-check companion benchmark</td></tr>
               <tr><td><code>kongo bridge:init</code> / <code>bridge:types</code> / <code>ui:add</code></td><td>Scaffold React/Vue/Svelte Bridge, emit TS route/DTO types, or add Live UI components</td></tr>
               <tr><td><code>kongo skills:install [--target=agents|claude|both]</code></td><td>Install the 5 bundled Kongono AI agent <code>SKILL.md</code> workflow recipes into <code>.agents/skills</code> and/or <code>.claude/skills</code></td></tr>
               <tr><td><code>kongo sdk:generate --lang=ts|swift|kotlin|dart</code></td><td>Generate typed web &amp; mobile client SDKs straight from attribute routes and DTOs</td></tr>
@@ -388,7 +390,7 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app</code></pre>
               <tr><td><code>kongo key:generate</code></td><td>Generate a cryptographically secure 256-bit <code>APP_KEY</code></td></tr>
               <tr><td><code>kongo optimize</code> / <code>cache:clear</code></td><td>Precompile views, AOT router, graph &amp; OpenAPI caches (or clear caches)</td></tr>
               <tr><td><code>kongo routes [--json]</code> / <code>graph</code> / <code>openapi</code></td><td>Inspect HTTP routes, live <code>ApplicationGraph</code>, or OpenAPI 3.1.0 JSON</td></tr>
-              <tr><td><code>kongo mcp</code></td><td>Run read-only 12-tool JSON-RPC 2.0 MCP server over stdio</td></tr>
+              <tr><td><code>kongo mcp</code></td><td>Run read-only 15-tool JSON-RPC 2.0 MCP server over stdio</td></tr>
               <tr><td><code>kongo migrate [--pretend]</code> / <code>rollback</code> / <code>status</code> / <code>lint</code> / <code>fresh</code> / <code>db:seed</code></td><td>Dry-run, lint, apply, roll back, reset (prod-guarded), and seed databases</td></tr>
               <tr><td><code>kongo work [--daemon]</code> / <code>schedule:run</code></td><td>Run persistent priority queue workers or execute due cron tasks</td></tr>
               <tr><td><code>kongo queue:failed</code> / <code>queue:retry</code> / <code>queue:flush</code></td><td>Inspect, retry (single or <code>--all</code>), and clear dead-letter failed jobs</td></tr>

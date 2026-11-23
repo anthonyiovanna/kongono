@@ -1,6 +1,6 @@
 # Kongono Framework
 
-> Modern, zero-legacy PHP 8.5.13+ application framework built from the ground up with zero Symfony packages, zero third-party runtime libraries beyond the 7 PSR interfaces, zero mutable static properties, persistent-runtime safety (FrankenPHP, RoadRunner, `kongo serve`, PHP-FPM), Live 2.5 & Bridge frontends, Hybrid RRF search, built-in `/_ops` & `/_kongono` dashboards, 5 native AI providers (OpenAI, Anthropic, Gemini, Groq, Ollama), and a 12-tool Model Context Protocol (MCP) server.
+> Modern, zero-legacy PHP 8.5.13+ application framework built from the ground up with zero Symfony packages, zero third-party runtime libraries beyond the 7 PSR interfaces, zero mutable static properties, persistent-runtime safety (FrankenPHP, RoadRunner, `kongo serve`, PHP-FPM), Live 2.5 & Bridge frontends, Hybrid RRF search, built-in `/_ops` & `/_kongono` dashboards, 5 native AI providers (OpenAI, Anthropic, Gemini, Groq, Ollama) with failover & per-companion routing, and a 15-tool Model Context Protocol (MCP) server.
 
 ## Critical Rules for AI Coding Agents
 
@@ -29,7 +29,7 @@
 - [Storage, Queues, Batches & Workflows](https://anthonyiovanna.github.io/kongono/docs.html#infra): Streaming `LocalStorage`/`S3Storage`, `PostgresQueueDriver`/`RedisQueueDriver`, priority draining, DLQ CLI replay, `JobBatch`, `WorkflowEngine`.
 - [Global-Free Testing](https://anthonyiovanna.github.io/kongono/docs.html#testing): `TestClient`, `TestUpload`, `TestResponse`, `DatabaseTestHelper::inRollbackTransaction()`, `SafeHttpClient::fake()`, `FrozenClock`.
 - [AI SDK, Evals & pgvector RAG](https://anthonyiovanna.github.io/kongono/docs.html#ai-rag): `AiClient::fromEnv()` (OpenAI, Anthropic, Gemini, Groq, Ollama), streaming, `structured()`, `KnowledgeBase`, `kongo eval --redteam`.
-- [AI Companions & 12-Tool MCP Server](https://anthonyiovanna.github.io/kongono/docs.html#ai-companions): `kongo oshie`, `kongo chie`, `kongo hantei`, `kongo mcp`.
+- [AI Companions & 15-Tool MCP Server](https://anthonyiovanna.github.io/kongono/docs.html#ai-companions): `kongo oshie`, `kongo chie`, `kongo hantei`, `kongo eval --companions`, `kongo mcp`.
 - [`/_ops` Operations, Dev Studio & SDK Generator](https://anthonyiovanna.github.io/kongono/docs.html#observability): `OpsDashboardMiddleware`, `/_kongono`, `kongo sdk:generate` (TS/Swift/Kotlin/Dart).
 - [Production Deployment (FrankenPHP)](https://anthonyiovanna.github.io/kongono/docs.html#production): `kongo optimize`, `kongo deploy:init`, Redis horizontal scaling.
 - [Complete `kongo` CLI Reference](https://anthonyiovanna.github.io/kongono/docs.html#cli): Every built-in CLI command and flag.

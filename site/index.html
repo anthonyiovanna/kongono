@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kongono Framework v1.19.0 — Zero-Legacy PHP 8.5+ Framework with Built-In AI</title>
-  <meta name="description" content="A modern, zero-legacy PHP 8.5+ application framework built from the ground up with zero Symfony packages, Live 2.5 &amp; Bridge, persistent-runtime safety, hybrid search, /_ops dashboard, 12-tool MCP, and built-in Oshie, Chie &amp; Hantei AI companions.">
+  <meta name="description" content="A modern, zero-legacy PHP 8.5+ application framework built from the ground up with zero Symfony packages, Live 2.5 &amp; Bridge, persistent-runtime safety, hybrid search, /_ops dashboard, 15-tool MCP, and built-in Oshie, Chie &amp; Hantei AI companions.">
   <link rel="stylesheet" href="assets/style.css">
   <link rel="alternate" type="text/markdown" title="Kongono LLM Documentation Index" href="llms.txt">
 </head>
@@ -36,7 +36,7 @@
         <h1>The Zero-Legacy PHP Framework <span class="grad">Built for 2026 &amp; Beyond</span></h1>
         <p class="hero-lead">
           Built from the ground up — zero Symfony packages, zero third-party runtime libraries, zero mutable static state, and zero magic global facades.
-          Persistent-runtime first, with <strong>Live 2.5 &amp; Bridge</strong>, built-in <strong><code>/_ops</code></strong>, <strong>Hybrid RRF Search</strong>, <strong>Oshie / Chie / Hantei</strong> AI companions, and a native <strong>12-tool MCP Server</strong>.
+          Persistent-runtime first, with <strong>Live 2.5 &amp; Bridge</strong>, built-in <strong><code>/_ops</code></strong>, <strong>Hybrid RRF Search</strong>, <strong>Oshie / Chie / Hantei</strong> AI companions, and a native <strong>15-tool MCP Server</strong>.
         </p>
 
         <div class="install-box">
@@ -55,7 +55,7 @@
           <div class="stat-card"><div class="num">0</div><div class="lbl">Symfony Packages</div></div>
           <div class="stat-card"><div class="num">8</div><div class="lbl">Production Packages Total</div></div>
           <div class="stat-card"><div class="num">11</div><div class="lbl">Cohesive Namespaces</div></div>
-          <div class="stat-card"><div class="num">12</div><div class="lbl">Native MCP Tools</div></div>
+          <div class="stat-card"><div class="num">15</div><div class="lbl">Native MCP Tools</div></div>
           <div class="stat-card"><div class="num">Level 9</div><div class="lbl">PHPStan Strict Rules</div></div>
         </div>
       </div>
@@ -233,29 +233,29 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
       <div class="container">
         <div class="section-head">
           <h2>Everything You Need — Zero Legacy Baggage</h2>
-          <p>Three built-in AI companions, a 12-tool MCP server, reactive Live 2.5 &amp; Bridge frontends, capability-gated <code>/_ops</code>, production queues, and adversarial security out of the box.</p>
+          <p>Three tool-equipped AI companions, a 15-tool MCP server, reactive Live 2.5 &amp; Bridge frontends, capability-gated <code>/_ops</code>, production queues, and adversarial security out of the box.</p>
         </div>
 
         <div class="grid-3">
           <div class="card">
             <span class="tag">Oshie (教え) &middot; Learn</span>
-            <h3>Interactive AI Tutor</h3>
-            <p>Built-in lessons + multi-turn CLI REPL (<code>kongo oshie --interactive</code>) and browser AI Studio inside <code>/_kongono</code> that teaches Kongono using your live routes and services.</p>
+            <h3>Interactive AI Tutor &amp; Grader</h3>
+            <p>12 lessons + 6 verifiable hands-on exercises (<code>kongo oshie --exercise</code>), live CLI &amp; SSE streaming, <code>AGENTS.md</code> grounding, <code>--progress</code> tracking, and live <code>DevInspector</code> trace awareness.</p>
           </div>
           <div class="card">
             <span class="tag">Chie (知恵) &middot; Build</span>
-            <h3>Project-Aware AI Builder</h3>
-            <p>Runs under a capability-governed <code>AgentPrincipal</code>, reads your live project structure, renders unified diffs first, and writes strictly contained PHP 8.5 code only when you pass <code>--apply</code>.</p>
+            <h3>Self-Verifying AI Builder</h3>
+            <p>Inspects code &amp; live DB schema via <code>AgentPrincipal</code>, applies surgical patches (<code>action: "patch"</code>), supports <code>--interactive</code> diff approval and <code>--continue</code>, and auto-repairs across PHPStan + PHPUnit + lint + security gates (<code>--apply --verify</code>).</p>
           </div>
           <div class="card">
-            <span class="tag">Hantei (判定) &middot; Debug &amp; Test</span>
-            <h3>AI Debugger &amp; Test Generator</h3>
-            <p>Runs PHPUnit, scrubs secrets via <code>SecretScrubber</code>, diagnoses failures against your live app graph (CLI &amp; browser), and generates PHPUnit 13 tests.</p>
+            <span class="tag">Hantei (判定) &middot; Debug &amp; Review</span>
+            <h3>AI Debugger, Watcher &amp; PR Reviewer</h3>
+            <p>Tool-equipped root-cause diagnosis (CLI, <code>/_kongono</code> traces, <code>/_ops</code> DLQ jobs, <code>hantei watch</code>), closed-loop <code>hantei fix</code>, CI SARIF 2.1.0 <code>hantei review</code>, and PHPUnit 13 test generation — all secret-scrubbed.</p>
           </div>
           <div class="card">
-            <span class="tag">MCP &middot; 12 Native Tools</span>
+            <span class="tag">MCP &middot; 15 Native Tools</span>
             <h3>Model Context Protocol Server</h3>
-            <p>Run <code>kongo mcp</code> (stdio) or <code>POST /mcp</code> so Antigravity, Cursor, Claude Code, and Codex inspect routes, OpenAPI 3.1, audits, AI evals, migration lints, SDK generation, and route tests safely.</p>
+            <p>Run <code>kongo mcp</code> (stdio) or <code>POST /mcp</code> so Antigravity, Cursor, Claude Code, and Codex inspect routes, OpenAPI 3.1, live DB schemas, audits, AI evals, migration lints, Hantei diagnoses, and read-only Chie diff previews safely.</p>
           </div>
           <div class="card">
             <span class="tag">Live 2.5 &amp; Bridge</span>
@@ -299,7 +299,7 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
               <tr>
                 <th>Capability</th>
                 <th>Traditional PHP Frameworks</th>
-                <th>Kongono v1.18 (PHP 8.5+)</th>
+                <th>Kongono v1.19 (PHP 8.5+)</th>
               </tr>
             </thead>
             <tbody>
@@ -331,7 +331,7 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
               <tr>
                 <td><strong>Auth, Testing &amp; AI Safety</strong></td>
                 <td>Sanctum/Fortify + global fakes + ad-hoc AI glue</td>
-                <td>Native <code>SessionAuth</code>, revocable PATs, Passkeys, global-free <code>TestClient</code>/<code>FrozenClock</code>, <code>kongo audit --attack</code>, <code>kongo eval --redteam</code>, and 12-tool MCP</td>
+                <td>Native <code>SessionAuth</code>, revocable PATs, Passkeys, global-free <code>TestClient</code>/<code>FrozenClock</code>, <code>kongo audit --attack</code>, <code>kongo eval --redteam/--companions</code>, SARIF <code>hantei review</code>, and 15-tool MCP</td>
               </tr>
             </tbody>
           </table>
