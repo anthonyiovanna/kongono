@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace Kongono\Cli\Tests;
 
+use Closure;
 use Kongono\Ai\AiClient;
 use Kongono\Ai\Provider\OpenAiProvider;
+use Kongono\Ai\TokenUsage;
 use Kongono\Ai\Transport\HttpResponse;
 use Kongono\Ai\Transport\HttpTransportInterface;
+use Kongono\Ai\Transport\StreamingHttpTransportInterface;
 use Kongono\Cli\AppScaffolder;
 use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\CodeGenerator;
 use Kongono\Cli\Companions\ChieBuilder;
+use Kongono\Cli\Companions\CompanionTelemetry;
 use Kongono\Cli\Companions\DevStudioCompanions;
 use Kongono\Cli\Companions\HanteiDebugger;
 use Kongono\Cli\Companions\OshieTutor;
@@ -46,6 +50,43 @@ final class ScriptedTransport implements HttpTransportInterface
         $this->requests[] = $jsonBody;
 
         return array_shift($this->responses) ?? new HttpResponse(500, '{}');
+    }
+}
+
+final class ScriptedStreamingTransport implements StreamingHttpTransportInterface
+{
+    /** @var list<string> */
+    public array $requests = [];
+
+    /** @var list<list<string>> */
+    private array $streams;
+
+    /** @param list<string> ...$streams */
+    public function __construct(array ...$streams)
+    {
+        $this->streams = array_values($streams);
+    }
+
+    public function postJson(string $url, array $headers, string $jsonBody, int $timeoutSeconds = 60): HttpResponse
+    {
+        $this->requests[] = $jsonBody;
+
+        return new HttpResponse(200, json_encode([
+            'model' => 'gpt-4.1-mini',
+            'choices' => [['message' => ['role' => 'assistant', 'content' => 'Fallback non-stream reply.']]],
+            'usage' => ['prompt_tokens' => 50, 'completion_tokens' => 10],
+        ], JSON_THROW_ON_ERROR));
+    }
+
+    public function postJsonStream(string $url, array $headers, string $jsonBody, Closure $onChunk, int $timeoutSeconds = 120): int
+    {
+        $this->requests[] = $jsonBody;
+        $chunks = array_shift($this->streams) ?? [];
+        foreach ($chunks as $chunk) {
+            $onChunk($chunk);
+        }
+
+        return 200;
     }
 }
 
@@ -1783,6 +1824,435 @@ PHP;
             $prodApp = App::create($tmp, name: 'Prod Demo')->config(['app' => ['debug' => false]]);
             $prodApp->middleware(DevStudioCompanions::middleware($prodApp, new DevInspector(), $tmp));
             (new TestClient($prodApp))->postJson('/_kongono/api/oshie', ['lesson' => 'routing'])->assertNotFound();
+        } finally {
+            $this->removeDir($tmp);
+        }
+    }
+
+    public function testCompanionTelemetryCostEstimationAndHardBudgetCaps(): void
+    {
+        // Ollama is strictly $0.00 (local)
+        $ollama = CompanionTelemetry::fromUsage('ollama', 'qwen2.5-coder:14b', new TokenUsage(10_000, 5_000), 123.4);
+        self::assertSame(0.0, $ollama->estimatedCostUsd);
+        self::assertStringContainsString('$0.00 (local)', $ollama->formatFooter());
+
+        // Cloud provider cost estimation across all supported families
+        self::assertGreaterThan(0.0, CompanionTelemetry::estimateCostUsd('openai', 'gpt-4.1-mini', 100_000, 50_000));
+        self::assertGreaterThan(0.0, CompanionTelemetry::estimateCostUsd('anthropic', 'claude-sonnet-4-5', 100_000, 50_000));
+        self::assertGreaterThan(0.0, CompanionTelemetry::estimateCostUsd('gemini', 'gemini-2.5-flash', 100_000, 50_000));
+        self::assertGreaterThan(0.0, CompanionTelemetry::estimateCostUsd('groq', 'llama-3.3-70b-versatile', 100_000, 50_000));
+
+        // Merge accumulates tokens, latency, and USD cost while preserving budget cap
+        $a = CompanionTelemetry::fromUsage('openai', 'gpt-4.1-mini', new TokenUsage(1_000, 500), 100.0, 0.05);
+        $b = CompanionTelemetry::fromUsage('openai', 'gpt-4.1-mini', new TokenUsage(2_000, 1_500), 150.0, 0.05);
+        $merged = $a->merge($b);
+        self::assertSame(3_000, $merged->inputTokens);
+        self::assertSame(2_000, $merged->outputTokens);
+        self::assertSame(5_000, $merged->totalTokens());
+        self::assertSame(250.0, $merged->durationMs);
+        self::assertSame(0.05, $merged->maxCostUsd);
+        self::assertStringContainsString('cap $0.0500', $merged->formatFooter());
+        self::assertSame($merged->formatFooter(), $merged->toArray()['footer']);
+
+        // Hard budget enforcement blocks Oshie, Hantei, and Chie when cost exceeds maxCostUsd
+        $ctx = ProjectContext::discover($this->starterAppRoot);
+        $expensiveResponse = new HttpResponse(200, json_encode([
+            'model' => 'gpt-4.1',
+            'choices' => [['message' => ['role' => 'assistant', 'content' => 'Expensive reply']]],
+            'usage' => ['prompt_tokens' => 500_000, 'completion_tokens' => 100_000],
+        ], JSON_THROW_ON_ERROR));
+
+        $aiOshie = new AiClient(new OpenAiProvider('sk-test', transport: new ScriptedTransport($expensiveResponse)));
+        try {
+            (new OshieTutor($aiOshie))->askWithTelemetry('Explain routing', $ctx, maxCostUsd: 0.01);
+            self::fail('Expected Oshie to enforce hard maxCostUsd budget.');
+        } catch (CoreException $e) {
+            self::assertStringContainsString('exceeded configured cost budget', $e->getMessage());
+        }
+
+        $aiHantei = new AiClient(new OpenAiProvider('sk-test', transport: new ScriptedTransport($expensiveResponse)));
+        try {
+            (new HanteiDebugger($aiHantei))->diagnoseWithTelemetry('500 error', $ctx, maxCostUsd: 0.01);
+            self::fail('Expected Hantei to enforce hard maxCostUsd budget.');
+        } catch (CoreException $e) {
+            self::assertStringContainsString('exceeded configured cost budget', $e->getMessage());
+        }
+    }
+
+    public function testLiveStreamingTraceAwareOshieAndHanteiInCliAndDevStudio(): void
+    {
+        $sseFrames = static fn(array $tokens, int $inTok = 200, int $outTok = 40): array => array_merge(
+            array_map(
+                static fn(string $t): string => 'data: ' . json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['delta' => ['content' => $t]]],
+                ], JSON_THROW_ON_ERROR) . "\n\n",
+                $tokens,
+            ),
+            [
+                'data: ' . json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['delta' => [], 'finish_reason' => 'stop']],
+                    'usage' => ['prompt_tokens' => $inTok, 'completion_tokens' => $outTok],
+                ], JSON_THROW_ON_ERROR) . "\n\n",
+                "data: [DONE]\n\n",
+            ],
+        );
+
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono_stream_' . bin2hex(random_bytes(4));
+        try {
+            (new AppScaffolder())->scaffold($tmp, 'Stream Demo');
+            $ctx = ProjectContext::discover($tmp);
+
+            // Record a real slow request with N+1 SQL queries in DevInspector
+            $inspector = new DevInspector(nPlusOneThreshold: 3);
+            $inspector->beginRequest();
+            for ($i = 1; $i <= 4; ++$i) {
+                $inspector->recordQuery('SELECT * FROM notes WHERE user_id = ' . $i, 12.5);
+            }
+            $inspector->recordRequest(
+                method: 'GET',
+                path: '/api/notes',
+                status: 500,
+                durationMs: 245.5,
+                error: 'Timeout with bearer gsk_1234567890abcdefghijKLMN',
+                query: 'page=1',
+            );
+
+            // 1. Oshie live streaming + automatic live trace awareness + CLI --stream
+            $oshieTransport = new ScriptedStreamingTransport(
+                $sseFrames(['Use ', 'BatchLoader::hasMany()', ' to fix N+1!']),
+                $sseFrames(['Streamed ', 'CLI ', 'answer.']),
+            );
+            $oshieAi = new AiClient(new OpenAiProvider('sk-test', transport: $oshieTransport));
+            $receivedDeltas = [];
+            $oshieRes = (new OshieTutor($oshieAi))->askStream(
+                'Why is /api/notes slow?',
+                $ctx,
+                static function (string $delta) use (&$receivedDeltas): void {
+                    $receivedDeltas[] = $delta;
+                },
+                $inspector->traces(),
+            );
+            self::assertSame(['Use ', 'BatchLoader::hasMany()', ' to fix N+1!'], $receivedDeltas);
+            self::assertSame('Use BatchLoader::hasMany() to fix N+1!', $oshieRes['reply']);
+            self::assertNotNull($oshieRes['telemetry']);
+            self::assertSame(240, $oshieRes['telemetry']->totalTokens());
+            // Verify trace summary & N+1 warning were injected inside UntrustedInput and scrubbed
+            self::assertStringContainsString('/api/notes', $oshieTransport->requests[0]);
+            self::assertStringContainsString('n+1=1', $oshieTransport->requests[0]);
+            self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $oshieTransport->requests[0]);
+
+            $cliChunks = [];
+            $cli = new KongoCli(
+                dirname(__DIR__, 3),
+                aiOverride: $oshieAi,
+                streamWriter: static function (string $c) use (&$cliChunks): void {
+                    $cliChunks[] = $c;
+                },
+            );
+            [$oCode, $oOut] = $cli->run(['oshie', 'Explain BatchLoader', '--stream', '--app=' . $tmp]);
+            self::assertSame(0, $oCode);
+            self::assertSame(['Streamed ', 'CLI ', 'answer.'], $cliChunks);
+            self::assertStringContainsString('[openai/gpt-4.1-mini', $oOut);
+
+            // 2. Hantei CLI --stream
+            $hanteiTransport = new ScriptedStreamingTransport(
+                $sseFrames(['Fix ', 'SQL ', 'index.']),
+            );
+            $hanteiChunks = [];
+            $hCli = new KongoCli(
+                dirname(__DIR__, 3),
+                aiOverride: new AiClient(new OpenAiProvider('sk-test', transport: $hanteiTransport)),
+                streamWriter: static function (string $c) use (&$hanteiChunks): void {
+                    $hanteiChunks[] = $c;
+                },
+            );
+            [$hCode, $hOut] = $hCli->run(['hantei', 'debug', 'Slow query on notes', '--stream', '--app=' . $tmp]);
+            self::assertSame(0, $hCode);
+            self::assertSame(['Fix ', 'SQL ', 'index.'], $hanteiChunks);
+            self::assertStringContainsString('[openai/gpt-4.1-mini', $hOut);
+
+            // 3. Dev Studio SSE endpoints + POST /_kongono/api/hantei/trace/{id}
+            $studioTransport = new ScriptedStreamingTransport(
+                $sseFrames(['Oshie ', 'SSE ', 'works!']),
+                $sseFrames(['Hantei ', 'SSE ', 'works!']),
+            );
+            $studioAi = new AiClient(new OpenAiProvider('sk-test', transport: $studioTransport));
+            $studioApp = App::create($tmp, name: 'Studio SSE')->config(['app' => ['debug' => true]]);
+            $studioApp->middleware(DevStudioCompanions::middleware($studioApp, $inspector, $tmp, aiOverride: $studioAi));
+            $client = new TestClient($studioApp);
+
+            $oshieSse = $client->postJson('/_kongono/api/oshie/stream', ['question' => 'Why slow?']);
+            $oshieSse->assertOk();
+            self::assertStringContainsString('text/event-stream', $oshieSse->header('Content-Type'));
+            self::assertStringContainsString("event: delta\ndata: {\"text\":\"Oshie \"}", $oshieSse->body());
+            self::assertStringContainsString("event: done\n", $oshieSse->body());
+            self::assertStringContainsString('"total_tokens":240', $oshieSse->body());
+
+            $hanteiSse = $client->postJson('/_kongono/api/hantei/stream', ['diagnostic' => 'HTTP 500 on /api/notes']);
+            $hanteiSse->assertOk();
+            self::assertStringContainsString('text/event-stream', $hanteiSse->header('Content-Type'));
+            self::assertStringContainsString("event: delta\ndata: {\"text\":\"Hantei \"}", $hanteiSse->body());
+            self::assertStringContainsString("event: done\n", $hanteiSse->body());
+
+            $traceDiag = $client->postJson('/_kongono/api/hantei/trace/1', []);
+            $traceDiag->assertOk();
+            $traceJson = $traceDiag->json();
+            self::assertIsArray($traceJson);
+            self::assertSame(1, $traceJson['trace_id']);
+            self::assertStringContainsString('Fallback non-stream reply.', (string) $traceJson['diagnosis']);
+            self::assertStringContainsString('TestClient', (string) $traceJson['regression_test']);
+            self::assertStringContainsString('testReplayGetApiNotesTrace1', (string) $traceJson['regression_test']);
+            self::assertStringContainsString('/api/notes', (string) $traceJson['regression_test']);
+            self::assertIsArray($traceJson['telemetry']);
+
+            $client->postJson('/_kongono/api/hantei/trace/999', [])->assertNotFound();
+        } finally {
+            $this->removeDir($tmp);
+        }
+    }
+
+    public function testChieSelfVerifyingBuildLoopRepairsAndRollsBackAtomically(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono_verify_' . bin2hex(random_bytes(4));
+        try {
+            (new AppScaffolder())->scaffold($tmp, 'Verify Demo');
+            $ctx = ProjectContext::discover($tmp);
+
+            // Create a deterministic PHP verification script asserting src/Calc.php returns 42
+            file_put_contents(
+                $tmp . '/verify_calc.php',
+                "<?php\nrequire __DIR__ . '/src/Calc.php';\nif (App\\Calc::answer() !== 42) { fwrite(STDERR, 'Expected 42, got ' . App\\Calc::answer() . ' leak=gsk_1234567890abcdefghijKLMN'); exit(1); }\necho 'OK 42';\n",
+            );
+
+            $planJson = static fn(string $summary, array $changes): HttpResponse => new HttpResponse(200, json_encode([
+                'model' => 'gpt-4.1-mini',
+                'choices' => [['message' => [
+                    'role' => 'assistant',
+                    'content' => json_encode([
+                        'summary' => $summary,
+                        'changes' => $changes,
+                        'next_steps' => ['Done'],
+                    ], JSON_THROW_ON_ERROR),
+                ]]],
+                'usage' => ['prompt_tokens' => 300, 'completion_tokens' => 120],
+            ], JSON_THROW_ON_ERROR));
+
+            // 1. Attempt 1 returns 41 -> fails check -> Attempt 2 receives scrubbed failure and fixes to 42!
+            $repairTransport = new ScriptedTransport(
+                $planJson('Initial Calc', [[
+                    'path' => 'src/Calc.php',
+                    'action' => 'create',
+                    'explanation' => 'Creates Calc',
+                    'content' => "<?php\n\ndeclare(strict_types=1);\n\nnamespace App;\n\nfinal readonly class Calc { public static function answer(): int { return 41; } }\n",
+                ]]),
+                $planJson('Fixed Calc to return 42', [[
+                    'path' => 'src/Calc.php',
+                    'action' => 'update',
+                    'explanation' => 'Fixes return value to 42',
+                    'content' => "<?php\n\ndeclare(strict_types=1);\n\nnamespace App;\n\nfinal readonly class Calc { public static function answer(): int { return 42; } }\n",
+                ]]),
+            );
+            $repairAi = new AiClient(new OpenAiProvider('sk-test', transport: $repairTransport));
+            $report = (new ChieBuilder($repairAi))->buildAndVerify(
+                instruction: 'Add App\\Calc::answer() returning 42',
+                context: $ctx,
+                hantei: new HanteiDebugger($repairAi),
+                verifyCommand: [PHP_BINARY, $tmp . '/verify_calc.php'],
+                maxRepairs: 2,
+            );
+
+            self::assertTrue($report['verified']);
+            self::assertFalse($report['rolled_back']);
+            self::assertSame(2, $report['attempts']);
+            self::assertSame(840, $report['telemetry']->totalTokens());
+            // Secret from stderr must have been scrubbed before being sent to Chie attempt 2!
+            self::assertStringContainsString('Expected 42, got 41', $repairTransport->requests[1]);
+            self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $repairTransport->requests[1]);
+            self::assertStringContainsString('[REDACTED]', $repairTransport->requests[1]);
+
+            // 2. MigrationLinter gate catches dangerous migration DDL during --verify and triggers repair
+            $migTransport = new ScriptedTransport(
+                $planJson('Unsafe migration', [[
+                    'path' => 'migrations/002_bad.php',
+                    'action' => 'create',
+                    'explanation' => 'Adds NOT NULL column without default',
+                    'content' => "<?php\n\ndeclare(strict_types=1);\n\$sql = 'ALTER TABLE users ADD COLUMN role TEXT NOT NULL;';\nreturn \$sql;\n",
+                ]]),
+                $planJson('Safe migration', [[
+                    'path' => 'migrations/002_bad.php',
+                    'action' => 'update',
+                    'explanation' => 'Safe additive migration with default',
+                    'content' => "<?php\n\ndeclare(strict_types=1);\n\$sql = 'ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT \"member\";';\nreturn \$sql;\n",
+                ]]),
+            );
+            $migAi = new AiClient(new OpenAiProvider('sk-test', transport: $migTransport));
+            $migReport = (new ChieBuilder($migAi))->buildAndVerify(
+                instruction: 'Add migration',
+                context: $ctx,
+                hantei: new HanteiDebugger($migAi),
+                verifyCommand: [PHP_BINARY, '-r', 'echo "PASS";'],
+                maxRepairs: 2,
+            );
+            self::assertTrue($migReport['verified']);
+            self::assertSame(2, $migReport['attempts']);
+            self::assertStringContainsString('Migration lint errors', $migTransport->requests[1]);
+
+            // 3. Atomic rollback restores pre-existing file & deletes newly created file when repairs are exhausted
+            $originalKeep = "<?php\n\ndeclare(strict_types=1);\n\nnamespace App;\n\nfinal readonly class Keep { public const int V = 1; }\n";
+            file_put_contents($tmp . '/src/Keep.php', $originalKeep);
+
+            $failTransport = new ScriptedTransport(
+                $planJson('Attempt 1', [
+                    ['path' => 'src/Keep.php', 'action' => 'update', 'explanation' => 'Break Keep', 'content' => "<?php\n\ndeclare(strict_types=1);\n\nnamespace App;\n\nfinal readonly class Keep { public const int V = 99; }\n"],
+                    ['path' => 'src/TempNew.php', 'action' => 'create', 'explanation' => 'Temp file', 'content' => "<?php\n\ndeclare(strict_types=1);\n"],
+                ]),
+                $planJson('Attempt 2 still fails', [
+                    ['path' => 'src/Keep.php', 'action' => 'update', 'explanation' => 'Still broken', 'content' => "<?php\n\ndeclare(strict_types=1);\n\nnamespace App;\n\nfinal readonly class Keep { public const int V = 100; }\n"],
+                ]),
+            );
+            $failAi = new AiClient(new OpenAiProvider('sk-test', transport: $failTransport));
+            $failReport = (new ChieBuilder($failAi))->buildAndVerify(
+                instruction: 'Update Keep',
+                context: $ctx,
+                hantei: new HanteiDebugger($failAi),
+                verifyCommand: [PHP_BINARY, '-r', 'fwrite(STDERR, "Still failing"); exit(1);'],
+                maxRepairs: 1,
+                rollbackOnFailure: true,
+            );
+            self::assertFalse($failReport['verified']);
+            self::assertTrue($failReport['rolled_back']);
+            self::assertSame(2, $failReport['attempts']);
+            self::assertSame($originalKeep, file_get_contents($tmp . '/src/Keep.php'));
+            self::assertFileDoesNotExist($tmp . '/src/TempNew.php');
+
+            // 4. CLI requires --apply when --verify is passed
+            $cli = new KongoCli(dirname(__DIR__, 3), $failAi);
+            [$badCode, $badOut] = $cli->run(['chie', 'Add endpoint', '--verify', '--app=' . $tmp]);
+            self::assertSame(1, $badCode);
+            self::assertStringContainsString('--verify requires --apply', $badOut);
+        } finally {
+            $this->removeDir($tmp);
+        }
+    }
+
+    public function testChieInteractiveApprovalAndHanteiQueueFailed(): void
+    {
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono_int_' . bin2hex(random_bytes(4));
+        try {
+            (new AppScaffolder())->scaffold($tmp, 'Interactive Demo');
+
+            $threeFilesPlan = static fn(): HttpResponse => new HttpResponse(200, json_encode([
+                'model' => 'gpt-4.1-mini',
+                'choices' => [['message' => [
+                    'role' => 'assistant',
+                    'content' => json_encode([
+                        'summary' => 'Proposed three files',
+                        'changes' => [
+                            ['path' => 'src/Alpha.php', 'action' => 'create', 'explanation' => 'Alpha', 'content' => "<?php\n\ndeclare(strict_types=1);\n"],
+                            ['path' => 'src/Beta.php', 'action' => 'create', 'explanation' => 'Beta', 'content' => "<?php\n\ndeclare(strict_types=1);\n"],
+                            ['path' => 'src/Gamma.php', 'action' => 'create', 'explanation' => 'Gamma', 'content' => "<?php\n\ndeclare(strict_types=1);\n"],
+                        ],
+                        'next_steps' => ['Run tests'],
+                    ], JSON_THROW_ON_ERROR),
+                ]]],
+                'usage' => ['prompt_tokens' => 150, 'completion_tokens' => 80],
+            ], JSON_THROW_ON_ERROR));
+
+            // 1. Selective interactive approval: y (Alpha), n (Beta), a (Gamma -> all remaining)
+            $answers = ['y', 'n', 'a'];
+            $promptsSeen = [];
+            $cli = new KongoCli(
+                dirname(__DIR__, 3),
+                aiOverride: new AiClient(new OpenAiProvider('sk-test', transport: new ScriptedTransport($threeFilesPlan(), $threeFilesPlan()))),
+                promptReader: static function (string $prompt) use (&$answers, &$promptsSeen): string {
+                    $promptsSeen[] = $prompt;
+
+                    return array_shift($answers) ?? 'q';
+                },
+            );
+
+            [$iCode, $iOut] = $cli->run(['chie', 'Create three helpers', '--interactive', '--app=' . $tmp]);
+            self::assertSame(0, $iCode);
+            self::assertCount(3, $promptsSeen);
+            self::assertFileExists($tmp . '/src/Alpha.php');
+            self::assertFileDoesNotExist($tmp . '/src/Beta.php');
+            self::assertFileExists($tmp . '/src/Gamma.php');
+            self::assertStringContainsString('[WRITTEN] (create) src/Alpha.php', $iOut);
+            self::assertStringContainsString('[SKIPPED] (create) src/Beta.php', $iOut);
+            self::assertStringContainsString('[WRITTEN] (create) src/Gamma.php', $iOut);
+            self::assertStringContainsString('Applied 2 of 3 proposed file(s).', $iOut);
+            self::assertStringContainsString('[openai/gpt-4.1-mini', $iOut);
+
+            // 2. Pressing [q]uit aborts cleanly with zero files written
+            @unlink($tmp . '/src/Alpha.php');
+            @unlink($tmp . '/src/Gamma.php');
+            $answers = ['q'];
+            [$qCode, $qOut] = $cli->run(['chie', 'Create three helpers', '--interactive', '--app=' . $tmp]);
+            self::assertSame(0, $qCode);
+            self::assertStringContainsString('Aborted by user', $qOut);
+            self::assertFileDoesNotExist($tmp . '/src/Alpha.php');
+
+            // 3. Hantei queue-failed diagnoses dead-lettered background jobs and scrubs payload secrets
+            $queueAppDir = $tmp . DIRECTORY_SEPARATOR . 'queue_app';
+            mkdir($queueAppDir . '/app', 0o775, true);
+            $bootstrapPhp = <<<'PHP'
+<?php
+declare(strict_types=1);
+
+use Kongono\Http\App;
+use Kongono\Jobs\JobStatus;
+use Kongono\Jobs\MemoryQueueDriver;
+use Kongono\Jobs\QueueDriverInterface;
+
+$driver = new MemoryQueueDriver();
+$job = $driver->push('emails', 'App\\Jobs\\SendInvoiceJob', [
+    'invoice_id' => 42,
+    'api_key' => 'gsk_1234567890abcdefghijKLMN',
+], maxAttempts: 1);
+$reserved = $driver->reserve('emails');
+if (null !== $reserved) {
+    $driver->markFailed($reserved, JobStatus::Dead, 'SMTP 535 Authentication failed with secret gsk_1234567890abcdefghijKLMN');
+}
+
+$app = App::create(__DIR__ . '/..', name: 'Queue Demo');
+$app->container()->instance(QueueDriverInterface::class, $driver);
+return $app;
+PHP;
+            file_put_contents($queueAppDir . '/app/bootstrap.php', $bootstrapPhp);
+
+            $qfTransport = new ScriptedTransport(
+                new HttpResponse(200, json_encode([
+                    'model' => 'gpt-4.1-mini',
+                    'choices' => [['message' => ['role' => 'assistant', 'content' => 'Root cause: invalid SMTP credentials in Mailer transport.']]],
+                    'usage' => ['prompt_tokens' => 180, 'completion_tokens' => 45],
+                ], JSON_THROW_ON_ERROR)),
+            );
+            $qCli = new KongoCli(
+                dirname(__DIR__, 3),
+                aiOverride: new AiClient(new OpenAiProvider('sk-test', transport: $qfTransport)),
+            );
+
+            [$qfCode, $qfOut] = $qCli->run(['hantei', 'queue-failed', '--queue=emails', '--app=' . $queueAppDir]);
+            self::assertSame(0, $qfCode);
+            self::assertStringContainsString('SendInvoiceJob', $qfOut);
+            self::assertStringContainsString('invalid SMTP credentials', $qfOut);
+            self::assertStringContainsString('[openai/gpt-4.1-mini', $qfOut);
+            // Secret must NEVER leak to AI provider or stdout
+            self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $qfTransport->requests[0]);
+            self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $qfOut);
+            self::assertStringContainsString('[REDACTED]', $qfTransport->requests[0]);
+
+            // Empty queue returns cleanly
+            [$emptyCode, $emptyOut] = $qCli->run(['hantei', 'queue-failed', '--queue=default', '--app=' . $queueAppDir]);
+            self::assertSame(0, $emptyCode);
+            self::assertStringContainsString('No failed jobs found', $emptyOut);
+
+            // Unknown explicit job ID returns exit 1
+            [$missCode, $missOut] = $qCli->run(['hantei', 'queue-failed', 'missing-id', '--queue=emails', '--app=' . $queueAppDir]);
+            self::assertSame(1, $missCode);
+            self::assertStringContainsString('not found', $missOut);
         } finally {
             $this->removeDir($tmp);
         }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Cli\Companions;
 
+use Closure;
 use Kongono\Ai\AiClient;
 use Kongono\Ai\ChatRequest;
 use Kongono\Ai\Message;
@@ -11,6 +12,7 @@ use Kongono\Ai\Security\PromptGuard;
 use Kongono\Ai\Security\UntrustedInput;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Core\CoreException;
+use Kongono\Core\Diagnostics\SecretScrubber;
 
 /**
  * Oshie (教え) — Kongono's built-in AI tutor.
@@ -322,41 +324,113 @@ PROMPT;
         return self::verifyGuardOutput($guard, $reply, $protectedSystem['canary'], 'Oshie');
     }
 
-    /** Answer any question about Kongono using the live AI provider and the user's real project context. */
-    public function ask(string $question, ProjectContext $context): string
+    /**
+     * Answer any question about Kongono using the live AI provider, project context, and optional live DevInspector traces.
+     *
+     * @param list<array<string, mixed>>|null $recentTraces
+     */
+    public function ask(string $question, ProjectContext $context, ?array $recentTraces = null): string
     {
+        return $this->askWithTelemetry($question, $context, $recentTraces)['reply'];
+    }
+
+    /**
+     * Answer a question and return both the reply and structured token/cost/latency telemetry.
+     *
+     * @param list<array<string, mixed>>|null $recentTraces
+     * @return array{reply: string, telemetry: ?CompanionTelemetry}
+     */
+    public function askWithTelemetry(
+        string $question,
+        ProjectContext $context,
+        ?array $recentTraces = null,
+        ?float $maxCostUsd = null,
+    ): array {
         if (null === $this->ai) {
-            return "Oshie AI Q&A requires an AI provider.\n"
-                . "Configure one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST.\n"
-                . "Meanwhile, try built-in offline lessons with: kongo oshie --lessons\n";
+            return [
+                'reply' => "Oshie AI Q&A requires an AI provider.\n"
+                    . "Configure one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST.\n"
+                    . "Meanwhile, try built-in offline lessons with: kongo oshie --lessons\n",
+                'telemetry' => null,
+            ];
         }
 
         $guard = new PromptGuard();
         $protectedSystem = $guard->buildProtectedSystemPrompt(self::SYSTEM_PROMPT);
+        $prompt = $this->buildQuestionPrompt($question, $context, $guard, $recentTraces);
 
-        $prompt = sprintf(
-            "Developer's project context (untrusted repository metadata):\n%s\n\nDeveloper's question:\n%s",
-            $guard->wrapUntrusted(new UntrustedInput($context->promptSummary(), source: 'project_summary')),
-            $question,
+        $start = hrtime(true);
+        $response = $this->ai->chat(new ChatRequest([
+            Message::system($protectedSystem['prompt']),
+            Message::user($prompt),
+        ], temperature: 0.3));
+        $durationMs = (hrtime(true) - $start) / 1_000_000;
+
+        $reply = self::verifyGuardOutput($guard, $response->text, $protectedSystem['canary'], 'Oshie');
+        $telemetry = CompanionTelemetry::fromUsage($response->provider, $response->model, $response->usage, $durationMs, $maxCostUsd);
+        $telemetry->assertWithinBudget('Oshie');
+
+        return ['reply' => $reply, 'telemetry' => $telemetry];
+    }
+
+    /**
+     * Stream an Oshie answer live via `$onDelta` while enforcing PromptGuard canary inspection and cost caps.
+     *
+     * @param Closure(string): void           $onDelta
+     * @param list<array<string, mixed>>|null $recentTraces
+     * @return array{reply: string, telemetry: ?CompanionTelemetry}
+     */
+    public function askStream(
+        string $question,
+        ProjectContext $context,
+        Closure $onDelta,
+        ?array $recentTraces = null,
+        ?float $maxCostUsd = null,
+    ): array {
+        if (null === $this->ai) {
+            $offline = "Oshie AI Q&A requires an AI provider.\n"
+                . "Configure one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST.\n"
+                . "Meanwhile, try built-in offline lessons with: kongo oshie --lessons\n";
+            $onDelta($offline);
+
+            return ['reply' => $offline, 'telemetry' => null];
+        }
+
+        $guard = new PromptGuard();
+        $protectedSystem = $guard->buildProtectedSystemPrompt(self::SYSTEM_PROMPT);
+        $prompt = $this->buildQuestionPrompt($question, $context, $guard, $recentTraces);
+
+        $start = hrtime(true);
+        $response = $this->ai->chatStream(
+            new ChatRequest([
+                Message::system($protectedSystem['prompt']),
+                Message::user($prompt),
+            ], temperature: 0.3),
+            $onDelta,
         );
+        $durationMs = (hrtime(true) - $start) / 1_000_000;
 
-        $reply = $this->ai->ask($prompt, $protectedSystem['prompt'], temperature: 0.3);
+        $reply = self::verifyGuardOutput($guard, $response->text, $protectedSystem['canary'], 'Oshie');
+        $telemetry = CompanionTelemetry::fromUsage($response->provider, $response->model, $response->usage, $durationMs, $maxCostUsd);
+        $telemetry->assertWithinBudget('Oshie');
 
-        return self::verifyGuardOutput($guard, $reply, $protectedSystem['canary'], 'Oshie');
+        return ['reply' => $reply, 'telemetry' => $telemetry];
     }
 
     /**
      * Run one turn of a multi-turn tutoring conversation, updating the message history.
      *
-     * @param list<Message> $history
-     * @return array{reply: string, history: list<Message>}
+     * @param list<Message>                  $history
+     * @param (Closure(string): void)|null   $onDelta Optional live delta streaming callback
+     * @return array{reply: string, history: list<Message>, telemetry: ?CompanionTelemetry}
      */
-    public function converse(string $userInput, array $history, ProjectContext $context): array
+    public function converse(string $userInput, array $history, ProjectContext $context, ?Closure $onDelta = null, ?float $maxCostUsd = null): array
     {
         if (null === $this->ai) {
             return [
                 'reply' => 'Interactive Oshie requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST).',
                 'history' => $history,
+                'telemetry' => null,
             ];
         }
 
@@ -370,10 +444,66 @@ PROMPT;
         }
 
         $history[] = Message::user($userInput);
-        $response = $this->ai->chat(new ChatRequest($history, temperature: 0.3));
+        $request = new ChatRequest($history, temperature: 0.3);
+        $start = hrtime(true);
+        $response = null !== $onDelta
+            ? $this->ai->chatStream($request, $onDelta)
+            : $this->ai->chat($request);
+        $durationMs = (hrtime(true) - $start) / 1_000_000;
+
+        $telemetry = CompanionTelemetry::fromUsage($response->provider, $response->model, $response->usage, $durationMs, $maxCostUsd);
+        $telemetry->assertWithinBudget('Oshie');
         $history[] = Message::assistant($response->text);
 
-        return ['reply' => $response->text, 'history' => $history];
+        return ['reply' => $response->text, 'history' => $history, 'telemetry' => $telemetry];
+    }
+
+    /** @param list<array<string, mixed>>|null $recentTraces */
+    private function buildQuestionPrompt(string $question, ProjectContext $context, PromptGuard $guard, ?array $recentTraces): string
+    {
+        $parts = [
+            "Developer's project context (untrusted repository metadata):\n"
+                . $guard->wrapUntrusted(new UntrustedInput($context->promptSummary(), source: 'project_summary')),
+        ];
+
+        if (null !== $recentTraces && [] !== $recentTraces) {
+            $parts[] = "Recent live HTTP request traces from /_kongono DevInspector (untrusted telemetry):\n"
+                . $guard->wrapUntrusted(new UntrustedInput(self::summarizeTraces($recentTraces), source: 'dev_traces'));
+        }
+
+        $parts[] = "Developer's question:\n" . $question;
+
+        return implode("\n\n", $parts);
+    }
+
+    /** @param list<array<string, mixed>> $traces */
+    private static function summarizeTraces(array $traces): string
+    {
+        $lines = [];
+        foreach (array_slice($traces, -10) as $trace) {
+            $id = is_scalar($trace['id'] ?? null) ? (string) $trace['id'] : '?';
+            $method = is_string($trace['method'] ?? null) ? $trace['method'] : 'GET';
+            $path = is_string($trace['path'] ?? null) ? $trace['path'] : '/';
+            $status = is_scalar($trace['status'] ?? null) ? (string) $trace['status'] : '0';
+            $ms = is_numeric($trace['duration_ms'] ?? null) ? (float) $trace['duration_ms'] : 0.0;
+            $queries = is_array($trace['queries'] ?? null) ? count($trace['queries']) : 0;
+            $nPlusOne = is_array($trace['n_plus_one'] ?? null) ? count($trace['n_plus_one']) : 0;
+            $err = is_string($trace['error'] ?? null) && '' !== $trace['error'] ? ' error=' . SecretScrubber::scrub($trace['error']) : '';
+
+            $lines[] = sprintf(
+                '#%s %s %s -> %s (%.1fms, sql=%d, n+1=%d)%s',
+                $id,
+                $method,
+                SecretScrubber::scrub($path),
+                $status,
+                $ms,
+                $queries,
+                $nPlusOne,
+                $err,
+            );
+        }
+
+        return implode("\n", $lines);
     }
 
     private static function verifyGuardOutput(PromptGuard $guard, string $output, string $canary, string $companion): string

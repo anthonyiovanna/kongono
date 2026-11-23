@@ -15,7 +15,10 @@ use Kongono\Ai\Security\UntrustedInput;
 use Kongono\Ai\ToolCall;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Database\MigrationLinter;
 use Kongono\Core\CoreException;
+use Kongono\Core\Diagnostics\SecretScrubber;
+use Throwable;
 
 /**
  * Chie (知恵) — Kongono's built-in project-aware AI builder & scaffolder.
@@ -68,17 +71,20 @@ PROMPT;
      *     next_steps: list<string>,
      *     applied: list<string>,
      *     provider: string,
-     *     model: string
+     *     model: string,
+     *     telemetry: CompanionTelemetry
      * }
      */
-    public function build(string $instruction, ProjectContext $context, bool $apply = false): array
+    public function build(string $instruction, ProjectContext $context, bool $apply = false, ?float $maxCostUsd = null): array
     {
+        $cap = $maxCostUsd ?? CompanionTelemetry::maxCostFromEnv();
         $principal = new AgentPrincipal(
             id: 'chie-builder',
             role: 'Kongono Project Builder',
             allowedTools: ['list_files', 'read_file', 'inspect_graph'],
             maxSteps: 6,
             maxToolCalls: 8,
+            maxCostUsd: max(0.0, $cap),
         );
 
         $tools = [
@@ -110,6 +116,7 @@ PROMPT;
         ];
 
         $runner = new AgentRunner($this->ai, $principal);
+        $start = hrtime(true);
         $receipt = $runner->run($messages, $tools, static function (ToolCall $call) use ($context): string {
             return match ($call->name) {
                 'list_files' => implode("\n", $context->listFiles()),
@@ -120,6 +127,10 @@ PROMPT;
                 default => 'Error: unknown tool.',
             };
         });
+        $durationMs = (hrtime(true) - $start) / 1_000_000;
+
+        $telemetry = CompanionTelemetry::fromUsage($receipt->provider, $receipt->model, $receipt->usage, $durationMs, $cap);
+        $telemetry->assertWithinBudget('Chie');
 
         $inspected = $guard->inspectOutput($receipt->finalText, $protectedSystem['canary']);
         if (!$inspected['safe']) {
@@ -127,22 +138,7 @@ PROMPT;
         }
 
         $plan = $this->parsePlan($inspected['output']);
-        $applied = [];
-
-        if ($apply) {
-            // Validate all paths & PHP syntax upfront so --apply never leaves partially applied broken files
-            foreach ($plan['changes'] as $change) {
-                self::assertAllowedChieWriteTarget($change['path']);
-                if (str_ends_with(strtolower($change['path']), '.php')) {
-                    self::assertValidPhpSyntax($change['path'], $change['content']);
-                }
-            }
-
-            foreach ($plan['changes'] as $change) {
-                $context->writeFileContained($change['path'], $change['content']);
-                $applied[] = $change['path'];
-            }
-        }
+        $applied = $apply ? $this->applyChanges($plan['changes'], $context) : [];
 
         return [
             'summary' => $plan['summary'],
@@ -151,7 +147,230 @@ PROMPT;
             'applied' => $applied,
             'provider' => $receipt->provider,
             'model' => $receipt->model,
+            'telemetry' => $telemetry,
         ];
+    }
+
+    /**
+     * Validate and atomically apply all (or a selected subset of) planned changes with rollback on write failure.
+     *
+     * @param list<array{path: string, action: string, explanation: string, content: string}> $changes
+     * @param list<string>|null                                                               $selectedPaths
+     * @return list<string>
+     */
+    public function applyChanges(array $changes, ProjectContext $context, ?array $selectedPaths = null): array
+    {
+        $filtered = [];
+        foreach ($changes as $change) {
+            if (null !== $selectedPaths && !in_array($change['path'], $selectedPaths, true)) {
+                continue;
+            }
+            self::assertAllowedChieWriteTarget($change['path']);
+            if (str_ends_with(strtolower($change['path']), '.php')) {
+                self::assertValidPhpSyntax($change['path'], $change['content']);
+            }
+            $filtered[] = $change;
+        }
+
+        $snapshots = self::captureSnapshots($filtered, $context);
+        $applied = [];
+
+        try {
+            foreach ($filtered as $change) {
+                $context->writeFileContained($change['path'], $change['content']);
+                $applied[] = $change['path'];
+            }
+        } catch (Throwable $e) {
+            self::restoreSnapshots($snapshots, $context);
+            throw $e;
+        }
+
+        return $applied;
+    }
+
+    /**
+     * Self-healing Chie -> Hantei verification loop (`kongo chie "..." --apply --verify`):
+     * generates code, validates PHP syntax, applies changes, runs the verification command (e.g. PHPStan/PHPUnit)
+     * plus migration linting when migrations are modified, and feeds scrubbed failures back to Chie for bounded repair.
+     *
+     * @param list<string> $verifyCommand
+     * @return array{
+     *     summary: string,
+     *     changes: list<array{path: string, action: string, explanation: string, content: string}>,
+     *     next_steps: list<string>,
+     *     applied: list<string>,
+     *     verified: bool,
+     *     rolled_back: bool,
+     *     attempts: int,
+     *     verify_output: string,
+     *     provider: string,
+     *     model: string,
+     *     telemetry: CompanionTelemetry
+     * }
+     */
+    public function buildAndVerify(
+        string $instruction,
+        ProjectContext $context,
+        HanteiDebugger $hantei,
+        array $verifyCommand,
+        int $maxRepairs = 2,
+        ?float $maxCostUsd = null,
+        bool $rollbackOnFailure = false,
+    ): array {
+        $cap = $maxCostUsd ?? CompanionTelemetry::maxCostFromEnv();
+        $maxAttempts = 1 + max(0, $maxRepairs);
+        $currentInstruction = $instruction;
+        /** @var array<string, ?string> $snapshots */
+        $snapshots = [];
+        $allApplied = [];
+        $totalTelemetry = null;
+        $verified = false;
+        $rolledBack = false;
+        $lastVerifyOutput = '';
+        $attempts = 0;
+        $lastPlan = null;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; ++$attempt) {
+            $remainingCap = $cap > 0.0 && null !== $totalTelemetry
+                ? max(0.0, $cap - $totalTelemetry->estimatedCostUsd)
+                : $cap;
+            if ($attempt > 1 && $cap > 0.0 && $remainingCap <= 0.0) {
+                break;
+            }
+
+            ++$attempts;
+            $plan = $this->build($currentInstruction, $context, apply: false, maxCostUsd: $remainingCap);
+            $lastPlan = $plan;
+            $totalTelemetry = null === $totalTelemetry
+                ? $plan['telemetry']
+                : $totalTelemetry->merge($plan['telemetry']);
+            $totalTelemetry->assertWithinBudget('Chie');
+
+            foreach (self::captureSnapshots($plan['changes'], $context) as $path => $before) {
+                if (!array_key_exists($path, $snapshots)) {
+                    $snapshots[$path] = $before;
+                }
+            }
+
+            try {
+                $appliedNow = $this->applyChanges($plan['changes'], $context);
+                $allApplied = array_values(array_unique([...$allApplied, ...$appliedNow]));
+            } catch (CoreException $e) {
+                $lastVerifyOutput = SecretScrubber::scrub($e->getMessage());
+                if ($attempt < $maxAttempts) {
+                    $currentInstruction = self::buildRepairInstruction($instruction, $lastVerifyOutput, $attempt);
+                    continue;
+                }
+                break;
+            }
+
+            $check = $hantei->runCheck($verifyCommand, $context, diagnoseWithAi: false);
+            $verifyOutput = $check['output'];
+            $verifyPassed = 0 === $check['exit_code'];
+
+            $touchedMigration = false;
+            foreach ($appliedNow as $path) {
+                if (str_starts_with(ltrim(str_replace('\\', '/', $path), '/'), 'migrations/')) {
+                    $touchedMigration = true;
+                    break;
+                }
+            }
+            if ($touchedMigration) {
+                $lintReport = (new MigrationLinter())->lintDirectory($context->rootPath . DIRECTORY_SEPARATOR . 'migrations');
+                if (!$lintReport['passed']) {
+                    $verifyPassed = false;
+                    $lintLines = array_map(
+                        static fn(array $f): string => sprintf('[%s] %s: %s', strtoupper($f['severity']), $f['file'], $f['message']),
+                        $lintReport['findings'],
+                    );
+                    $verifyOutput = trim($verifyOutput . "\nMigration lint errors:\n" . implode("\n", $lintLines));
+                }
+            }
+
+            $lastVerifyOutput = SecretScrubber::scrub($verifyOutput);
+            if ($verifyPassed) {
+                $verified = true;
+                break;
+            }
+
+            if ($attempt < $maxAttempts) {
+                $currentInstruction = self::buildRepairInstruction($instruction, $lastVerifyOutput, $attempt);
+            }
+        }
+
+        if (!$verified && $rollbackOnFailure && [] !== $snapshots) {
+            self::restoreSnapshots($snapshots, $context);
+            $rolledBack = true;
+        }
+
+        if (null === $lastPlan) {
+            throw new CoreException('Chie verification loop produced no build plan.');
+        }
+
+        return [
+            'summary' => $lastPlan['summary'],
+            'changes' => $lastPlan['changes'],
+            'next_steps' => $lastPlan['next_steps'],
+            'applied' => $allApplied,
+            'verified' => $verified,
+            'rolled_back' => $rolledBack,
+            'attempts' => $attempts,
+            'verify_output' => $lastVerifyOutput,
+            'provider' => $lastPlan['provider'],
+            'model' => $lastPlan['model'],
+            'telemetry' => $totalTelemetry,
+        ];
+    }
+
+    private static function buildRepairInstruction(string $originalInstruction, string $scrubbedFailure, int $attempt): string
+    {
+        return sprintf(
+            "Original build task:\n%s\n\nVerification attempt #%d failed with the following secret-scrubbed output:\n%s\n\nFix the root cause cleanly while preserving all Kongono PHP 8.5 strict conventions.",
+            $originalInstruction,
+            $attempt,
+            substr($scrubbedFailure, 0, 6000),
+        );
+    }
+
+    /**
+     * @param list<array{path: string, action: string, explanation: string, content: string}> $changes
+     * @return array<string, ?string>
+     */
+    private static function captureSnapshots(array $changes, ProjectContext $context): array
+    {
+        $snapshots = [];
+        foreach ($changes as $change) {
+            $path = $change['path'];
+            $full = $context->rootPath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim(str_replace('\\', '/', $path), '/'));
+            if (is_file($full) && !is_link($full)) {
+                $raw = file_get_contents($full);
+                $snapshots[$path] = false !== $raw ? $raw : null;
+            } else {
+                $snapshots[$path] = null;
+            }
+        }
+
+        return $snapshots;
+    }
+
+    /** @param array<string, ?string> $snapshots */
+    private static function restoreSnapshots(array $snapshots, ProjectContext $context): void
+    {
+        foreach ($snapshots as $path => $previous) {
+            try {
+                self::assertAllowedChieWriteTarget($path);
+            } catch (CoreException) {
+                continue;
+            }
+            $full = $context->rootPath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim(str_replace('\\', '/', $path), '/'));
+            if (null === $previous) {
+                if (is_file($full) && !is_link($full)) {
+                    @unlink($full);
+                }
+            } else {
+                $context->writeFileContained($path, $previous);
+            }
+        }
     }
 
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Cli;
 
+use Closure;
 use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
 use Kongono\Ai\Eval\EvalCase;
@@ -45,9 +46,15 @@ use Throwable;
 /** Unified `kongo` CLI entry point (serve, routes, graph, oshie, chie, hantei). */
 final readonly class KongoCli
 {
+    /**
+     * @param (Closure(string): ?string)|null $promptReader Optional interactive prompt callback ($prompt) => line|null
+     * @param (Closure(string): void)|null    $streamWriter Optional streaming delta writer (defaults to STDOUT)
+     */
     public function __construct(
         private string $workingDirectory,
         private ?AiClient $aiOverride = null,
+        private ?Closure $promptReader = null,
+        private ?Closure $streamWriter = null,
     ) {}
 
     /**
@@ -1231,9 +1238,10 @@ final readonly class KongoCli
     {
         $context = ProjectContext::discover($appRoot);
         $oshie = new OshieTutor($this->tryAiClient());
+        $maxCost = $this->parseMaxCost($options);
 
         if (isset($options['interactive'])) {
-            return $this->runOshieRepl($oshie, $context);
+            return $this->runOshieRepl($oshie, $context, $maxCost);
         }
 
         if (isset($options['lessons'])) {
@@ -1241,7 +1249,7 @@ final readonly class KongoCli
             foreach ($oshie->listLessons() as $id => $meta) {
                 $lines[] = sprintf('  %-12s %s — %s', $id, $meta['title'], $meta['summary']);
             }
-            $lines[] = "\nRun: kongo oshie --lesson <id>  or  kongo oshie \"<your question>\"";
+            $lines[] = "\nRun: kongo oshie --lesson <id>  or  kongo oshie \"<your question>\" [--stream]";
 
             return [0, implode("\n", $lines) . "\n"];
         }
@@ -1255,7 +1263,23 @@ final readonly class KongoCli
             return [0, $oshie->teachLesson('routing', $context) . "\n"];
         }
 
-        return [0, $oshie->ask($question, $context) . "\n"];
+        if (isset($options['stream'])) {
+            $writer = $this->resolveStreamWriter();
+            $result = $oshie->askStream($question, $context, $writer, maxCostUsd: $maxCost);
+            $tail = null !== $result['telemetry']
+                ? "\n\n" . $result['telemetry']->formatFooter() . "\n"
+                : "\n";
+
+            return [0, $tail];
+        }
+
+        $result = $oshie->askWithTelemetry($question, $context, maxCostUsd: $maxCost);
+        $out = $result['reply'] . "\n";
+        if (null !== $result['telemetry']) {
+            $out .= "\n" . $result['telemetry']->formatFooter() . "\n";
+        }
+
+        return [0, $out];
     }
 
     /**
@@ -1267,7 +1291,7 @@ final readonly class KongoCli
     {
         $instruction = trim(implode(' ', $args));
         if ('' === $instruction) {
-            return [1, "Usage: kongo chie \"<what to build>\" [--app=path] [--apply]\n"];
+            return [1, "Usage: kongo chie \"<what to build>\" [--app=path] [--apply] [--verify] [--interactive] [--max-repairs=2] [--rollback-on-failure]\n"];
         }
 
         $ai = $this->tryAiClient();
@@ -1276,8 +1300,69 @@ final readonly class KongoCli
         }
 
         $context = ProjectContext::discover($appRoot);
+        $builder = new ChieBuilder($ai);
+        $maxCost = $this->parseMaxCost($options);
         $apply = isset($options['apply']);
-        $result = (new ChieBuilder($ai))->build($instruction, $context, $apply);
+        $verify = isset($options['verify']);
+        $interactive = isset($options['interactive']);
+
+        if ($verify) {
+            if (!$apply) {
+                return [1, "Chie --verify requires --apply (e.g. kongo chie \"<what to build>\" --apply --verify).\n"];
+            }
+            $maxRepairsRaw = is_string($options['max-repairs'] ?? null) && ctype_digit($options['max-repairs'])
+                ? (int) $options['max-repairs']
+                : 2;
+            $maxRepairs = min(5, max(0, $maxRepairsRaw));
+            $rollbackOnFailure = isset($options['rollback-on-failure']);
+
+            $hantei = new HanteiDebugger($ai);
+            $verifyCmd = $this->resolveVerifyCommand($appRoot);
+            $report = $builder->buildAndVerify(
+                instruction: $instruction,
+                context: $context,
+                hantei: $hantei,
+                verifyCommand: $verifyCmd,
+                maxRepairs: $maxRepairs,
+                maxCostUsd: $maxCost,
+                rollbackOnFailure: $rollbackOnFailure,
+            );
+
+            $lines = [
+                sprintf(
+                    'Chie Self-Verifying Build (%s / %s): %s [%s after %d attempt(s)]',
+                    $report['provider'],
+                    $report['model'],
+                    $report['summary'],
+                    $report['verified'] ? 'VERIFIED' : ($report['rolled_back'] ? 'FAILED — ROLLED BACK' : 'FAILED'),
+                    $report['attempts'],
+                ),
+                '',
+            ];
+            foreach ($report['changes'] as $change) {
+                $status = $report['rolled_back'] ? 'ROLLED BACK' : 'WRITTEN';
+                $lines[] = sprintf('[%s] (%s) %s — %s', $status, $change['action'], $change['path'], $change['explanation']);
+            }
+            if (!$report['verified'] && '' !== trim($report['verify_output'])) {
+                $lines[] = "\n--- Verification Output ---";
+                $lines[] = $report['verify_output'];
+            }
+            if ([] !== $report['next_steps']) {
+                $lines[] = "\nNext steps:";
+                foreach ($report['next_steps'] as $step) {
+                    $lines[] = '  - ' . $step;
+                }
+            }
+            $lines[] = "\n" . $report['telemetry']->formatFooter();
+
+            return [$report['verified'] ? 0 : 1, implode("\n", $lines) . "\n"];
+        }
+
+        if ($interactive) {
+            return $this->runChieInteractive($builder, $instruction, $context, $maxCost);
+        }
+
+        $result = $builder->build($instruction, $context, $apply, $maxCost);
 
         $lines = [
             sprintf('Chie (%s / %s): %s', $result['provider'], $result['model'], $result['summary']),
@@ -1298,7 +1383,7 @@ final readonly class KongoCli
             }
         }
         if (!$apply && [] !== $result['changes']) {
-            $lines[] = "\nRe-run with --apply to write these files to disk.";
+            $lines[] = "\nRe-run with --apply, --apply --verify, or --interactive to write changes to disk.";
         }
         if ([] !== $result['next_steps']) {
             $lines[] = "\nNext steps:";
@@ -1306,6 +1391,101 @@ final readonly class KongoCli
                 $lines[] = '  - ' . $step;
             }
         }
+        $lines[] = "\n" . $result['telemetry']->formatFooter();
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @return array{0: int, 1: string}
+     */
+    private function runChieInteractive(
+        ChieBuilder $builder,
+        string $instruction,
+        ProjectContext $context,
+        ?float $maxCostUsd,
+    ): array {
+        $result = $builder->build($instruction, $context, apply: false, maxCostUsd: $maxCostUsd);
+        $lines = [
+            sprintf('Chie Interactive Review (%s / %s): %s', $result['provider'], $result['model'], $result['summary']),
+            '',
+        ];
+
+        if ([] === $result['changes']) {
+            $lines[] = 'No file changes proposed.';
+            $lines[] = "\n" . $result['telemetry']->formatFooter();
+
+            return [0, implode("\n", $lines) . "\n"];
+        }
+
+        /** @var list<string> $approvedPaths */
+        $approvedPaths = [];
+        $approveAll = false;
+        $aborted = false;
+
+        foreach ($result['changes'] as $change) {
+            $before = null;
+            try {
+                $before = $context->readFileSafe($change['path']);
+            } catch (Throwable) {
+                $before = null;
+            }
+            $diff = DiffRenderer::render($change['path'], $before, $change['content']);
+
+            if ($approveAll) {
+                $approvedPaths[] = $change['path'];
+                continue;
+            }
+
+            $prompt = sprintf(
+                "\n--- [%s] %s — %s ---\n%s\nApply %s? [y]es / [n]o / [a]ll / [q]uit: ",
+                $change['action'],
+                $change['path'],
+                $change['explanation'],
+                $diff,
+                $change['path'],
+            );
+            $answer = $this->readInteractiveLine($prompt);
+            $choice = strtolower(trim($answer ?? 'q'));
+
+            if ('q' === $choice || 'quit' === $choice) {
+                $aborted = true;
+                break;
+            }
+            if ('a' === $choice || 'all' === $choice) {
+                $approveAll = true;
+                $approvedPaths[] = $change['path'];
+                continue;
+            }
+            if ('y' === $choice || 'yes' === $choice) {
+                $approvedPaths[] = $change['path'];
+            }
+        }
+
+        if ($aborted) {
+            $lines[] = 'Aborted by user — no files written.';
+            $lines[] = "\n" . $result['telemetry']->formatFooter();
+
+            return [0, implode("\n", $lines) . "\n"];
+        }
+
+        $applied = [] !== $approvedPaths
+            ? $builder->applyChanges($result['changes'], $context, $approvedPaths)
+            : [];
+
+        $appliedSet = array_flip($approvedPaths);
+        foreach ($result['changes'] as $change) {
+            $status = isset($appliedSet[$change['path']]) ? 'WRITTEN' : 'SKIPPED';
+            $lines[] = sprintf('[%s] (%s) %s — %s', $status, $change['action'], $change['path'], $change['explanation']);
+        }
+        $lines[] = sprintf("\nApplied %d of %d proposed file(s).", count($applied), count($result['changes']));
+        if ([] !== $result['next_steps']) {
+            $lines[] = "\nNext steps:";
+            foreach ($result['next_steps'] as $step) {
+                $lines[] = '  - ' . $step;
+            }
+        }
+        $lines[] = "\n" . $result['telemetry']->formatFooter();
 
         return [0, implode("\n", $lines) . "\n"];
     }
@@ -1321,14 +1501,80 @@ final readonly class KongoCli
         $rest = array_slice($args, 1);
         $context = ProjectContext::discover($appRoot);
         $hantei = new HanteiDebugger($this->tryAiClient());
+        $maxCost = $this->parseMaxCost($options);
 
         if ('debug' === $sub) {
             $input = trim(implode(' ', $rest));
             if ('' === $input) {
-                return [1, "Usage: kongo hantei debug \"<error message or diagnostic>\"\n"];
+                return [1, "Usage: kongo hantei debug \"<error message or diagnostic>\" [--stream]\n"];
             }
 
-            return [0, $hantei->diagnose($input, $context) . "\n"];
+            if (isset($options['stream'])) {
+                $writer = $this->resolveStreamWriter();
+                $res = $hantei->diagnoseStream($input, $context, $writer, $maxCost);
+                $tail = null !== $res['telemetry']
+                    ? "\n\n" . $res['telemetry']->formatFooter() . "\n"
+                    : "\n";
+
+                return [0, $tail];
+            }
+
+            $res = $hantei->diagnoseWithTelemetry($input, $context, $maxCost);
+            $out = $res['diagnosis'] . "\n";
+            if (null !== $res['telemetry']) {
+                $out .= "\n" . $res['telemetry']->formatFooter() . "\n";
+            }
+
+            return [0, $out];
+        }
+
+        if ('queue-failed' === $sub) {
+            $driver = $this->resolveQueueDriver($appRoot, $error);
+            if (null === $driver) {
+                return [1, $error ?? "Failed to resolve queue driver.\n"];
+            }
+            $queueOpt = $options['queue'] ?? 'default';
+            $queue = is_string($queueOpt) && '' !== trim($queueOpt) ? trim($queueOpt) : 'default';
+            $failed = $driver->listFailed($queue, 50);
+            if ([] === $failed) {
+                return [0, sprintf("No failed jobs found on queue \"%s\".\n", $queue)];
+            }
+
+            $targetId = isset($rest[0]) && '' !== trim($rest[0]) ? trim($rest[0]) : null;
+            $selected = null;
+            if (null === $targetId) {
+                $selected = $failed[0];
+            } else {
+                foreach ($failed as $job) {
+                    if ($job->id === $targetId) {
+                        $selected = $job;
+                        break;
+                    }
+                }
+            }
+
+            if (null === $selected) {
+                return [1, sprintf("Failed job \"%s\" not found on queue \"%s\".\n", $targetId, $queue)];
+            }
+
+            $diag = $hantei->diagnoseFailedJob($selected, $context, $maxCost);
+            $lines = [
+                sprintf(
+                    'Hantei Dead-Letter Job Diagnosis — #%s (%s) on queue "%s" [attempts: %d/%d]:',
+                    $diag['job_id'],
+                    $diag['job_type'],
+                    $diag['queue'],
+                    $selected->attempt,
+                    $selected->maxAttempts,
+                ),
+                '',
+                $diag['diagnosis'],
+            ];
+            if (null !== $diag['telemetry']) {
+                $lines[] = "\n" . $diag['telemetry']->formatFooter();
+            }
+
+            return [0, implode("\n", $lines) . "\n"];
         }
 
         if ('generate-tests' === $sub) {
@@ -1356,7 +1602,7 @@ final readonly class KongoCli
             return [$report['exit_code'], $out];
         }
 
-        return [1, "Unknown hantei subcommand. Use: check | debug \"<error>\" | generate-tests <file>\n"];
+        return [1, "Unknown hantei subcommand. Use: check | debug \"<error>\" [--stream] | queue-failed [<job-id>] | generate-tests <file>\n"];
     }
 
     /**
@@ -1800,7 +2046,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target', 'mode', 'starter'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target', 'mode', 'starter', 'max-repairs', 'max-cost'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -1813,11 +2059,84 @@ final readonly class KongoCli
         return ['positional' => $positional, 'options' => $options];
     }
 
+    /** @param array<string, string|true> $options */
+    private function parseMaxCost(array $options): ?float
+    {
+        $raw = $options['max-cost'] ?? null;
+        if (is_string($raw) && is_numeric($raw)) {
+            $parsed = (float) $raw;
+
+            return $parsed > 0.0 ? $parsed : null;
+        }
+
+        return null;
+    }
+
+    /** @return Closure(string): void */
+    private function resolveStreamWriter(): Closure
+    {
+        if (null !== $this->streamWriter) {
+            return $this->streamWriter;
+        }
+
+        return static function (string $chunk): void {
+            fwrite(STDOUT, $chunk);
+            fflush(STDOUT);
+        };
+    }
+
+    private function readInteractiveLine(string $prompt): ?string
+    {
+        if (null !== $this->promptReader) {
+            return ($this->promptReader)($prompt);
+        }
+
+        fwrite(STDOUT, $prompt);
+        $line = fgets(STDIN);
+
+        return false === $line ? null : $line;
+    }
+
+    /** @return list<string> */
+    private function resolveVerifyCommand(string $appRoot): array
+    {
+        $candidates = [
+            $appRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpunit',
+            $this->workingDirectory . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'phpunit',
+        ];
+        $phpunit = $candidates[1];
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                $phpunit = $candidate;
+                break;
+            }
+        }
+
+        $cmd = [PHP_BINARY, $phpunit];
+        foreach (['phpunit.xml', 'phpunit.xml.dist'] as $cfg) {
+            $cfgPath = $appRoot . DIRECTORY_SEPARATOR . $cfg;
+            if (is_file($cfgPath)) {
+                $cmd[] = '--configuration';
+                $cmd[] = $cfgPath;
+
+                return $cmd;
+            }
+        }
+
+        $testsDir = $appRoot . DIRECTORY_SEPARATOR . 'tests';
+        if (is_dir($testsDir)) {
+            $cmd[] = $testsDir;
+        }
+
+        return $cmd;
+    }
+
     /** @return array{0: int, 1: string} */
-    private function runOshieRepl(OshieTutor $oshie, ProjectContext $context): array
+    private function runOshieRepl(OshieTutor $oshie, ProjectContext $context, ?float $maxCostUsd = null): array
     {
         fwrite(STDOUT, "Oshie Interactive AI Tutor — type a question, /lessons, /graph, /reset, or /exit\n");
         $history = [];
+        $writer = $this->resolveStreamWriter();
 
         while (true) {
             fwrite(STDOUT, "\noshie> ");
@@ -1848,9 +2167,26 @@ final readonly class KongoCli
                 continue;
             }
 
-            $turn = $oshie->converse($input, $history, $context);
+            fwrite(STDOUT, "\n");
+            $streamed = false;
+            $turn = $oshie->converse(
+                $input,
+                $history,
+                $context,
+                onDelta: static function (string $delta) use ($writer, &$streamed): void {
+                    $streamed = true;
+                    $writer($delta);
+                },
+                maxCostUsd: $maxCostUsd,
+            );
             $history = $turn['history'];
-            fwrite(STDOUT, "\n" . $turn['reply'] . "\n");
+            if (!$streamed) {
+                fwrite(STDOUT, $turn['reply']);
+            }
+            fwrite(STDOUT, "\n");
+            if (null !== $turn['telemetry']) {
+                fwrite(STDOUT, "\n" . $turn['telemetry']->formatFooter() . "\n");
+            }
         }
 
         return [0, "Goodbye from Oshie.\n"];
@@ -1913,14 +2249,16 @@ Core Commands:
   test                                                  Run PHPUnit test suite
   version                                               Show Kongono & PHP version
 
-Built-in AI Companions (OpenAI, Anthropic, Gemini, Groq, or local Ollama):
+Built-in AI Companions (OpenAI, Anthropic, Gemini, Groq, or local Ollama; cap spend via KONGONO_AI_MAX_COST_USD):
   oshie --lessons                                       List built-in learning lessons
   oshie --lesson <id>                                   Study a lesson (AI-tailored when configured)
-  oshie --interactive                                   Start multi-turn interactive AI tutor REPL
-  oshie "<question>"                                    Ask Oshie anything about Kongono or your app
-  chie "<what to build>" [--apply]                      Generate idiomatic Kongono code (preview by default)
+  oshie --interactive                                   Start multi-turn streaming interactive AI tutor REPL
+  oshie "<question>" [--stream] [--max-cost=0.10]       Ask Oshie anything about Kongono or your app
+  chie "<what to build>" [--apply] [--verify]           Generate Kongono code (preview by default; --verify self-heals)
+  chie "<what to build>" --interactive                  Approve or reject each proposed file diff interactively
   hantei check                                          Run tests & diagnose failures with AI
-  hantei debug "<error or diagnostic>"                  Diagnose an error against your live app
+  hantei debug "<error or diagnostic>" [--stream]       Diagnose an error against your live app
+  hantei queue-failed [<job-id>] [--queue=default]      Diagnose a failed/dead-lettered background job with AI
   hantei generate-tests <relative/file.php> [--apply]   Generate PHPUnit 13 tests for a file
 
 TEXT;

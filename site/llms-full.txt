@@ -418,6 +418,10 @@ php vendor/bin/kongo new my-app --starter=saas   # minimal | api | saas
 php vendor/bin/kongo auth:init --mode=both       # web | api | both
 php vendor/bin/kongo make:resource Post          # migration, DTOs, repo, controller, test
 php vendor/bin/kongo make:job SendInvoice        # also policy|middleware|factory|rule|mail
+php vendor/bin/kongo oshie "Why is /api/notes slow?" --stream
+php vendor/bin/kongo chie "Add a /api/stats endpoint" --interactive
+php vendor/bin/kongo chie "Add a /api/stats endpoint" --apply --verify --rollback-on-failure
+php vendor/bin/kongo hantei queue-failed --queue=default
 php vendor/bin/kongo skills:install --target=both
 php vendor/bin/kongo mcp
 php vendor/bin/kongo check

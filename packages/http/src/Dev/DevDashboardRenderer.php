@@ -98,7 +98,7 @@ final class DevDashboardRenderer
         <button class="btn" id="clearBtn">Clear Traces</button>
       </div>
       <table>
-        <thead><tr><th>#</th><th>Method</th><th>Path</th><th>Status</th><th>Duration</th><th>Queries</th></tr></thead>
+        <thead><tr><th>#</th><th>Method</th><th>Path</th><th>Status</th><th>Duration</th><th>Queries</th><th>Actions</th></tr></thead>
         <tbody id="traceRows"></tbody>
       </table>
     </div>
@@ -132,12 +132,16 @@ final class DevDashboardRenderer
           <option value="">Ask a question below...</option>
           <option value="routing">Lesson: Routing &amp; Controllers</option>
           <option value="views">Lesson: Compiled .kgn.html Views</option>
+          <option value="live">Lesson: Kongono Live 2.5</option>
+          <option value="bridge">Lesson: React / Vue / Svelte Bridge</option>
           <option value="validation">Lesson: Typed DTO Validation</option>
-          <option value="database">Lesson: QueryBuilder &amp; Migrations</option>
-          <option value="ai">Lesson: Multi-Provider AI &amp; Agents</option>
-          <option value="security">Lesson: Security, Auth &amp; SSRF</option>
-          <option value="storage">Lesson: Contained Storage &amp; S3</option>
-          <option value="jobs">Lesson: Queues, Workers &amp; Scheduler</option>
+          <option value="database">Lesson: QueryBuilder, Replicas &amp; Migrations</option>
+          <option value="security">Lesson: Security, Auth, PATs &amp; SSRF</option>
+          <option value="storage">Lesson: Streaming Storage &amp; S3</option>
+          <option value="jobs">Lesson: Queues, DLQ, Batches &amp; Scheduler</option>
+          <option value="testing">Lesson: Global-Free Testing</option>
+          <option value="ai">Lesson: Multi-Provider AI, Hybrid RAG &amp; Evals</option>
+          <option value="ops-deploy">Lesson: /_ops, FrankenPHP &amp; Scaffolding</option>
         </select>
         <input id="oshieInput" type="text" placeholder="Ask Oshie anything about your Kongono app..." style="flex:1;min-width:240px;padding:0.45rem 0.7rem;border-radius:6px;border:1px solid #334155;background:#020617;color:#f8fafc;">
         <button class="btn" id="oshieSend">Ask Oshie</button>
@@ -193,7 +197,7 @@ HTML;
     function renderTraces() {
       const tb = document.getElementById('traceRows');
       if (!traces.length) {
-        tb.innerHTML = '<tr><td colspan="6" style="color:#64748b">No requests captured yet. Visit / or an API endpoint then click Refresh.</td></tr>';
+        tb.innerHTML = '<tr><td colspan="7" style="color:#64748b">No requests captured yet. Visit / or an API endpoint then click Refresh.</td></tr>';
         return;
       }
       tb.innerHTML = traces.map(t => {
@@ -204,10 +208,74 @@ HTML;
             queries.map(q => '<div><code>' + esc(q.sql) + '</code> (' + q.ms + ' ms)</div>').join('') +
             '</div></details>'
           : '0';
-        return '<tr><td>' + t.id + '</td><td><span class="badge b-method">' + esc(t.method) + '</span></td><td><code>' + esc(t.path) + '</code></td><td><span class="badge ' + cls + '">' + t.status + '</span></td><td>' + t.duration_ms + ' ms</td><td>' + qHtml + '</td></tr>';
+        return '<tr><td>' + t.id + '</td><td><span class="badge b-method">' + esc(t.method) + '</span></td><td><code>' + esc(t.path) + '</code></td><td><span class="badge ' + cls + '">' + t.status + '</span></td><td>' + t.duration_ms + ' ms</td><td>' + qHtml + '</td><td><button class="btn" data-diagnose-trace="' + t.id + '">Diagnose</button></td></tr>';
       }).join('');
+      tb.querySelectorAll('[data-diagnose-trace]').forEach(btn => {
+        btn.addEventListener('click', () => diagnoseTrace(btn.dataset.diagnoseTrace));
+      });
     }
     renderTraces();
+
+    function activateTab(tabName) {
+      document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+      document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tabName));
+    }
+
+    async function streamSsePost(url, payload, onDelta) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream', 'X-Kongono-Dev': '1' },
+        body: JSON.stringify(payload),
+      });
+      if (res.status === 501 || !res.body) {
+        return null;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      let donePayload = null;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const frames = buf.split('\n\n');
+        buf = frames.pop() || '';
+        for (const frame of frames) {
+          let ev = 'message';
+          const dataLines = [];
+          for (const line of frame.split('\n')) {
+            if (line.startsWith('event:')) ev = line.slice(6).trim();
+            else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+          }
+          if (!dataLines.length) continue;
+          const parsed = JSON.parse(dataLines.join('\n'));
+          if (ev === 'delta' && parsed.text) onDelta(parsed.text);
+          else if (ev === 'done') donePayload = parsed;
+          else if (ev === 'error') throw new Error(parsed.error || 'Stream error');
+        }
+      }
+      return donePayload;
+    }
+
+    async function diagnoseTrace(traceId) {
+      activateTab('ai');
+      const out = document.getElementById('hanteiOut');
+      out.textContent = 'Running Hantei diagnosis on trace #' + traceId + '...';
+      const res = await fetch(BASE + '/api/hantei/trace/' + encodeURIComponent(traceId), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Kongono-Dev': '1' },
+        body: '{}',
+      });
+      const json = await res.json();
+      if (json.error) {
+        out.textContent = json.error;
+        return;
+      }
+      const parts = [json.diagnosis || ''];
+      if (json.telemetry && json.telemetry.footer) parts.push('\n' + json.telemetry.footer);
+      if (json.regression_test) parts.push('\n--- Generated PHPUnit 13 Regression Test ---\n' + json.regression_test);
+      out.textContent = parts.join('\n').trim();
+    }
 
     document.getElementById('routeRows').innerHTML = (GRAPH.routes || []).map(r =>
       '<tr><td><span class="badge b-method">' + esc((r.methods || []).join('|')) + '</span></td><td><code>' + esc(r.path) + '</code></td><td>' + esc(r.name || '-') + '</td><td><code>' + esc(r.handler) + '</code></td></tr>'
@@ -241,6 +309,22 @@ HTML;
       const lesson = document.getElementById('oshieLesson').value;
       const question = document.getElementById('oshieInput').value.trim();
       out.textContent = 'Asking Oshie...';
+      try {
+        let streamed = '';
+        const done = await streamSsePost(BASE + '/api/oshie/stream', { question, lesson }, (chunk) => {
+          streamed += chunk;
+          out.textContent = streamed;
+        });
+        if (done !== null) {
+          const text = streamed || done.reply || '';
+          const footer = done.telemetry && done.telemetry.footer ? '\n\n' + done.telemetry.footer : '';
+          out.textContent = text + footer;
+          return;
+        }
+      } catch (err) {
+        out.textContent = 'Oshie error: ' + err.message;
+        return;
+      }
       const res = await fetch(BASE + '/api/oshie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Kongono-Dev': '1' },
@@ -254,6 +338,22 @@ HTML;
       const diagnostic = document.getElementById('hanteiInput').value.trim();
       if (!diagnostic) return;
       out.textContent = 'Running Hantei diagnosis...';
+      try {
+        let streamed = '';
+        const done = await streamSsePost(BASE + '/api/hantei/stream', { diagnostic }, (chunk) => {
+          streamed += chunk;
+          out.textContent = streamed;
+        });
+        if (done !== null) {
+          const text = streamed || done.diagnosis || '';
+          const footer = done.telemetry && done.telemetry.footer ? '\n\n' + done.telemetry.footer : '';
+          out.textContent = text + footer;
+          return;
+        }
+      } catch (err) {
+        out.textContent = 'Hantei error: ' + err.message;
+        return;
+      }
       const res = await fetch(BASE + '/api/hantei', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Kongono-Dev': '1' },
@@ -277,6 +377,7 @@ HTML;
       for (const d of (json.diffs || [])) {
         blocks.push('\n[' + (d.action || 'change') + '] ' + d.path + ' — ' + (d.explanation || '') + '\n' + (d.diff || ''));
       }
+      if (json.telemetry && json.telemetry.footer) blocks.push('\n' + json.telemetry.footer);
       if (json.apply_command) blocks.push('\nApply in terminal:\n  ' + json.apply_command);
       out.textContent = blocks.join('\n').trim() || JSON.stringify(json, null, 2);
     });

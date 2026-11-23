@@ -9,6 +9,7 @@ use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Http\App;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
+use Kongono\Http\SseEvent;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -26,9 +27,25 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
     private DevDashboardRenderer $renderer;
 
     /**
-     * @param (Closure(string, ?string): string)|null            $oshieHandler  Optional callback ($question, $lesson) => reply
-     * @param (Closure(string): string)|null                     $hanteiHandler Optional callback ($diagnostic) => diagnosis
-     * @param (Closure(string): array<string, mixed>)|null       $chieHandler   Optional preview-only builder callback ($instruction) => diff payload
+     * @param (Closure(string, ?string): string)|null                                       $oshieHandler        Optional callback ($question, $lesson) => reply
+     * @param (Closure(string): string)|null                                                $hanteiHandler       Optional callback ($diagnostic) => diagnosis
+     * @param (Closure(string): array<string, mixed>)|null                                  $chieHandler         Optional preview-only builder callback ($instruction) => diff payload
+     * @param (Closure(string, ?string, Closure(string): void): array<string, mixed>)|null  $oshieStreamHandler  Optional SSE streaming callback ($question, $lesson, $onDelta) => completion payload
+     * @param (Closure(string, Closure(string): void): array<string, mixed>)|null           $hanteiStreamHandler Optional SSE streaming callback ($diagnostic, $onDelta) => completion payload
+     * @param (Closure(array{
+     *     id: int,
+     *     timestamp: string,
+     *     method: string,
+     *     path: string,
+     *     query: string,
+     *     headers: array<string, string>,
+     *     body: string,
+     *     status: int,
+     *     duration_ms: float,
+     *     queries: list<array{sql: string, ms: float}>,
+     *     n_plus_one: list<array{pattern: string, count: int}>,
+     *     error: ?string
+     * }): array<string, mixed>)|null                                                       $hanteiTraceHandler  Optional callback diagnosing a captured DevInspector trace
      */
     public function __construct(
         private App $app,
@@ -38,6 +55,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         private ?Closure $hanteiHandler = null,
         private ?Closure $chieHandler = null,
         private bool $loopbackOnly = true,
+        private ?Closure $oshieStreamHandler = null,
+        private ?Closure $hanteiStreamHandler = null,
+        private ?Closure $hanteiTraceHandler = null,
     ) {
         $this->renderer = new DevDashboardRenderer();
     }
@@ -93,6 +113,20 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             return Response::text($code);
         }
 
+        if ($path === $base . '/api/oshie/stream' && 'POST' === $method) {
+            if (null === $this->oshieStreamHandler) {
+                return Response::json(['error' => 'Oshie streaming bridge is not configured on DevDashboardMiddleware.'], 501);
+            }
+            $decoded = json_decode((string) $request->getBody(), true);
+            $question = is_array($decoded) && is_string($decoded['question'] ?? null) ? trim($decoded['question']) : '';
+            $lesson = is_array($decoded) && is_string($decoded['lesson'] ?? null) && '' !== trim($decoded['lesson']) ? trim($decoded['lesson']) : null;
+            $streamHandler = $this->oshieStreamHandler;
+
+            return $this->streamCompanionSse(
+                static fn(Closure $onDelta): array => $streamHandler($question, $lesson, $onDelta),
+            );
+        }
+
         if ($path === $base . '/api/oshie' && 'POST' === $method) {
             if (null === $this->oshieHandler) {
                 return Response::json(['reply' => 'Oshie browser bridge is not configured on DevDashboardMiddleware.'], 501);
@@ -102,6 +136,31 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             $lesson = is_array($decoded) && is_string($decoded['lesson'] ?? null) && '' !== trim($decoded['lesson']) ? trim($decoded['lesson']) : null;
 
             return Response::json(['reply' => ($this->oshieHandler)($question, $lesson)]);
+        }
+
+        if ($path === $base . '/api/hantei/stream' && 'POST' === $method) {
+            if (null === $this->hanteiStreamHandler) {
+                return Response::json(['error' => 'Hantei streaming bridge is not configured on DevDashboardMiddleware.'], 501);
+            }
+            $decoded = json_decode((string) $request->getBody(), true);
+            $diagnostic = is_array($decoded) && is_string($decoded['diagnostic'] ?? null) ? trim($decoded['diagnostic']) : '';
+            $streamHandler = $this->hanteiStreamHandler;
+
+            return $this->streamCompanionSse(
+                static fn(Closure $onDelta): array => $streamHandler($diagnostic, $onDelta),
+            );
+        }
+
+        if (1 === preg_match('#\A' . preg_quote($base, '#') . '/api/hantei/trace/(\d+)\z#', $path, $traceDiagMatch) && 'POST' === $method) {
+            if (null === $this->hanteiTraceHandler) {
+                return Response::json(['error' => 'Hantei trace diagnosis bridge is not configured on DevDashboardMiddleware.'], 501);
+            }
+            $trace = $this->inspector->findTrace((int) $traceDiagMatch[1]);
+            if (null === $trace) {
+                return Response::json(['error' => 'Trace not found.'], 404);
+            }
+
+            return Response::json(($this->hanteiTraceHandler)($trace));
         }
 
         if ($path === $base . '/api/hantei' && 'POST' === $method) {
@@ -161,6 +220,54 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             );
             throw $e;
         }
+    }
+
+    /**
+     * Stream companion token deltas over Server-Sent Events (SSE).
+     *
+     * Under real HTTP SAPIs (cli-server, fpm-fcgi, frankenphp), deltas flush over the wire as soon as
+     * each provider chunk arrives; under `cli` (PHPUnit / TestClient), frames yield cleanly for buffering.
+     *
+     * @param Closure(Closure(string): void): array<string, mixed> $runner
+     */
+    private function streamCompanionSse(Closure $runner): Response
+    {
+        return Response::sse(static function () use ($runner): iterable {
+            $liveFlush = 'cli' !== PHP_SAPI;
+            /** @var list<SseEvent> $buffered */
+            $buffered = [];
+
+            try {
+                $done = $runner(static function (string $delta) use ($liveFlush, &$buffered): void {
+                    if ('' === $delta) {
+                        return;
+                    }
+                    $frame = SseEvent::json(['text' => $delta], 'delta');
+                    if ($liveFlush) {
+                        echo $frame->format();
+                        if (ob_get_level() > 0) {
+                            @ob_flush();
+                        }
+                        if (function_exists('flush')) {
+                            flush();
+                        }
+
+                        return;
+                    }
+                    $buffered[] = $frame;
+                });
+
+                foreach ($buffered as $frame) {
+                    yield $frame;
+                }
+                yield SseEvent::json($done, 'done');
+            } catch (Throwable $e) {
+                foreach ($buffered as $frame) {
+                    yield $frame;
+                }
+                yield SseEvent::json(['error' => SecretScrubber::scrub($e->getMessage())], 'error');
+            }
+        });
     }
 
     private function handleReplay(int $traceId, string $base): Response

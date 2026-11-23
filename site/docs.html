@@ -327,11 +327,14 @@ $answer = $kb-&gt;ask('How does key rotation work?', $ai);</code></pre>
 
       <section id="ai-companions">
         <h2>14. Built-In AI Companions &amp; 12-Tool MCP Server</h2>
-        <p>Every Kongono app ships with three built-in AI companions plus a capability-governed JSON-RPC 2.0 MCP server:</p>
-<pre><code>php vendor/bin/kongo oshie --interactive            # Learn Kongono interactively
-php vendor/bin/kongo chie "Add a /api/posts CRUD"   # Diff preview (--apply to write)
-php vendor/bin/kongo hantei check                   # Run tests &amp; AI-diagnose failures
-php vendor/bin/kongo mcp                            # Start stdio MCP server</code></pre>
+        <p>Every Kongono app ships with three built-in AI companions (with live token streaming, trace &amp; DLQ awareness, token/cost telemetry, and hard <code>KONGONO_AI_MAX_COST_USD</code> caps) plus a capability-governed JSON-RPC 2.0 MCP server:</p>
+<pre><code>php vendor/bin/kongo oshie --interactive                              # Streaming AI tutor REPL (12 lessons + live trace context)
+php vendor/bin/kongo oshie "Why is /api/notes slow?" --stream         # Live token streaming + token/cost telemetry footer
+php vendor/bin/kongo chie "Add a /api/posts CRUD" --interactive       # Approve or skip each unified file diff [y/n/a/q]
+php vendor/bin/kongo chie "Add a /api/posts CRUD" --apply --verify    # Self-verifying build loop (tests + MigrationLinter + auto-repair)
+php vendor/bin/kongo hantei check                                     # Run tests &amp; AI-diagnose failures
+php vendor/bin/kongo hantei queue-failed --queue=default              # Diagnose dead-lettered background jobs (secret-scrubbed)
+php vendor/bin/kongo mcp                                              # Start stdio MCP server</code></pre>
         <h3>Connect Antigravity, Cursor, Claude Code, or Codex via MCP</h3>
 <pre><code>{
   "mcpServers": {
@@ -348,7 +351,7 @@ php vendor/bin/kongo mcp                            # Start stdio MCP server</co
         <h2>15. <code>/_ops</code> Operations, Dev Studio &amp; SDK Generator</h2>
         <ul>
           <li><strong>Built-In Operations Dashboard (<code>/_ops</code>):</strong> Mount <code>OpsDashboardMiddleware</code> for a zero-npm, strict-CSP Live 2.5 control plane gated fail-closed by <code>Gate</code> abilities (<code>ops.view</code> for reads, <code>ops.manage</code> for dead-letter retry/flush) — showing live queue depths, active <code>JobBatch</code> progress bars, <code>HealthCheck</code> status, <code>Metrics::snapshot()</code>, and recent request traces.</li>
-          <li><strong>Kongono Dev Studio (<code>/_kongono</code>):</strong> Live request/SQL trace viewer, in-process time-travel replay (<code>/_kongono/api/replay/{id}</code>), 1-click PHPUnit 13 <code>TestExporter</code>, <code>ApplicationGraph</code> inspector, and interactive browser <strong>Oshie, Chie, Hantei &amp; MCP</strong> studio. Automatically returns <code>404</code> when <code>APP_DEBUG=false</code>.</li>
+          <li><strong>Kongono Dev Studio (<code>/_kongono</code>):</strong> Live request/SQL trace viewer, in-process time-travel replay (<code>/_kongono/api/replay/{id}</code>), 1-click Hantei trace diagnosis + PHPUnit 13 regression test export (<code>POST /_kongono/api/hantei/trace/{id}</code>), live SSE streaming for <strong>Oshie &amp; Hantei</strong> (<code>/_kongono/api/{oshie,hantei}/stream</code>), <code>ApplicationGraph</code> inspector, and interactive <strong>Chie</strong> diff preview &amp; <strong>MCP</strong> studio. Automatically returns <code>404</code> when <code>APP_DEBUG=false</code>.</li>
           <li><strong>Multi-Platform SDKs (<code>kongo sdk:generate</code>):</strong> Emit typed <strong>TypeScript</strong>, <strong>Swift 6</strong>, <strong>Kotlin</strong>, and <strong>Dart</strong> clients straight from your PHP 8.5 attribute routes and DTOs.</li>
           <li><strong>Feature Flags &amp; Resilience:</strong> Deterministic percentage rollouts (<code>$features-&gt;rollout('new_ui', 25)</code> + <code>#[Feature]</code>), <code>Retry</code>, <code>CircuitBreaker</code>, <code>GET /health</code>, Prometheus <code>GET /metrics</code>, and <code>Server-Timing</code> headers via <code>Tracer</code>.</li>
         </ul>

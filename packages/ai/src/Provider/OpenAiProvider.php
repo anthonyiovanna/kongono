@@ -190,12 +190,14 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
         $fullText = '';
         $resolvedModel = $model;
         $finishReason = null;
+        $inputTokens = 0;
+        $outputTokens = 0;
 
         $status = $this->transport->postJsonStream(
             $url,
             $headers,
             json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
-            static function (string $chunk) use (&$buffer, &$fullText, &$resolvedModel, &$finishReason, $onDelta): void {
+            static function (string $chunk) use (&$buffer, &$fullText, &$resolvedModel, &$finishReason, &$inputTokens, &$outputTokens, $onDelta): void {
                 $buffer .= str_replace("\r\n", "\n", $chunk);
                 if (strlen($buffer) > 1_048_576) {
                     throw new AiException('OpenAI streaming line buffer exceeded maximum bound.');
@@ -216,6 +218,14 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
                     }
                     if (is_string($frame['model'] ?? null)) {
                         $resolvedModel = $frame['model'];
+                    }
+                    if (is_array($frame['usage'] ?? null)) {
+                        if (is_int($frame['usage']['prompt_tokens'] ?? null)) {
+                            $inputTokens = $frame['usage']['prompt_tokens'];
+                        }
+                        if (is_int($frame['usage']['completion_tokens'] ?? null)) {
+                            $outputTokens = $frame['usage']['completion_tokens'];
+                        }
                     }
                     $choices = $frame['choices'] ?? null;
                     if (!is_array($choices) || !isset($choices[0]) || !is_array($choices[0])) {
@@ -245,6 +255,7 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
             text: $fullText,
             model: $resolvedModel,
             provider: $this->name(),
+            usage: new TokenUsage($inputTokens, $outputTokens),
             finishReason: $finishReason,
         );
     }

@@ -14,33 +14,38 @@ Set **any one** of these environment variables (or place it in `.env`):
 | Groq (OpenAI-compatible LPU) | `GROQ_API_KEY` (+ optional `GROQ_BASE_URL`) | `llama-3.3-70b-versatile` |
 | Local Ollama (free/offline) | `OLLAMA_HOST=http://127.0.0.1:11434` | `qwen2.5-coder:7b` |
 
-Optional overrides: `KONGONO_AI_PROVIDER` and `KONGONO_AI_MODEL`.
+Optional overrides: `KONGONO_AI_PROVIDER`, `KONGONO_AI_MODEL`, and **`KONGONO_AI_MAX_COST_USD`** (hard per-invocation USD budget cap enforced fail-closed; every companion prints live token, latency, and estimated USD telemetry, showing `$0.00 (local)` for Ollama).
 
 ## 1. Oshie (教え) — Learn Kongono
+
+Oshie ships with **12 built-in lessons** (works offline or AI-personalized), live token streaming (`--stream` and `/_kongono/api/oshie/stream`), `PromptGuard` isolation, and automatic awareness of recent `/_kongono` `DevInspector` slow-request and N+1 SQL traces:
 
 ```bash
 php bin/kongo oshie --lessons
 php bin/kongo oshie --lesson routing
-php bin/kongo oshie --interactive
-php bin/kongo oshie "How do I add RateLimitMiddleware to my /api routes?"
+php bin/kongo oshie --interactive                                        # Streaming multi-turn REPL
+php bin/kongo oshie "Why is /api/notes slow?" --stream --max-cost=0.10
 ```
 
 ## 2. Chie (知恵) — Build with Kongono
 
-Chie runs under a governed `AgentPrincipal` with explicit read-only inspection tools (`list_files`, `read_file`, `inspect_graph`), previews every proposed file change first as a unified diff, and only writes inside your project root when you pass `--apply`:
+Chie runs under a governed `AgentPrincipal` with explicit read-only inspection tools (`list_files`, `read_file`, `inspect_graph`), previews every proposed file change as a unified diff, runs `php -l` syntax checks before writing, and supports **self-verifying build + bounded repair loops** (`--apply --verify`) as well as **per-file interactive diff approval** (`--interactive`):
 
 ```bash
 php bin/kongo chie "Add a /api/stats endpoint returning note count and queue stats"
-php bin/kongo chie "Add a /api/stats endpoint returning note count and queue stats" --apply
+php bin/kongo chie "Add a /api/stats endpoint" --interactive                             # [y]es / [n]o / [a]ll / [q]uit per file
+php bin/kongo chie "Add a /api/stats endpoint" --apply --verify --max-repairs=2          # Apply, run tests + MigrationLinter, auto-repair
+php bin/kongo chie "Add a /api/stats endpoint" --apply --verify --rollback-on-failure    # Atomically restore snapshots if still red
 ```
 
 ## 3. Hantei (判定) — Debug & Test
 
-Hantei runs PHPUnit, scrubs credentials/secrets via `SecretScrubber`, diagnoses failures against your live app, and generates PHPUnit 13 tests:
+Hantei runs PHPUnit, scrubs credentials/secrets via `SecretScrubber`, streams live diagnoses (`--stream` and `/_kongono/api/hantei/stream`), diagnoses live `/_kongono` HTTP/SQL traces with automatic PHPUnit 13 regression test export (`POST /_kongono/api/hantei/trace/{id}`), diagnoses dead-lettered background jobs (`queue-failed`), and generates syntax-checked PHPUnit 13 tests:
 
 ```bash
 php bin/kongo hantei check
-php bin/kongo hantei debug "KGN-VALIDATION-422 on POST /api/notes"
+php bin/kongo hantei debug "KGN-VALIDATION-422 on POST /api/notes" --stream
+php bin/kongo hantei queue-failed --queue=default
 php bin/kongo hantei generate-tests src/Http/NoteController.php --apply
 ```
 
