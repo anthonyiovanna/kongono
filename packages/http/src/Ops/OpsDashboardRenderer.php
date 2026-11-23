@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Http\Ops;
 
 use Kongono\Core\Diagnostics\SecretScrubber;
+use Kongono\Http\Brand\KongonoBrand;
 
 /**
  * Zero-npm, zero-eval, strict-CSP HTML & Kongono Live 2.5 fragment renderer for OpsDashboard.
@@ -78,7 +79,7 @@ final readonly class OpsDashboardRenderer
   body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.55; -webkit-font-smoothing: antialiased; }
   .wrap { max-width: 1160px; margin: 0 auto; padding: 28px 24px 56px; }
   .hdr { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 22px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
-  .hdr h1 { margin: 0; font-size: 1.28rem; font-weight: 560; letter-spacing: -0.025em; }
+  .hdr h1 { margin: 0; font-size: 1.28rem; font-weight: 560; letter-spacing: -0.025em; display: inline-flex; align-items: center; gap: 0.55rem; }
   .meta { color: var(--muted); font-size: 0.78rem; font-family: ui-monospace, "JetBrains Mono", Menlo, monospace; margin-top: 3px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 22px; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 16px 18px; }
@@ -122,8 +123,9 @@ HTML;
         $parts = [];
         $parts[] = '<div id="ops-dashboard-root">';
         $parts[] = sprintf(
-            '<div class="hdr"><div><h1>%s — Ops Dashboard</h1><div class="meta">Updated %s</div></div>'
+            '<div class="hdr"><div><h1>%s<span>%s — Ops Dashboard</span></h1><div class="meta">Updated %s</div></div>'
             . '<div class="actions"><a class="btn btn-ghost" href="%s" kgn-get="%s" kgn-target="#ops-dashboard-root">Refresh</a></div></div>',
+            KongonoBrand::markSvg(24, 'kgn-ops-gm'),
             self::e($snapshot['app']),
             self::e($snapshot['timestamp']),
             self::e($basePath),

@@ -95,17 +95,14 @@ a:hover { text-decoration: underline; text-underline-offset: 3px; }
 }
 .logo:hover { text-decoration: none; }
 .logo-mark {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  background: var(--text-strong);
-  display: inline-grid;
-  place-items: center;
-  color: var(--bg);
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: 0.78rem;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
+.logo-mark svg { width: 100%; height: 100%; display: block; }
 .version-pill {
   font-family: var(--mono);
   font-size: 0.7rem;

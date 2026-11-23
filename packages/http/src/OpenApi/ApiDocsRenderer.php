@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Http\OpenApi;
 
 use Kongono\Http\App;
+use Kongono\Http\Brand\KongonoBrand;
 
 /**
  * Self-contained, zero-CDN HTML5 Interactive API Explorer (`/docs`)
@@ -30,6 +31,7 @@ final class ApiDocsRenderer
             throw new \InvalidArgumentException('Unsafe OpenAPI specUrl (must be a safe relative path or http(s):// URL).');
         }
         $safeSpecUrl = htmlspecialchars($trimmedSpec, ENT_QUOTES, 'UTF-8');
+        $brandSvg = KongonoBrand::markSvg(24, 'kgn-api-gm');
 
         $head = <<<HTML
 <!doctype html>
@@ -73,7 +75,7 @@ final class ApiDocsRenderer
     body { max-width: 980px; margin: 0 auto; padding: 2rem 1.5rem 4rem; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
     a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
     header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1.15rem; margin-bottom: 1.65rem; gap: 1rem; flex-wrap: wrap; }
-    h1 { margin: 0; font-size: 1.45rem; font-weight: 560; letter-spacing: -0.025em; }
+    h1 { margin: 0; font-size: 1.45rem; font-weight: 560; letter-spacing: -0.025em; display: inline-flex; align-items: center; gap: 0.55rem; }
     .meta { color: var(--muted); font-size: 0.82rem; font-family: ui-monospace, Menlo, monospace; margin-top: 0.25rem; }
     .auth-bar { display: flex; gap: 0.5rem; align-items: center; }
     .auth-bar input { padding: 0.44rem 0.72rem; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 6px; width: 260px; font-family: ui-monospace, monospace; font-size: 0.8rem; }
@@ -95,7 +97,7 @@ final class ApiDocsRenderer
 <body>
   <header>
     <div>
-      <h1>{$title}</h1>
+      <h1>{$brandSvg}<span>{$title}</span></h1>
       <div class="meta">OpenAPI 3.1.0 &middot; <a href="{$safeSpecUrl}">{$safeSpecUrl}</a> &middot; Powered by Kongono Framework</div>
     </div>
     <div class="auth-bar">

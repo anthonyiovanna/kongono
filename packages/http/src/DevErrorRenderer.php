@@ -6,6 +6,7 @@ namespace Kongono\Http;
 
 use Kongono\Core\CoreException;
 use Kongono\Core\Diagnostics\SecretScrubber;
+use Kongono\Http\Brand\KongonoBrand;
 use PhpToken;
 use Throwable;
 
@@ -167,6 +168,7 @@ final class DevErrorRenderer
         $escapedPath = $this->esc(SecretScrubber::scrub($request->path()));
         $escapedPhp = $this->esc(PHP_VERSION);
         $memMb = number_format(memory_get_peak_usage(true) / 1048576, 1);
+        $brandSvg = KongonoBrand::markSvg(20, 'kgn-err-gm');
 
         $html = <<<HTML
 <!doctype html>
@@ -175,6 +177,7 @@ final class DevErrorRenderer
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{$shortClass}: {$escapedMsg} — {$escapedApp}</title>
+  <link rel="icon" type="image/svg+xml" href="{$escapedBase}/assets/favicon.svg">
   <style>
     :root {
       color-scheme: dark light;
@@ -774,7 +777,7 @@ final class DevErrorRenderer
 <body data-dev-base="{$escapedBase}">
   <header class="topbar">
     <div class="topbar-inner">
-      <span class="brand">{$escapedApp}</span>
+      <span class="brand">{$brandSvg}<span>{$escapedApp}</span></span>
       <span class="mid-meta"><span class="dot dot-err"></span>500 · {$escapedMethod} {$escapedPath} · PHP {$escapedPhp}</span>
       <div class="top-actions">
         <button class="btn btn-solid" type="button" id="kgn-ask-hantei">Diagnose Live with Hantei</button>

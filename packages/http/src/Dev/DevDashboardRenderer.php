@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Http\Dev;
 
 use Kongono\Http\App;
+use Kongono\Http\Brand\KongonoBrand;
 
 /**
  * Self-contained, zero-CDN HTML5 Kongono Dev Studio (`/_kongono`).
@@ -22,6 +23,7 @@ final class DevDashboardRenderer
         $tracesJson = json_encode($inspector->traces(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
         $safeBase = htmlspecialchars(rtrim($basePath, '/'), ENT_QUOTES, 'UTF-8');
         $phpVersion = htmlspecialchars(PHP_VERSION, ENT_QUOTES, 'UTF-8');
+        $brandSvg = KongonoBrand::markSvg(24, 'kgn-dev-gm');
 
         $head = <<<HTML
 <!doctype html>
@@ -30,6 +32,7 @@ final class DevDashboardRenderer
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{$appName} — Kongono Dev Studio</title>
+  <link rel="icon" type="image/svg+xml" href="{$safeBase}/assets/favicon.svg">
   <style>
     :root {
       color-scheme: dark light;
@@ -66,7 +69,7 @@ final class DevDashboardRenderer
     * { box-sizing: border-box; }
     body { margin: 0; max-width: 1140px; margin-inline: auto; padding: 1.75rem 1.5rem 4rem; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
     header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 1.15rem; margin-bottom: 1.4rem; }
-    h1 { margin: 0; font-size: 1.35rem; font-weight: 560; letter-spacing: -0.025em; color: var(--text); }
+    h1 { margin: 0; font-size: 1.35rem; font-weight: 560; letter-spacing: -0.025em; color: var(--text); display: inline-flex; align-items: center; gap: 0.55rem; }
     .sub { color: var(--muted); font-size: 0.82rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 0.25rem; }
     .links { display: flex; gap: 0.45rem; flex-wrap: wrap; }
     .pill { background: transparent; color: var(--text-2); text-decoration: none; padding: 0.36rem 0.72rem; border-radius: 6px; font-size: 0.78rem; font-weight: 500; border: 1px solid var(--border); transition: all 120ms ease; }
@@ -102,7 +105,7 @@ final class DevDashboardRenderer
 <body>
   <header>
     <div>
-      <h1>Kongono Dev Studio &middot; {$appName}</h1>
+      <h1>{$brandSvg}<span>Kongono Dev Studio &middot; {$appName}</span></h1>
       <div class="sub">PHP {$phpVersion} &middot; Debug Mode Only (auto-disabled in production)</div>
     </div>
     <div class="links">

@@ -7,6 +7,7 @@ namespace Kongono\Http\Dev;
 use Closure;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Http\App;
+use Kongono\Http\Brand\KongonoBrand;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Http\SseEvent;
@@ -90,6 +91,13 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             return Response::text(self::devErrorScript(), 200, [
                 'Content-Type' => 'application/javascript; charset=utf-8',
                 'Cache-Control' => 'no-store',
+            ]);
+        }
+
+        if ($path === $base . '/assets/favicon.svg' && 'GET' === $method) {
+            return Response::text(KongonoBrand::faviconSvg(), 200, [
+                'Content-Type' => 'image/svg+xml; charset=utf-8',
+                'Cache-Control' => 'public, max-age=3600',
             ]);
         }
 

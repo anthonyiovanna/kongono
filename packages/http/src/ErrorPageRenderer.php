@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Http;
 
 use Kongono\Core\Diagnostics\SecretScrubber;
+use Kongono\Http\Brand\KongonoBrand;
 
 /**
  * Kongo Atelier — timeless monochrome, zero-JS, strict-CSP default HTML error page renderer
@@ -91,6 +92,7 @@ final readonly class ErrorPageRenderer
         $footerRight = $debug && null !== $request
             ? sprintf('APP_DEBUG · %s %s', self::esc($request->method()), self::esc(SecretScrubber::scrub($request->path())))
             : sprintf('HTTP %d · Nondisclosing', $statusCode);
+        $brandSvg = KongonoBrand::markSvg(18, 'kgn-ep-gm');
 
         return <<<HTML
 <!doctype html>
@@ -290,6 +292,11 @@ final readonly class ErrorPageRenderer
       font-size: 0.72rem;
       color: var(--muted);
     }
+    .foot-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
     @media (max-width: 480px) {
       .val-list li { grid-template-columns: 1fr; gap: 0.2rem; }
     }
@@ -315,7 +322,7 @@ final readonly class ErrorPageRenderer
     {$devHintHtml}
 
     <footer class="foot">
-      <span>{$escapedApp}</span>
+      <span class="foot-brand">{$brandSvg}<span>{$escapedApp}</span></span>
       <span>{$footerRight}</span>
     </footer>
   </main>
