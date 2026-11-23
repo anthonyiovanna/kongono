@@ -126,7 +126,7 @@ final readonly class PostgresFullTextSearch implements SearchEngineInterface
 
         $sql = sprintf(
             'SELECT s.id, s.title, s.metadata, ts_rank_cd(s.tsv, q.tsq) AS score, '
-            . "ts_headline('%s', s.body, q.tsq, 'MaxFragments=1, MaxWords=25, MinWords=6, StartSel=, StopSel=') AS snippet "
+            . "ts_headline('%s', s.body, q.tsq, 'MaxFragments=1, MaxWords=25, MinWords=6, StartSel=[[, StopSel=]]') AS snippet "
             . "FROM %s AS s, websearch_to_tsquery('%s', ?) AS q(tsq) "
             . 'WHERE s.tsv @@ q.tsq%s '
             . 'ORDER BY score DESC, s.updated_at DESC LIMIT ?',
