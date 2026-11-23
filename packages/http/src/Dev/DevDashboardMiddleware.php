@@ -282,6 +282,26 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         return <<<'JS'
 (() => {
   const base = document.body.dataset.devBase || '/_kongono';
+  const root = document.documentElement;
+
+  // Theme preference (follows OS by default; 1-click toggle persists locally)
+  try {
+    const savedTheme = localStorage.getItem('kongono-dev-theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      root.dataset.theme = savedTheme;
+    }
+  } catch {}
+
+  const themeBtn = document.getElementById('kgn-theme-toggle');
+  if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+      const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      const current = root.dataset.theme || (prefersLight ? 'light' : 'dark');
+      const next = current === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = next;
+      try { localStorage.setItem('kongono-dev-theme', next); } catch {}
+    });
+  }
 
   async function copyText(text, btn) {
     if (!text) return;
@@ -297,9 +317,12 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
       document.execCommand('copy');
       ta.remove();
     }
-    const orig = btn.textContent;
-    btn.textContent = 'Copied!';
-    setTimeout(() => { btn.textContent = orig; }, 1600);
+    const origNodes = Array.from(btn.childNodes);
+    btn.textContent = 'Copied';
+    setTimeout(() => {
+      btn.textContent = '';
+      origNodes.forEach((n) => btn.appendChild(n));
+    }, 1500);
   }
 
   document.querySelectorAll('[data-copy-target]').forEach((btn) => {
@@ -314,11 +337,28 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
   });
 
   const askBtn = document.getElementById('kgn-ask-hantei');
+  const copyLlmBtn = document.getElementById('kgn-copy-llm');
   const outEl = document.getElementById('kgn-hantei-output');
   const llmEl = document.getElementById('kgn-llm-prompt');
+  const hanteiTab = document.getElementById('kgn-tab-hantei');
+
+  document.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    if (e.key === 'c' && copyLlmBtn) {
+      e.preventDefault();
+      copyLlmBtn.click();
+    } else if (e.key === 'h' && askBtn) {
+      e.preventDefault();
+      askBtn.click();
+    }
+  });
+
   if (!askBtn || !outEl || !llmEl) return;
 
   askBtn.addEventListener('click', async () => {
+    if (hanteiTab) hanteiTab.checked = true;
     outEl.classList.add('is-visible');
     outEl.textContent = 'Asking Hantei to diagnose this exception...';
     outEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
