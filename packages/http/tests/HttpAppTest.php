@@ -1598,6 +1598,114 @@ HTML);
         self::assertSame(0, $queueDriver->stats('critical')['dead']);
         self::assertNotEmpty($deadJob2->id);
     }
+
+    public function testPolishedProductionErrorPagesCustomViewsAndUpgradedDevErrorRenderer(): void
+    {
+        // 1. Default polished production 404, 422, and 500 pages are nondisclosing, zero-JS, and secret-scrubbed
+        $prodApp = App::create(__DIR__, name: 'Acme Prod')->config(['app' => ['debug' => false]])->routes(static function (Router $r): void {
+            $r->post('/signup', static fn(HtmlSignupFormDto $dto): Response => Response::text($dto->email));
+            $r->get('/boom', static function (): Response {
+                throw new RuntimeException('DB crashed with secret gsk_1234567890abcdefghijKLMN');
+            });
+        });
+
+        $prodClient = new \Kongono\Http\Testing\TestClient($prodApp);
+        $prodClient->get('/missing-page')
+            ->assertStatus(404)
+            ->assertSee('Page Not Found')
+            ->assertSee('HTTP 404')
+            ->assertSee('Acme Prod')
+            ->assertDontSee('DEV HINT')
+            ->assertDontSee('<script');
+
+        $prodClient->postForm('/signup', ['email' => 'not-an-email', 'password' => 'short'])
+            ->assertStatus(422)
+            ->assertSee('Validation Failed')
+            ->assertSee('email')
+            ->assertSee('password')
+            ->assertDontSee('<script');
+
+        $prodClient->get('/boom')
+            ->assertStatus(500)
+            ->assertSee('Internal Server Error')
+            ->assertDontSee('gsk_1234567890abcdefghijKLMN')
+            ->assertDontSee('RuntimeException')
+            ->assertDontSee('<script');
+
+        // 2. Custom `views/errors/{status}.kgn.html` and fallback `views/errors/error.kgn.html` override defaults cleanly
+        $tmpRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono_errviews_' . bin2hex(random_bytes(4));
+        mkdir($tmpRoot . '/views/errors', 0o775, true);
+        mkdir($tmpRoot . '/cache', 0o775, true);
+        try {
+            file_put_contents($tmpRoot . '/views/errors/404.kgn.html', '<h1>Custom 404 for {{ $path }}</h1>');
+            file_put_contents($tmpRoot . '/views/errors/error.kgn.html', '<h1>Fallback {{ $status }}: {{ $message }}</h1>');
+
+            $customApp = App::create($tmpRoot, name: 'Custom Views App')
+                ->config(['app' => ['debug' => false]])
+                ->views($tmpRoot . '/views', $tmpRoot . '/cache')
+                ->routes(static function (Router $r): void {
+                    $r->get('/denied', static function (): Response {
+                        throw new HttpException(403, 'Admins only');
+                    });
+                });
+
+            $customClient = new \Kongono\Http\Testing\TestClient($customApp);
+            $customClient->get('/nope')->assertStatus(404)->assertSee('Custom 404 for /nope');
+            $customClient->get('/denied')->assertStatus(403)->assertSee('Fallback 403: Admins only');
+        } finally {
+            foreach (glob($tmpRoot . '/cache/*.php') ?: [] as $cachedFile) {
+                @unlink($cachedFile);
+            }
+            @unlink($tmpRoot . '/views/errors/404.kgn.html');
+            @unlink($tmpRoot . '/views/errors/error.kgn.html');
+            @rmdir($tmpRoot . '/views/errors');
+            @rmdir($tmpRoot . '/views');
+            @rmdir($tmpRoot . '/cache');
+            @rmdir($tmpRoot);
+        }
+
+        // 3. Upgraded DevErrorRenderer: Quick Fix suggestions, previous exception chain, pure-CSS multi-frame explorer, & scrubbed LLM prompt packet
+        $rootCause = new RuntimeException('SQLSTATE[42P01]: relation "invoices" does not exist (token gsk_1234567890abcdefghijKLMN)');
+        $wrapped = new \Kongono\Core\CoreException(
+            'Failed to load invoices: relation "invoices" does not exist',
+            previous: $rootCause,
+        );
+        $renderer = new DevErrorRenderer();
+        $req = Request::create('GET', '/invoices?filter=open', [
+            'Authorization' => 'Bearer sk_live_secret_header_value',
+            'Accept' => 'text/html',
+        ]);
+        $devHtml = $renderer->render($req, $wrapped, dirname(__DIR__, 3), 'Billing App');
+
+        self::assertStringContainsString('Suggested Quick Fix', $devHtml);
+        self::assertStringContainsString('Missing Database Table', $devHtml);
+        self::assertStringContainsString('migrate', $devHtml);
+        self::assertStringContainsString('Caused by #1', $devHtml);
+        self::assertStringContainsString('Stack Trace &amp; Source Context', $devHtml);
+        self::assertStringContainsString('kgn-frame', $devHtml);
+        self::assertStringContainsString('Diagnose Live with Hantei', $devHtml);
+        self::assertStringContainsString('Copy for LLM', $devHtml);
+        self::assertStringContainsString('/_kongono/assets/dev-error.js', $devHtml);
+        self::assertStringContainsString('kgn-llm-prompt', $devHtml);
+        self::assertStringContainsString('[REDACTED]', $devHtml);
+        self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $devHtml);
+        self::assertStringNotContainsString('sk_live_secret_header_value', $devHtml);
+
+        $llmPacket = $renderer->buildLlmPrompt($req, $wrapped, dirname(__DIR__, 3));
+        self::assertStringContainsString('# Kongono Exception Report', $llmPacket);
+        self::assertStringContainsString('## Failing Code', $llmPacket);
+        self::assertStringContainsString('## Stack Frames', $llmPacket);
+        self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $llmPacket);
+        self::assertStringNotContainsString('sk_live_secret_header_value', $llmPacket);
+
+        // 4. DevDashboardMiddleware serves `/_kongono/assets/dev-error.js` in debug mode (404 in prod)
+        $inspector = new DevInspector();
+        $devApp = App::create(__DIR__, name: 'Dev JS')->config(['app' => ['debug' => true]]);
+        $devApp->middleware(new DevDashboardMiddleware($devApp, $inspector));
+        (new \Kongono\Http\Testing\TestClient($devApp))->get('/_kongono/assets/dev-error.js')
+            ->assertOk()
+            ->assertSee('/api/hantei/stream');
+    }
 }
 
 final readonly class HtmlSignupFormDto

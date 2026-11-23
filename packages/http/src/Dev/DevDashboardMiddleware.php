@@ -86,6 +86,13 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             return Response::html($this->renderer->render($this->app, $this->inspector, $base));
         }
 
+        if ($path === $base . '/assets/dev-error.js' && 'GET' === $method) {
+            return Response::text(self::devErrorScript(), 200, [
+                'Content-Type' => 'application/javascript; charset=utf-8',
+                'Cache-Control' => 'no-store',
+            ]);
+        }
+
         if ($path === $base . '/api/traces' && 'GET' === $method) {
             return Response::json($this->inspector->traces());
         }
@@ -268,6 +275,112 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
                 yield SseEvent::json(['error' => SecretScrubber::scrub($e->getMessage())], 'error');
             }
         });
+    }
+
+    private static function devErrorScript(): string
+    {
+        return <<<'JS'
+(() => {
+  const base = document.body.dataset.devBase || '/_kongono';
+
+  async function copyText(text, btn) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1600);
+  }
+
+  document.querySelectorAll('[data-copy-target]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const el = document.getElementById(btn.dataset.copyTarget);
+      if (el) copyText(el.value || el.textContent || '', btn);
+    });
+  });
+
+  document.querySelectorAll('[data-copy-text]').forEach((btn) => {
+    btn.addEventListener('click', () => copyText(btn.dataset.copyText || '', btn));
+  });
+
+  const askBtn = document.getElementById('kgn-ask-hantei');
+  const outEl = document.getElementById('kgn-hantei-output');
+  const llmEl = document.getElementById('kgn-llm-prompt');
+  if (!askBtn || !outEl || !llmEl) return;
+
+  askBtn.addEventListener('click', async () => {
+    outEl.classList.add('is-visible');
+    outEl.textContent = 'Asking Hantei to diagnose this exception...';
+    outEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    const diagnostic = llmEl.value || '';
+
+    try {
+      const res = await fetch(base + '/api/hantei/stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream', 'X-Kongono-Dev': '1' },
+        body: JSON.stringify({ diagnostic }),
+      });
+
+      if (res.status !== 501 && res.ok && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let acc = '';
+        let donePayload = null;
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const frames = buf.split('\n\n');
+          buf = frames.pop() || '';
+          for (const frame of frames) {
+            let ev = 'message';
+            const dataLines = [];
+            for (const line of frame.split('\n')) {
+              if (line.startsWith('event:')) ev = line.slice(6).trim();
+              else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+            }
+            if (!dataLines.length) continue;
+            const parsed = JSON.parse(dataLines.join('\n'));
+            if (ev === 'delta' && parsed.text) {
+              acc += parsed.text;
+              outEl.textContent = acc;
+            } else if (ev === 'done') {
+              donePayload = parsed;
+            } else if (ev === 'error') {
+              throw new Error(parsed.error || 'Hantei stream error');
+            }
+          }
+        }
+        const text = acc || (donePayload && donePayload.diagnosis) || '';
+        const footer = donePayload && donePayload.telemetry && donePayload.telemetry.footer ? '\n\n' + donePayload.telemetry.footer : '';
+        outEl.textContent = text + footer;
+        return;
+      }
+
+      const fallback = await fetch(base + '/api/hantei', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Kongono-Dev': '1' },
+        body: JSON.stringify({ diagnostic }),
+      });
+      const json = await fallback.json();
+      outEl.textContent = json.diagnosis || json.error || JSON.stringify(json, null, 2);
+    } catch (err) {
+      outEl.textContent = 'Hantei live diagnosis unavailable: ' + err.message;
+    }
+  });
+})();
+JS;
     }
 
     private function handleReplay(int $traceId, string $base): Response

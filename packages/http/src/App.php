@@ -771,15 +771,20 @@ final class App
             }
         }
 
-        $items = '';
-        foreach ($e->errors as $field => $messages) {
-            foreach ($messages as $msg) {
-                $items .= sprintf('<li><strong>%s</strong>: %s</li>', htmlspecialchars($field, ENT_QUOTES, 'UTF-8'), htmlspecialchars($msg, ENT_QUOTES, 'UTF-8'));
-            }
+        $custom = $this->tryRenderCustomErrorView(422, 'Validation Failed', 'Please review the highlighted fields and try again.', $request, $e->errors);
+        if (null !== $custom) {
+            return Response::html($custom, 422);
         }
 
         return Response::html(
-            sprintf('<!doctype html><html><body><h1>Validation Failed</h1><ul>%s</ul></body></html>', $items),
+            (new ErrorPageRenderer())->render(
+                statusCode: 422,
+                message: 'Please review the highlighted fields and try again.',
+                request: $request,
+                validationErrors: $e->errors,
+                debug: $this->debug,
+                appName: $this->name,
+            ),
             422,
         );
     }
@@ -845,19 +850,27 @@ final class App
 
     private function renderHttpError(Request $request, HttpException $e): Response
     {
+        $safeMessage = SecretScrubber::scrub($e->getMessage());
         if ($request->expectsJson()) {
             return Response::json([
                 'error' => 'http_error',
                 'status' => $e->statusCode,
-                'message' => SecretScrubber::scrub($e->getMessage()),
+                'message' => $safeMessage,
             ], $e->statusCode, $e->headers);
         }
 
+        $custom = $this->tryRenderCustomErrorView($e->statusCode, 'HTTP ' . $e->statusCode, $safeMessage, $request);
+        if (null !== $custom) {
+            return Response::html($custom, $e->statusCode, $e->headers);
+        }
+
         return Response::html(
-            sprintf(
-                '<!doctype html><html><body><h1>%d</h1><p>%s</p></body></html>',
-                $e->statusCode,
-                htmlspecialchars(SecretScrubber::scrub($e->getMessage()), ENT_QUOTES, 'UTF-8'),
+            (new ErrorPageRenderer())->render(
+                statusCode: $e->statusCode,
+                message: $safeMessage,
+                request: $request,
+                debug: $this->debug,
+                appName: $this->name,
             ),
             $e->statusCode,
             $e->headers,
@@ -875,8 +888,10 @@ final class App
             'message' => $safeMessage,
         ];
 
+        $safeDiagnostic = null;
         if ($e instanceof CoreException && null !== $e->diagnostic) {
-            $payload['diagnostic'] = $e->diagnostic->toSafeArray();
+            $safeDiagnostic = $e->diagnostic->toSafeArray();
+            $payload['diagnostic'] = $safeDiagnostic;
         }
 
         if ($request->expectsJson()) {
@@ -884,12 +899,64 @@ final class App
         }
 
         if ($this->debug) {
-            return Response::html((new DevErrorRenderer())->render($request, $e), 500);
+            return Response::html((new DevErrorRenderer())->render($request, $e, $this->basePath, $this->name), 500);
+        }
+
+        $custom = $this->tryRenderCustomErrorView(500, 'Internal Server Error', $safeMessage, $request, safeDiagnostic: $safeDiagnostic);
+        if (null !== $custom) {
+            return Response::html($custom, 500);
         }
 
         return Response::html(
-            '<!doctype html><html><body><h1>500 Internal Server Error</h1><p>An internal server error occurred.</p></body></html>',
+            (new ErrorPageRenderer())->render(
+                statusCode: 500,
+                message: $safeMessage,
+                request: $request,
+                safeDiagnostic: $safeDiagnostic,
+                debug: false,
+                appName: $this->name,
+            ),
             500,
         );
+    }
+
+    /**
+     * Render optional app-provided `views/errors/{status}.kgn.html` or `views/errors/error.kgn.html`.
+     * Fails safely back to `ErrorPageRenderer` if a custom template is missing or throws.
+     *
+     * @param array<string, list<string>>                                                              $validationErrors
+     * @param array{id: string, title: string, remediation: string, fields: array<string, mixed>}|null $safeDiagnostic
+     */
+    private function tryRenderCustomErrorView(
+        int $statusCode,
+        string $title,
+        string $message,
+        Request $request,
+        array $validationErrors = [],
+        ?array $safeDiagnostic = null,
+    ): ?string {
+        if (null === $this->views) {
+            return null;
+        }
+
+        foreach (['errors/' . $statusCode, 'errors/error'] as $candidate) {
+            if (!$this->views->exists($candidate)) {
+                continue;
+            }
+            try {
+                return $this->views->render($candidate, [
+                    'status' => $statusCode,
+                    'title' => $title,
+                    'message' => $message,
+                    'errors' => $validationErrors,
+                    'diagnostic' => $safeDiagnostic,
+                    'path' => SecretScrubber::scrub($request->path()),
+                ]);
+            } catch (Throwable) {
+                return null;
+            }
+        }
+
+        return null;
     }
 }

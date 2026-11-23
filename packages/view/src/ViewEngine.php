@@ -137,6 +137,19 @@ final class ViewEngine
         return $key;
     }
 
+    /** Check whether a logical template name exists safely inside the views root directory. */
+    public function exists(string $template): bool
+    {
+        try {
+            $normalized = $this->normalizeTemplateName($template);
+            $this->resolveNormalizedTemplatePath($normalized, $template);
+
+            return true;
+        } catch (ViewException) {
+            return false;
+        }
+    }
+
     /**
      * Render a logical template (e.g. 'notes/index') into an HTML string.
      *
