@@ -28,6 +28,13 @@ use Kongono\Jobs\PostgresQueueDriver;
 use Kongono\Jobs\Queue;
 use Kongono\Jobs\RedisQueueDriver;
 use Kongono\Jobs\Worker;
+use Kongono\Security\Auth\CachePersonalAccessTokenStore;
+use Kongono\Security\Auth\LoginThrottler;
+use Kongono\Security\Auth\PasswordResetBroker;
+use Kongono\Security\Auth\PdoPersonalAccessTokenStore;
+use Kongono\Security\Auth\RememberMeManager;
+use Kongono\Security\Principal;
+use Kongono\Security\PrincipalKind;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -325,6 +332,25 @@ final class LiveInfrastructureTest extends TestCase
             return $tx->query('SELECT * FROM "integration_rls_notes"');
         });
         self::assertSame([], $postCommitRows);
+
+        // 5. v1.16.0 live PostgreSQL 16 PdoPersonalAccessTokenStore (installSchema, issue, authenticate + lastUsedAt, list, revoke)
+        $db->execute('DROP TABLE IF EXISTS "kongono_integration_tokens"');
+        $patStore = new PdoPersonalAccessTokenStore($db, 'kongono_integration_tokens');
+        $patStore->installSchema();
+
+        $patActor = new Principal('pg-user-1', PrincipalKind::Human, ['billing.read', 'billing.write']);
+        $issuedPat = $patStore->issue($patActor, 'PG CI Token', capabilities: ['billing.read'], ttlSeconds: 3600);
+        self::assertStringStartsWith('kgn_pat_', $issuedPat->plainTextToken);
+
+        $authedPat = $patStore->authenticate($issuedPat->plainTextToken);
+        self::assertNotNull($authedPat);
+        self::assertSame('pg-user-1', $authedPat->principalId);
+        self::assertSame(['billing.read'], $authedPat->capabilities);
+        self::assertNotNull($authedPat->lastUsedAt);
+        self::assertCount(1, $patStore->listForPrincipal('pg-user-1'));
+
+        self::assertTrue($patStore->revoke($issuedPat->record->id));
+        self::assertNull($patStore->authenticate($issuedPat->plainTextToken));
     }
 
     public function testLiveRedisCacheAndRedisQueueDriver(): void
@@ -443,6 +469,35 @@ final class LiveInfrastructureTest extends TestCase
         self::assertStringContainsString('second event', $missed[0]->data);
 
         $busWorker1->clear();
+
+        // v1.16.0 live Redis 7 auth suite: CachePersonalAccessTokenStore, PasswordResetBroker, LoginThrottler, RememberMeManager
+        $redisPat = new CachePersonalAccessTokenStore($cache, 'kongono:inttest:pat:');
+        $redisUser = new Principal('redis-user-1', PrincipalKind::Human, ['api.read']);
+        $redisIssued = $redisPat->issue($redisUser, 'Redis Key', ttlSeconds: 300);
+        self::assertNotNull($redisPat->authenticate($redisIssued->plainTextToken));
+        self::assertTrue($redisPat->revoke($redisIssued->record->id));
+        self::assertNull($redisPat->authenticate($redisIssued->plainTextToken));
+
+        $redisReset = new PasswordResetBroker($cache, 'kongono:inttest:reset:');
+        $rTok = $redisReset->createToken('redis@kongono.dev', ttlSeconds: 300);
+        self::assertTrue($redisReset->consume('redis@kongono.dev', $rTok));
+        self::assertFalse($redisReset->consume('redis@kongono.dev', $rTok));
+
+        $redisThrottle = new LoginThrottler($cache, maxAttempts: 2, lockoutSeconds: 60);
+        $redisThrottle->recordFailure('redis@kongono.dev', '203.0.113.5');
+        $redisThrottle->recordFailure('redis@kongono.dev', '203.0.113.5');
+        self::assertTrue($redisThrottle->isLockedOut('redis@kongono.dev', '203.0.113.5'));
+        $redisThrottle->clear('redis@kongono.dev', '203.0.113.5');
+        self::assertFalse($redisThrottle->isLockedOut('redis@kongono.dev', '203.0.113.5'));
+
+        $redisRemember = new RememberMeManager($cache, prefix: 'kongono:inttest:rem:');
+        $c1 = $redisRemember->issue($redisUser, ttlSeconds: 300);
+        $rot = $redisRemember->consumeAndRotate($c1->value);
+        self::assertNotNull($rot);
+        // Replaying old cookie revokes rotated cookie too!
+        self::assertNull($redisRemember->consumeAndRotate($c1->value));
+        self::assertNull($redisRemember->consumeAndRotate($rot['cookie']->value));
+
         $redisWorker2->close();
         $redis->close();
     }
