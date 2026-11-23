@@ -7,8 +7,8 @@ namespace Kongono\Http;
 use Kongono\Core\Diagnostics\SecretScrubber;
 
 /**
- * Minimalist, zero-JS, strict-CSP default HTML error page renderer for HTTP errors (400–503)
- * and production 500 Internal Server Error responses.
+ * Kongo Atelier — timeless monochrome, zero-JS, strict-CSP default HTML error page renderer
+ * for HTTP errors (400–503) and production 500 Internal Server Error responses.
  *
  * Nondisclosing by default: never leaks stack traces, file paths, or secrets in production.
  * Apps may override any status by creating `views/errors/{status}.kgn.html` or `views/errors/error.kgn.html`.
@@ -30,14 +30,13 @@ final readonly class ErrorPageRenderer
     ): string {
         $meta = self::statusMeta($statusCode);
         $title = $meta['title'];
-        $tone = $meta['tone'];
         $safeMessage = '' !== trim($message) ? SecretScrubber::scrub($message) : $meta['default_message'];
 
         $escapedTitle = self::esc($title);
         $escapedMsg = self::esc($safeMessage);
         $escapedApp = self::esc($appName);
 
-        // Structured validation field error list for 422 responses
+        // Hairline validation list for 422 responses
         $validationHtml = '';
         if ([] !== $validationErrors) {
             $items = [];
@@ -51,7 +50,7 @@ final readonly class ErrorPageRenderer
                 }
             }
             if ([] !== $items) {
-                $validationHtml = '<div class="inset"><div class="inset-head">Fields requiring attention</div><ul class="val-list">' . implode('', $items) . '</ul></div>';
+                $validationHtml = '<div class="section-block"><div class="section-label">Fields requiring attention</div><ul class="val-list">' . implode('', $items) . '</ul></div>';
             }
         }
 
@@ -62,14 +61,14 @@ final readonly class ErrorPageRenderer
                 ? sprintf('<p class="diag-rem">%s</p>', self::esc($safeDiagnostic['remediation']))
                 : '';
             $diagHtml = sprintf(
-                '<div class="inset"><div class="inset-head"><span>Diagnostic reference</span><code>%s</code></div><div class="diag-body"><div class="diag-title">%s</div>%s</div></div>',
+                '<div class="section-block"><div class="section-label"><span>Diagnostic reference</span><code>%s</code></div><div class="diag-title">%s</div>%s</div>',
                 self::esc($safeDiagnostic['id']),
                 self::esc($safeDiagnostic['title']),
                 $remediation,
             );
         }
 
-        // Optional local-dev helper footer (ONLY when APP_DEBUG=true — completely omitted in production!)
+        // Optional local-dev helper note (ONLY when APP_DEBUG=true — completely omitted in production!)
         $devHintHtml = '';
         if ($debug && null !== $request) {
             $hint = match ($statusCode) {
@@ -81,25 +80,17 @@ final readonly class ErrorPageRenderer
                 default => 'Inspect live traces and ask Oshie or Hantei inside <a href="/_kongono">/_kongono</a>.',
             };
             $devHintHtml = sprintf(
-                '<footer class="dev-hint"><div class="dev-hint-head"><span>Debug hint · APP_DEBUG=true</span><code>%s %s</code></div><p>%s</p></footer>',
+                '<div class="dev-hint"><div class="dev-hint-head"><span>Debug hint · APP_DEBUG=true</span><code>%s %s</code></div><p>%s</p></div>',
                 self::esc($request->method()),
                 self::esc(SecretScrubber::scrub($request->path())),
                 $hint,
             );
         }
 
-        $dotDark = match ($tone) {
-            'danger' => '#e86a65',
-            'warn' => '#e0a458',
-            default => '#8a93a6',
-        };
-        $dotLight = match ($tone) {
-            'danger' => '#c93b37',
-            'warn' => '#b7791f',
-            default => '#64748b',
-        };
-
         $reloadHref = null !== $request ? self::esc(SecretScrubber::scrub($request->path())) : '/';
+        $footerRight = $debug && null !== $request
+            ? sprintf('APP_DEBUG · %s %s', self::esc($request->method()), self::esc(SecretScrubber::scrub($request->path())))
+            : sprintf('HTTP %d · Nondisclosing', $statusCode);
 
         return <<<HTML
 <!doctype html>
@@ -111,35 +102,25 @@ final readonly class ErrorPageRenderer
   <style>
     :root {
       color-scheme: dark light;
-      --bg: #0b0c0e;
-      --surface: #111317;
-      --surface-2: #16191f;
-      --border: rgba(255, 255, 255, 0.08);
-      --border-strong: rgba(255, 255, 255, 0.14);
-      --text: #eceef2;
-      --text-2: #9aa1ae;
-      --muted: #68707d;
-      --dot: {$dotDark};
-      --btn-bg: #eceef2;
-      --btn-fg: #0b0c0e;
-      --btn-hover: #ffffff;
+      --bg: #0c0c0d;
+      --surface: #131315;
+      --border: rgba(255, 255, 255, 0.085);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --text: #f4f4f5;
+      --text-2: #a1a1aa;
+      --muted: #63636b;
       --mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
       --sans: ui-sans-serif, "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     @media (prefers-color-scheme: light) {
       :root {
-        --bg: #f9fafb;
-        --surface: #ffffff;
-        --surface-2: #f4f5f7;
-        --border: rgba(15, 23, 42, 0.085);
-        --border-strong: rgba(15, 23, 42, 0.16);
-        --text: #111827;
-        --text-2: #4b5563;
-        --muted: #6b7280;
-        --dot: {$dotLight};
-        --btn-bg: #111827;
-        --btn-fg: #ffffff;
-        --btn-hover: #1f2937;
+        --bg: #fcfcfc;
+        --surface: #f4f4f5;
+        --border: rgba(0, 0, 0, 0.085);
+        --border-strong: rgba(0, 0, 0, 0.16);
+        --text: #09090b;
+        --text-2: #52525b;
+        --muted: #8a8a94;
       }
     }
     * { box-sizing: border-box; }
@@ -151,96 +132,66 @@ final readonly class ErrorPageRenderer
       color: var(--text);
       display: grid;
       place-items: center;
-      padding: 2rem 1.25rem;
-      line-height: 1.55;
+      padding: 2.5rem 1.5rem;
+      line-height: 1.6;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
     }
-    .shell {
+    .sheet {
       width: 100%;
-      max-width: 540px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 1.85rem 2rem 1.75rem;
+      max-width: 560px;
+      display: grid;
+      gap: 1.4rem;
     }
-    .top-row {
+    .row-head {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      padding-bottom: 1.25rem;
-      margin-bottom: 1.35rem;
+      align-items: baseline;
+      gap: 1.15rem;
+      padding-bottom: 1.2rem;
       border-bottom: 1px solid var(--border);
     }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.84rem;
-      font-weight: 500;
-      color: var(--text-2);
-      letter-spacing: -0.01em;
-    }
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
+    .status-num {
       font-family: var(--mono);
-      font-size: 0.75rem;
+      font-size: 1.5rem;
       font-weight: 500;
       font-variant-numeric: tabular-nums;
-      padding: 0.2rem 0.58rem;
-      border-radius: 999px;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      color: var(--text-2);
-    }
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--dot);
+      color: var(--muted);
       flex-shrink: 0;
     }
     h1 {
-      margin: 0 0 0.5rem;
-      font-size: 1.48rem;
-      font-weight: 600;
-      letter-spacing: -0.025em;
-      line-height: 1.25;
+      margin: 0;
+      font-size: 1.72rem;
+      font-weight: 550;
+      letter-spacing: -0.03em;
+      line-height: 1.18;
       color: var(--text);
     }
     .lead {
       margin: 0;
       color: var(--text-2);
-      font-size: 0.94rem;
-      line-height: 1.6;
+      font-size: 0.96rem;
+      line-height: 1.65;
       word-break: break-word;
     }
-    .inset {
-      margin-top: 1.35rem;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
+    .section-block {
+      display: grid;
+      gap: 0.45rem;
     }
-    .inset-head {
+    .section-label {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
-      padding: 0.58rem 0.9rem;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.03em;
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--muted);
     }
-    .inset-head code {
+    .section-label code {
       font-family: var(--mono);
-      font-size: 0.74rem;
+      font-size: 0.72rem;
       text-transform: none;
       letter-spacing: 0;
       color: var(--text-2);
@@ -249,17 +200,17 @@ final readonly class ErrorPageRenderer
       list-style: none;
       margin: 0;
       padding: 0;
+      border-top: 1px solid var(--border);
     }
     .val-list li {
       display: grid;
-      grid-template-columns: minmax(90px, auto) 1fr;
+      grid-template-columns: minmax(105px, auto) 1fr;
       align-items: baseline;
-      gap: 0.75rem;
-      padding: 0.62rem 0.9rem;
-      font-size: 0.86rem;
+      gap: 0.85rem;
+      padding: 0.62rem 0;
       border-bottom: 1px solid var(--border);
+      font-size: 0.87rem;
     }
-    .val-list li:last-child { border-bottom: 0; }
     .field-key {
       font-family: var(--mono);
       font-size: 0.78rem;
@@ -267,42 +218,42 @@ final readonly class ErrorPageRenderer
       color: var(--text);
     }
     .field-msg { color: var(--text-2); }
-    .diag-body { padding: 0.8rem 0.9rem; }
-    .diag-title { font-weight: 500; font-size: 0.9rem; color: var(--text); }
-    .diag-rem { margin: 0.3rem 0 0; font-size: 0.84rem; color: var(--text-2); }
+    .diag-title { font-weight: 500; font-size: 0.92rem; color: var(--text); }
+    .diag-rem { margin: 0.25rem 0 0; font-size: 0.86rem; color: var(--text-2); }
     .actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.6rem;
-      margin-top: 1.55rem;
+      gap: 0.65rem;
+      margin-top: 0.2rem;
     }
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 0.4rem;
-      padding: 0.52rem 0.92rem;
-      border-radius: 8px;
+      padding: 0.52rem 1rem;
+      border-radius: 7px;
       font-size: 0.84rem;
       font-weight: 500;
       text-decoration: none;
-      border: 1px solid var(--border-strong);
+      border: 1px solid var(--border);
       color: var(--text);
       background: transparent;
-      transition: background-color 140ms ease, border-color 140ms ease;
+      transition: background-color 130ms ease, border-color 130ms ease, opacity 130ms ease;
     }
-    .btn:hover { background: var(--surface-2); border-color: var(--border-strong); }
+    .btn:hover { background: var(--surface); border-color: var(--border-strong); }
     .btn-primary {
-      background: var(--btn-bg);
-      border-color: var(--btn-bg);
-      color: var(--btn-fg);
+      background: var(--text);
+      border-color: var(--text);
+      color: var(--bg);
     }
-    .btn-primary:hover { background: var(--btn-hover); border-color: var(--btn-hover); }
+    .btn-primary:hover { background: var(--text); border-color: var(--text); opacity: 0.9; }
     .dev-hint {
-      margin-top: 1.5rem;
-      padding-top: 1.15rem;
-      border-top: 1px solid var(--border);
-      font-size: 0.82rem;
+      padding: 0.8rem 0.95rem;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 0.81rem;
       color: var(--text-2);
     }
     .dev-hint-head {
@@ -311,42 +262,46 @@ final readonly class ErrorPageRenderer
       justify-content: space-between;
       gap: 0.5rem;
       flex-wrap: wrap;
-      margin-bottom: 0.4rem;
+      margin-bottom: 0.35rem;
       font-family: var(--mono);
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       color: var(--muted);
     }
-    .dev-hint p { margin: 0; line-height: 1.6; }
+    .dev-hint p { margin: 0; line-height: 1.55; }
     .dev-hint code {
       font-family: var(--mono);
-      font-size: 0.76rem;
-      background: var(--surface-2);
+      font-size: 0.75rem;
+      background: var(--bg);
       border: 1px solid var(--border);
       padding: 0.08rem 0.36rem;
       border-radius: 5px;
       color: var(--text);
     }
     .dev-hint a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+    .foot {
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
     @media (max-width: 480px) {
-      .shell { padding: 1.5rem 1.35rem; }
       .val-list li { grid-template-columns: 1fr; gap: 0.2rem; }
     }
   </style>
 </head>
 <body>
-  <main class="shell" role="main">
-    <div class="top-row">
-      <div class="brand">
-        <svg width="16" height="16" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <polygon points="16,2 30,16 16,30 2,16" stroke="currentColor" stroke-width="2" />
-          <polygon points="16,9 23,16 16,23 9,16" fill="currentColor" opacity="0.6" />
-        </svg>
-        <span>{$escapedApp}</span>
-      </div>
-      <span class="status-pill"><span class="status-dot"></span>HTTP {$statusCode}</span>
+  <main class="sheet" role="main">
+    <div class="row-head">
+      <span class="status-num">{$statusCode}</span>
+      <h1>{$escapedTitle}</h1>
     </div>
 
-    <h1>{$escapedTitle}</h1>
     <p class="lead">{$escapedMsg}</p>
 
     {$validationHtml}
@@ -358,6 +313,11 @@ final readonly class ErrorPageRenderer
     </div>
 
     {$devHintHtml}
+
+    <footer class="foot">
+      <span>{$escapedApp}</span>
+      <span>{$footerRight}</span>
+    </footer>
   </main>
 </body>
 </html>

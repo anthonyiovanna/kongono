@@ -31,39 +31,71 @@ final class DevDashboardRenderer
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{$appName} — Kongono Dev Studio</title>
   <style>
-    :root { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; color: #e2e8f0; background: #0b1120; }
+    :root {
+      color-scheme: dark light;
+      --bg: #0c0c0d;
+      --surface: #131315;
+      --surface-2: #19191c;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --text: #f4f4f5;
+      --text-2: #a1a1aa;
+      --muted: #63636b;
+      --ok: #4ade80;
+      --warn: #fbbf24;
+      --err: #e5534b;
+      font-family: ui-sans-serif, "Inter", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #fcfcfc;
+        --surface: #f5f5f6;
+        --surface-2: #ebebee;
+        --border: rgba(0, 0, 0, 0.08);
+        --border-strong: rgba(0, 0, 0, 0.16);
+        --text: #09090b;
+        --text-2: #52525b;
+        --muted: #8a8a94;
+        --ok: #15803d;
+        --warn: #b45309;
+        --err: #d12e26;
+      }
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; max-width: 1120px; margin-inline: auto; padding: 1.5rem 1.25rem 4rem; }
-    header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; border-bottom: 1px solid #1e293b; padding-bottom: 1rem; margin-bottom: 1.25rem; }
-    h1 { margin: 0; font-size: 1.4rem; color: #f8fafc; }
-    .sub { color: #94a3b8; font-size: 0.85rem; margin-top: 0.2rem; }
-    .links { display: flex; gap: 0.6rem; flex-wrap: wrap; }
-    .pill { background: #1e293b; color: #e2e8f0; text-decoration: none; padding: 0.4rem 0.75rem; border-radius: 999px; font-size: 0.8rem; border: 1px solid #334155; }
-    .pill:hover { border-color: #38bdf8; color: #38bdf8; }
-    nav.tabs { display: flex; gap: 0.5rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
-    nav.tabs button { background: #111827; color: #94a3b8; border: 1px solid #1e293b; padding: 0.55rem 0.95rem; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
-    nav.tabs button.active { background: #0ea5e9; color: #082f49; border-color: #38bdf8; }
+    body { margin: 0; max-width: 1140px; margin-inline: auto; padding: 1.75rem 1.5rem 4rem; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 1.15rem; margin-bottom: 1.4rem; }
+    h1 { margin: 0; font-size: 1.35rem; font-weight: 560; letter-spacing: -0.025em; color: var(--text); }
+    .sub { color: var(--muted); font-size: 0.82rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 0.25rem; }
+    .links { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+    .pill { background: transparent; color: var(--text-2); text-decoration: none; padding: 0.36rem 0.72rem; border-radius: 6px; font-size: 0.78rem; font-weight: 500; border: 1px solid var(--border); transition: all 120ms ease; }
+    .pill:hover { border-color: var(--border-strong); background: var(--surface); color: var(--text); }
+    nav.tabs { display: flex; gap: 0.35rem; margin-bottom: 1.35rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
+    nav.tabs button { background: transparent; color: var(--text-2); border: 1px solid transparent; padding: 0.44rem 0.82rem; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.82rem; font-family: inherit; transition: all 120ms ease; }
+    nav.tabs button:hover { color: var(--text); background: var(--surface); }
+    nav.tabs button.active { background: var(--text); color: var(--bg); border-color: var(--text); }
     .panel { display: none; }
     .panel.active { display: block; }
-    .card { background: #111827; border: 1px solid #1e293b; border-radius: 10px; padding: 1rem 1.15rem; margin-bottom: 1rem; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    th, td { text-align: left; padding: 0.55rem 0.6rem; border-bottom: 1px solid #1e293b; }
-    th { color: #94a3b8; font-weight: 600; }
-    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    pre { background: #020617; border: 1px solid #1e293b; border-radius: 8px; padding: 0.85rem; overflow-x: auto; font-size: 0.8rem; color: #cbd5e1; }
-    .badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 5px; font-size: 0.72rem; font-weight: 700; }
-    .b-ok { background: #064e3b; color: #6ee7b7; }
-    .b-warn { background: #78350f; color: #fcd34d; }
-    .b-err { background: #7f1d1d; color: #fca5a5; }
-    .b-method { background: #1e3a8a; color: #93c5fd; }
-    .toolbar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; }
-    .btn { background: #1e293b; color: #f8fafc; border: 1px solid #334155; padding: 0.45rem 0.85rem; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-weight: 600; }
-    .btn:hover { background: #334155; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
-    .stat { background: #111827; border: 1px solid #1e293b; border-radius: 10px; padding: 0.85rem 1rem; }
-    .stat .k { color: #94a3b8; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.04em; }
-    .stat .v { font-size: 1.45rem; font-weight: 700; color: #f8fafc; margin-top: 0.25rem; }
-    .sql-list { margin: 0.35rem 0 0; padding: 0.55rem 0.7rem; background: #020617; border-radius: 6px; border: 1px solid #1e293b; font-size: 0.76rem; color: #94a3b8; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    th, td { text-align: left; padding: 0.58rem 0.65rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    code, pre { font-family: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace; }
+    pre { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 0.9rem; overflow-x: auto; font-size: 0.79rem; color: var(--text-2); }
+    .badge { display: inline-block; padding: 0.14rem 0.45rem; border-radius: 5px; font-size: 0.71rem; font-weight: 600; font-family: ui-monospace, Menlo, monospace; border: 1px solid var(--border); }
+    .b-ok { background: rgba(74, 222, 128, 0.10); color: var(--ok); border-color: rgba(74, 222, 128, 0.25); }
+    .b-warn { background: rgba(251, 191, 36, 0.10); color: var(--warn); border-color: rgba(251, 191, 36, 0.25); }
+    .b-err { background: rgba(229, 83, 75, 0.12); color: var(--err); border-color: rgba(229, 83, 75, 0.28); }
+    .b-method { background: var(--surface-2); color: var(--text); border-color: var(--border-strong); }
+    .toolbar { display: flex; gap: 0.45rem; align-items: center; margin-bottom: 0.9rem; flex-wrap: wrap; }
+    .btn { background: transparent; color: var(--text-2); border: 1px solid var(--border); padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500; font-family: inherit; }
+    .btn:hover { background: var(--surface-2); border-color: var(--border-strong); color: var(--text); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 0.9rem 1.05rem; }
+    .stat .k { color: var(--muted); font-size: 0.72rem; font-family: ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: 0.06em; }
+    .stat .v { font-size: 1.45rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text); margin-top: 0.25rem; }
+    .sql-list { margin: 0.35rem 0 0; padding: 0.55rem 0.75rem; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); font-size: 0.75rem; color: var(--text-2); }
     .sql-list div { margin-bottom: 0.25rem; }
   </style>
 </head>

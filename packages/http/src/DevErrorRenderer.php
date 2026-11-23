@@ -10,15 +10,15 @@ use PhpToken;
 use Throwable;
 
 /**
- * Minimalist, eye-friendly, strict-CSP developer exception studio (`APP_DEBUG=true` only).
+ * Kongo Atelier — ultra-restrained 95% monochrome developer exception studio (`APP_DEBUG=true` only).
  *
- * Designed for calm readability and instant root-cause resolution:
- *  - Warm-neutral dark & light adaptive surfaces (zero harsh glare, optional 1-click theme toggle)
- *  - Native PHP 8.5 `PhpToken` syntax highlighting in the source viewer (zero JS, strict-CSP safe)
- *  - App-first multi-frame stack trace with pure-CSS vendor frame toggle
- *  - Inline deterministic Quick Fix strip with 1-click copyable CLI commands
- *  - Pure-CSS tabbed inspector dock (Hantei AI live SSE, Safe Diagnostic, Request, LLM Markdown Packet)
- *  - Full secret scrubbing across messages, headers, source context, and LLM export
+ * Designed for timeless calm readability, zero visual noise, and instant root-cause clarity:
+ *  - Architectural neutral dark (`#0c0c0d`) & light (`#fcfcfc`) surfaces with 1-click theme toggle
+ *  - Native PHP 8.5 `PhpToken` syntax highlighting with restrained monochrome-forward token tones
+ *  - Borderless app-first call-stack rail with pure-CSS framework frame toggle
+ *  - Minimal inline Suggested Quick Fix strip with 1-click copyable CLI command
+ *  - Hairline pure-CSS tabbed inspector dock (Hantei AI live SSE, Safe Diagnostic, Request, LLM Packet)
+ *  - Nondisclosing secret scrubbing across messages, headers, source context, and LLM Markdown export
  */
 final class DevErrorRenderer
 {
@@ -178,87 +178,73 @@ final class DevErrorRenderer
   <style>
     :root {
       color-scheme: dark light;
-      --bg: #0b0c0e;
-      --surface: #111317;
-      --surface-2: #16191f;
-      --surface-code: #0d0f13;
-      --border: rgba(255, 255, 255, 0.075);
-      --border-strong: rgba(255, 255, 255, 0.13);
-      --text: #eceef2;
-      --text-2: #9aa1ae;
-      --muted: #646b78;
-      --err: #e86a65;
-      --err-bg: rgba(232, 106, 101, 0.09);
-      --err-line: rgba(232, 106, 101, 0.13);
-      --ok: #5ec293;
-      --ok-bg: rgba(94, 194, 147, 0.08);
-      --accent: #7ea8f8;
-      --accent-bg: rgba(126, 168, 248, 0.09);
-      --topbar-bg: rgba(11, 12, 14, 0.82);
-      --tk-kw: #b497f0;
-      --tk-str: #8ec07c;
-      --tk-var: #e2b879;
-      --tk-fn: #7ea8f8;
-      --tk-ty: #9ec5e8;
-      --tk-num: #dca06e;
-      --tk-cmt: #5b6270;
+      --bg: #0c0c0d;
+      --surface: #131315;
+      --surface-2: #19191c;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --text: #f4f4f5;
+      --text-2: #a1a1aa;
+      --muted: #63636b;
+      --err: #e5534b;
+      --err-line: rgba(229, 83, 75, 0.11);
+      --ok: #4ade80;
+      --topbar-bg: rgba(12, 12, 13, 0.88);
+      /* Calm monochrome-forward Atelier syntax palette */
+      --tk-kw: #d4d4d8;
+      --tk-str: #a7c9b3;
+      --tk-var: #e4d4b7;
+      --tk-fn: #f4f4f5;
+      --tk-ty: #b4becd;
+      --tk-num: #d9b69a;
+      --tk-cmt: #52525b;
       --mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
       --sans: ui-sans-serif, "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     @media (prefers-color-scheme: light) {
       :root:not([data-theme="dark"]) {
-        --bg: #f8f9fb;
-        --surface: #ffffff;
-        --surface-2: #f3f4f7;
-        --surface-code: #fbfcfd;
-        --border: rgba(15, 23, 42, 0.08);
-        --border-strong: rgba(15, 23, 42, 0.15);
-        --text: #111827;
-        --text-2: #4b5563;
-        --muted: #6b7280;
-        --err: #c93b37;
-        --err-bg: rgba(201, 59, 55, 0.07);
-        --err-line: rgba(201, 59, 55, 0.09);
-        --ok: #1f8a5b;
-        --ok-bg: rgba(31, 138, 91, 0.07);
-        --accent: #2f6feb;
-        --accent-bg: rgba(47, 111, 235, 0.08);
-        --topbar-bg: rgba(248, 249, 251, 0.85);
-        --tk-kw: #7c3aed;
-        --tk-str: #15803d;
-        --tk-var: #a16207;
-        --tk-fn: #1d4ed8;
-        --tk-ty: #0369a1;
-        --tk-num: #c2410c;
-        --tk-cmt: #9ca3af;
+        --bg: #fcfcfc;
+        --surface: #f5f5f6;
+        --surface-2: #ebebee;
+        --border: rgba(0, 0, 0, 0.08);
+        --border-strong: rgba(0, 0, 0, 0.16);
+        --text: #09090b;
+        --text-2: #52525b;
+        --muted: #8a8a94;
+        --err: #d12e26;
+        --err-line: rgba(209, 46, 38, 0.07);
+        --ok: #15803d;
+        --topbar-bg: rgba(252, 252, 252, 0.90);
+        --tk-kw: #18181b;
+        --tk-str: #2f6b48;
+        --tk-var: #7a5420;
+        --tk-fn: #09090b;
+        --tk-ty: #3f4a5c;
+        --tk-num: #9a4a1c;
+        --tk-cmt: #a1a1aa;
       }
     }
     :root[data-theme="light"] {
       color-scheme: light;
-      --bg: #f8f9fb;
-      --surface: #ffffff;
-      --surface-2: #f3f4f7;
-      --surface-code: #fbfcfd;
-      --border: rgba(15, 23, 42, 0.08);
-      --border-strong: rgba(15, 23, 42, 0.15);
-      --text: #111827;
-      --text-2: #4b5563;
-      --muted: #6b7280;
-      --err: #c93b37;
-      --err-bg: rgba(201, 59, 55, 0.07);
-      --err-line: rgba(201, 59, 55, 0.09);
-      --ok: #1f8a5b;
-      --ok-bg: rgba(31, 138, 91, 0.07);
-      --accent: #2f6feb;
-      --accent-bg: rgba(47, 111, 235, 0.08);
-      --topbar-bg: rgba(248, 249, 251, 0.85);
-      --tk-kw: #7c3aed;
-      --tk-str: #15803d;
-      --tk-var: #a16207;
-      --tk-fn: #1d4ed8;
-      --tk-ty: #0369a1;
-      --tk-num: #c2410c;
-      --tk-cmt: #9ca3af;
+      --bg: #fcfcfc;
+      --surface: #f5f5f6;
+      --surface-2: #ebebee;
+      --border: rgba(0, 0, 0, 0.08);
+      --border-strong: rgba(0, 0, 0, 0.16);
+      --text: #09090b;
+      --text-2: #52525b;
+      --muted: #8a8a94;
+      --err: #d12e26;
+      --err-line: rgba(209, 46, 38, 0.07);
+      --ok: #15803d;
+      --topbar-bg: rgba(252, 252, 252, 0.90);
+      --tk-kw: #18181b;
+      --tk-str: #2f6b48;
+      --tk-var: #7a5420;
+      --tk-fn: #09090b;
+      --tk-ty: #3f4a5c;
+      --tk-num: #9a4a1c;
+      --tk-cmt: #a1a1aa;
     }
     * { box-sizing: border-box; }
     body {
@@ -271,7 +257,7 @@ final class DevErrorRenderer
       text-rendering: optimizeLegibility;
     }
 
-    /* Sticky Minimal Topbar */
+    /* Ultra-Restrained Single Centered Header */
     .topbar {
       position: sticky;
       top: 0;
@@ -282,47 +268,34 @@ final class DevErrorRenderer
       border-bottom: 1px solid var(--border);
     }
     .topbar-inner {
-      max-width: 1240px;
+      max-width: 1180px;
       margin: 0 auto;
-      padding: 0.56rem 1.5rem;
+      padding: 0.62rem 1.5rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
       flex-wrap: wrap;
     }
-    .brand-group {
-      display: flex;
-      align-items: center;
-      gap: 0.55rem;
-      flex-wrap: wrap;
-      min-width: 0;
-    }
     .brand {
       display: inline-flex;
       align-items: center;
-      gap: 0.45rem;
-      font-size: 0.85rem;
+      gap: 0.5rem;
+      font-size: 0.84rem;
       font-weight: 600;
       color: var(--text);
       letter-spacing: -0.01em;
+      white-space: nowrap;
     }
-    .sep { color: var(--border-strong); user-select: none; }
-    .meta-tag {
+    .mid-meta {
       display: inline-flex;
       align-items: center;
-      gap: 0.38rem;
+      gap: 0.45rem;
       font-family: var(--mono);
       font-size: 0.73rem;
       font-variant-numeric: tabular-nums;
-      color: var(--text-2);
-    }
-    .meta-pill {
-      padding: 0.16rem 0.48rem;
-      border-radius: 6px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--text-2);
+      color: var(--muted);
+      white-space: nowrap;
     }
     .dot {
       width: 6px;
@@ -331,59 +304,50 @@ final class DevErrorRenderer
       flex-shrink: 0;
     }
     .dot-err { background: var(--err); }
-    .dot-ai { background: var(--accent); }
     .dot-ok { background: var(--ok); }
     .top-actions {
       display: flex;
       align-items: center;
-      gap: 0.45rem;
+      gap: 0.38rem;
       flex-wrap: wrap;
     }
     .btn {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      padding: 0.36rem 0.7rem;
-      border-radius: 7px;
+      gap: 0.38rem;
+      padding: 0.34rem 0.68rem;
+      border-radius: 6px;
       font-family: var(--sans);
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 500;
-      line-height: 1.2;
+      line-height: 1.25;
       text-decoration: none;
-      border: 1px solid var(--border-strong);
-      background: var(--surface);
-      color: var(--text);
-      cursor: pointer;
-      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
-    }
-    .btn:hover { background: var(--surface-2); border-color: var(--border-strong); }
-    .btn-ghost { background: transparent; border-color: var(--border); color: var(--text-2); }
-    .btn-ghost:hover { background: var(--surface); color: var(--text); }
-    .btn-icon { padding: 0.36rem 0.5rem; }
-    .kbd {
-      font-family: var(--mono);
-      font-size: 0.65rem;
-      color: var(--muted);
       border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 0.04rem 0.28rem;
-      line-height: 1.2;
+      background: transparent;
+      color: var(--text-2);
+      cursor: pointer;
+      transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease;
     }
+    .btn:hover { color: var(--text); border-color: var(--border-strong); background: var(--surface); }
+    .btn-solid { background: var(--text); color: var(--bg); border-color: var(--text); }
+    .btn-solid:hover { background: var(--text); color: var(--bg); border-color: var(--text); opacity: 0.9; }
+    .btn-icon { padding: 0.34rem 0.5rem; }
 
     /* Main Layout */
     .wrap {
-      max-width: 1240px;
+      max-width: 1180px;
       margin: 0 auto;
-      padding: 1.35rem 1.5rem 3.5rem;
+      padding: 1.5rem 1.5rem 4rem;
       display: grid;
-      gap: 1.05rem;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 1.55rem;
     }
+    .wrap > * { min-width: 0; }
 
-    /* Calm Open Hero (No loud red wall) */
+    /* Open Monochrome Hero */
     .hero {
-      padding: 0.1rem 0 0.2rem;
       display: grid;
-      gap: 0.5rem;
+      gap: 0.52rem;
     }
     .hero-eyebrow {
       display: flex;
@@ -391,203 +355,155 @@ final class DevErrorRenderer
       justify-content: space-between;
       gap: 0.75rem;
       flex-wrap: wrap;
-    }
-    .exc-class {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.45rem;
-      font-family: var(--mono);
-      font-size: 0.82rem;
-      font-weight: 500;
-      color: var(--err);
-    }
-    .loc-chip {
       font-family: var(--mono);
       font-size: 0.75rem;
-      color: var(--text-2);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 0.2rem 0.58rem;
-      border-radius: 6px;
-      max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      color: var(--muted);
     }
     .hero h1 {
       margin: 0;
-      max-width: 960px;
-      font-size: clamp(1.28rem, 2.2vw, 1.62rem);
-      font-weight: 560;
-      line-height: 1.32;
-      letter-spacing: -0.026em;
+      max-width: 940px;
+      font-size: clamp(1.38rem, 2.4vw, 1.78rem);
+      font-weight: 550;
+      line-height: 1.25;
+      letter-spacing: -0.032em;
       color: var(--text);
       word-break: break-word;
     }
     .prev-chain {
-      margin-top: 0.35rem;
-      padding-left: 0.9rem;
-      border-left: 2px solid var(--border-strong);
       display: grid;
-      gap: 0.4rem;
+      gap: 0.3rem;
+      margin-top: 0.15rem;
     }
     .prev-item {
-      display: flex;
-      gap: 0.5rem;
-      align-items: baseline;
-      flex-wrap: wrap;
       font-size: 0.84rem;
       color: var(--text-2);
       line-height: 1.5;
     }
     .prev-tag {
       font-family: var(--mono);
-      font-size: 0.7rem;
-      font-weight: 500;
+      font-size: 0.72rem;
       color: var(--muted);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      padding: 0.06rem 0.4rem;
-      border-radius: 5px;
-      flex-shrink: 0;
+      margin-right: 0.35rem;
     }
-    .prev-cls { font-family: var(--mono); font-size: 0.78rem; color: var(--err); }
-    .prev-loc { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); }
 
-    /* Minimal Inline Suggested Quick Fix Strip */
+    /* Inline Monochrome Suggested Quick Fix Strip */
     .quickfix {
+      margin-top: 0.35rem;
+      padding: 0.68rem 0.9rem;
+      border-radius: 9px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-left: 2px solid var(--ok);
-      border-radius: 10px;
-      padding: 0.8rem 1.05rem;
       display: grid;
       gap: 0.45rem;
     }
-    .quickfix-top {
+    .quickfix-row {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       justify-content: space-between;
-      gap: 1rem;
+      gap: 0.85rem;
       flex-wrap: wrap;
     }
-    .quickfix-label {
+    .quickfix-main {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      color: var(--ok);
+      gap: 0.55rem;
+      flex-wrap: wrap;
+      font-size: 0.82rem;
+      min-width: 0;
     }
-    .quickfix h2 {
-      margin: 0.1rem 0 0;
-      font-size: 0.94rem;
-      font-weight: 600;
-      color: var(--text);
-      letter-spacing: -0.01em;
-    }
-    .quickfix p {
-      margin: 0;
-      font-size: 0.85rem;
+    .quickfix-label {
       color: var(--text-2);
-      line-height: 1.55;
+      font-weight: 500;
     }
-    .cmd-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      background: var(--surface-code);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.45rem 0.55rem 0.45rem 0.8rem;
+    .quickfix-title {
+      color: var(--text);
+      font-weight: 500;
     }
-    .cmd-row code {
+    .quickfix-cmd {
       font-family: var(--mono);
       font-size: 0.8rem;
       color: var(--text);
-      overflow-x: auto;
-      white-space: pre;
-    }
-    .cmd-prefix { color: var(--muted); user-select: none; margin-right: 0.45rem; }
-
-    /* Centerpiece: Stack Trace & Syntax-Highlighted Source Workbench */
-    .surface-card {
-      background: var(--surface);
+      background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
+      padding: 0.22rem 0.55rem;
+      border-radius: 6px;
+      overflow-x: auto;
+      max-width: 100%;
     }
-    .card-bar {
-      padding: 0.62rem 1rem;
-      background: var(--surface-2);
-      border-bottom: 1px solid var(--border);
+    .quickfix-desc {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* Borderless Stack Rail | Spacious Hairline Code Canvas */
+    .workbench {
+      padding-top: 1.35rem;
+      border-top: 1px solid var(--border);
+    }
+    .workbench-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
       flex-wrap: wrap;
-      font-size: 0.76rem;
-      font-weight: 600;
-      color: var(--text-2);
-    }
-    .card-bar-meta {
+      margin-bottom: 0.95rem;
       font-family: var(--mono);
-      font-size: 0.74rem;
-      font-weight: 400;
+      font-size: 0.69rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       color: var(--muted);
     }
-    .frames-shell {
-      display: grid;
-      grid-template-columns: minmax(270px, 330px) minmax(0, 1fr);
-      min-height: 360px;
-    }
-    @media (max-width: 880px) {
-      .frames-shell { grid-template-columns: 1fr; }
+    .workbench-head-right {
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 0.72rem;
     }
     .frame-radio, .vendor-toggle, .tab-radio {
       position: absolute;
       opacity: 0;
       pointer-events: none;
     }
-    .frame-rail {
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      background: var(--surface);
-      max-height: 500px;
+    .frames-shell {
+      display: grid;
+      grid-template-columns: 245px minmax(0, 1fr);
+      gap: 2rem;
+      align-items: start;
     }
     @media (max-width: 880px) {
-      .frame-rail { border-right: 0; border-bottom: 1px solid var(--border); max-height: 280px; }
+      .frames-shell { grid-template-columns: 1fr; gap: 1.25rem; }
+    }
+    .frame-rail {
+      display: grid;
+      gap: 0.15rem;
+      align-content: start;
+      min-width: 0;
+      overflow: hidden;
     }
     .frame-rail-head {
-      padding: 0.5rem 0.85rem;
-      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 0.5rem;
-      font-size: 0.72rem;
+      margin-bottom: 0.45rem;
+      font-family: var(--mono);
+      font-size: 0.69rem;
       color: var(--muted);
-      background: var(--surface);
-      flex-shrink: 0;
     }
     .vendor-toggle-btn {
       font-family: var(--mono);
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       color: var(--text-2);
-      padding: 0.14rem 0.45rem;
+      padding: 0.12rem 0.45rem;
       border-radius: 5px;
       border: 1px solid var(--border);
       cursor: pointer;
       user-select: none;
-      transition: background-color 120ms ease, color 120ms ease;
     }
-    .vendor-toggle-btn:hover { background: var(--surface-2); color: var(--text); }
+    .vendor-toggle-btn:hover { background: var(--surface); color: var(--text); }
     .vendor-toggle:checked ~ .frames-shell .vendor-toggle-btn {
-      background: var(--surface-2);
+      background: var(--surface);
       border-color: var(--border-strong);
       color: var(--text);
     }
@@ -595,68 +511,66 @@ final class DevErrorRenderer
       display: none;
     }
     .frame-list {
+      display: grid;
+      gap: 0.12rem;
+      max-height: 460px;
       overflow-y: auto;
-      flex: 1;
+      min-width: 0;
     }
     .frame-tab {
+      position: relative;
       display: block;
-      padding: 0.62rem 0.85rem;
-      border-bottom: 1px solid var(--border);
-      border-left: 2px solid transparent;
+      padding: 0.48rem 0.65rem 0.48rem 0.85rem;
+      border-radius: 6px;
       cursor: pointer;
-      transition: background-color 110ms ease;
+      color: var(--text-2);
+      min-width: 0;
+      overflow: hidden;
+      transition: background-color 110ms ease, color 110ms ease;
     }
-    .frame-tab:hover { background: var(--surface-2); }
-    .frame-tab-top {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 0.5rem;
-      margin-bottom: 0.14rem;
+    .frame-tab::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.55rem;
+      bottom: 0.55rem;
+      width: 2px;
+      background: var(--err);
+      opacity: 0;
+      border-radius: 2px;
     }
+    .frame-tab:hover { background: var(--surface); color: var(--text); }
+    .frame-vendor { opacity: 0.54; }
     .frame-call {
       font-family: var(--mono);
-      font-size: 0.78rem;
+      font-size: 0.77rem;
       font-weight: 500;
-      color: var(--text);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-    }
-    .frame-vendor .frame-call { color: var(--muted); font-weight: 400; }
-    .frame-line-num {
-      font-family: var(--mono);
-      font-size: 0.71rem;
-      font-variant-numeric: tabular-nums;
-      color: var(--muted);
-      flex-shrink: 0;
     }
     .frame-loc {
       font-family: var(--mono);
-      font-size: 0.71rem;
+      font-size: 0.69rem;
       color: var(--muted);
+      margin-top: 0.1rem;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .code-stage {
-      background: var(--surface-code);
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
+    .code-stage { min-width: 0; overflow: hidden; }
     .code-pane { display: none; }
     .code-pane-head {
-      padding: 0.52rem 1rem;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 0.75rem;
+      padding-bottom: 0.62rem;
+      margin-bottom: 0.45rem;
+      border-bottom: 1px solid var(--border);
       font-family: var(--mono);
-      font-size: 0.74rem;
-      color: var(--text-2);
+      font-size: 0.72rem;
+      color: var(--muted);
     }
     .code-pane-head > span:first-child {
       min-width: 0;
@@ -667,20 +581,19 @@ final class DevErrorRenderer
     .code-pane-head > span:last-child {
       flex-shrink: 0;
       white-space: nowrap;
-      color: var(--muted);
     }
     pre.code {
       margin: 0;
-      padding: 0.7rem 0;
+      padding: 0.2rem 0;
       overflow-x: auto;
       font-family: var(--mono);
-      font-size: 0.82rem;
-      line-height: 1.66;
+      font-size: 0.83rem;
+      line-height: 1.74;
       tab-size: 4;
     }
     .code-line {
       display: flex;
-      padding: 0 1rem;
+      padding: 0 0.6rem;
       border-left: 2px solid transparent;
     }
     .code-line.highlight {
@@ -688,49 +601,51 @@ final class DevErrorRenderer
       border-left-color: var(--err);
     }
     .ln {
-      width: 3.1rem;
+      width: 2.9rem;
       color: var(--muted);
-      opacity: 0.7;
+      opacity: 0.78;
       user-select: none;
       text-align: right;
       padding-right: 1.15rem;
       font-variant-numeric: tabular-nums;
       flex-shrink: 0;
     }
-    .code-line.highlight .ln { color: var(--err); opacity: 1; font-weight: 600; }
+    .code-line.highlight .ln { color: var(--err); opacity: 1; font-weight: 700; }
     .src { white-space: pre; color: var(--text); }
-    .tk-kw { color: var(--tk-kw); }
+    .tk-kw { color: var(--tk-kw); font-weight: 600; }
     .tk-str { color: var(--tk-str); }
     .tk-var { color: var(--tk-var); }
     .tk-fn { color: var(--tk-fn); }
     .tk-ty { color: var(--tk-ty); }
     .tk-num { color: var(--tk-num); }
     .tk-cmt { color: var(--tk-cmt); font-style: italic; }
-    .no-source { padding: 2.2rem 1.25rem; color: var(--muted); font-size: 0.86rem; }
+    .no-source { padding: 1.8rem 0.5rem; color: var(--muted); font-size: 0.86rem; }
     {$frameCss}
 
-    /* Unified Pure-CSS Tabbed Inspector Dock */
+    /* Hairline Pure-CSS Tabbed Inspector Dock */
+    .dock {
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+    }
     .dock-tabs {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
-      padding: 0 0.85rem;
-      background: var(--surface-2);
       border-bottom: 1px solid var(--border);
       flex-wrap: wrap;
     }
     .dock-tab-list {
       display: flex;
       align-items: center;
-      gap: 0.2rem;
+      gap: 0.25rem;
       overflow-x: auto;
     }
     .dock-tab {
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
-      padding: 0.65rem 0.8rem;
+      padding: 0.55rem 0.72rem;
       font-size: 0.78rem;
       font-weight: 500;
       color: var(--muted);
@@ -743,15 +658,19 @@ final class DevErrorRenderer
     .dock-tab:hover { color: var(--text); }
     .dock-count {
       font-family: var(--mono);
-      font-size: 0.68rem;
-      padding: 0.04rem 0.36rem;
-      border-radius: 999px;
+      font-size: 0.67rem;
+      color: var(--muted);
       background: var(--surface);
       border: 1px solid var(--border);
+      padding: 0.04rem 0.34rem;
+      border-radius: 999px;
+    }
+    .dock-meta {
+      font-family: var(--mono);
+      font-size: 0.7rem;
       color: var(--muted);
     }
-    .dock-pane { display: none; padding: 1.05rem 1.15rem; }
-    .dock-pane-flush { padding: 0; }
+    .dock-pane { display: none; padding-top: 1rem; }
     #kgn-tab-hantei:checked ~ .dock-tabs label[for="kgn-tab-hantei"],
     #kgn-tab-diag:checked ~ .dock-tabs label[for="kgn-tab-diag"],
     #kgn-tab-request:checked ~ .dock-tabs label[for="kgn-tab-request"],
@@ -766,22 +685,38 @@ final class DevErrorRenderer
       display: block;
     }
 
-    /* Hantei Panel inside Dock */
-    .hantei-stack { display: grid; gap: 0.65rem; }
-    .hantei-hint {
-      margin: 0;
-      font-size: 0.82rem;
-      color: var(--text-2);
+    .hantei-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.65rem; }
+    .hantei-hint { margin: 0; font-size: 0.81rem; color: var(--muted); }
+    .cmd-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      min-width: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 0.45rem 0.55rem 0.45rem 0.8rem;
     }
+    .cmd-row code {
+      min-width: 0;
+      flex: 1;
+      font-family: var(--mono);
+      font-size: 0.79rem;
+      color: var(--text);
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .cmd-row .btn { flex-shrink: 0; }
     .hantei-live-out {
       margin: 0;
-      padding: 0.95rem 1.05rem;
+      padding: 0.9rem 1rem;
       border-radius: 8px;
-      background: var(--surface-code);
-      border: 1px solid var(--border-strong);
-      border-left: 2px solid var(--accent);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--text);
       font-family: var(--mono);
-      font-size: 0.8rem;
+      font-size: 0.79rem;
       line-height: 1.65;
       color: var(--text);
       white-space: pre-wrap;
@@ -790,7 +725,6 @@ final class DevErrorRenderer
     }
     .hantei-live-out.is-visible { display: block; }
 
-    /* LLM Packet Box */
     .llm-toolbar {
       display: flex;
       align-items: center;
@@ -798,13 +732,13 @@ final class DevErrorRenderer
       gap: 0.75rem;
       margin-bottom: 0.65rem;
       font-size: 0.78rem;
-      color: var(--text-2);
+      color: var(--muted);
       flex-wrap: wrap;
     }
     textarea.llm-box {
       width: 100%;
-      min-height: 240px;
-      background: var(--surface-code);
+      min-height: 230px;
+      background: var(--surface);
       color: var(--text-2);
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -815,32 +749,22 @@ final class DevErrorRenderer
       resize: vertical;
     }
 
-    /* Quiet Data Tables */
-    table.kv {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.81rem;
-    }
+    table.kv { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
     table.kv th, table.kv td {
       text-align: left;
-      padding: 0.56rem 1.15rem;
+      padding: 0.52rem 0.2rem;
       border-bottom: 1px solid var(--border);
       vertical-align: top;
     }
     table.kv tr:last-child th, table.kv tr:last-child td { border-bottom: 0; }
-    table.kv th {
-      color: var(--muted);
-      font-weight: 500;
-      width: 210px;
-      white-space: nowrap;
-    }
+    table.kv th { color: var(--muted); font-weight: 500; width: 210px; white-space: nowrap; }
     table.kv td { color: var(--text); word-break: break-word; }
     .mono { font-family: var(--mono); }
     .redacted-tag {
       font-family: var(--mono);
-      font-size: 0.74rem;
+      font-size: 0.73rem;
       color: var(--muted);
-      background: var(--surface-2);
+      background: var(--surface);
       border: 1px solid var(--border);
       padding: 0.08rem 0.42rem;
       border-radius: 5px;
@@ -850,23 +774,13 @@ final class DevErrorRenderer
 <body data-dev-base="{$escapedBase}">
   <header class="topbar">
     <div class="topbar-inner">
-      <div class="brand-group">
-        <span class="brand">
-          <svg width="16" height="16" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-            <polygon points="16,2 30,16 16,30 2,16" stroke="currentColor" stroke-width="2.1" />
-            <polygon points="16,9 23,16 16,23 9,16" fill="var(--err)" />
-          </svg>
-          <span>{$escapedApp}</span>
-        </span>
-        <span class="sep">/</span>
-        <span class="meta-tag"><span class="dot dot-err"></span>500</span>
-        <span class="meta-tag meta-pill">{$escapedMethod} {$escapedPath}</span>
-      </div>
+      <span class="brand">{$escapedApp}</span>
+      <span class="mid-meta"><span class="dot dot-err"></span>500 · {$escapedMethod} {$escapedPath} · PHP {$escapedPhp}</span>
       <div class="top-actions">
-        <button class="btn" type="button" id="kgn-ask-hantei"><span class="dot dot-ai"></span>Diagnose Live with Hantei <span class="kbd">H</span></button>
-        <button class="btn" type="button" id="kgn-copy-llm" data-copy-target="kgn-llm-prompt"><span class="dot dot-ok"></span>Copy for LLM <span class="kbd">C</span></button>
-        <button class="btn btn-ghost btn-icon" type="button" id="kgn-theme-toggle" title="Toggle light/dark theme" aria-label="Toggle light/dark theme">◐</button>
-        <a class="btn btn-ghost" href="{$escapedBase}">Dev Studio</a>
+        <button class="btn btn-solid" type="button" id="kgn-ask-hantei">Diagnose Live with Hantei</button>
+        <button class="btn" type="button" id="kgn-copy-llm" data-copy-target="kgn-llm-prompt">Copy for LLM</button>
+        <button class="btn btn-icon" type="button" id="kgn-theme-toggle" title="Toggle light/dark theme" aria-label="Toggle light/dark theme">◐</button>
+        <a class="btn" href="{$escapedBase}">Dev Studio</a>
       </div>
     </div>
   </header>
@@ -874,19 +788,18 @@ final class DevErrorRenderer
   <main class="wrap">
     <section class="hero">
       <div class="hero-eyebrow">
-        <span class="exc-class"><span class="dot dot-err"></span>{$class}</span>
-        <span class="loc-chip" title="{$escapedRel}:{$line}">{$escapedShortRel}:{$line}</span>
+        <span title="{$escapedRel}:{$line}">{$class} · {$escapedShortRel}:{$line}</span>
+        <span>Kongono Dev Exception · {$memMb} MB</span>
       </div>
       <h1>{$escapedMsg}</h1>
       {$previousHtml}
+      {$quickFixHtml}
     </section>
 
-    {$quickFixHtml}
-
-    <section class="surface-card">
-      <div class="card-bar">
+    <section class="workbench">
+      <div class="workbench-head">
         <span>Stack Trace &amp; Source Context</span>
-        <span class="card-bar-meta">Kongono Dev Exception · PHP {$escapedPhp} · {$memMb} MB</span>
+        <span class="workbench-head-right" title="{$escapedRel}:{$line}">{$escapedShortRel}:{$line}</span>
       </div>
       {$framesHtml}
     </section>
@@ -1076,20 +989,19 @@ HTML;
         }
 
         $cmdHtml = '';
+        $copyBtn = '';
         if (null !== $quickFix['command'] && '' !== $quickFix['command']) {
             $escapedCmd = $this->esc($quickFix['command']);
-            $cmdHtml = sprintf(
-                '<div class="cmd-row"><code><span class="cmd-prefix">$</span>%s</code><button class="btn" type="button" data-copy-text="%s">Copy</button></div>',
-                $escapedCmd,
-                $escapedCmd,
-            );
+            $cmdHtml = sprintf('<code class="quickfix-cmd">$ %s</code>', $escapedCmd);
+            $copyBtn = sprintf('<button class="btn" type="button" data-copy-text="%s">Copy command</button>', $escapedCmd);
         }
 
         return sprintf(
-            '<section class="quickfix"><div><div class="quickfix-label"><span class="dot dot-ok"></span>Suggested Quick Fix</div><h2>%s</h2></div><p>%s</p>%s</section>',
+            '<div class="quickfix"><div class="quickfix-row"><div class="quickfix-main"><span class="dot dot-ok"></span><span class="quickfix-label">Suggested Quick Fix</span><span class="quickfix-title">%s</span>%s</div>%s</div><p class="quickfix-desc">%s</p></div>',
             $this->esc($quickFix['title']),
-            $this->esc($quickFix['explanation']),
             $cmdHtml,
+            $copyBtn,
+            $this->esc($quickFix['explanation']),
         );
     }
 
@@ -1106,7 +1018,7 @@ HTML;
             ++$depth;
             $rel = $this->relativePath($prev->getFile(), $basePath);
             $items[] = sprintf(
-                '<div class="prev-item"><span class="prev-tag">Caused by #%d</span><span class="prev-cls">%s</span><span>%s</span><span class="prev-loc" title="%s:%d">(%s:%d)</span></div>',
+                '<div class="prev-item"><span class="prev-tag">Caused by #%d</span><span class="mono">%s</span> — %s <span class="mono" style="color:var(--muted)" title="%s:%d">(%s:%d)</span></div>',
                 $depth,
                 $this->esc($prev::class),
                 $this->esc(SecretScrubber::scrub($prev->getMessage())),
@@ -1185,7 +1097,6 @@ HTML;
             }
         }
 
-        // If all frames are vendor frames, keep them expanded automatically
         $vendorChecked = 0 === $appCount ? ' checked' : '';
         $vendorToggleInput = sprintf('<input type="checkbox" id="kgn-show-vendor" class="vendor-toggle"%s>', $vendorChecked);
         $vendorToggleLabel = $vendorCount > 0
@@ -1200,17 +1111,17 @@ HTML;
             $lineTag = $frame['line'] > 0 ? ':' . $frame['line'] : '';
 
             $tabs[] = sprintf(
-                '<label for="kgn-f-%d" class="frame-tab%s" title="%s%s"><div class="frame-tab-top"><span class="frame-call">%s</span><span class="frame-line-num">%s</span></div><div class="frame-loc">%s</div></label>',
+                '<label for="kgn-f-%d" class="frame-tab%s" title="%s%s"><div class="frame-call">%s</div><div class="frame-loc">%s%s</div></label>',
                 $idx,
                 $vendorClass,
                 $this->esc($frame['rel_file']),
                 $lineTag,
                 $this->esc($frame['call']),
-                $lineTag,
                 $this->esc($frame['short_file']),
+                $lineTag,
             );
 
-            $linesBefore = 0 === $idx ? 4 : 4;
+            $linesBefore = 4;
             $linesAfter = 0 === $idx ? 9 : 5;
             $snippetHtml = $frame['line'] > 0 && '[internal]' !== $frame['file']
                 ? $this->renderSourceSnippet($frame['file'], $frame['line'], $linesBefore, $linesAfter, $tokenLineCache)
@@ -1234,9 +1145,9 @@ HTML;
 
         return $vendorToggleInput
             . implode('', $radios)
-            . '<div class="frames-shell"><div class="frame-rail"><div class="frame-rail-head"><span>' . $railSummary . '</span>' . $vendorToggleLabel . '</div><div class="frame-list">'
+            . '<div class="frames-shell"><aside class="frame-rail"><div class="frame-rail-head"><span>' . $railSummary . '</span>' . $vendorToggleLabel . '</div><div class="frame-list">'
             . implode('', $tabs)
-            . '</div></div><div class="code-stage">'
+            . '</div></aside><div class="code-stage">'
             . implode('', $panes)
             . '</div></div>';
     }
@@ -1246,8 +1157,8 @@ HTML;
         $rules = [];
         for ($i = 0; $i < $count; ++$i) {
             $rules[] = sprintf('#kgn-f-%d:checked ~ .frames-shell .code-pane-%d { display: block; }', $i, $i);
-            $rules[] = sprintf('#kgn-f-%d:checked ~ .frames-shell label[for="kgn-f-%d"] { background: var(--surface-2); border-left-color: var(--err); }', $i, $i);
-            $rules[] = sprintf('#kgn-f-%d:checked ~ .frames-shell label[for="kgn-f-%d"] .frame-call { color: var(--text); }', $i, $i);
+            $rules[] = sprintf('#kgn-f-%d:checked ~ .frames-shell label[for="kgn-f-%d"] { color: var(--text); }', $i, $i);
+            $rules[] = sprintf('#kgn-f-%d:checked ~ .frames-shell label[for="kgn-f-%d"]::before { opacity: 1; }', $i, $i);
         }
 
         return implode("\n    ", $rules);
@@ -1277,7 +1188,6 @@ HTML;
         $start = max(1, $errorLine - $linesBefore);
         $end = min($total, $errorLine + $linesAfter);
 
-        // Trim shared leading spaces across the visible window so deeply nested methods stay crisp
         $commonIndent = null;
         for ($i = $start; $i <= $end; ++$i) {
             $rawLine = $highlightedLines[$i] ?? '';
@@ -1409,7 +1319,6 @@ HTML;
                 return 'tk-kw';
             }
 
-            // Peek next non-whitespace token to detect function/method calls
             for ($next = $index + 1; $next < $count; ++$next) {
                 if (T_WHITESPACE === $tokens[$next]->id) {
                     continue;
@@ -1525,11 +1434,11 @@ HTML;
             )
             : '';
         $diagPane = null !== $diagnosticData
-            ? '<div class="dock-pane dock-pane-flush dock-pane-diag">' . $diagnosticHtml . '</div>'
+            ? '<div class="dock-pane dock-pane-diag">' . $diagnosticHtml . '</div>'
             : '';
 
         return <<<HTML
-    <section class="surface-card">
+    <section class="dock">
       <input type="radio" name="kgn-dock" id="kgn-tab-hantei" class="tab-radio" checked>
       {$diagRadio}
       <input type="radio" name="kgn-dock" id="kgn-tab-request" class="tab-radio">
@@ -1542,14 +1451,14 @@ HTML;
           <label for="kgn-tab-request" class="dock-tab">Request</label>
           <label for="kgn-tab-llm" class="dock-tab">LLM Packet</label>
         </div>
-        <span class="card-bar-meta">Secret-scrubbed · PromptGuard protected</span>
+        <span class="dock-meta">Secret-scrubbed · PromptGuard protected</span>
       </div>
 
       <div class="dock-body">
         <div class="dock-pane dock-pane-hantei">
           <div class="hantei-stack">
             <pre id="kgn-hantei-output" class="hantei-live-out"></pre>
-            <p class="hantei-hint">Stream a live root-cause diagnosis with <strong>Diagnose Live with Hantei</strong> above, or run locally from your terminal:</p>
+            <p class="hantei-hint">Press <strong>H</strong> or click <strong>Diagnose Live with Hantei</strong> above to stream live diagnosis, or run locally:</p>
             <div class="cmd-row">
               <code>{$escapedHanteiDebug}</code>
               <button class="btn" type="button" data-copy-text="{$escapedHanteiDebug}">Copy</button>
@@ -1563,7 +1472,7 @@ HTML;
 
         {$diagPane}
 
-        <div class="dock-pane dock-pane-flush dock-pane-request">
+        <div class="dock-pane dock-pane-request">
           {$requestHtml}
         </div>
 
@@ -1600,7 +1509,6 @@ HTML;
             return $normalized;
         }
 
-        // Preserve concise project-relative paths; shorten deep absolute paths
         if (!str_contains($parts[0], ':') && !str_starts_with($normalized, '/')) {
             return $normalized;
         }

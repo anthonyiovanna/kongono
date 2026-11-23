@@ -39,24 +39,57 @@ final class ApiDocsRenderer
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{$title} — Kongono API Docs</title>
   <style>
-    :root { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; color: #0f172a; background: #f8fafc; }
-    body { max-width: 980px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
-    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem; margin-bottom: 1.5rem; gap: 1rem; flex-wrap: wrap; }
-    h1 { margin: 0; font-size: 1.5rem; }
-    .meta { color: #64748b; font-size: 0.85rem; }
+    :root {
+      color-scheme: dark light;
+      --bg: #0c0c0d;
+      --surface: #131315;
+      --surface-2: #19191c;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --text: #f4f4f5;
+      --text-2: #a1a1aa;
+      --muted: #63636b;
+      --ok: #4ade80;
+      --err: #e5534b;
+      font-family: ui-sans-serif, "Inter", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #fcfcfc;
+        --surface: #f5f5f6;
+        --surface-2: #ebebee;
+        --border: rgba(0, 0, 0, 0.08);
+        --border-strong: rgba(0, 0, 0, 0.16);
+        --text: #09090b;
+        --text-2: #52525b;
+        --muted: #8a8a94;
+        --ok: #15803d;
+        --err: #d12e26;
+      }
+    }
+    * { box-sizing: border-box; }
+    body { max-width: 980px; margin: 0 auto; padding: 2rem 1.5rem 4rem; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+    a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1.15rem; margin-bottom: 1.65rem; gap: 1rem; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: 1.45rem; font-weight: 560; letter-spacing: -0.025em; }
+    .meta { color: var(--muted); font-size: 0.82rem; font-family: ui-monospace, Menlo, monospace; margin-top: 0.25rem; }
     .auth-bar { display: flex; gap: 0.5rem; align-items: center; }
-    .auth-bar input { padding: 0.45rem 0.7rem; border: 1px solid #cbd5e1; border-radius: 6px; width: 260px; font-family: ui-monospace, monospace; font-size: 0.82rem; }
-    .op { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 0.85rem; overflow: hidden; }
-    .op-head { display: flex; align-items: center; gap: 0.75rem; padding: 0.8rem 1rem; cursor: pointer; }
-    .method { font-size: 0.75rem; font-weight: 700; padding: 0.22rem 0.55rem; border-radius: 6px; text-transform: uppercase; min-width: 58px; text-align: center; color: #fff; }
-    .m-get { background: #0284c7; } .m-post { background: #16a34a; } .m-put { background: #d97706; } .m-patch { background: #7c3aed; } .m-delete { background: #dc2626; }
-    .path { font-family: ui-monospace, monospace; font-weight: 600; font-size: 0.92rem; }
-    .op-id { color: #64748b; font-size: 0.8rem; margin-left: auto; }
-    .op-body { border-top: 1px solid #f1f5f9; padding: 1rem; display: none; background: #fcfcfd; }
+    .auth-bar input { padding: 0.44rem 0.72rem; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 6px; width: 260px; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+    .op { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; margin-bottom: 0.75rem; overflow: hidden; }
+    .op-head { display: flex; align-items: center; gap: 0.75rem; padding: 0.78rem 1rem; cursor: pointer; }
+    .op-head:hover { background: var(--surface-2); }
+    .method { font-family: ui-monospace, Menlo, monospace; font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.52rem; border-radius: 5px; text-transform: uppercase; min-width: 58px; text-align: center; border: 1px solid var(--border-strong); background: var(--bg); color: var(--text); }
+    .m-post { border-color: rgba(74, 222, 128, 0.35); color: var(--ok); }
+    .m-delete { border-color: rgba(229, 83, 75, 0.35); color: var(--err); }
+    .path { font-family: ui-monospace, "JetBrains Mono", monospace; font-weight: 500; font-size: 0.88rem; }
+    .op-id { color: var(--muted); font-family: ui-monospace, monospace; font-size: 0.76rem; margin-left: auto; }
+    .op-body { border-top: 1px solid var(--border); padding: 1rem; display: none; background: var(--bg); }
     .op.open .op-body { display: block; }
-    textarea { width: 100%; box-sizing: border-box; font-family: ui-monospace, monospace; font-size: 0.82rem; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; }
-    button.try-btn { margin-top: 0.6rem; background: #0f172a; color: #fff; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; cursor: pointer; }
-    pre.out { margin-top: 0.75rem; background: #0f172a; color: #e2e8f0; padding: 0.8rem; border-radius: 8px; overflow-x: auto; font-size: 0.8rem; display: none; }
+    textarea { width: 100%; font-family: ui-monospace, monospace; font-size: 0.8rem; padding: 0.65rem; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 6px; }
+    button.try-btn { margin-top: 0.65rem; background: var(--text); color: var(--bg); border: 1px solid var(--text); padding: 0.48rem 0.95rem; border-radius: 6px; font-weight: 500; font-size: 0.82rem; cursor: pointer; }
+    pre.out { margin-top: 0.75rem; background: var(--surface); border: 1px solid var(--border); color: var(--text-2); padding: 0.85rem; border-radius: 7px; overflow-x: auto; font-size: 0.79rem; display: none; }
   </style>
 </head>
 <body>
