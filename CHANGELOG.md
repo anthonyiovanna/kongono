@@ -4,6 +4,140 @@ All notable changes to the **Kongono Framework** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-11-22
+
+### Added
+
+- **Explicit Data Ergonomics (`kongono/database`):**
+  - Soft deletes via `Blueprint::softDeletes()` / `dropSoftDeletes()` and `QueryBuilder::withoutTrashed()`, `onlyTrashed()`, `softDelete()`, and `restore()`.
+  - Zero-N+1 relation eager loading via `BatchLoader::hasMany()` and `BatchLoader::belongsTo()`.
+  - Immutable typed `Factory::for()` with `state()`, `sequence()`, `count()`, `make()`, and `create()`.
+- **Full-Text & Hybrid RRF Search (`kongono/database`, `kongono/ai`):**
+  - `SearchEngineInterface`, `MemorySearchEngine`, and `PostgresFullTextSearch` (`tsvector`/`websearch_to_tsquery`/`ts_rank_cd` with XSS-safe plain-text `[[`/`]]` excerpts).
+  - `HybridSearch` fusing keyword full-text search and `PgVectorStore` semantic embeddings via Reciprocal Rank Fusion (RRF).
+- **Capability-Gated Live 2.5 Operations Dashboard (`kongono/http`, `kongono/core`):**
+  - `OpsDashboardMiddleware` & `OpsDashboardRenderer` (`/_ops`) — zero-npm, strict-CSP Live 2.5 dashboard fail-closed on `Gate` (`ops.view` / `ops.manage`) displaying live queue depths, 1-click DLQ retry/flush, active `JobBatch` progress, `HealthCheck`, `Metrics::snapshot()`, and recent traces.
+
+## [1.16.0] - 2026-11-22
+
+### Added
+
+- **Complete Zero-Vendor Auth Suite (`kongono/security`, `kongono/core`):**
+  - `SessionAuth`, `SessionAuthMiddleware`, `#[Authenticated]`, and `Gate::before()` / `Gate::policy()` / `Gate::denies()`.
+  - Revocable SHA-256 `PersonalAccessToken` across `MemoryPersonalAccessTokenStore`, `CachePersonalAccessTokenStore`, and `PdoPersonalAccessTokenStore`, with automatic `kgn_pat_` redaction in `SecretScrubber`.
+  - `PasswordResetBroker`, `EmailVerifier`, `LoginThrottler`, and theft-detecting split selector/validator `RememberMeManager`.
+
+## [1.15.0] - 2026-11-22
+
+### Added
+
+- **Global-Free Testing Suite (`kongono/http`, `kongono/database`, `kongono/security`, `kongono/core`):**
+  - Expanded `TestClient` (`actingAs`, `withStatefulCookies`, `postMultipart`, `request`, `followRedirects`, `withLive`, `withBridge`), `TestUpload` (`fakePng`, `fakeJpeg`, `fakePdf`, `fakeText`, `fakeJson`), and rich `TestResponse` assertions.
+  - `DatabaseTestHelper::inRollbackTransaction()` backed by nested SQL `SAVEPOINT` support in `PdoConnection::transaction()`.
+  - SSRF-enforcing `SafeHttpClient::fake()` + `SafeHttpFake` and pure-DI `ClockInterface` / `SystemClock` / `FrozenClock`.
+
+## [1.14.0] - 2026-11-22
+
+### Added
+
+- **Production Queue Power Features (`kongono/jobs`, `kongono/cli`):**
+  - Dead-letter inspection & replay (`listFailed`, `retryFailed`, `flushFailed`) across Memory, PostgreSQL, and Lua-atomic Redis drivers + `kongo queue:failed`, `queue:retry`, and `queue:flush`.
+  - Multi-queue priority draining (`Worker::run('critical,high,default')`), atomic `uniqueKey` deduplication, composable `JobMiddlewareInterface`, and parallel `JobBatch` + `BatchDispatcher` (`MemoryBatchStore`, `CacheBatchStore`).
+
+## [1.13.0] - 2026-11-22
+
+### Added
+
+- **Streaming & Multi-Disk Storage (`kongono/storage`, `kongono/http`):**
+  - `putStream()` / `getStream()` and `copy()` / `move()` (with native S3 `x-amz-copy-source`) across `LocalStorage`, `S3Storage`, and `MemoryStorage`, plus paginated S3 `ListObjectsV2`.
+  - Magic-byte `UploadedFileStore`, `SignedLocalUrl`, `StorageDisks`, and `Response::download()` / `Response::fromStorage()`.
+
+## [1.12.0] - 2026-11-22
+
+### Added
+
+- **Validation & HTML Form Ergonomics (`kongono/validation`, `kongono/http`, `kongono/view`):**
+  - Custom `RuleInterface`, cross-field `ValidatableDtoInterface`, `#[ArrayOf]` (integrated across Validator, OpenAPI 3.1, and Bridge TypeScript generation), `#[Date]`, `#[Ip]`, `#[NotIn]`, and `#[RequiredIf]`.
+  - Secret-scrubbed HTML PRG flash errors & input helpers (`@old()`, `@error()`).
+
+## [1.11.0] - 2026-11-22
+
+### Added
+
+- **Schema Evolution & Safe Migrations (`kongono/database`, `kongono/cli`):**
+  - `Schema::table()`, `Schema::rename()`, and `Blueprint` helpers (`uuid`, `json`, `decimal`, `foreignKey`, `foreignId`).
+  - `NonTransactionalMigrationInterface`, `PretendConnection` + `kongo migrate --pretend`, and production-guarded `Migrator::fresh()` + `kongo migrate:fresh`.
+
+## [1.10.1] - 2026-11-22
+
+### Fixed
+
+- Cache-busted `@liveScript` and `@bridgeScript` URLs with version query strings and `must-revalidate` headers on unversioned runtime script responses.
+
+## [1.10.0] - 2026-11-22
+
+### Added
+
+- **Kongono Live 2.5 & Hybrid Bridge (`kongono/http`, `kongono/view`, `kongono/cli`):**
+  - Safe cached arithmetic/ternary/pipe AST for zero-`eval()` strict-CSP signals, speculative hover/visible prefetch, out-of-band multi-morph (`kgn-oob`), `k-persist` + offline idempotent queue, drag-and-drop `kgn-sortable`, `@island` hybrid Bridge islands, `Response::adaptive()`, and `kongo ui:add`.
+
+## [1.9.0] - 2026-11-22
+
+### Added
+
+- **Kongono Live 2.0 & Bridge (`kongono/http`, `kongono/view`, `kongono/cli`):**
+  - Keyed DOM morphing, zero-`eval()` CSP-strict signals, optimistic UI, and View Transitions in `LiveMiddleware`.
+  - First-class React, Vue, and Svelte **Bridge** (`Response::page()`, `BridgeMiddleware`, `kongo bridge:init`, `kongo bridge:types`).
+
+## [1.8.1] - 2026-11-22
+
+### Security
+
+- Enforced PHP `>= 8.5.13` runtime CVE checks, hardened `php.ini` defaults in Dockerfiles/CI, and guarded FPM `413` `php://input` drain bounds.
+
+## [1.8.0] - 2026-11-22
+
+### Performance
+
+- Eliminated 6 structural scaling bottlenecks: multi-node `RedisEventBus`, PDO/Redis auto-reconnect + prepared statement caching, zero-reflection handler dispatch caching, `--daemon` worker + `O(1)` Redis stats, chunked PCRE2 AOT `Router`, `pgvector` HNSW/GIN indexes, and `CacheFactory` / `StorageFactory`.
+
+## [1.7.0] - 2026-11-22
+
+### Security
+
+- Added HTML5 `HtmlSanitizer` / `@safeHtml`, PostgreSQL `RowLevelSecurity`, hardened non-root read-only deployment blueprints, adversarial parser fuzzing (`composer fuzz`), `SECURITY.md`, SBOM, and SLSA provenance.
+
+## [1.6.1] - 2026-11-22
+
+### Security
+
+- Upgraded `Encryptor` to versioned `v2.` HKDF AEAD keys with upgrade-safe legacy `v1.` decryption.
+
+## [1.5.0] - [1.6.0] - 2026-11-22
+
+### Security
+
+- Completed Round-3 and Round-4 adversarial security hardening across all 11 packages, `examples/starter-app`, and CI.
+
+## [1.4.0] - [1.4.4] - 2026-11-21
+
+### Added & Security
+
+- Added durable `Workflow`s (`step`, `sleep`, `waitForEvent`/`signal`), WebAuthn Passkeys (`PasskeyVerifier`), `MagicLinkAuth`, `PkceOAuthClient`, Time-Travel Replay & `TestExporter`, `QueryGuard`/`BatchLoader`, `kongo migrate:lint`, and `kongo eval` (`EvalRunner`).
+- Completed Round-1 & Round-2 security hardening across all packages (including `AgentRunner` USD cost budgets, `ApiDocsRenderer` DOM sink escaping, Redis RESP DoS/TLS, SSE CR smuggling, S3/Curl lockdown, and `HttpCacheMiddleware` CDN key safety).
+
+## [1.3.0] - 2026-11-21
+
+### Added
+
+- Added `kongo sdk:generate` (TypeScript, Swift 6, Kotlin, Dart), `AiThreatShieldMiddleware`, `PromptGuard`/`UntrustedInput`, `kongo audit --attack`, Fiber `Async`, AOT compiled `Router`, and initial `Kongono\Http\Live`.
+
+## [1.2.0] - 2026-11-21
+
+### Added
+
+- Added `kongo audit`, `kongo deploy:init`, expanded 12-tool MCP server, fail-closed multi-tenant `TenantContext`, `RequiresApproval` / token & cost budgets on `AgentRunner`, and `SecretScrubber` v2.
+
 ## [1.1.3] - 2026-11-21
 
 ### Security

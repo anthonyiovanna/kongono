@@ -20,12 +20,13 @@ Optional overrides: `KONGONO_AI_PROVIDER` and `KONGONO_AI_MODEL`.
 ```bash
 php bin/kongo oshie --lessons
 php bin/kongo oshie --lesson routing
+php bin/kongo oshie --interactive
 php bin/kongo oshie "How do I add RateLimitMiddleware to my /api routes?"
 ```
 
 ## 2. Chie (知恵) — Build with Kongono
 
-Chie runs under a governed `AgentPrincipal` with explicit read-only inspection tools (`list_files`, `read_file`, `inspect_graph`), previews every proposed file change first, and only writes inside your project root when you pass `--apply`:
+Chie runs under a governed `AgentPrincipal` with explicit read-only inspection tools (`list_files`, `read_file`, `inspect_graph`), previews every proposed file change first as a unified diff, and only writes inside your project root when you pass `--apply`:
 
 ```bash
 php bin/kongo chie "Add a /api/stats endpoint returning note count and queue stats"
@@ -45,9 +46,9 @@ php bin/kongo hantei generate-tests src/Http/NoteController.php --apply
 ## Using `kongono/ai` Inside Your Own App
 
 ```php
-use Kongono\Ai\AiClient;
-use Kongono\Ai\ChatRequest;
-use Kongono\Ai\Message;
+use Kongono\Ai\{AiClient, ChatRequest, Message};
+use Kongono\Ai\Embedding\{HybridSearch, KnowledgeBase, PgVectorStore};
+use Kongono\Database\Search\PostgresFullTextSearch;
 
 $ai = AiClient::fromEnv();
 $summary = $ai->structured('Summarize this ticket with priority and tags...', TicketSummaryDto::class);
@@ -59,6 +60,19 @@ $ai->chatStream(
         echo $delta;
     },
 );
+
+// Reciprocal Rank Fusion (RRF) combining PostgreSQL FTS + pgvector HNSW embeddings
+$hybrid = new HybridSearch(
+    new PostgresFullTextSearch($db, table: 'docs', textColumns: ['title', 'body']),
+    new PgVectorStore($db),
+);
+$hits = $hybrid->search(queryText: 'FrankenPHP resetScope', queryVector: $queryVector, limit: 5);
+```
+
+Run built-in AI red-team and structured-output evals in CI:
+
+```bash
+php bin/kongo eval --redteam --app=examples/starter-app
 ```
 
 ## Model Context Protocol (MCP) Server for AI IDEs
@@ -85,7 +99,13 @@ Example MCP client config:
 Exposed read-only, `AgentPrincipal`-governed tools (all output scrubbed by `SecretScrubber`, `.env` reads explicitly blocked):
 - `kongono_graph` — Live `ApplicationGraph` JSON
 - `kongono_openapi` — Live OpenAPI 3.1.0 specification
+- `kongono_sdk_generate` — Generate typed TypeScript, Swift 6, Kotlin, or Dart client SDKs
 - `kongono_routes` — Full HTTP route table
+- `kongono_audit` — Graph-driven security audit & red-team diagnostics
+- `kongono_eval` — AI red-team & structured DTO eval runner
+- `kongono_migrate_lint` — Zero-downtime database migration linter
+- `kongono_test_route` — In-process route smoke test runner
+- `kongono_deploy_preview` — Non-root FrankenPHP/Caddy deployment blueprint preview
 - `kongono_list_files` — Contained project file listing
 - `kongono_read_file` — Secret-scrubbed source file reader
-- `kongono_oshie_lesson` — Built-in Kongono v1 Oshie guides
+- `kongono_oshie_lesson` — Built-in Kongono Oshie guides
