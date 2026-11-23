@@ -27,6 +27,8 @@ final class PdoConnection implements ConnectionInterface
     /** @var array<string, PDOStatement> */
     private array $statementCache = [];
 
+    private int $transactionDepth = 0;
+
     private PDO $pdo;
 
     /** @var ?Closure(): PDO */
@@ -50,6 +52,7 @@ final class PdoConnection implements ConnectionInterface
             throw new DatabaseException('PdoConnection cannot reconnect without a connector factory.');
         }
         $this->statementCache = [];
+        $this->transactionDepth = 0;
         $this->pdo = ($this->connector)();
         $this->configurePdo($this->pdo);
     }
@@ -350,22 +353,45 @@ final class PdoConnection implements ConnectionInterface
 
     public function transaction(Closure $callback): mixed
     {
-        if (!$this->pdo->beginTransaction()) {
-            throw new DatabaseException('Unable to begin database transaction.');
+        if (0 === $this->transactionDepth && !$this->pdo->inTransaction()) {
+            if (!$this->pdo->beginTransaction()) {
+                throw new DatabaseException('Unable to begin database transaction.');
+            }
+            $this->transactionDepth = 1;
+
+            try {
+                $result = $callback($this);
+                if (!$this->pdo->commit()) {
+                    throw new DatabaseException('Database transaction commit returned false.');
+                }
+
+                return $result;
+            } catch (Throwable $failure) {
+                if ($this->pdo->inTransaction()) {
+                    $this->pdo->rollBack();
+                }
+                throw $failure;
+            } finally {
+                $this->transactionDepth = 0;
+            }
         }
+
+        ++$this->transactionDepth;
+        $savepoint = 'kongono_sp_' . $this->transactionDepth;
+        $this->pdo->exec('SAVEPOINT ' . $savepoint);
 
         try {
             $result = $callback($this);
-            if (!$this->pdo->commit()) {
-                throw new DatabaseException('Database transaction commit returned false.');
-            }
+            $this->pdo->exec('RELEASE SAVEPOINT ' . $savepoint);
 
             return $result;
         } catch (Throwable $failure) {
             if ($this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
+                $this->pdo->exec('ROLLBACK TO SAVEPOINT ' . $savepoint);
             }
             throw $failure;
+        } finally {
+            $this->transactionDepth = max(0, $this->transactionDepth - 1);
         }
     }
 

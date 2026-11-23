@@ -21,6 +21,7 @@ use Kongono\Database\RowLevelSecurity;
 use Kongono\Database\Schema\Blueprint;
 use Kongono\Database\Schema\ColumnDefinition;
 use Kongono\Database\Schema\Schema;
+use Kongono\Database\Testing\DatabaseTestHelper;
 use PDO;
 use PDOStatement;
 use PHPUnit\Framework\TestCase;
@@ -1201,6 +1202,226 @@ final class QueryBuilderTest extends TestCase
                     'SET FOREIGN_KEY_CHECKS = 1',
                 ], $log);
             }
+        }
+    }
+
+    public function testDatabaseTestHelperRollbackIsolationNestedSavepointsAndAssertions(): void
+    {
+        // 1. Verify PdoConnection nested transaction SAVEPOINT / RELEASE / ROLLBACK SQL deterministically (driver-independent)
+        $pdoEvents = [];
+        $fakePdo = new class ($pdoEvents) extends PDO {
+            private bool $active = false;
+
+            /** @param list<string> $events */
+            public function __construct(public array &$events) {}
+
+            public function setAttribute(int $attribute, mixed $value): bool
+            {
+                return true;
+            }
+
+            public function inTransaction(): bool
+            {
+                return $this->active;
+            }
+
+            public function beginTransaction(): bool
+            {
+                $this->active = true;
+                $this->events[] = 'BEGIN';
+
+                return true;
+            }
+
+            public function commit(): bool
+            {
+                $this->active = false;
+                $this->events[] = 'COMMIT';
+
+                return true;
+            }
+
+            public function rollBack(): bool
+            {
+                $this->active = false;
+                $this->events[] = 'ROLLBACK';
+
+                return true;
+            }
+
+            public function exec(string $statement): int|false
+            {
+                $this->events[] = $statement;
+
+                return 0;
+            }
+        };
+
+        $pdoConn = new PdoConnection($fakePdo, Dialect::Postgres);
+        $helperOnPdo = new DatabaseTestHelper($pdoConn);
+        $ret = $helperOnPdo->inRollbackTransaction(static function (ConnectionInterface $tx): string {
+            try {
+                $tx->transaction(static function (): never {
+                    throw new DatabaseException('inner failure');
+                });
+            } catch (DatabaseException) {
+                // inner savepoint rolled back
+            }
+            $tx->transaction(static fn(): bool => true);
+
+            return 'ok';
+        });
+        self::assertSame('ok', $ret);
+        self::assertSame([
+            'BEGIN',
+            'SAVEPOINT kongono_sp_2',
+            'ROLLBACK TO SAVEPOINT kongono_sp_2',
+            'SAVEPOINT kongono_sp_2',
+            'RELEASE SAVEPOINT kongono_sp_2',
+            'ROLLBACK',
+        ], $pdoEvents);
+
+        // 2. Verify DatabaseTestHelper row assertions & rollback state isolation on an in-memory transactional ConnectionInterface
+        $memConn = new class implements ConnectionInterface {
+            /** @var list<array<string, mixed>> */
+            public array $rows = [
+                ['email' => 'seed@kongono.dev', 'tier' => 'pro'],
+            ];
+
+            /** @var list<string> */
+            public array $queries = [];
+
+            public function dialect(): Dialect
+            {
+                return Dialect::Postgres;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                $this->queries[] = $sql;
+
+                return [['aggregate_count' => $this->countRows($sql, $bindings)]];
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                $this->queries[] = $sql;
+
+                return ['aggregate_count' => $this->countRows($sql, $bindings)];
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                $this->queries[] = $sql;
+                if (str_starts_with($sql, 'INSERT INTO "accounts"')) {
+                    $this->rows[] = ['email' => $bindings[0] ?? null, 'tier' => $bindings[1] ?? null];
+
+                    return 1;
+                }
+
+                return 0;
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, Dialect::Postgres, $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                $snapshot = $this->rows;
+                try {
+                    return $callback($this);
+                } catch (\Throwable $e) {
+                    $this->rows = $snapshot;
+                    throw $e;
+                }
+            }
+
+            /** @param list<mixed> $bindings */
+            private function countRows(string $sql, array $bindings): int
+            {
+                $matched = 0;
+                foreach ($this->rows as $row) {
+                    $ok = true;
+                    $idx = 0;
+                    if (str_contains($sql, '"email" = ?')) {
+                        $ok = $ok && ($row['email'] === ($bindings[$idx] ?? null));
+                        ++$idx;
+                    }
+                    if (str_contains($sql, '"tier" IS NULL')) {
+                        $ok = $ok && (null === $row['tier']);
+                    } elseif (str_contains($sql, '"tier" = ?')) {
+                        $ok = $ok && ($row['tier'] === ($bindings[$idx] ?? null));
+                    }
+                    if ($ok) {
+                        ++$matched;
+                    }
+                }
+
+                return $matched;
+            }
+        };
+
+        $helper = new DatabaseTestHelper($memConn);
+        $helper
+            ->assertDatabaseCount('accounts', 1)
+            ->assertDatabaseHas('accounts', ['email' => 'seed@kongono.dev', 'tier' => 'pro'])
+            ->assertDatabaseMissing('accounts', ['email' => 'temp@kongono.dev']);
+
+        $out = $helper->inRollbackTransaction(static function (ConnectionInterface $tx) use ($helper): string {
+            $tx->table('accounts')->insert(['email' => 'temp@kongono.dev', 'tier' => null]);
+            $helper
+                ->assertDatabaseCount('accounts', 2)
+                ->assertDatabaseHas('accounts', ['email' => 'temp@kongono.dev', 'tier' => null]);
+
+            return 'done';
+        });
+        self::assertSame('done', $out);
+
+        // Mutations rolled back cleanly
+        $helper
+            ->assertDatabaseCount('accounts', 1)
+            ->assertDatabaseHas('accounts', ['email' => 'seed@kongono.dev'])
+            ->assertDatabaseMissing('accounts', ['email' => 'temp@kongono.dev']);
+
+        // Failed assertions throw DatabaseException with clear diagnostics
+        try {
+            $helper->assertDatabaseHas('accounts', ['email' => 'nope@kongono.dev']);
+            self::fail('Expected assertDatabaseHas to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('contains a row matching', $e->getMessage());
+        }
+
+        try {
+            $helper->assertDatabaseMissing('accounts', ['email' => 'seed@kongono.dev']);
+            self::fail('Expected assertDatabaseMissing to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('is missing rows matching', $e->getMessage());
+        }
+
+        try {
+            $helper->assertDatabaseCount('accounts', 99);
+            self::fail('Expected assertDatabaseCount to fail.');
+        } catch (DatabaseException $e) {
+            self::assertStringContainsString('has 99 row(s), found 1', $e->getMessage());
+        }
+
+        // 3. When pdo_sqlite is loaded (e.g. Linux CI), also exercise real SQLite :memory: SAVEPOINT rollback
+        if (in_array('sqlite', PDO::getAvailableDrivers(), true)) {
+            $sqlite = PdoConnection::sqlite(':memory:');
+            Schema::create($sqlite, 'accounts', static function (Blueprint $table): void {
+                $table->id();
+                $table->string('email', 160)->unique();
+                $table->string('tier', 40)->nullable();
+            });
+            $sqlite->table('accounts')->insert(['email' => 'seed@kongono.dev', 'tier' => 'pro']);
+            $sqHelper = new DatabaseTestHelper($sqlite);
+            $sqHelper->inRollbackTransaction(static function (ConnectionInterface $tx) use ($sqHelper): void {
+                $tx->table('accounts')->insert(['email' => 'temp@kongono.dev', 'tier' => null]);
+                $sqHelper->assertDatabaseCount('accounts', 2);
+            });
+            $sqHelper->assertDatabaseCount('accounts', 1);
         }
     }
 }

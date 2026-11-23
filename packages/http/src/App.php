@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kongono\Http;
 
 use Closure;
+use Kongono\Core\Clock\ClockInterface;
+use Kongono\Core\Clock\SystemClock;
 use Kongono\Core\Config;
 use Kongono\Core\Container;
 use Kongono\Core\CoreException;
@@ -89,6 +91,7 @@ final class App
         $this->container->instance(EventDispatcher::class, $this->events);
         $this->container->instance(Validator::class, $this->validator);
         $this->container->instance(Config::class, $this->config);
+        $this->container->instance(ClockInterface::class, new SystemClock());
     }
 
     public static function create(string $basePath, string $name = 'Kongono App'): self

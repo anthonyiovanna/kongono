@@ -18,6 +18,7 @@ use Kongono\Database\QueryBuilder;
 use Kongono\Database\RowLevelSecurity;
 use Kongono\Database\Schema\Blueprint;
 use Kongono\Database\Schema\Schema;
+use Kongono\Database\Testing\DatabaseTestHelper;
 use Kongono\Jobs\Batch\BatchDispatcher;
 use Kongono\Jobs\Batch\CacheBatchStore;
 use Kongono\Jobs\Batch\JobBatch;
@@ -195,6 +196,31 @@ final class LiveInfrastructureTest extends TestCase
             'CREATE INDEX CONCURRENTLY IF NOT EXISTS "idx_integration_ledger_account_id_currency" ON "integration_ledger" ("account_id", "currency")',
             $pretendPreview['20261122_02_alter_ledger_concurrent'],
         );
+
+        // 1c. v1.15.0 live PostgreSQL 16 DatabaseTestHelper (rollback isolation + nested SAVEPOINT + DB assertions)
+        $dbHelper = new DatabaseTestHelper($db);
+        $dbHelper->assertDatabaseCount('integration_accounts', 0);
+        $dbHelper->inRollbackTransaction(static function (ConnectionInterface $tx) use ($dbHelper): void {
+            $tx->table('integration_accounts')->insert([
+                'public_id' => '550e8400-e29b-41d4-a716-446655440001',
+                'balance' => '200.00',
+                'prefs' => '{}',
+            ]);
+            $dbHelper->assertDatabaseHas('integration_accounts', ['public_id' => '550e8400-e29b-41d4-a716-446655440001']);
+
+            // Nested transaction uses real PostgreSQL SAVEPOINT cleanly
+            $tx->transaction(static function (ConnectionInterface $inner): void {
+                $inner->table('integration_accounts')->insert([
+                    'public_id' => '550e8400-e29b-41d4-a716-446655440002',
+                    'balance' => '300.00',
+                    'prefs' => '{}',
+                ]);
+            });
+            $dbHelper->assertDatabaseCount('integration_accounts', 2);
+        });
+        $dbHelper
+            ->assertDatabaseCount('integration_accounts', 0)
+            ->assertDatabaseMissing('integration_accounts', ['public_id' => '550e8400-e29b-41d4-a716-446655440001']);
 
         // 2. Live PostgresQueueDriver (FOR UPDATE SKIP LOCKED + fencing) + Worker
         $db->execute('DROP TABLE IF EXISTS "kongono_integration_jobs"');

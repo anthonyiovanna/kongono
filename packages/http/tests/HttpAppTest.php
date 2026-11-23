@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kongono\Http\Tests;
 
 use Kongono\Core\Cache\MemoryCache;
+use Kongono\Core\Clock\ClockInterface;
+use Kongono\Core\Clock\FrozenClock;
 use Kongono\Core\Features\FeatureManager;
 use Kongono\Http\App;
 use Kongono\Http\Cookie;
@@ -35,6 +37,7 @@ use Kongono\Http\Session\Session;
 use Kongono\Http\Session\SessionMiddleware;
 use Kongono\Http\SseEvent;
 use Kongono\Http\Testing\TestClient;
+use Kongono\Http\Testing\TestUpload;
 use Kongono\Http\UploadedFile;
 use Kongono\Validation\Attributes\Email;
 use Kongono\Validation\Attributes\Required;
@@ -1372,6 +1375,132 @@ HTML);
         self::assertSame('sandbox', $svgRes->getHeaderLine('Content-Security-Policy'));
         self::assertStringNotContainsString("\r", $svgRes->getHeaderLine('Content-Disposition'));
         self::assertStringContainsString('inline; filename=', $svgRes->getHeaderLine('Content-Disposition'));
+    }
+
+    public function testTestClientActingAsStatefulCsrfUploadsRedirectsAndRichTestResponseAssertions(): void
+    {
+        $signer = new \Kongono\Security\TokenSigner('test-client-v115-csrf-secret-key-32b!');
+        $sessionStore = new CacheSessionStore(new MemoryCache());
+        $memStorage = new \Kongono\Storage\MemoryStorage();
+        $clock = FrozenClock::at('2026-11-22 15:30:00');
+
+        $app = App::create(__DIR__)
+            ->instance(ClockInterface::class, $clock)
+            ->middleware(
+                new SessionMiddleware($sessionStore, cookieName: 'ktest_sid', secure: false),
+                new \Kongono\Security\Middleware\CsrfMiddleware($signer, sessionCookieName: 'ktest_sid', exemptPrefixes: ['/api/']),
+            )
+            ->routes(static function (Router $r) use ($signer, $memStorage): void {
+                $r->get('/form', static function (Session $session) use ($signer): Response {
+                    $csrf = $signer->generateCsrfToken($session->id());
+
+                    return Response::html(sprintf(
+                        '<html><head><meta name="csrf-token" content="%s"></head><body><h1>Step 1</h1><p>Step 2</p></body></html>',
+                        $csrf,
+                    ));
+                });
+
+                $r->post('/form', static function (Request $req, Session $session): Response {
+                    $name = is_string($req->input('name')) ? $req->input('name') : 'anon';
+                    $session->set('saved_name', $name);
+
+                    return Response::redirect('/done', 303);
+                });
+
+                $r->get('/done', static function (Session $session, ClockInterface $clk): Response {
+                    $saved = is_string($session->get('saved_name')) ? $session->get('saved_name') : '';
+
+                    return Response::html('<main>Saved: ' . $saved . ' @ ' . $clk->now()->format('H:i') . '</main>');
+                });
+
+                $r->post('/live/counter', static fn(): Response => Response::fragment(
+                    '<div id="count">42</div>',
+                    swap: 'morph',
+                    oob: ['<span id="badge" kgn-oob="morph">42</span>'],
+                ));
+
+                $r->get('/api/secret', static fn(\Kongono\Security\Principal $user): Response => Response::json([
+                    'actor' => $user->id,
+                    'items' => [
+                        ['id' => 1, 'label' => 'Alpha'],
+                        ['id' => 2, 'label' => 'Beta'],
+                    ],
+                ]))->middlewareAttributes(new \Kongono\Security\Attributes\Can('reports.read'));
+
+                $r->post('/api/validate', static fn(HtmlSignupFormDto $dto): Response => Response::json(['email' => $dto->email]));
+
+                $r->post('/api/upload', static function (Request $req) use ($memStorage): Response {
+                    $file = $req->file('avatar');
+                    if (null === $file) {
+                        throw new HttpException(400, 'Missing avatar.');
+                    }
+                    $uploader = new \Kongono\Storage\UploadedFileStore($memStorage, ['image/png', 'image/jpeg', 'application/pdf']);
+                    $stored = $uploader->store($file, prefix: 'avatars');
+
+                    return Response::json(['key' => $stored->meta->key, 'mime' => $stored->meta->contentType], 201);
+                });
+
+                $r->get('/api/download', static fn(): Response => Response::download('hello world', 'report.txt', 'text/plain'));
+                $r->post('/api/raw', static fn(Request $req): Response => Response::text('raw:' . (string) $req->getBody()));
+            });
+
+        // 1. Stateful cookies + automatic CSRF meta extraction + followRedirects() + ClockInterface DI
+        $browser = (new TestClient($app))->withStatefulCookies();
+        $formRes = $browser->get('/form')
+            ->assertOk()
+            ->assertCookie('ktest_sid')
+            ->assertHeaderMissing('X-Kongono-Swap')
+            ->assertSeeInOrder(['<h1>Step 1</h1>', '<p>Step 2</p>']);
+        self::assertNotNull($browser->csrfToken());
+        self::assertArrayHasKey('ktest_sid', $formRes->cookies());
+
+        $clock->advanceMinutes(15);
+        $redirectRes = $browser->postForm('/form', ['name' => 'Ada'])
+            ->assertRedirect('/done');
+        $browser->followRedirects($redirectRes)
+            ->assertOk()
+            ->assertSee('Saved: Ada @ 15:45');
+
+        // 2. Live 2.5 helpers: withLive(), assertLiveSwap(), assertLiveOob()
+        $browser->withLive()->postForm('/live/counter', [])
+            ->assertOk()
+            ->assertLiveSwap('morph')
+            ->assertLiveOob('badge');
+
+        // 3. actingAs(Principal): unauthenticated -> 401, missing ability -> 403, authorized -> 200 + JSON assertions
+        $api = new TestClient($app);
+        $api->get('/api/secret')->assertUnauthorized();
+
+        $guest = new \Kongono\Security\Principal('u-1', \Kongono\Security\PrincipalKind::Human, ['other.read']);
+        $api->actingAs($guest)->get('/api/secret')->assertForbidden();
+
+        $reader = new \Kongono\Security\Principal('u-2', \Kongono\Security\PrincipalKind::Human, ['reports.read']);
+        $api->actingAs($reader)->get('/api/secret')
+            ->assertOk()
+            ->assertJsonPath('actor', 'u-2')
+            ->assertJsonCount(2, 'items')
+            ->assertJsonContains(['actor' => 'u-2', 'items' => [0 => ['label' => 'Alpha']]])
+            ->assertJsonStructure(['actor', 'items' => ['*' => ['id', 'label']]]);
+
+        // 4. assertValidationError() on 422 DTO validation failure
+        $api->postJson('/api/validate', ['email' => 'not-an-email', 'password' => '123'])
+            ->assertValidationError('email')
+            ->assertValidationError('password');
+
+        // 5. postMultipart() + TestUpload::fakePng/fakeJpeg/fakePdf passing real UploadedFileStore magic-byte checks
+        $api->postMultipart('/api/upload', ['avatar' => TestUpload::fakePng('me.png')])
+            ->assertCreated()
+            ->assertJsonPath('mime', 'image/png');
+        $api->postMultipart('/api/upload', ['avatar' => TestUpload::fakeJpeg('pic.jpg')])
+            ->assertCreated()
+            ->assertJsonPath('mime', 'image/jpeg');
+        $api->postMultipart('/api/upload', ['avatar' => TestUpload::fakePdf('doc.pdf')])
+            ->assertCreated()
+            ->assertJsonPath('mime', 'application/pdf');
+
+        // 6. assertDownload() and TestClient::request() (used by Dev Studio TestExporter)
+        $api->get('/api/download')->assertOk()->assertDownload('report.txt');
+        $api->request('POST', '/api/raw', body: 'ping')->assertOk()->assertSee('raw:ping');
     }
 }
 
