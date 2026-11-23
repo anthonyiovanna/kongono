@@ -719,7 +719,7 @@ final readonly class KongoCli
         $ai = $this->tryAiClient();
         $lines[] = null !== $ai
             ? sprintf('  [OK  ] AI companion provider: %s (%s)', $ai->providerName(), $ai->defaultModel())
-            : '  [INFO] AI companion provider: offline mode (set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST)';
+            : '  [INFO] AI companion provider: offline mode (set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST)';
 
         $context = ProjectContext::discover($appRoot);
         if (null !== $context->graph) {
@@ -1231,7 +1231,7 @@ final readonly class KongoCli
 
         $ai = $this->tryAiClient();
         if (null === $ai) {
-            return [1, "Chie requires an AI provider. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST.\n"];
+            return [1, "Chie requires an AI provider. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST.\n"];
         }
 
         $context = ProjectContext::discover($appRoot);
@@ -1618,7 +1618,7 @@ final readonly class KongoCli
             }
             $ai = $this->tryAiClient();
             if (null === $ai) {
-                return [1, "Custom AI eval suite requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST), or pass --redteam for offline PromptGuard red-teaming.\n"];
+                return [1, "Custom AI eval suite requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST), or pass --redteam for offline PromptGuard red-teaming.\n"];
             }
             $report = $runner->runCases($cases, $ai);
             $modeLabel = 'Custom Eval Suite (' . basename($suitePath) . ')';
@@ -1807,7 +1807,7 @@ Core Commands:
   test                                                  Run PHPUnit test suite
   version                                               Show Kongono & PHP version
 
-Built-in AI Companions (OpenAI, Anthropic, Gemini, or local Ollama):
+Built-in AI Companions (OpenAI, Anthropic, Gemini, Groq, or local Ollama):
   oshie --lessons                                       List built-in learning lessons
   oshie --lesson <id>                                   Study a lesson (AI-tailored when configured)
   oshie --interactive                                   Start multi-turn interactive AI tutor REPL

@@ -1,0 +1,417 @@
+# Kongono Framework — Complete LLM Technical Reference (v1.17+)
+
+> Single-file, verified technical reference for AI coding agents (Claude, GPT, Gemini, Groq, Cursor, Codex, Antigravity) building and maintaining Kongono PHP 8.5+ applications.
+> Every namespace, class name, and pattern below is verified against `kongono/framework`.
+
+---
+
+## 0. Non-Negotiable Architecture Rules
+
+1. **Pure PHP 8.5.13+:** Always begin every PHP file with `declare(strict_types=1);`. Use `final readonly class`, backed enums, and native attributes.
+2. **Zero Legacy / Zero Symfony / Zero Global Facades:**
+   - NEVER import `Symfony\*` or `Illuminate\*`.
+   - NEVER call static facades (`Route::get()`, `Auth::user()`, `DB::table()`, `Cache::get()`, `Http::fake()`, `Carbon::setTestNow()`).
+   - NEVER use ActiveRecord magic properties (`__get`/`__set`) or implicit lazy SQL loading.
+3. **Persistent-Runtime First (FrankenPHP, RoadRunner, `kongo serve`, PHP-FPM):**
+   - Zero mutable static properties anywhere.
+   - Never read `$_GET`, `$_POST`, `$_COOKIE`, `$_FILES`, or `$_SESSION` directly (only `Request::fromGlobals()` reads superglobals).
+   - Inject `Request`, `Session`, `Principal`, `ClockInterface`, `PdoConnection`, `CacheInterface`, etc. explicitly.
+4. **Fail-Closed Security:**
+   - Parameterized `QueryBuilder` only (unscoped `UPDATE`/`DELETE` throws).
+   - Multi-tenant apps use `QueryBuilder::forTenant($tenant)` + PostgreSQL `RowLevelSecurity`.
+   - Rich HTML uses `@safeHtml($html)` (`HtmlSanitizer`), never raw unescaped output.
+   - Outbound HTTP uses `SafeHttpClient` (DNS-pinned SSRF defense).
+   - Diagnostics/logs/AI prompts scrub secrets with `SecretScrubber` (`sk-*`, `sk-ant-*`, `AIza*`, `gsk_*`, `kgn_pat_*`, `whsec_*`, DSN passwords, JWTs, PEM keys).
+
+---
+
+## 1. Bootstrapping an Application (`app/bootstrap.php`)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use App\Http\HomeController;
+use Kongono\Core\Config;
+use Kongono\Core\EnvLoader;
+use Kongono\Core\Health\HealthCheck;
+use Kongono\Http\App;
+use Kongono\Http\Dev\DevDashboardMiddleware;
+use Kongono\Http\Dev\DevInspector;
+use Kongono\Security\Middleware\SecurityHeadersMiddleware;
+
+$baseDir = dirname(__DIR__);
+EnvLoader::load($baseDir . DIRECTORY_SEPARATOR . '.env');
+
+$debug = filter_var(Config::env('APP_DEBUG') ?? 'false', FILTER_VALIDATE_BOOL);
+$inspector = new DevInspector();
+$health = (new HealthCheck())->check('runtime', static fn(): bool => true);
+
+$app = App::create($baseDir, name: 'My App')
+    ->config(['app' => ['debug' => $debug]])
+    ->views(autoReload: $debug)
+    ->instance(HealthCheck::class, $health)
+    ->instance(DevInspector::class, $inspector)
+    ->controller(HomeController::class);
+
+$app->middleware(
+    new DevDashboardMiddleware($app, $inspector),
+    new SecurityHeadersMiddleware(),
+);
+
+return $app;
+```
+
+- Always create apps via `App::create($baseDir, name: '...')` (constructor is private).
+- Register singletons via `->instance(InterfaceOrClass::class, $obj)` or container bindings.
+- `App::create()` binds `ClockInterface` to `SystemClock` automatically; override with `->instance(ClockInterface::class, FrozenClock::at(...))` in tests.
+
+---
+
+## 2. Routing, Controllers & Attributes (`Kongono\Http\Routing`)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http;
+
+use Kongono\Http\Request;
+use Kongono\Http\Response;
+use Kongono\Http\Routing\{CacheControl, Delete, Feature, Get, Idempotent, Middleware, Patch, Post, Prefix, Put};
+use Kongono\Security\Attributes\{Authenticated, Can};
+use Kongono\Security\Middleware\BearerAuthMiddleware;
+use Kongono\Security\Principal;
+
+#[Prefix('/api/notes')]
+final readonly class NoteController
+{
+    public function __construct(
+        private NoteRepository $notes,
+    ) {}
+
+    #[Get('/', name: 'notes.index')]
+    #[CacheControl(maxAge: 60, public: true, staleWhileRevalidate: 30)]
+    public function index(): Response
+    {
+        return Response::json(['items' => $this->notes->recent()]);
+    }
+
+    #[Get('/{id:\d+}', name: 'notes.show')]
+    public function show(int $id): Response
+    {
+        return Response::json(['id' => $id]);
+    }
+
+    #[Post('/', name: 'notes.create')]
+    #[Middleware(BearerAuthMiddleware::class)]
+    #[Authenticated]
+    #[Can('notes.write')]
+    #[Idempotent(ttlSeconds: 3600)]
+    public function create(CreateNoteInput $input, Principal $actor, Request $request): Response
+    {
+        return Response::json(['author' => $actor->id, 'title' => $input->title], status: 201);
+    }
+
+    #[Get('/beta', name: 'notes.beta')]
+    #[Feature('beta_notes')]
+    public function beta(): Response
+    {
+        return Response::json(['beta' => true]);
+    }
+}
+```
+
+Controller handler parameter injection automatically resolves: `Request`, `Session`, `Principal`, typed route params (`int $id`, `string $slug`), registered Container services, and validated readonly DTOs.
+
+---
+
+## 3. Typed DTO Validation & HTML PRG Flash (`Kongono\Validation`)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Dto;
+
+use Kongono\Validation\Attributes\{ArrayOf, Between, Confirmed, Date, Email, In, Ip, Max, Min, NotIn, Regex, Required, RequiredIf, Url, Uuid};
+use Kongono\Validation\{ValidatableDtoInterface, ValidationErrors};
+
+enum Plan: string
+{
+    case Free = 'free';
+    case Pro = 'pro';
+}
+
+final readonly class SignupInput implements ValidatableDtoInterface
+{
+    /** @param list<string> $tags */
+    public function __construct(
+        #[Required, Uuid] public string $requestId,
+        #[Required, Email] public string $email,
+        public Plan $plan,
+        #[RequiredIf('plan', 'pro'), Min(2)] public ?string $companyName = null,
+        #[NotIn(['admin', 'root'])] public string $handle = 'member',
+        #[Date] public ?string $launchDate = null,
+        #[Ip] public ?string $allowlistIp = null,
+        #[ArrayOf('string', min: 1, max: 5)] public array $tags = ['php85'],
+        #[Required, Min(12)] public string $password = '',
+        #[Required, Confirmed('password')] public string $passwordConfirmation = '',
+    ) {}
+
+    public function validateSelf(ValidationErrors $errors): void
+    {
+        if (str_ends_with($this->email, '@blocked.test')) {
+            $errors->add('email', 'Domain is not allowed.');
+        }
+    }
+}
+```
+
+- Implement custom reusable attribute rules with `Kongono\Validation\RuleInterface`.
+- API requests failing validation receive `422` JSON (`{"error": ..., "fields": {...}}`).
+- HTML form submissions with sessions can use PRG flash + `@old('field')` / `@error('field')` (sensitive fields are automatically stripped before flashing).
+
+---
+
+## 4. Views, Kongono Live 2.5 & Bridge (`Kongono\View`, `Kongono\Http\Live`, `Kongono\Http\Bridge`)
+
+### Compiled `.kgn.html` Views
+- `{{ $expr }}` — context-aware HTML auto-escaping.
+- `@safeHtml($userHtml)` — sanitized through HTML5 `Kongono\Security\HtmlSanitizer`.
+- `@extends('layouts/app')`, `@section('content')...@endsection`, `@yield('content')`, `@include('partials/nav')`.
+- `@if`, `@unless`, `@isset`, `@foreach`, `@forelse ... @empty ... @endforelse`, `<x-card :title="$title">...</x-card>`.
+- `@t('key', ['name' => $name])` i18n, `@json($data)`, `@old('title')`, `@error('title')...@enderror`, `@vite(['resources/js/app.js'])`.
+- `@liveScript` (Live 2.5 runtime), `@bridgeScript` (Bridge runtime), `@island('ComponentName', $props)` (hybrid JS island).
+
+### Live 2.5 & Adaptive Responses
+- Mount `Kongono\Http\Live\LiveMiddleware` for zero-build strict-CSP reactivity: `kgn-get`, `kgn-post`, `kgn-target`, `kgn-swap="morph"`, `kgn-oob`, `k-persist`, `kgn-sortable`, `kgn-stream`, and zero-`eval()` cached-AST signals.
+- Mount `Kongono\Http\Bridge\BridgeMiddleware` for React/Vue/Svelte SPA pages (`Response::page('Orders/Show', $props)`).
+- Serve all formats cleanly from one action:
+  ```php
+  return Response::adaptive(
+      $request,
+      html: fn(): string => $views->render('tasks/index', ['tasks' => $tasks]),
+      fragment: fn(): Response => Response::fragment($views->render('partials/task-list', ['tasks' => $tasks])),
+      bridge: fn(): Response => Response::page('Tasks/Index', ['tasks' => $tasks]),
+      json: fn(): Response => Response::json(['tasks' => $tasks]),
+  );
+  ```
+
+---
+
+## 5. Database, Soft Deletes, BatchLoader, Factory & Migrations (`Kongono\Database`)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use Kongono\Database\{BatchLoader, PdoConnection, QueryBuilder};
+use Kongono\Database\Schema\{Blueprint, Schema};
+use Kongono\Database\Testing\Factory;
+
+$db = PdoConnection::fromUrl($databaseUrl);
+
+// QueryBuilder: parameterized SQL, tenant scoping, soft deletes, DTO hydration, pagination
+$page = $db->table('posts')
+    ->forTenant($tenant)
+    ->withoutTrashed()
+    ->whereGroup(static function (QueryBuilder $q): void {
+        $q->where('status', '=', 'published')->orWhere('featured', '=', true);
+    })
+    ->orderBy('created_at', 'DESC')
+    ->paginate(page: 1, perPage: 20);
+
+$dtos = $db->table('posts')->onlyTrashed()->limit(10)->getAs(PostDto::class);
+$db->table('posts')->where('id', '=', $id)->softDelete();
+$db->table('posts')->where('id', '=', $id)->restore();
+
+// Zero-N+1 eager relation loading (1 query per relation)
+$commentsByPost = BatchLoader::hasMany($db, 'comments', 'post_id', $postIds);
+$authorsById = BatchLoader::belongsTo($db, 'users', 'id', $authorIds);
+
+// Typed immutable factories (Kongono\Database\Testing\Factory)
+$factory = Factory::for(UserDto::class, static fn(int $n): array => [
+    'email' => "user{$n}@example.test",
+    'role' => 'member',
+]);
+$admins = $factory->state(['role' => 'admin'])->count(3)->make();
+
+// Schema DDL & evolution
+$createSql = Schema::create('posts', static function (Blueprint $t): void {
+    $t->id();
+    $t->uuid('public_id');
+    $t->foreignId('user_id', 'users');
+    $t->string('title', 200);
+    $t->json('meta');
+    $t->decimal('price', 10, 2);
+    $t->timestamps();
+    $t->softDeletes();
+}, $db->dialect());
+
+$alterStatements = Schema::table('posts', static function (Blueprint $t): void {
+    $t->dropSoftDeletes();
+}, $db->dialect());
+```
+
+- For `CREATE INDEX CONCURRENTLY`, implement `Kongono\Database\Migration\NonTransactionalMigrationInterface`.
+- PostgreSQL row-level isolation: `Kongono\Database\RowLevelSecurity`.
+- N+1 detection in dev/tests: `Kongono\Database\QueryGuard`.
+
+---
+
+## 6. Full-Text & Hybrid RRF Search (`Kongono\Database\Search`, `Kongono\Ai\Embedding`)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use Kongono\Ai\Embedding\{HybridSearch, PgVectorStore};
+use Kongono\Database\Search\PostgresFullTextSearch;
+
+$fts = new PostgresFullTextSearch($db, table: 'docs', textColumns: ['title', 'body']);
+$vectors = new PgVectorStore($db);
+
+$hybrid = new HybridSearch($fts, $vectors, rrfK: 60, keywordWeight: 1.0, vectorWeight: 1.0);
+$hits = $hybrid->search(
+    queryText: 'FrankenPHP resetScope',
+    queryVector: $queryEmbedding,
+    limit: 5,
+);
+```
+
+- `PostgresFullTextSearch` uses `tsvector` + `websearch_to_tsquery` + `ts_rank_cd` and emits plain-text `[[` / `]]` highlight markers (zero raw HTML XSS).
+- In unit tests, swap in `Kongono\Database\Search\MemorySearchEngine` and `Kongono\Ai\Embedding\MemoryVectorStore`.
+
+---
+
+## 7. Auth, PATs, Gate & Security (`Kongono\Security`)
+
+- **Cookie Sessions:** `Kongono\Security\Auth\SessionAuth` + `Kongono\Security\Middleware\SessionAuthMiddleware` + `#[Authenticated]`.
+- **Revocable API Tokens (PATs):** `Kongono\Security\Auth\PersonalAccessToken` + `MemoryPersonalAccessTokenStore` / `CachePersonalAccessTokenStore` / `PdoPersonalAccessTokenStore` (SHA-256 hashed at rest, `kgn_pat_` prefix automatically scrubbed by `SecretScrubber`) + `BearerAuthMiddleware`.
+- **Authorization:** `Kongono\Security\Gate` (fail-closed `allow()`, `before()`, `policy()`, `allows()`, `denies()`) + `#[Can('ability')]` + `AuthorizeMiddleware`.
+- **Account Flows:** `PasswordResetBroker`, `EmailVerifier`, `LoginThrottler`, theft-detecting split-token `RememberMeManager`, WebAuthn `PasskeyVerifier`, `MagicLinkAuth`, `PkceOAuthClient`, RFC 6238 `Totp`.
+- **Crypto & Egress:** Argon2id `PasswordHasher`, HKDF v2 AEAD `Encryptor` (`XChaCha20-Poly1305` + `previousKeys` rotation), `TokenSigner`, `SignedUrl`, DNS-pinned `SafeHttpClient`, signed `WebhookDispatcher` + `#[VerifyWebhook]`, `AiThreatShieldMiddleware`.
+
+---
+
+## 8. Storage, Queues, Batches & Workflows (`Kongono\Storage`, `Kongono\Jobs`)
+
+### Streaming Storage (`Kongono\Storage`)
+- `LocalStorage`, pure-PHP AWS SigV4 `S3Storage` (paginated `ListObjectsV2`, server-side `x-amz-copy-source` `copy`/`move`, presigned URLs), `MemoryStorage`.
+- Streaming I/O: `$storage->putStream($key, $stream)` / `$storage->getStream($key)`.
+- Uploads & Downloads: magic-byte `UploadedFileStore`, `SignedLocalUrl`, multi-disk `StorageDisks`, `StorageFactory`, `Response::download()`, `Response::fromStorage()`.
+
+### Queues, Batches & Workflows (`Kongono\Jobs`)
+- Drivers: `PostgresQueueDriver` (`FOR UPDATE SKIP LOCKED` + fencing tokens), Lua-atomic `RedisQueueDriver`, `MemoryQueueDriver`.
+- Priority draining: `$worker->run('critical,high,default')`.
+- Atomic deduplication: `$queue->dispatch('sync', $payload, uniqueKey: 'tenant:42:sync')`.
+- Middleware: implement `Kongono\Jobs\JobMiddlewareInterface`.
+- Dead-letter replay: `listFailed()`, `retryFailed()`, `flushFailed()`, and CLI `kongo queue:failed`, `queue:retry`, `queue:flush`.
+- Parallel batches: `Kongono\Jobs\Batch\JobBatch` + `BatchDispatcher` (`MemoryBatchStore`, `CacheBatchStore`).
+- Durable workflows: `Kongono\Jobs\Workflow\WorkflowEngine` + `WorkflowContext` (`$wf->step()`, `sleep()`, `waitForEvent()`, `signal()`).
+
+---
+
+## 9. Global-Free Testing (`Kongono\Http\Testing`, `Kongono\Database\Testing`, `Kongono\Core\Clock`)
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use Kongono\Core\Clock\FrozenClock;
+use Kongono\Database\Testing\DatabaseTestHelper;
+use Kongono\Http\Testing\{TestClient, TestUpload};
+use Kongono\Security\Egress\SafeHttpClient;
+
+$clock = FrozenClock::at('2026-11-22T12:00:00Z');
+$clock->advanceSeconds(300);
+
+// Outbound HTTP fake still enforces SSRF checks (blocks private/loopback URLs!)
+$http = SafeHttpClient::fake([
+    'https://api.partner.test/*' => ['status' => 200, 'body' => '{"ok":true}'],
+]);
+
+DatabaseTestHelper::inRollbackTransaction($db, static function () use ($app, $admin): void {
+    $client = (new TestClient($app))
+        ->actingAs($admin)
+        ->withStatefulCookies()
+        ->followRedirects();
+
+    $client->postMultipart('/avatars', files: ['avatar' => TestUpload::fakePng('me.png')])
+        ->assertCreated()
+        ->assertJsonPath('status', 'stored');
+});
+```
+
+---
+
+## 10. AI SDK, 5 Native Providers, PromptGuard, Evals & MCP (`Kongono\Ai`)
+
+### `AiClient::fromEnv()` Auto-Detection
+Set any one environment variable (optional overrides: `KONGONO_AI_PROVIDER`, `KONGONO_AI_MODEL`):
+- `OPENAI_API_KEY` (+ optional `OPENAI_BASE_URL`) -> `OpenAiProvider` (`gpt-4.1-mini`)
+- `ANTHROPIC_API_KEY` -> `AnthropicProvider` (`claude-sonnet-4-20250514`)
+- `GEMINI_API_KEY` -> `GeminiProvider` (`gemini-2.5-flash`)
+- `GROQ_API_KEY` (+ optional `GROQ_BASE_URL`) -> `GroqProvider` (`llama-3.3-70b-versatile`)
+- `OLLAMA_HOST` -> `OllamaProvider` (`qwen2.5-coder:7b`)
+
+```php
+use Kongono\Ai\{AiClient, ChatRequest, Message};
+use Kongono\Ai\Provider\GroqProvider;
+
+$ai = AiClient::fromEnv();
+// Or construct explicitly: new AiClient(new GroqProvider($_ENV['GROQ_API_KEY']))
+
+$ai->chatStream(
+    new ChatRequest([Message::user('Explain Kongono OperationScope')]),
+    static function (string $delta): void { echo $delta; },
+);
+
+$dto = $ai->structured($ticketText, TicketSummaryDto::class);
+```
+
+- Prompt injection & canary defense: `Kongono\Ai\Security\PromptGuard` + `UntrustedInput`.
+- Governed agents: `Kongono\Ai\Agent\AgentPrincipal`, `RequiresApproval`, `AgentRunner` (token & USD cost budgets).
+- RAG: `Kongono\Ai\Embedding\KnowledgeBase` + `PgVectorStore` / `MemoryVectorStore` + `HybridSearch`.
+- Evals: `Kongono\Ai\Eval\EvalRunner` + `php vendor/bin/kongo eval --redteam`.
+- MCP: `php vendor/bin/kongo mcp` exposes 12 read-only, secret-scrubbed JSON-RPC 2.0 tools (`kongono_graph`, `kongono_openapi`, `kongono_sdk_generate`, `kongono_routes`, `kongono_audit`, `kongono_eval`, `kongono_migrate_lint`, `kongono_test_route`, `kongono_deploy_preview`, `kongono_list_files`, `kongono_read_file`, `kongono_oshie_lesson`).
+
+---
+
+## 11. Built-In `/_ops` Operations Dashboard (`Kongono\Http\Ops`)
+
+Mount `Kongono\Http\Ops\OpsDashboardMiddleware` with a `Gate` defining `ops.view` (read-only) and `ops.manage` (dead-letter retry/flush), plus an explicit queue allowlist. Renders a zero-npm, strict-CSP Live 2.5 dashboard with queue depths, 1-click DLQ retry/flush, `JobBatch` progress, `HealthCheck`, `Metrics::snapshot()`, and recent traces. Fails closed by default.
+
+---
+
+## 12. Essential `kongo` CLI Commands
+
+```bash
+php vendor/bin/kongo doctor
+php vendor/bin/kongo routes --json
+php vendor/bin/kongo graph
+php vendor/bin/kongo openapi
+php vendor/bin/kongo migrate --pretend
+php vendor/bin/kongo migrate:lint
+php vendor/bin/kongo migrate
+php vendor/bin/kongo migrate:fresh --force
+php vendor/bin/kongo queue:failed
+php vendor/bin/kongo queue:retry --all
+php vendor/bin/kongo work --daemon
+php vendor/bin/kongo audit --attack --strict
+php vendor/bin/kongo eval --redteam
+php vendor/bin/kongo bridge:init
+php vendor/bin/kongo bridge:types
+php vendor/bin/kongo sdk:generate --lang=ts --out=sdk/client.ts
+php vendor/bin/kongo deploy:init --domain=app.example.com
+php vendor/bin/kongo optimize
+php vendor/bin/kongo mcp
+php vendor/bin/kongo check
+```

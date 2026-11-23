@@ -207,7 +207,7 @@ PROMPT;
 
         $lesson = self::LESSONS[$lessonId];
         if (null === $this->ai) {
-            return $lesson['guide'] . "\n\n[Tip: Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST to enable interactive AI tutoring with Oshie.]\n";
+            return $lesson['guide'] . "\n\n[Tip: Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST to enable interactive AI tutoring with Oshie.]\n";
         }
 
         $prompt = sprintf(
@@ -225,7 +225,7 @@ PROMPT;
     {
         if (null === $this->ai) {
             return "Oshie AI Q&A requires an AI provider.\n"
-                . "Configure one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST.\n"
+                . "Configure one of: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST.\n"
                 . "Meanwhile, try built-in offline lessons with: kongo oshie --lessons\n";
         }
 
@@ -248,7 +248,7 @@ PROMPT;
     {
         if (null === $this->ai) {
             return [
-                'reply' => 'Interactive Oshie requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST).',
+                'reply' => 'Interactive Oshie requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST).',
                 'history' => $history,
             ];
         }

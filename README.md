@@ -44,7 +44,7 @@ Kongono is a modern, zero-legacy **PHP 8.5+** application framework built from t
   - **`PromptGuard` & `UntrustedInput`** — structural `<untrusted_data>` isolation, prompt-injection detection, and cryptographic Canary Token fail-closed blocking.
   - **`kongo eval --redteam`** — "PHPUnit for AI" asserting structured DTO accuracy, token/latency budgets, and a 12-vector adversarial prompt-injection red-team battery.
   - **`kongo audit --attack --strict`** — graph-driven security audit + automated in-process red-team simulations + parser fuzzing (`composer fuzz`).
-- **Multi-Provider AI & Native MCP (`kongono/ai`)**: `AiClient` speaks **OpenAI**, **Anthropic Claude**, **Google Gemini**, and local **Ollama** (all with live streaming) over `ext-curl`, plus `structured()` DTO extraction, 5-line RAG `KnowledgeBase`, governed `AgentPrincipal`/`RequiresApproval` budgets, and a built-in **Model Context Protocol (MCP) Server** (`kongo mcp` / `POST /mcp`).
+- **Multi-Provider AI & Native MCP (`kongono/ai`)**: `AiClient` speaks **OpenAI**, **Anthropic Claude**, **Google Gemini**, **Groq**, and local **Ollama** (all with live streaming) over `ext-curl`, plus `structured()` DTO extraction, 5-line RAG `KnowledgeBase`, governed `AgentPrincipal`/`RequiresApproval` budgets, and a built-in **Model Context Protocol (MCP) Server** (`kongo mcp` / `POST /mcp`).
 
 ---
 
@@ -102,6 +102,7 @@ To enable live AI responses for Oshie, Chie, and Hantei, set any one environment
 - `OPENAI_API_KEY` (or `OPENAI_BASE_URL` for OpenAI-compatible gateways)
 - `ANTHROPIC_API_KEY`
 - `GEMINI_API_KEY`
+- `GROQ_API_KEY` (or `GROQ_BASE_URL` override)
 - `OLLAMA_HOST=http://127.0.0.1:11434` (free, local, offline!)
 
 ---
@@ -140,7 +141,7 @@ composer quality            # Run cs + analyse + test
 
 ## Documentation
 
-- **[Official Documentation Site (GitHub Pages)](https://anthonyiovanna.github.io/kongono/)**
+- **[Official Documentation Site (GitHub Pages)](https://anthonyiovanna.github.io/kongono/)** · **[`llms.txt`](https://anthonyiovanna.github.io/kongono/llms.txt)** · **[`llms-full.txt`](https://anthonyiovanna.github.io/kongono/llms-full.txt)**
 - **[Community Discussions](https://github.com/anthonyiovanna/kongono/discussions)**
 - [Getting Started](docs/getting-started.md)
 - [Architecture Overview](docs/architecture.md)

@@ -91,7 +91,7 @@ PROMPT;
     {
         $safeFailure = SecretScrubber::scrub($failureText);
         if (null === $this->ai) {
-            return "Hantei AI diagnosis requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST).\n"
+            return "Hantei AI diagnosis requires an AI provider (OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST).\n"
                 . "Scrubbed diagnostic captured:\n" . substr($safeFailure, 0, 1000);
         }
 
@@ -112,7 +112,7 @@ PROMPT;
     public function generateTests(string $sourceRelativePath, ProjectContext $context, bool $apply = false): array
     {
         if (null === $this->ai) {
-            throw new AiException('Hantei test generation requires an AI provider (set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST).');
+            throw new AiException('Hantei test generation requires an AI provider (set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST).');
         }
 
         $sourceCode = $context->readFileSafe($sourceRelativePath);

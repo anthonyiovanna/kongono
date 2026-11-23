@@ -9,6 +9,7 @@ use JsonException;
 use Kongono\Ai\Provider\AiProviderInterface;
 use Kongono\Ai\Provider\AnthropicProvider;
 use Kongono\Ai\Provider\GeminiProvider;
+use Kongono\Ai\Provider\GroqProvider;
 use Kongono\Ai\Provider\OllamaProvider;
 use Kongono\Ai\Provider\OpenAiProvider;
 use Kongono\Ai\Provider\StreamingAiProviderInterface;
@@ -18,7 +19,7 @@ use Kongono\Validation\Validator;
 use ReflectionClass;
 use ReflectionNamedType;
 
-/** Unified multi-provider AI client supporting OpenAI, Anthropic, Gemini, and Ollama. */
+/** Unified multi-provider AI client supporting OpenAI, Anthropic, Gemini, Groq, and Ollama. */
 final readonly class AiClient
 {
     public function __construct(
@@ -27,11 +28,12 @@ final readonly class AiClient
 
     /**
      * Auto-configure an AiClient from environment variables:
-     *   - KONGONO_AI_PROVIDER: openai | anthropic | gemini | ollama (optional override)
+     *   - KONGONO_AI_PROVIDER: openai | anthropic | gemini | groq | ollama (optional override)
      *   - KONGONO_AI_MODEL: model override (optional)
      *   - OPENAI_API_KEY (+ OPENAI_BASE_URL)
      *   - ANTHROPIC_API_KEY
      *   - GEMINI_API_KEY
+     *   - GROQ_API_KEY (+ GROQ_BASE_URL)
      *   - OLLAMA_HOST (default http://127.0.0.1:11434)
      */
     public static function fromEnv(?HttpTransportInterface $transport = null): self
@@ -58,6 +60,13 @@ final readonly class AiClient
             return new self(new GeminiProvider($key, $modelOverride ?? 'gemini-2.5-flash', transport: $transport));
         }
 
+        if ('groq' === $selected || ('' === $selected && null !== Config::env('GROQ_API_KEY'))) {
+            $key = Config::env('GROQ_API_KEY') ?? '';
+            $baseUrl = Config::env('GROQ_BASE_URL') ?? GroqProvider::DEFAULT_BASE_URL;
+
+            return new self(new GroqProvider($key, $modelOverride ?? GroqProvider::DEFAULT_MODEL, $baseUrl, $transport));
+        }
+
         if ('ollama' === $selected || null !== Config::env('OLLAMA_HOST')) {
             $host = Config::env('OLLAMA_HOST') ?? 'http://127.0.0.1:11434';
 
@@ -65,7 +74,7 @@ final readonly class AiClient
         }
 
         throw new AiException(
-            'No AI provider configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or OLLAMA_HOST (e.g. http://127.0.0.1:11434).',
+            'No AI provider configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST (e.g. http://127.0.0.1:11434).',
         );
     }
 

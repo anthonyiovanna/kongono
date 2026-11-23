@@ -23,6 +23,7 @@ use Kongono\Ai\Mcp\McpServer;
 use Kongono\Ai\Message;
 use Kongono\Ai\Provider\AnthropicProvider;
 use Kongono\Ai\Provider\GeminiProvider;
+use Kongono\Ai\Provider\GroqProvider;
 use Kongono\Ai\Provider\OllamaProvider;
 use Kongono\Ai\Provider\OpenAiProvider;
 use Kongono\Ai\Security\PromptGuard;
@@ -951,5 +952,96 @@ final class AiProvidersAndAgentTest extends TestCase
         self::assertNotNull($hits[0]->keywordScore);
         self::assertNotNull($hits[0]->vectorScore);
         self::assertGreaterThan($hits[1]->score, $hits[0]->score);
+    }
+
+    public function testGroqProviderChatStreamingAndFromEnvAutoDetection(): void
+    {
+        $streamingTransport = new class implements StreamingHttpTransportInterface {
+            /** @var list<array{url: string, headers: array<string, string>, body: string}> */
+            public array $recorded = [];
+
+            public function postJson(string $url, array $headers, string $jsonBody, int $timeoutSeconds = 60): HttpResponse
+            {
+                $this->recorded[] = ['url' => $url, 'headers' => $headers, 'body' => $jsonBody];
+
+                return new HttpResponse(200, json_encode([
+                    'model' => 'llama-3.3-70b-versatile',
+                    'choices' => [['finish_reason' => 'stop', 'message' => ['role' => 'assistant', 'content' => 'Fast Groq reply!']]],
+                    'usage' => ['prompt_tokens' => 8, 'completion_tokens' => 4],
+                ], JSON_THROW_ON_ERROR));
+            }
+
+            public function postJsonStream(string $url, array $headers, string $jsonBody, Closure $onChunk, int $timeoutSeconds = 120): int
+            {
+                $this->recorded[] = ['url' => $url, 'headers' => $headers, 'body' => $jsonBody];
+                $onChunk("data: {\"choices\":[{\"delta\":{\"content\":\"Fast \"}}]}\n\n");
+                $onChunk("data: {\"choices\":[{\"delta\":{\"content\":\"LPU\"},\"finish_reason\":\"stop\"}]}\n\n");
+                $onChunk("data: [DONE]\n\n");
+
+                return 200;
+            }
+        };
+
+        $groq = new GroqProvider('gsk_test_groq_key_1234567890abcdef', transport: $streamingTransport);
+        $client = new AiClient($groq);
+        self::assertSame('groq', $client->providerName());
+        self::assertSame(GroqProvider::DEFAULT_MODEL, $client->defaultModel());
+
+        $resp = $client->chat(new ChatRequest([Message::user('Hello Groq')]));
+        self::assertSame('groq', $resp->provider);
+        self::assertSame('Fast Groq reply!', $resp->text);
+        self::assertSame('https://api.groq.com/openai/v1/chat/completions', $streamingTransport->recorded[0]['url']);
+        self::assertSame('Bearer gsk_test_groq_key_1234567890abcdef', $streamingTransport->recorded[0]['headers']['Authorization']);
+
+        $deltas = [];
+        $streamResp = $client->chatStream(
+            new ChatRequest([Message::user('Stream please')]),
+            static function (string $delta) use (&$deltas): void {
+                $deltas[] = $delta;
+            },
+        );
+        self::assertSame(['Fast ', 'LPU'], $deltas);
+        self::assertSame('Fast LPU', $streamResp->text);
+        self::assertSame('groq', $streamResp->provider);
+
+        // Verify AiClient::fromEnv() auto-detects GROQ_API_KEY and optional GROQ_BASE_URL / KONGONO_AI_MODEL
+        $envKeys = ['KONGONO_AI_PROVIDER', 'KONGONO_AI_MODEL', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'GROQ_API_KEY', 'GROQ_BASE_URL', 'OLLAMA_HOST'];
+        $backupEnv = [];
+        $backupServer = [];
+        $backupGetEnv = [];
+        foreach ($envKeys as $k) {
+            $backupEnv[$k] = $_ENV[$k] ?? null;
+            $backupServer[$k] = $_SERVER[$k] ?? null;
+            $backupGetEnv[$k] = getenv($k);
+            unset($_ENV[$k], $_SERVER[$k]);
+            putenv($k);
+        }
+
+        try {
+            $_ENV['GROQ_API_KEY'] = 'gsk_env_key_1234567890abcdefghij';
+            $_ENV['KONGONO_AI_MODEL'] = 'llama-3.1-8b-instant';
+            $envClient = AiClient::fromEnv($streamingTransport);
+
+            self::assertSame('groq', $envClient->providerName());
+            self::assertSame('llama-3.1-8b-instant', $envClient->defaultModel());
+        } finally {
+            foreach ($envKeys as $k) {
+                if (null === $backupEnv[$k]) {
+                    unset($_ENV[$k]);
+                } else {
+                    $_ENV[$k] = $backupEnv[$k];
+                }
+                if (null === $backupServer[$k]) {
+                    unset($_SERVER[$k]);
+                } else {
+                    $_SERVER[$k] = $backupServer[$k];
+                }
+                if (false === $backupGetEnv[$k]) {
+                    putenv($k);
+                } else {
+                    putenv($k . '=' . $backupGetEnv[$k]);
+                }
+            }
+        }
     }
 }

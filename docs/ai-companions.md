@@ -11,6 +11,7 @@ Set **any one** of these environment variables (or place it in `.env`):
 | OpenAI (or compatible) | `OPENAI_API_KEY` (+ optional `OPENAI_BASE_URL`) | `gpt-4.1-mini` |
 | Anthropic Claude | `ANTHROPIC_API_KEY` | `claude-sonnet-4-20250514` |
 | Google Gemini | `GEMINI_API_KEY` | `gemini-2.5-flash` |
+| Groq (OpenAI-compatible LPU) | `GROQ_API_KEY` (+ optional `GROQ_BASE_URL`) | `llama-3.3-70b-versatile` |
 | Local Ollama (free/offline) | `OLLAMA_HOST=http://127.0.0.1:11434` | `qwen2.5-coder:7b` |
 
 Optional overrides: `KONGONO_AI_PROVIDER` and `KONGONO_AI_MODEL`.

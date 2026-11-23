@@ -102,6 +102,21 @@ final class CompanionsAndCliTest extends TestCase
             self::assertFileExists($tempDir . '/public/worker.php');
             self::assertFileExists($tempDir . '/Caddyfile');
             self::assertFileExists($tempDir . '/Dockerfile');
+            self::assertFileExists($tempDir . '/AGENTS.md');
+            self::assertFileExists($tempDir . '/CLAUDE.md');
+            self::assertFileExists($tempDir . '/.mcp.json');
+
+            $agentsMd = (string) file_get_contents($tempDir . '/AGENTS.md');
+            self::assertStringContainsString('Acme Cloud', $agentsMd);
+            self::assertStringContainsString('https://anthonyiovanna.github.io/kongono/llms.txt', $agentsMd);
+            self::assertStringContainsString('declare(strict_types=1);', $agentsMd);
+            self::assertStringContainsString('@AGENTS.md', (string) file_get_contents($tempDir . '/CLAUDE.md'));
+            self::assertStringContainsString('GROQ_API_KEY', (string) file_get_contents($tempDir . '/.env.example'));
+
+            /** @var array{mcpServers: array{kongono: array{command: string, args: list<string>}}} $mcpConfig */
+            $mcpConfig = json_decode((string) file_get_contents($tempDir . '/.mcp.json'), true, 16, JSON_THROW_ON_ERROR);
+            self::assertSame('php', $mcpConfig['mcpServers']['kongono']['command']);
+            self::assertSame(['vendor/bin/kongo', 'mcp'], $mcpConfig['mcpServers']['kongono']['args']);
 
             // Verify make:controller, make:dto, make:migration, and make:test in the freshly scaffolded app
             [$mcCode, $mcOut] = $cli->run(['make:controller', 'Post', '--app=' . $tempDir]);

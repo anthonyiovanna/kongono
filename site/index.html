@@ -6,6 +6,7 @@
   <title>Kongono Framework v1.17.0 — Zero-Legacy PHP 8.5+ Framework with Built-In AI</title>
   <meta name="description" content="A modern, zero-legacy PHP 8.5+ application framework built from the ground up with zero Symfony packages, Live 2.5 &amp; Bridge, persistent-runtime safety, hybrid search, /_ops dashboard, 12-tool MCP, and built-in Oshie, Chie &amp; Hantei AI companions.">
   <link rel="stylesheet" href="assets/style.css">
+  <link rel="alternate" type="text/markdown" title="Kongono LLM Documentation Index" href="llms.txt">
 </head>
 <body>
   <header class="topbar">
@@ -164,7 +165,8 @@ final readonly class SignupInput implements ValidatableDtoInterface
           </div>
 
           <div class="tab-panel" data-tab-panel="database">
-<pre><code>use Kongono\Database\{BatchLoader, Factory};
+<pre><code>use Kongono\Database\BatchLoader;
+use Kongono\Database\Testing\Factory;
 
 // Parameterized SQL with soft deletes, tenant isolation &amp; pagination
 $posts = $db-&gt;table('posts')
@@ -342,6 +344,7 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
     <div class="container">
       <strong>Kongono Framework v1.17.0</strong> &middot; MIT License &middot;
       <a href="docs.html">Documentation</a> &middot;
+      <a href="llms.txt">llms.txt</a> &middot;
       <a href="https://github.com/anthonyiovanna/kongono" target="_blank" rel="noopener">Framework Repo</a> &middot;
       <a href="https://github.com/anthonyiovanna/kongono-app" target="_blank" rel="noopener">App Skeleton</a> &middot;
       <a href="https://packagist.org/packages/kongono/framework" target="_blank" rel="noopener">Packagist</a>

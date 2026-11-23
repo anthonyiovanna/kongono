@@ -1,0 +1,40 @@
+# Kongono Framework
+
+> Modern, zero-legacy PHP 8.5.13+ application framework built from the ground up with zero Symfony packages, zero third-party runtime libraries beyond the 7 PSR interfaces, zero mutable static properties, persistent-runtime safety (FrankenPHP, RoadRunner, `kongo serve`, PHP-FPM), Live 2.5 & Bridge frontends, Hybrid RRF search, built-in `/_ops` & `/_kongono` dashboards, 5 native AI providers (OpenAI, Anthropic, Gemini, Groq, Ollama), and a 12-tool Model Context Protocol (MCP) server.
+
+## Critical Rules for AI Coding Agents
+
+- **PHP 8.5.13+ strict only:** Start every PHP file with `declare(strict_types=1);`. Use `final readonly class`, backed enums, and native attributes.
+- **Do NOT write Laravel or Symfony code:** Kongono has **zero** global static facades (`Route::get()`, `Auth::user()`, `DB::table()`, `Http::fake()`, `Carbon::setTestNow()`), **zero** ActiveRecord magic (`__get`/`__set`), and **zero** Symfony packages.
+- **Persistent-runtime first:** Never store per-request mutable state in static properties. Never read `$_GET`, `$_POST`, `$_COOKIE`, `$_FILES`, or `$_SESSION` directly — inject `Kongono\Http\Request`, `Kongono\Http\Session`, `Kongono\Security\Principal`, `Kongono\Core\Clock\ClockInterface`, or container services.
+- **Security by default:** Parameterized `QueryBuilder` only (unscoped `UPDATE`/`DELETE` fails closed), `->forTenant($tenant)` for multi-tenant isolation, `@safeHtml(...)` for user HTML, `SafeHttpClient` for outbound HTTP, and `SecretScrubber` for diagnostics/AI context.
+- **Prefer live MCP inspection:** When `.mcp.json` / `php vendor/bin/kongo mcp` is available, call `kongono_graph`, `kongono_routes`, `kongono_openapi`, `kongono_audit`, `kongono_migrate_lint`, or `kongono_test_route` instead of guessing app structure.
+
+## Complete LLM Reference
+
+- [Complete Single-File Technical Handbook (`llms-full.txt`)](https://anthonyiovanna.github.io/kongono/llms-full.txt): Verified namespaces, class signatures, and copy-paste-ready PHP 8.5 examples for all 11 packages.
+
+## Documentation Sections
+
+- [Quick Start & Requirements](https://anthonyiovanna.github.io/kongono/docs.html#quickstart): `composer create-project kongono/app`, `kongo doctor`, `kongo serve`.
+- [11-Package Architecture](https://anthonyiovanna.github.io/kongono/docs.html#architecture): Namespace map for `Core`, `Http`, `View`, `Validation`, `Database`, `Security`, `Storage`, `Jobs`, `Mail`, `Ai`, and `Cli`.
+- [Routing & PHP 8.5 Attributes](https://anthonyiovanna.github.io/kongono/docs.html#routing): `#[Prefix]`, `#[Get]`, `#[Post]`, `#[Authenticated]`, `#[Can]`, `#[CacheControl]`, `#[Idempotent]`, `#[Feature]`.
+- [Compiled `.kgn.html` Views & Vite](https://anthonyiovanna.github.io/kongono/docs.html#views): Context-aware XSS escaping, `@safeHtml`, `<x-component>` slots, `@vite(...)`, `autoReload: false`.
+- [Kongono Live 2.5 & Bridge](https://anthonyiovanna.github.io/kongono/docs.html#live-bridge): Zero-build strict-CSP hypermedia (`kgn-post`, `kgn-target`, `kgn-oob`, `k-persist`, `kgn-sortable`) and React/Vue/Svelte `Bridge` (`Response::page()`, `@island`, `Response::adaptive()`).
+- [Typed DTO Validation & PRG Flash](https://anthonyiovanna.github.io/kongono/docs.html#validation): Readonly DTOs, `#[ArrayOf]`, `RuleInterface`, `ValidatableDtoInterface`, `@old()`, `@error()`.
+- [Database, Soft Deletes, BatchLoader & Migrations](https://anthonyiovanna.github.io/kongono/docs.html#database): `QueryBuilder`, `withoutTrashed()`, `BatchLoader::hasMany()`/`belongsTo()`, `Factory::for()`, `Schema::table()`, `migrate --pretend`, `migrate:lint`, `RowLevelSecurity`.
+- [Full-Text & Hybrid RRF Search](https://anthonyiovanna.github.io/kongono/docs.html#hybrid-search): `PostgresFullTextSearch` + `PgVectorStore` fused via `HybridSearch`.
+- [Auth, PATs, Security & AI Threat Shield](https://anthonyiovanna.github.io/kongono/docs.html#security): `SessionAuth`, revocable SHA-256 `PersonalAccessToken`, `Gate` policies, Passkeys, `RememberMeManager`, HKDF `Encryptor` v2, `SafeHttpClient`, `AiThreatShieldMiddleware`, `PromptGuard`.
+- [Storage, Queues, Batches & Workflows](https://anthonyiovanna.github.io/kongono/docs.html#infra): Streaming `LocalStorage`/`S3Storage`, `PostgresQueueDriver`/`RedisQueueDriver`, priority draining, DLQ CLI replay, `JobBatch`, `WorkflowEngine`.
+- [Global-Free Testing](https://anthonyiovanna.github.io/kongono/docs.html#testing): `TestClient`, `TestUpload`, `TestResponse`, `DatabaseTestHelper::inRollbackTransaction()`, `SafeHttpClient::fake()`, `FrozenClock`.
+- [AI SDK, Evals & pgvector RAG](https://anthonyiovanna.github.io/kongono/docs.html#ai-rag): `AiClient::fromEnv()` (OpenAI, Anthropic, Gemini, Groq, Ollama), streaming, `structured()`, `KnowledgeBase`, `kongo eval --redteam`.
+- [AI Companions & 12-Tool MCP Server](https://anthonyiovanna.github.io/kongono/docs.html#ai-companions): `kongo oshie`, `kongo chie`, `kongo hantei`, `kongo mcp`.
+- [`/_ops` Operations, Dev Studio & SDK Generator](https://anthonyiovanna.github.io/kongono/docs.html#observability): `OpsDashboardMiddleware`, `/_kongono`, `kongo sdk:generate` (TS/Swift/Kotlin/Dart).
+- [Production Deployment (FrankenPHP)](https://anthonyiovanna.github.io/kongono/docs.html#production): `kongo optimize`, `kongo deploy:init`, Redis horizontal scaling.
+- [Complete `kongo` CLI Reference](https://anthonyiovanna.github.io/kongono/docs.html#cli): Every built-in CLI command and flag.
+
+## Optional
+
+- [Framework Source Repository (GitHub)](https://github.com/anthonyiovanna/kongono)
+- [Packagist Package (`kongono/framework`)](https://packagist.org/packages/kongono/framework)
+- [Changelog](https://github.com/anthonyiovanna/kongono/blob/main/CHANGELOG.md)

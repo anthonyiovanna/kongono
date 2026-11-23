@@ -35,13 +35,14 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
         private string $model = 'gpt-4.1-mini',
         private string $baseUrl = 'https://api.openai.com/v1',
         ?HttpTransportInterface $transport = null,
+        private string $providerName = 'openai',
     ) {
         $this->transport = $transport ?? new CurlTransport();
     }
 
     public function name(): string
     {
-        return 'openai';
+        return $this->providerName;
     }
 
     public function defaultModel(): string

@@ -43,7 +43,7 @@ final class AppScaffolder
                     'psr-4' => ['App\\' => 'src/'],
                 ],
             ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
-            '.env.example' => "APP_ENV=local\nAPP_DEBUG=false\n# Run `php vendor/bin/kongo key:generate` and place the generated key in your untracked .env file:\nAPP_KEY=REPLACE_WITH_kongo_key_generate\n# Set any one AI provider for Oshie, Chie & Hantei:\n# OPENAI_API_KEY=\n# ANTHROPIC_API_KEY=\n# GEMINI_API_KEY=\n# OLLAMA_HOST=http://127.0.0.1:11434\n",
+            '.env.example' => "APP_ENV=local\nAPP_DEBUG=false\n# Run `php vendor/bin/kongo key:generate` and place the generated key in your untracked .env file:\nAPP_KEY=REPLACE_WITH_kongo_key_generate\n# Set any one AI provider for Oshie, Chie & Hantei:\n# OPENAI_API_KEY=\n# ANTHROPIC_API_KEY=\n# GEMINI_API_KEY=\n# GROQ_API_KEY=\n# OLLAMA_HOST=http://127.0.0.1:11434\n",
             'app/bootstrap.php' => <<<PHP
 <?php
 
@@ -115,7 +115,7 @@ if (function_exists('frankenphp_handle_request')) {
 PHP,
             'Caddyfile' => "{\n    frankenphp {\n        worker ./public/worker.php\n    }\n}\n\n:8080 {\n    root * ./public\n    encode zstd br gzip\n    php_server\n}\n",
             'Dockerfile' => "FROM dunglas/frankenphp:php8.5\nRUN useradd -r -u 10001 -s /usr/sbin/nologin kongono && mkdir -p /app/var /data /config && chown -R kongono:kongono /app /data /config && printf \"expose_php=Off\\nsession.upload_progress.enabled=Off\\nzend.exception_ignore_args=On\\nallow_url_include=Off\\ndisplay_errors=Off\\nlog_errors=On\\n\" > /usr/local/etc/php/conf.d/99-kongono-security.ini\nENV APP_ENV=production APP_DEBUG=false SESSION_SECURE=true TRUSTED_PROXIES=\"\"\nWORKDIR /app\nCOPY --chown=kongono:kongono . /app\nUSER kongono\nEXPOSE 8080\nCMD [\"frankenphp\", \"run\", \"--config\", \"/app/Caddyfile\"]\n",
-            '.dockerignore' => ".git\n.env\n.env.*\n!.env.example\n/var\n/tests\n/vendor\n",
+            '.dockerignore' => ".git\n.env\n.env.*\n!.env.example\n/var\n/tests\n/vendor\nAGENTS.md\nCLAUDE.md\n.mcp.json\n",
             'src/Http/HomeController.php' => <<<PHP
 <?php
 
@@ -186,6 +186,16 @@ PHP,
 
 HTML,
             '.gitignore' => "/vendor/\n/var/\n.env\n",
+            '.mcp.json' => json_encode([
+                'mcpServers' => [
+                    'kongono' => [
+                        'command' => 'php',
+                        'args' => ['vendor/bin/kongo', 'mcp'],
+                    ],
+                ],
+            ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
+            'AGENTS.md' => self::agentsGuide($cleanName),
+            'CLAUDE.md' => "@AGENTS.md\n\n<!-- Claude Code automatically imports AGENTS.md above. Connect to the local MCP server defined in .mcp.json (`php vendor/bin/kongo mcp`) to inspect live routes, graph, OpenAPI, and audits. -->\n",
         ];
 
         $created = [];
@@ -202,5 +212,45 @@ HTML,
         }
 
         return $created;
+    }
+
+    private static function agentsGuide(string $appName): string
+    {
+        return <<<MD
+# {$appName} — Kongono v1 AI Agent Guide
+
+This application is built with **Kongono Framework v1** (pure PHP 8.5.13+, zero Symfony packages, persistent-runtime first).
+Full LLM reference: `https://anthonyiovanna.github.io/kongono/llms.txt`
+
+## Non-Negotiable Rules
+
+1. **Pure PHP 8.5+:** Every PHP file starts with `declare(strict_types=1);`. Prefer `final readonly class`, enums, and native attributes.
+2. **No Laravel / Symfony Patterns:** Never use global static facades (`Route::get()`, `Auth::user()`, `DB::table()`, `Http::fake()`, `Carbon::setTestNow()`), ActiveRecord magic (`__get`/`__set`), or Symfony packages.
+3. **Persistent-Runtime Safe:** Never store per-request state in static properties or read `\$_GET`, `\$_POST`, `\$_COOKIE`, `\$_FILES`, or `\$_SESSION` directly. Always inject `Request`, `Session`, `Principal`, `ClockInterface`, or container services.
+4. **Fail-Closed Security:** Keep `QueryBuilder` parameterized, scope tenant queries with `->forTenant(\$tenant)`, sanitize rich HTML with `@safeHtml(...)`, use `SafeHttpClient` for outbound HTTP, and never log secrets (`SecretScrubber`).
+
+## Exact Kongono Idioms
+
+- **Routing & Auth:** Register controllers via `\$app->controller(MyController::class)` using `#[Prefix]`, `#[Get]`, `#[Post]`, `#[Put]`, `#[Patch]`, `#[Delete]`, `#[Middleware(...)]`, `#[Authenticated]`, `#[Can('ability')]`, `#[CacheControl]`, `#[Idempotent]`, `#[Feature]`.
+- **DTO Validation:** Type-hint a `final readonly class` in a controller method with `#[Required]`, `#[Min]`, `#[Max]`, `#[Email]`, `#[Uuid]`, `#[Date]`, `#[Ip]`, `#[In]`, `#[NotIn]`, `#[RequiredIf]`, `#[Confirmed]`, `#[ArrayOf]`, `RuleInterface`, or `ValidatableDtoInterface`.
+- **Database & Relations:** Use `PdoConnection` + `QueryBuilder` (`withoutTrashed()`, `onlyTrashed()`, `softDelete()`, `restore()`, `paginate()`, `getAs(Dto::class)`), `BatchLoader::hasMany()` / `BatchLoader::belongsTo()` (zero N+1), `Factory::for()`, and `Schema::create()` / `Schema::table()`.
+- **Views, Live 2.5 & Bridge:** Templates live in `views/*.kgn.html` (`{{ \$escaped }}`, `@safeHtml(\$html)`, `@old('field')`, `@error('field')`, `@liveScript`, `@island('Widget', \$props)`). Return `Response::html()`, `Response::json()`, `Response::fragment()`, `Response::page()`, or `Response::adaptive()`.
+- **Auth & Tokens:** Use `SessionAuth` + `SessionAuthMiddleware` for cookie sessions, `PersonalAccessToken` (`Memory`/`Cache`/`Pdo` stores) + `BearerAuthMiddleware` for revocable API tokens, and `Gate` for authorization.
+- **Queues, Storage & AI:** Use `Queue` / `Worker` (`uniqueKey`, `JobBatch`, `Workflow`), `LocalStorage` / `S3Storage` (`putStream`/`getStream`), and `AiClient::fromEnv()` (OpenAI, Anthropic, Gemini, Groq, Ollama).
+- **Testing (Zero Global State):** Use `(new TestClient(\$app))->actingAs(\$principal)->withStatefulCookies()`, `TestUpload::fakePng()`, `DatabaseTestHelper::inRollbackTransaction()`, `SafeHttpClient::fake()`, and `FrozenClock::at(...)`.
+
+## Inspect & Verify with CLI / MCP
+
+Connect to `.mcp.json` (`php vendor/bin/kongo mcp`) for live read-only inspection (`kongono_graph`, `kongono_routes`, `kongono_openapi`, `kongono_audit`, `kongono_eval`, `kongono_migrate_lint`, `kongono_test_route`), or run:
+
+```bash
+php vendor/bin/kongo routes --json
+php vendor/bin/kongo migrate --pretend
+php vendor/bin/kongo migrate:lint
+php vendor/bin/kongo audit --attack --strict
+php vendor/bin/kongo test
+```
+
+MD;
     }
 }
