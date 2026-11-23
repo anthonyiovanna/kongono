@@ -114,6 +114,18 @@ final class Blueprint
         return $this;
     }
 
+    /** Add a nullable soft-delete timestamp column (`deleted_at` by default). */
+    public function softDeletes(string $column = 'deleted_at'): ColumnDefinition
+    {
+        return $this->timestamp($column)->nullable();
+    }
+
+    /** Drop a soft-delete column during `Schema::table()` alterations. */
+    public function dropSoftDeletes(string $column = 'deleted_at'): self
+    {
+        return $this->dropColumn($column);
+    }
+
     /** Dialect-portable UUID column (`UUID` on Postgres, `CHAR(36)` on MySQL, `TEXT` on SQLite). */
     public function uuid(string $name): ColumnDefinition
     {

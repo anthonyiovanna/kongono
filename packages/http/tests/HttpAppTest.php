@@ -1502,6 +1502,102 @@ HTML);
         $api->get('/api/download')->assertOk()->assertDownload('report.txt');
         $api->request('POST', '/api/raw', body: 'ping')->assertOk()->assertSee('raw:ping');
     }
+
+    public function testOpsDashboardCapabilityGateLiveMorphJsonSnapshotAndQueueActions(): void
+    {
+        $queueDriver = new \Kongono\Jobs\MemoryQueueDriver();
+        $queue = new \Kongono\Jobs\Queue($queueDriver);
+        $deadJob = $queue->dispatch('billing.sync', ['id' => 1], queue: 'critical', maxAttempts: 1);
+        $deadJob2 = $queue->dispatch('billing.sync', ['id' => 2], queue: 'critical', maxAttempts: 1);
+
+        $worker = (new \Kongono\Jobs\Worker($queueDriver))
+            ->register('billing.sync', static function (): never {
+                throw new RuntimeException('Gateway failed with sk_live_1234567890abcdef1234');
+            });
+        $worker->run('critical');
+
+        $health = (new \Kongono\Core\Health\HealthCheck())->check('postgres', static fn(): bool => true);
+        $metrics = new \Kongono\Core\Telemetry\Metrics();
+        $metrics->increment('http_requests_total', ['route' => '/api/orders'], 5.0);
+        $metrics->observe('http_duration_ms', 12.5);
+
+        $batch = new \Kongono\Jobs\Batch\JobBatch(
+            id: 'batch_ops_1',
+            name: 'Nightly Invoices',
+            totalJobs: 10,
+            pendingJobs: 2,
+            processedJobs: 8,
+            failedJobs: 0,
+            cancelled: false,
+            allowFailures: true,
+            createdAt: time(),
+        );
+
+        $opsApp = App::create(__DIR__, name: 'Acme Ops')
+            ->middleware(new \Kongono\Http\Ops\OpsDashboardMiddleware(
+                appName: 'Acme Ops',
+                queueDriver: $queueDriver,
+                queues: ['critical', 'default'],
+                healthCheck: $health,
+                metrics: $metrics,
+                batchesProvider: static fn(): array => [$batch],
+            ));
+
+        $client = new TestClient($opsApp);
+
+        // 1. Fail-closed Gate authorization: unauthenticated -> 401, missing capability -> 403
+        $client->get('/_ops')->assertUnauthorized();
+        $basicUser = new \Kongono\Security\Principal('u-1', \Kongono\Security\PrincipalKind::Human, ['orders.read']);
+        $client->actingAs($basicUser)->get('/_ops')->assertForbidden();
+
+        // 2. ops.view can inspect HTML (strict CSP, no-store, scrubbed secret), Live morph, and JSON snapshot
+        $viewer = new \Kongono\Security\Principal('u-view', \Kongono\Security\PrincipalKind::Human, ['ops.view']);
+        $client->actingAs($viewer)->get('/_ops')
+            ->assertOk()
+            ->assertHeader('Cache-Control', 'no-store')
+            ->assertHeader('X-Frame-Options', 'DENY')
+            ->assertSee('Acme Ops — Ops Dashboard')
+            ->assertSee('Nightly Invoices')
+            ->assertSee('http_requests_total')
+            ->assertSee('[REDACTED]')
+            ->assertDontSee('sk_live_1234567890abcdef1234');
+
+        $client->actingAs($viewer)->withLive()->get('/_ops')
+            ->assertOk()
+            ->assertLiveSwap('morph')
+            ->assertSee('ops-dashboard-root');
+
+        $client->actingAs($viewer)->get('/_ops', ['Accept' => 'application/json'])
+            ->assertOk()
+            ->assertJsonPath('app', 'Acme Ops')
+            ->assertJsonPath('health.status', 'ok')
+            ->assertJsonPath('queues.critical.dead', 2)
+            ->assertJsonCount(2, 'failed_jobs')
+            ->assertJsonPath('batches.0.progress', 80);
+
+        // 3. Viewer WITHOUT ops.manage cannot retry or flush queues (403)
+        $client->actingAs($viewer)->postJson('/_ops/queues/retry', ['queue' => 'critical', 'job_id' => $deadJob->id])
+            ->assertForbidden();
+
+        // 4. Manager WITH ops.manage can retry a single job, reject unlisted queues (400), and flush remaining dead jobs
+        $manager = new \Kongono\Security\Principal('u-ops', \Kongono\Security\PrincipalKind::Human, ['ops.view', 'ops.manage']);
+        $client->actingAs($manager)->postJson('/_ops/queues/retry', ['queue' => 'unlisted_queue'])
+            ->assertStatus(400);
+
+        $client->actingAs($manager)->postJson('/_ops/queues/retry', ['queue' => 'critical', 'job_id' => $deadJob->id])
+            ->assertOk()
+            ->assertJsonPath('requeued', 1);
+        self::assertSame(1, $queueDriver->stats('critical')['pending']);
+        self::assertSame(1, $queueDriver->stats('critical')['dead']);
+
+        // Flush remaining dead job ($deadJob2) via Live morph POST
+        $client->actingAs($manager)->withLive()->postForm('/_ops/queues/flush', ['queue' => 'critical'])
+            ->assertOk()
+            ->assertLiveSwap('morph')
+            ->assertSee('Flushed 1 failed job(s)');
+        self::assertSame(0, $queueDriver->stats('critical')['dead']);
+        self::assertNotEmpty($deadJob2->id);
+    }
 }
 
 final readonly class HtmlSignupFormDto

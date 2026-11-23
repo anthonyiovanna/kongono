@@ -76,4 +76,18 @@ abstract readonly class Repository
             ->where($this->primaryKey, '=', $id)
             ->delete();
     }
+
+    public function softDeleteById(int|string $id, string $column = 'deleted_at', ?string $timestamp = null): int
+    {
+        return $this->db->table($this->table)
+            ->where($this->primaryKey, '=', $id)
+            ->softDelete($column, $timestamp);
+    }
+
+    public function restoreById(int|string $id, string $column = 'deleted_at'): int
+    {
+        return $this->db->table($this->table)
+            ->where($this->primaryKey, '=', $id)
+            ->restore($column);
+    }
 }

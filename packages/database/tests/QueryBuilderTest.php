@@ -21,7 +21,10 @@ use Kongono\Database\RowLevelSecurity;
 use Kongono\Database\Schema\Blueprint;
 use Kongono\Database\Schema\ColumnDefinition;
 use Kongono\Database\Schema\Schema;
+use Kongono\Database\Search\MemorySearchEngine;
+use Kongono\Database\Search\PostgresFullTextSearch;
 use Kongono\Database\Testing\DatabaseTestHelper;
+use Kongono\Database\Testing\Factory;
 use PDO;
 use PDOStatement;
 use PHPUnit\Framework\TestCase;
@@ -1423,5 +1426,178 @@ final class QueryBuilderTest extends TestCase
             });
             $sqHelper->assertDatabaseCount('accounts', 1);
         }
+    }
+
+    public function testSoftDeletesBatchLoaderRelationsFactoryAndFullTextSearch(): void
+    {
+        // 1. Blueprint::softDeletes() & dropSoftDeletes() + QueryBuilder soft-delete SQL & tenant-scope safety
+        $bp = new Blueprint('posts', Dialect::Postgres);
+        $bp->id();
+        $bp->string('title', 160);
+        $bp->softDeletes();
+        self::assertStringContainsString('"deleted_at" TIMESTAMPTZ NULL', $bp->toSqlStatements()[0]);
+
+        $alterBp = new Blueprint('posts', Dialect::Postgres);
+        $alterBp->dropSoftDeletes();
+        self::assertSame(['ALTER TABLE "posts" DROP COLUMN "deleted_at"'], $alterBp->toAlterSqlStatements());
+
+        $withoutSql = (new QueryBuilder('posts', Dialect::Postgres))->withoutTrashed()->toSelectSql();
+        self::assertStringContainsString('"deleted_at" IS NULL', $withoutSql->query);
+        $onlySql = (new QueryBuilder('posts', Dialect::Postgres))->onlyTrashed()->toSelectSql();
+        self::assertStringContainsString('"deleted_at" IS NOT NULL', $onlySql->query);
+
+        // 2. BatchLoader::hasMany & belongsTo execute ONE single WHERE IN query (zero N+1) for both arrays & DTOs
+        $recordedSql = [];
+        $fakeDb = new class ($recordedSql) implements ConnectionInterface {
+            /** @param list<string> $sql */
+            public function __construct(public array &$sql) {}
+
+            public function dialect(): Dialect
+            {
+                return Dialect::Postgres;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                $this->sql[] = $sql;
+                if (str_contains($sql, '"order_items"')) {
+                    return [
+                        ['id' => 10, 'order_id' => 1, 'sku' => 'SKU-A'],
+                        ['id' => 11, 'order_id' => 1, 'sku' => 'SKU-B'],
+                        ['id' => 12, 'order_id' => 2, 'sku' => 'SKU-C'],
+                    ];
+                }
+                if (str_contains($sql, '"users"')) {
+                    return [
+                        ['id' => 100, 'name' => 'Ada'],
+                        ['id' => 200, 'name' => 'Grace'],
+                    ];
+                }
+
+                return [];
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                return null;
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                $this->sql[] = $sql;
+
+                return 1;
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, Dialect::Postgres, $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                return $callback($this);
+            }
+        };
+
+        // Tenant-scoped softDelete() & restore() pass through QueryBuilder::update() with tenant isolation intact
+        self::assertSame(1, $fakeDb->table('posts')->forTenant(42)->where('id', '=', 7)->softDelete(timestamp: '2026-11-22T00:00:00+00:00'));
+        self::assertSame(1, $fakeDb->table('posts')->forTenant(42)->where('id', '=', 7)->restore());
+        self::assertSame('UPDATE "posts" SET "deleted_at" = ? WHERE "workspace_id" = ? AND "id" = ?', $recordedSql[0]);
+
+        $orders = [
+            (object) ['id' => 1, 'userId' => 100],
+            (object) ['id' => 2, 'userId' => 200],
+            (object) ['id' => 3, 'userId' => 100],
+        ];
+        $itemsByOrder = BatchLoader::hasMany($fakeDb, $orders, 'order_items', 'order_id', softDeleteColumn: 'deleted_at');
+        self::assertCount(2, $itemsByOrder[1]);
+        self::assertCount(1, $itemsByOrder[2]);
+        self::assertSame([], $itemsByOrder[3]);
+
+        $usersById = BatchLoader::belongsTo($fakeDb, $orders, 'users', 'user_id', mapper: static fn(array $r): string => (string) ($r['name'] ?? ''));
+        self::assertSame(['100' => 'Ada', '200' => 'Grace'], array_combine(array_map('strval', array_keys($usersById)), array_values($usersById)));
+
+        // 3. Factory::for(): count(), sequence(), stackable state(), make(), create()
+        $factory = Factory::for('orders', static fn(int $n): array => ['code' => 'ORD-' . $n, 'status' => 'open'])
+            ->count(3)
+            ->sequence(['tier' => 'free'], ['tier' => 'pro'])
+            ->state(['currency' => 'USD']);
+        $made = $factory->make();
+        self::assertCount(3, $made);
+        self::assertSame(['code' => 'ORD-1', 'status' => 'open', 'tier' => 'free', 'currency' => 'USD'], $made[0]);
+        self::assertSame(['code' => 'ORD-2', 'status' => 'open', 'tier' => 'pro', 'currency' => 'USD'], $made[1]);
+        self::assertSame(['code' => 'ORD-3', 'status' => 'open', 'tier' => 'free', 'currency' => 'USD'], $made[2]);
+        $created = $factory->create($fakeDb);
+        self::assertCount(3, $created);
+        self::assertStringContainsString('INSERT INTO "orders"', end($recordedSql) ?: '');
+
+        // 4. MemorySearchEngine weighted title+body search, metadata filter, snippet, remove
+        $memSearch = new MemorySearchEngine();
+        $memSearch->index('d1', 'Kongono Security Guide', 'Hardened CSP headers and Argon2id password hashing.', ['section' => 'security']);
+        $memSearch->index('d2', 'Queue Operations', 'Redis Lua workers and dead-letter security tips.', ['section' => 'queues']);
+        $hits = $memSearch->search('security');
+        self::assertCount(2, $hits);
+        // Title match d1 outranks body-only match d2
+        self::assertSame('d1', $hits[0]->id);
+        $filtered = $memSearch->search('security', metadataFilter: ['section' => 'queues']);
+        self::assertCount(1, $filtered);
+        self::assertSame('d2', $filtered[0]->id);
+        $memSearch->remove('d2');
+        self::assertCount(1, $memSearch->search('security'));
+
+        // 5. PostgresFullTextSearch SQL compilation + strict language config allowlist
+        $pgSqlLog = [];
+        $pgSearchConn = new class ($pgSqlLog) implements ConnectionInterface {
+            /** @param list<string> $log */
+            public function __construct(public array &$log) {}
+
+            public function dialect(): Dialect
+            {
+                return Dialect::Postgres;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                $this->log[] = $sql;
+
+                return [['id' => 'pg-doc-1', 'title' => 'RLS', 'metadata' => '{"env":"prod"}', 'score' => '0.88', 'snippet' => 'PostgreSQL RLS']];
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                return null;
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                $this->log[] = $sql;
+
+                return 1;
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, Dialect::Postgres, $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                return $callback($this);
+            }
+        };
+        $fts = new PostgresFullTextSearch($pgSearchConn, 'docs_search', 'english');
+        $fts->installSchema();
+        $fts->index('pg-doc-1', 'RLS', 'PostgreSQL row-level security', ['env' => 'prod']);
+        $pgHits = $fts->search('row-level security', limit: 5, metadataFilter: ['env' => 'prod']);
+        self::assertCount(1, $pgHits);
+        self::assertSame('pg-doc-1', $pgHits[0]->id);
+        self::assertSame(0.88, $pgHits[0]->score);
+        self::assertStringContainsString('GENERATED ALWAYS AS', $pgSqlLog[0]);
+        self::assertStringContainsString('USING GIN (tsv)', $pgSqlLog[1]);
+        self::assertStringContainsString('websearch_to_tsquery', $pgSqlLog[4]);
+
+        $this->expectException(DatabaseException::class);
+        new PostgresFullTextSearch($pgSearchConn, 'docs_search', "english'; DROP TABLE users;--");
     }
 }

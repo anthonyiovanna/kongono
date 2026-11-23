@@ -184,6 +184,30 @@ final class QueryBuilder
         return $this;
     }
 
+    /** Exclude soft-deleted rows (`WHERE deleted_at IS NULL`). */
+    public function withoutTrashed(string $column = 'deleted_at'): self
+    {
+        return $this->whereNull($column);
+    }
+
+    /** Include ONLY soft-deleted rows (`WHERE deleted_at IS NOT NULL`). */
+    public function onlyTrashed(string $column = 'deleted_at'): self
+    {
+        return $this->whereNotNull($column);
+    }
+
+    /** Soft-delete matching rows by setting `$column` to an ISO-8601 UTC timestamp (enforces active tenant scopes). */
+    public function softDelete(string $column = 'deleted_at', ?string $timestamp = null): int
+    {
+        return $this->update([$column => $timestamp ?? gmdate(DATE_ATOM)]);
+    }
+
+    /** Restore soft-deleted matching rows by setting `$column` back to `NULL` (enforces active tenant scopes). */
+    public function restore(string $column = 'deleted_at'): int
+    {
+        return $this->update([$column => null]);
+    }
+
     public function whereLike(string $column, string $pattern): self
     {
         return $this->where($column, Dialect::Postgres === $this->dialect ? 'ILIKE' : 'LIKE', $pattern);

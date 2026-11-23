@@ -7,8 +7,8 @@ namespace Kongono\Database;
 use Closure;
 
 /**
- * Request-scoped DataLoader / BatchLoader to eliminate N+1 SQL queries cleanly
- * without ActiveRecord lazy-loading magic.
+ * Request-scoped DataLoader / BatchLoader & zero-N+1 typed eager relation helpers
+ * (`hasMany`, `belongsTo`) without ActiveRecord lazy-loading magic.
  *
  * @template TKey of array-key
  * @template TVal
@@ -72,5 +72,129 @@ final class BatchLoader
     public function clear(): void
     {
         $this->cache = [];
+    }
+
+    /**
+     * Eager-load a 1-to-many relation in ONE single `WHERE IN (...)` query (zero N+1).
+     * Works with both raw row arrays and typed PHP 8.5 readonly DTO objects.
+     *
+     * @template TChild = array<string, mixed>
+     * @param list<array<string, mixed>|object>       $parents
+     * @param ?Closure(array<string, mixed>): TChild  $mapper Optional row->DTO mapper
+     * @return ($mapper is null ? array<int|string, list<array<string, mixed>>> : array<int|string, list<TChild>>)
+     */
+    public static function hasMany(
+        ConnectionInterface $db,
+        array $parents,
+        string $childTable,
+        string $foreignKey,
+        string $localKey = 'id',
+        ?Closure $mapper = null,
+        ?string $softDeleteColumn = null,
+        ?string $orderBy = null,
+        string $direction = 'ASC',
+    ): array {
+        $parentIds = self::extractKeys($parents, $localKey);
+        $grouped = [];
+        foreach ($parentIds as $pid) {
+            $grouped[$pid] = [];
+        }
+        if ([] === $parentIds) {
+            return $grouped;
+        }
+
+        $query = $db->table($childTable)->whereIn($foreignKey, $parentIds);
+        if (null !== $softDeleteColumn && '' !== trim($softDeleteColumn)) {
+            $query->withoutTrashed($softDeleteColumn);
+        }
+        if (null !== $orderBy && '' !== trim($orderBy)) {
+            $query->orderBy($orderBy, $direction);
+        }
+
+        foreach ($query->get() as $row) {
+            $fk = $row[$foreignKey] ?? null;
+            if (!is_int($fk) && !is_string($fk)) {
+                continue;
+            }
+            if (!array_key_exists($fk, $grouped)) {
+                $grouped[$fk] = [];
+            }
+            $grouped[$fk][] = null !== $mapper ? $mapper($row) : $row;
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * Eager-load a many-to-1 (`belongsTo`) relation in ONE single `WHERE IN (...)` query (zero N+1).
+     * Returns a lookup map keyed by parent `$ownerKey`.
+     *
+     * @template TParent = array<string, mixed>
+     * @param list<array<string, mixed>|object>        $children
+     * @param ?Closure(array<string, mixed>): TParent  $mapper Optional row->DTO mapper
+     * @return ($mapper is null ? array<int|string, array<string, mixed>> : array<int|string, TParent>)
+     */
+    public static function belongsTo(
+        ConnectionInterface $db,
+        array $children,
+        string $parentTable,
+        string $foreignKey,
+        string $ownerKey = 'id',
+        ?Closure $mapper = null,
+        ?string $softDeleteColumn = null,
+    ): array {
+        $fkValues = self::extractKeys($children, $foreignKey);
+        if ([] === $fkValues) {
+            return [];
+        }
+
+        $query = $db->table($parentTable)->whereIn($ownerKey, $fkValues);
+        if (null !== $softDeleteColumn && '' !== trim($softDeleteColumn)) {
+            $query->withoutTrashed($softDeleteColumn);
+        }
+
+        $indexed = [];
+        foreach ($query->get() as $row) {
+            $pk = $row[$ownerKey] ?? null;
+            if (!is_int($pk) && !is_string($pk)) {
+                continue;
+            }
+            $indexed[$pk] = null !== $mapper ? $mapper($row) : $row;
+        }
+
+        return $indexed;
+    }
+
+    /**
+     * @param list<array<string, mixed>|object> $records
+     * @return list<int|string>
+     */
+    private static function extractKeys(array $records, string $key): array
+    {
+        $camel = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $key))));
+        /** @var array<int|string, true> $seen */
+        $seen = [];
+        /** @var list<int|string> $keys */
+        $keys = [];
+
+        foreach ($records as $record) {
+            $val = null;
+            if (is_array($record)) {
+                $val = $record[$key] ?? ($record[$camel] ?? null);
+            } else {
+                $vars = get_object_vars($record);
+                if (array_key_exists($key, $vars)) {
+                    $val = $vars[$key];
+                } elseif (array_key_exists($camel, $vars)) {
+                    $val = $vars[$camel];
+                }
+            }
+            if ((is_int($val) || is_string($val)) && !isset($seen[$val])) {
+                $seen[$val] = true;
+                $keys[] = $val;
+            }
+        }
+
+        return $keys;
     }
 }

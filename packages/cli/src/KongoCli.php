@@ -65,7 +65,7 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.16.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v', '--version' => [0, 'Kongono Framework v1.17.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),

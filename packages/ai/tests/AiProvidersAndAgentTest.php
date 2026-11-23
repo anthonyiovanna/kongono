@@ -11,6 +11,7 @@ use Kongono\Ai\Agent\RequiresApproval;
 use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
+use Kongono\Ai\Embedding\HybridSearch;
 use Kongono\Ai\Embedding\KnowledgeBase;
 use Kongono\Ai\Embedding\MemoryVectorStore;
 use Kongono\Ai\Embedding\PgVectorStore;
@@ -35,6 +36,7 @@ use Kongono\Ai\Transport\StreamingHttpTransportInterface;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\Dialect;
 use Kongono\Database\QueryBuilder;
+use Kongono\Database\Search\MemorySearchEngine;
 use Kongono\Validation\Attributes\In;
 use Kongono\Validation\Attributes\Required;
 use PHPUnit\Framework\TestCase;
@@ -927,5 +929,27 @@ final class AiProvidersAndAgentTest extends TestCase
                 self::addToAssertionCount(1);
             }
         }
+    }
+
+    public function testHybridSearchFusesKeywordAndVectorRankingsViaRrf(): void
+    {
+        $kw = new MemorySearchEngine();
+        $kw->index('doc-both', 'PostgreSQL RLS Isolation', 'Row-level security isolates multi-tenant SaaS data.', ['tier' => 'prod']);
+        $kw->index('doc-kw-only', 'PostgreSQL Backups', 'Nightly pg_dump archival scripts.', ['tier' => 'prod']);
+
+        $vec = new MemoryVectorStore();
+        $vec->upsert(new VectorDocument('doc-both', 'Row-level security isolates multi-tenant SaaS data.', [1.0, 0.0], ['tier' => 'prod']));
+        $vec->upsert(new VectorDocument('doc-vec-only', 'Zero-trust tenant partitioning architecture.', [0.99, 0.05], ['tier' => 'prod']));
+        $vec->upsert(new VectorDocument('doc-other-tier', 'Staging tenant notes.', [1.0, 0.0], ['tier' => 'staging']));
+
+        $hybrid = new HybridSearch($kw, $vec);
+        $hits = $hybrid->search('PostgreSQL', [1.0, 0.0], limit: 3, metadataFilter: ['tier' => 'prod']);
+
+        self::assertCount(3, $hits);
+        // Document matching BOTH keyword and semantic vector ranks #1 via Reciprocal Rank Fusion
+        self::assertSame('doc-both', $hits[0]->id);
+        self::assertNotNull($hits[0]->keywordScore);
+        self::assertNotNull($hits[0]->vectorScore);
+        self::assertGreaterThan($hits[1]->score, $hits[0]->score);
     }
 }

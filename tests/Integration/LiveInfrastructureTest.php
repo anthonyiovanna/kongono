@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kongono\Tests\Integration;
 
+use Kongono\Ai\Embedding\HybridSearch;
 use Kongono\Ai\Embedding\PgVectorStore;
 use Kongono\Ai\Embedding\VectorDocument;
 use Kongono\Core\Cache\RedisCache;
 use Kongono\Core\Cache\RedisClient;
+use Kongono\Database\BatchLoader;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\DatabaseException;
 use Kongono\Database\MigrationInterface;
@@ -18,7 +20,9 @@ use Kongono\Database\QueryBuilder;
 use Kongono\Database\RowLevelSecurity;
 use Kongono\Database\Schema\Blueprint;
 use Kongono\Database\Schema\Schema;
+use Kongono\Database\Search\PostgresFullTextSearch;
 use Kongono\Database\Testing\DatabaseTestHelper;
+use Kongono\Database\Testing\Factory;
 use Kongono\Jobs\Batch\BatchDispatcher;
 use Kongono\Jobs\Batch\CacheBatchStore;
 use Kongono\Jobs\Batch\JobBatch;
@@ -351,6 +355,67 @@ final class LiveInfrastructureTest extends TestCase
 
         self::assertTrue($patStore->revoke($issuedPat->record->id));
         self::assertNull($patStore->authenticate($issuedPat->plainTextToken));
+
+        // 6. v1.17.0 live PostgreSQL 16: softDeletes + Factory + BatchLoader::hasMany/belongsTo + PostgresFullTextSearch + HybridSearch
+        $db->execute('DROP TABLE IF EXISTS "integration_v117_items"');
+        $db->execute('DROP TABLE IF EXISTS "integration_v117_orders"');
+        Schema::create($db, 'integration_v117_orders', static function (Blueprint $table): void {
+            $table->id();
+            $table->string('code', 64)->unique();
+            $table->softDeletes();
+        });
+        Schema::create($db, 'integration_v117_items', static function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('order_id', 'integration_v117_orders', 'id', onDelete: 'CASCADE');
+            $table->string('sku', 64);
+            $table->softDeletes();
+        });
+
+        Factory::for('integration_v117_orders', static fn(int $n): array => ['code' => 'ORD-' . $n])
+            ->count(2)
+            ->create($db);
+        $liveOrders = $db->table('integration_v117_orders')->withoutTrashed()->orderBy('id', 'ASC')->get();
+        self::assertCount(2, $liveOrders);
+        $firstOrderId = is_numeric($liveOrders[0]['id'] ?? null) ? (int) $liveOrders[0]['id'] : 0;
+        self::assertGreaterThan(0, $firstOrderId);
+
+        Factory::for('integration_v117_items', static fn(int $n): array => ['order_id' => $firstOrderId, 'sku' => 'SKU-' . $n])
+            ->count(2)
+            ->create($db);
+
+        // Soft delete + onlyTrashed + restore
+        self::assertSame(1, $db->table('integration_v117_orders')->where('id', '=', $firstOrderId)->softDelete());
+        self::assertSame(1, $db->table('integration_v117_orders')->withoutTrashed()->count());
+        self::assertSame(1, $db->table('integration_v117_orders')->onlyTrashed()->count());
+        self::assertSame(1, $db->table('integration_v117_orders')->where('id', '=', $firstOrderId)->restore());
+        self::assertSame(2, $db->table('integration_v117_orders')->withoutTrashed()->count());
+
+        // Zero-N+1 eager hasMany + belongsTo
+        $itemsByOrder = BatchLoader::hasMany($db, $liveOrders, 'integration_v117_items', 'order_id', softDeleteColumn: 'deleted_at');
+        self::assertCount(2, $itemsByOrder[$firstOrderId]);
+        $allItems = $db->table('integration_v117_items')->get();
+        $parentOrders = BatchLoader::belongsTo($db, $allItems, 'integration_v117_orders', 'order_id');
+        self::assertArrayHasKey($firstOrderId, $parentOrders);
+
+        // Live PostgreSQL Full-Text Search (tsvector + GIN + websearch_to_tsquery + ts_rank_cd + ts_headline) + HybridSearch RRF with PgVectorStore
+        $db->execute('DROP TABLE IF EXISTS "kongono_integration_fts"');
+        $fts = new PostgresFullTextSearch($db, 'kongono_integration_fts', 'english');
+        $fts->installSchema();
+        $fts->index('v1', 'PHP 8.5 Framework Guide', 'Kongono delivers pure PHP 8.5 framework performance and security.', ['lang' => 'php']);
+        $fts->index('v2', 'Python Scripting', 'Legacy python utility script notes.', ['lang' => 'python']);
+
+        $ftsHits = $fts->search('PHP framework', limit: 5, metadataFilter: ['lang' => 'php']);
+        self::assertCount(1, $ftsHits);
+        self::assertSame('v1', $ftsHits[0]->id);
+        self::assertGreaterThan(0.0, $ftsHits[0]->score);
+        self::assertNotSame('', $ftsHits[0]->snippet);
+
+        $hybrid = new HybridSearch($fts, $pgv);
+        $hybridHits = $hybrid->search('PHP framework', [0.99, 0.01, 0.0], limit: 2, metadataFilter: ['lang' => 'php']);
+        self::assertCount(1, $hybridHits);
+        self::assertSame('v1', $hybridHits[0]->id);
+        self::assertNotNull($hybridHits[0]->keywordScore);
+        self::assertNotNull($hybridHits[0]->vectorScore);
     }
 
     public function testLiveRedisCacheAndRedisQueueDriver(): void
