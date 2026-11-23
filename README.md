@@ -89,6 +89,7 @@ php bin/kongo routes --app=examples/starter-app
 php bin/kongo graph --app=examples/starter-app
 php bin/kongo openapi --app=examples/starter-app
 php bin/kongo mcp --app=examples/starter-app
+php bin/kongo skills:install --target=both --app=examples/starter-app
 
 # Use the three built-in AI companions
 php bin/kongo oshie --lessons
@@ -121,7 +122,7 @@ To enable live AI responses for Oshie, Chie, and Hantei, set any one environment
 | 8 | `packages/jobs` | `Kongono\Jobs\` | Background `Queue`, persistent/daemon `Worker` (multi-queue priority draining, `JobMiddlewareInterface`), dead-letter `listFailed`/`retryFailed`/`flushFailed`, atomic `uniqueKey` dedup, parallel `JobBatch` + `BatchDispatcher`, durable `Workflow`, `PostgresQueueDriver` (`FOR UPDATE SKIP LOCKED` + fencing tokens), Lua-atomic `RedisQueueDriver`, `MemoryQueueDriver`, cron `Scheduler` |
 | 9 | `packages/mail` | `Kongono\Mail\` | Zero-dependency transactional email (`SmtpTransport` STARTTLS, `ResendTransport`, `LogTransport`, `MemoryTransport`, `MailNotificationChannel`, `.kgn.html` email views) |
 | 10 | `packages/ai` | `Kongono\Ai\` | Multi-provider `AiClient` (OpenAI, Anthropic, Gemini, Ollama) with live streaming, `PromptGuard` + `UntrustedInput` (canary tokens + injection detection), `EvalRunner`, vector embeddings (`MemoryVectorStore` + `PgVectorStore` HNSW/GIN), `HybridSearch` (Reciprocal Rank Fusion), 5-line RAG `KnowledgeBase`, `structured()` DTO extraction, governed `AgentPrincipal`/`RequiresApproval`/`AgentRunner`, and native `McpServer` (JSON-RPC 2.0) |
-| 11 | `packages/cli` | `Kongono\Cli\` | Unified `kongo` CLI (`new`, `serve`, `tinker`, `doctor`, `audit [--attack]`, `eval [--redteam]`, `sdk:generate`, `bridge:init`, `bridge:types`, `ui:add`, `deploy:init`, `env:check`, `optimize`, `cache:clear`, `key:generate`, `work [--daemon]`, `queue:failed`, `queue:retry`, `queue:flush`, `schedule:run`, `migrate [--pretend]`, `migrate:rollback`, `migrate:status`, `migrate:lint`, `migrate:fresh`, `db:seed`, `make:*`, `routes`, `graph`, `openapi`, `mcp`, `check`, `test`) + built-in **Oshie**, **Chie**, and **Hantei** |
+| 11 | `packages/cli` | `Kongono\Cli\` | Unified `kongo` CLI (`new`, `serve`, `tinker`, `doctor`, `audit [--attack]`, `eval [--redteam]`, `sdk:generate`, `bridge:init`, `bridge:types`, `ui:add`, `skills:install`, `deploy:init`, `env:check`, `optimize`, `cache:clear`, `key:generate`, `work [--daemon]`, `queue:failed`, `queue:retry`, `queue:flush`, `schedule:run`, `migrate [--pretend]`, `migrate:rollback`, `migrate:status`, `migrate:lint`, `migrate:fresh`, `db:seed`, `make:*`, `routes`, `graph`, `openapi`, `mcp`, `check`, `test`) + built-in **Oshie**, **Chie**, and **Hantei** |
 
 *(Historical Phase 0–23 architecture archives remain preserved on the `main` and `archive/phase-23c-wip` branches.)*
 

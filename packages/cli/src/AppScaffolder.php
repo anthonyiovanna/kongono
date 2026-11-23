@@ -115,7 +115,7 @@ if (function_exists('frankenphp_handle_request')) {
 PHP,
             'Caddyfile' => "{\n    frankenphp {\n        worker ./public/worker.php\n    }\n}\n\n:8080 {\n    root * ./public\n    encode zstd br gzip\n    php_server\n}\n",
             'Dockerfile' => "FROM dunglas/frankenphp:php8.5\nRUN useradd -r -u 10001 -s /usr/sbin/nologin kongono && mkdir -p /app/var /data /config && chown -R kongono:kongono /app /data /config && printf \"expose_php=Off\\nsession.upload_progress.enabled=Off\\nzend.exception_ignore_args=On\\nallow_url_include=Off\\ndisplay_errors=Off\\nlog_errors=On\\n\" > /usr/local/etc/php/conf.d/99-kongono-security.ini\nENV APP_ENV=production APP_DEBUG=false SESSION_SECURE=true TRUSTED_PROXIES=\"\"\nWORKDIR /app\nCOPY --chown=kongono:kongono . /app\nUSER kongono\nEXPOSE 8080\nCMD [\"frankenphp\", \"run\", \"--config\", \"/app/Caddyfile\"]\n",
-            '.dockerignore' => ".git\n.env\n.env.*\n!.env.example\n/var\n/tests\n/vendor\nAGENTS.md\nCLAUDE.md\n.mcp.json\n",
+            '.dockerignore' => ".git\n.env\n.env.*\n!.env.example\n/var\n/tests\n/vendor\nAGENTS.md\nCLAUDE.md\n.mcp.json\n.agents\n.claude\n",
             'src/Http/HomeController.php' => <<<PHP
 <?php
 
@@ -241,7 +241,7 @@ Full LLM reference: `https://anthonyiovanna.github.io/kongono/llms.txt`
 
 ## Inspect & Verify with CLI / MCP
 
-Connect to `.mcp.json` (`php vendor/bin/kongo mcp`) for live read-only inspection (`kongono_graph`, `kongono_routes`, `kongono_openapi`, `kongono_audit`, `kongono_eval`, `kongono_migrate_lint`, `kongono_test_route`), or run:
+Connect to `.mcp.json` (`php vendor/bin/kongo mcp`) for live read-only inspection (`kongono_graph`, `kongono_routes`, `kongono_openapi`, `kongono_audit`, `kongono_eval`, `kongono_migrate_lint`, `kongono_test_route`), install bundled workflow skills with `php vendor/bin/kongo skills:install --target=both`, or run:
 
 ```bash
 php vendor/bin/kongo routes --json

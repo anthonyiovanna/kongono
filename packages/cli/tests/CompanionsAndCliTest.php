@@ -19,6 +19,7 @@ use Kongono\Cli\Deploy\DeployBlueprintGenerator;
 use Kongono\Cli\KongoCli;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Cli\Sdk\SdkGenerator;
+use Kongono\Cli\Skills\SkillsInstaller;
 use Kongono\Core\CoreException;
 use PHPUnit\Framework\TestCase;
 
@@ -1362,6 +1363,67 @@ PHP;
             [$emptyCode, $emptyOut] = $cli->run(['queue:failed', '--app=' . $tmp]);
             self::assertSame(0, $emptyCode);
             self::assertStringContainsString('No failed or dead-lettered jobs', $emptyOut);
+        } finally {
+            $this->removeDir($tmp);
+        }
+    }
+
+    public function testSkillsInstallerAndCliInstallBundledWorkflowSkillsSafely(): void
+    {
+        $installer = new SkillsInstaller();
+        $expected = [
+            'kongono-ai-and-rag',
+            'kongono-auth-and-security',
+            'kongono-feature-builder',
+            'kongono-live-and-bridge',
+            'kongono-queues-and-ops',
+        ];
+        self::assertSame($expected, $installer->available());
+
+        $tmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-skills-test-' . bin2hex(random_bytes(5));
+        mkdir($tmp, 0o775, true);
+        $cli = new KongoCli(dirname(__DIR__, 3));
+
+        try {
+            // 1. Install into both .agents/skills and .claude/skills
+            [$code, $out] = $cli->run(['skills:install', '--target=both', '--app=' . $tmp]);
+            self::assertSame(0, $code);
+            self::assertStringContainsString('[INSTALLED] .agents/skills/kongono-feature-builder/SKILL.md', $out);
+            self::assertStringContainsString('[INSTALLED] .claude/skills/kongono-feature-builder/SKILL.md', $out);
+
+            foreach ($expected as $skill) {
+                $agentFile = $tmp . '/.agents/skills/' . $skill . '/SKILL.md';
+                $claudeFile = $tmp . '/.claude/skills/' . $skill . '/SKILL.md';
+                self::assertFileExists($agentFile);
+                self::assertFileExists($claudeFile);
+
+                $content = (string) file_get_contents($agentFile);
+                self::assertStringStartsWith("---\nname: {$skill}\ndescription:", $content);
+            }
+
+            // 2. Re-running reports UNCHANGED when files already match
+            [$unchangedCode, $unchangedOut] = $cli->run(['skills:install', '--target=agents', '--app=' . $tmp]);
+            self::assertSame(0, $unchangedCode);
+            self::assertStringContainsString('[UNCHANGED] .agents/skills/kongono-ai-and-rag/SKILL.md', $unchangedOut);
+
+            // 3. Local edits are preserved without --force, and overwritten when --force is passed
+            $editedPath = $tmp . '/.agents/skills/kongono-ai-and-rag/SKILL.md';
+            file_put_contents($editedPath, "# custom local edit\n");
+
+            [$skipCode, $skipOut] = $cli->run(['skills:install', '--target=agents', '--app=' . $tmp]);
+            self::assertSame(0, $skipCode);
+            self::assertStringContainsString('[SKIPPED]   .agents/skills/kongono-ai-and-rag/SKILL.md', $skipOut);
+            self::assertSame("# custom local edit\n", (string) file_get_contents($editedPath));
+
+            [$forceCode, $forceOut] = $cli->run(['skills:install', '--target', 'agents', '--force', '--app=' . $tmp]);
+            self::assertSame(0, $forceCode);
+            self::assertStringContainsString('[UPDATED]   .agents/skills/kongono-ai-and-rag/SKILL.md', $forceOut);
+            self::assertStringStartsWith("---\nname: kongono-ai-and-rag\n", (string) file_get_contents($editedPath));
+
+            // 4. Unsupported target fails cleanly
+            [$badCode, $badOut] = $cli->run(['skills:install', '--target=unknown', '--app=' . $tmp]);
+            self::assertSame(1, $badCode);
+            self::assertStringContainsString('Unsupported skills target', $badOut);
         } finally {
             $this->removeDir($tmp);
         }

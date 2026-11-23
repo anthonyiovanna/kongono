@@ -412,6 +412,7 @@ php vendor/bin/kongo bridge:types
 php vendor/bin/kongo sdk:generate --lang=ts --out=sdk/client.ts
 php vendor/bin/kongo deploy:init --domain=app.example.com
 php vendor/bin/kongo optimize
+php vendor/bin/kongo skills:install --target=both
 php vendor/bin/kongo mcp
 php vendor/bin/kongo check
 ```

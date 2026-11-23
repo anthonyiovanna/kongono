@@ -9,6 +9,7 @@
 - **Persistent-runtime first:** Never store per-request mutable state in static properties. Never read `$_GET`, `$_POST`, `$_COOKIE`, `$_FILES`, or `$_SESSION` directly — inject `Kongono\Http\Request`, `Kongono\Http\Session`, `Kongono\Security\Principal`, `Kongono\Core\Clock\ClockInterface`, or container services.
 - **Security by default:** Parameterized `QueryBuilder` only (unscoped `UPDATE`/`DELETE` fails closed), `->forTenant($tenant)` for multi-tenant isolation, `@safeHtml(...)` for user HTML, `SafeHttpClient` for outbound HTTP, and `SecretScrubber` for diagnostics/AI context.
 - **Prefer live MCP inspection:** When `.mcp.json` / `php vendor/bin/kongo mcp` is available, call `kongono_graph`, `kongono_routes`, `kongono_openapi`, `kongono_audit`, `kongono_migrate_lint`, or `kongono_test_route` instead of guessing app structure.
+- **Bundled Workflow Skills:** Install Kongono's 5 progressive-disclosure `SKILL.md` workflow recipes (`kongono-feature-builder`, `kongono-live-and-bridge`, `kongono-auth-and-security`, `kongono-ai-and-rag`, `kongono-queues-and-ops`) into `.agents/skills/` and/or `.claude/skills/` via `php vendor/bin/kongo skills:install --target=both`.
 
 ## Complete LLM Reference
 

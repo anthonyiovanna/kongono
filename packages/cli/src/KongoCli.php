@@ -20,6 +20,7 @@ use Kongono\Cli\Database\MigrationLinter;
 use Kongono\Cli\Deploy\DeployBlueprintGenerator;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Cli\Sdk\SdkGenerator;
+use Kongono\Cli\Skills\SkillsInstaller;
 use Kongono\Cli\Ui\UiComponentGenerator;
 use Kongono\Core\Config;
 use Kongono\Core\CoreException;
@@ -73,6 +74,7 @@ final readonly class KongoCli
                 'bridge:init' => $this->cmdBridgeInit($appRoot, $rest, $options),
                 'bridge:types' => $this->cmdBridgeTypes($appRoot, $options),
                 'ui:add' => $this->cmdUiAdd($appRoot, $rest, $options),
+                'skills:install' => $this->cmdSkillsInstall($appRoot, $options),
                 'mcp' => $this->cmdMcp($appRoot),
                 'audit' => $this->cmdAudit($appRoot, $options),
                 'eval' => $this->cmdEval($appRoot, $options),
@@ -1687,6 +1689,35 @@ final readonly class KongoCli
     }
 
     /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdSkillsInstall(string $appRoot, array $options): array
+    {
+        $targetOpt = $options['target'] ?? 'agents';
+        $target = is_string($targetOpt) ? $targetOpt : 'agents';
+        $force = isset($options['force']);
+
+        $result = (new SkillsInstaller())->install($appRoot, $target, $force);
+
+        $lines = [sprintf('Kongono AI agent skills (%s):', $target)];
+        foreach ($result['installed'] as $path) {
+            $lines[] = '  [INSTALLED] ' . $path;
+        }
+        foreach ($result['updated'] as $path) {
+            $lines[] = '  [UPDATED]   ' . $path;
+        }
+        foreach ($result['unchanged'] as $path) {
+            $lines[] = '  [UNCHANGED] ' . $path;
+        }
+        foreach ($result['skipped'] as $path) {
+            $lines[] = '  [SKIPPED]   ' . $path . ' (exists; pass --force to overwrite)';
+        }
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
      * @param list<string> $argv
      * @return array{positional: list<string>, options: array<string, string|true>}
      */
@@ -1703,7 +1734,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -1802,6 +1833,7 @@ Core Commands:
   bridge:init <react|vue|svelte> [--app=path] [--force] Scaffold first-class React 19, Vue 3, or Svelte 5 Bridge SPA
   bridge:types [--app=path] [--out=file]                Generate strict TypeScript interfaces from PHP 8.5 DTOs & enums
   ui:add <modal|drawer|dropdown|tabs|toast|datatable|kanban|all> Add zero-npm accessible Kongono UI components
+  skills:install [--target=agents|claude|both] [--force] Install bundled Kongono AI agent SKILL.md recipes
   mcp [--app=path]                                      Run Model Context Protocol (MCP) JSON-RPC stdio server
   check                                                 Run full CS + PHPStan + PHPUnit suite
   test                                                  Run PHPUnit test suite
