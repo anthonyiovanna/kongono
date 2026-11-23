@@ -11,6 +11,7 @@ description: >-
 # Kongono Auth & Security Workflow
 
 Every Kongono security primitive is **fail-closed by default** and free of global static state. Never introduce `Auth::user()`, `$_SESSION`, or raw `curl_exec()` calls.
+To scaffold an editable zero-bloat auth starter kit immediately, run `php vendor/bin/kongo auth:init --mode=both` (or `web` / `api`), or start a new project with `kongo new my-app --starter=api` or `--starter=saas`.
 
 ## Step 1: Choose the Right Authentication Layer (`Kongono\Security`)
 
@@ -30,7 +31,7 @@ Every Kongono security primitive is **fail-closed by default** and free of globa
 ## Step 2: Enforce Fail-Closed Authorization (`Gate` & `#[Can]`)
 
 1. Register abilities and policies on `Kongono\Security\Gate`:
-   - `$gate->allow('posts.write', fn(Principal $p, ?object $resource): bool => ...)`
+   - `$gate->define('posts.write', fn(Principal $p, mixed $resource = null): bool => ...)`
    - `$gate->policy(Post::class, PostPolicy::class)`
    - `$gate->before(fn(Principal $p, string $ability): ?bool => ...)` (return `null` to defer to normal checks; `true`/`false` short-circuits).
 2. Attach `AuthorizeMiddleware` and decorate routes with `#[Can('posts.write')]`, or check explicitly with `$gate->allows(...)` / `$gate->denies(...)`.

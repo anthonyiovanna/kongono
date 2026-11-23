@@ -34,7 +34,8 @@ description: >-
 
 - **Fan-out / Fan-in Batches:** Use `Kongono\Jobs\Batch\BatchDispatcher` + `JobBatch` (`CacheBatchStore` in production, `MemoryBatchStore` in tests) with `then`, `catch`, and `finally` callbacks.
 - **Durable Workflows:** Use `Kongono\Jobs\Workflow\WorkflowEngine` + `WorkflowContext` (`CacheWorkflowStore` / `MemoryWorkflowStore`) for step memoization (`$wf->step()`), multi-day `sleep()`, and external approval signals (`waitForEvent()` + `signal()`).
-- **Cron Scheduling:** Register recurring tasks with `Kongono\Jobs\Scheduler\Scheduler` and run `php vendor/bin/kongo schedule:run` every minute.
+- **Cron Scheduling:** Register recurring tasks with `Kongono\Jobs\Scheduler\Scheduler` (pass an `AtomicCacheInterface` such as `RedisCache` and chain `->withoutOverlapping()` / `->onOneServer()` for multi-node deployments) and run `php vendor/bin/kongo schedule:run` every minute.
+- **Read/Write Database Scaling:** Combine `Kongono\Database\ConnectionManager` with `ReadWriteConnection` (call `$dbManager->resetSticky()` per persistent-worker request scope).
 
 ## Step 3: Streaming Storage & Safe Uploads (`Kongono\Storage`)
 

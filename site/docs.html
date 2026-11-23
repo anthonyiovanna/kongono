@@ -368,7 +368,8 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app</code></pre>
           <table>
             <thead><tr><th>Command</th><th>Description</th></tr></thead>
             <tbody>
-              <tr><td><code>kongo new &lt;dir&gt;</code></td><td>Scaffold a new Kongono app (FrankenPHP + Dev Studio + OpenAPI ready)</td></tr>
+              <tr><td><code>kongo new &lt;dir&gt; [--starter=minimal|api|saas]</code></td><td>Scaffold a new Kongono app (minimal, Bearer PAT + <code>/_ops</code> API, or full Live 2.5 + SessionAuth + PAT SaaS starter)</td></tr>
+              <tr><td><code>kongo auth:init [--mode=web|api|both] [--force]</code></td><td>Scaffold zero-bloat SessionAuth + LoginThrottler + CSRF + Personal Access Token auth starter kit</td></tr>
               <tr><td><code>kongo serve [--port=8000]</code></td><td>Start local PHP 8.5 dev server</td></tr>
               <tr><td><code>kongo tinker [--eval="expr"]</code></td><td>Interactive PHP 8.5 REPL (or one-liner eval) with live <code>$app</code> &amp; <code>$container</code></td></tr>
               <tr><td><code>kongo doctor</code> / <code>env:check</code></td><td>Verify PHP 8.5.13+, extensions, env keys, AI provider config &amp; live app graph</td></tr>
@@ -385,7 +386,7 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app</code></pre>
               <tr><td><code>kongo migrate [--pretend]</code> / <code>rollback</code> / <code>status</code> / <code>lint</code> / <code>fresh</code> / <code>db:seed</code></td><td>Dry-run, lint, apply, roll back, reset (prod-guarded), and seed databases</td></tr>
               <tr><td><code>kongo work [--daemon]</code> / <code>schedule:run</code></td><td>Run persistent priority queue workers or execute due cron tasks</td></tr>
               <tr><td><code>kongo queue:failed</code> / <code>queue:retry</code> / <code>queue:flush</code></td><td>Inspect, retry (single or <code>--all</code>), and clear dead-letter failed jobs</td></tr>
-              <tr><td><code>kongo make:controller|dto|migration|seeder|test</code></td><td>Deterministic zero-AI PHP 8.5 code generators</td></tr>
+              <tr><td><code>kongo make:controller|dto|migration|seeder|test|job|policy|middleware|factory|rule|mail|resource</code></td><td>Deterministic zero-AI PHP 8.5 single-file and full vertical-slice CRUD resource generators</td></tr>
               <tr><td><code>kongo oshie</code> / <code>chie</code> / <code>hantei</code></td><td>Built-in AI tutor, project-aware builder, and debugger/test generator</td></tr>
               <tr><td><code>kongo check</code> / <code>test</code></td><td>Run full CS + PHPStan Level 9 Strict + PHPUnit 13 quality suite</td></tr>
             </tbody>

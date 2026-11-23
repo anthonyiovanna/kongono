@@ -7,6 +7,7 @@ namespace Kongono\Database\Tests;
 use Closure;
 use Kongono\Database\BatchLoader;
 use Kongono\Database\ConnectionInterface;
+use Kongono\Database\ConnectionManager;
 use Kongono\Database\DatabaseException;
 use Kongono\Database\Dialect;
 use Kongono\Database\MigrationInterface;
@@ -16,6 +17,7 @@ use Kongono\Database\PdoConnection;
 use Kongono\Database\PretendConnection;
 use Kongono\Database\QueryBuilder;
 use Kongono\Database\QueryGuard;
+use Kongono\Database\ReadWriteConnection;
 use Kongono\Database\Repository;
 use Kongono\Database\RowLevelSecurity;
 use Kongono\Database\Schema\Blueprint;
@@ -1599,5 +1601,115 @@ final class QueryBuilderTest extends TestCase
 
         $this->expectException(DatabaseException::class);
         new PostgresFullTextSearch($pgSearchConn, 'docs_search', "english'; DROP TABLE users;--");
+    }
+
+    public function testReadWriteConnectionAndConnectionManagerRoutingAndStickyReset(): void
+    {
+        $makeSpy = static function (string $label, array &$log): ConnectionInterface {
+            return new class ($label, $log) implements ConnectionInterface {
+                /** @param list<string> $log */
+                public function __construct(
+                    private readonly string $label,
+                    public array &$log,
+                ) {}
+
+                public function dialect(): Dialect
+                {
+                    return Dialect::Postgres;
+                }
+
+                public function query(string $sql, array $bindings = []): array
+                {
+                    $this->log[] = $this->label . ':query:' . $sql;
+
+                    return [['source' => $this->label]];
+                }
+
+                public function first(string $sql, array $bindings = []): ?array
+                {
+                    $this->log[] = $this->label . ':first:' . $sql;
+
+                    return ['source' => $this->label];
+                }
+
+                public function execute(string $sql, array $bindings = []): int
+                {
+                    $this->log[] = $this->label . ':exec:' . $sql;
+
+                    return 1;
+                }
+
+                public function table(string $table, ?string $alias = null): QueryBuilder
+                {
+                    return new QueryBuilder($table, Dialect::Postgres, $this, $alias);
+                }
+
+                public function transaction(Closure $callback): mixed
+                {
+                    $this->log[] = $this->label . ':tx:begin';
+                    $out = $callback($this);
+                    $this->log[] = $this->label . ':tx:commit';
+
+                    return $out;
+                }
+            };
+        };
+
+        $log = [];
+        $primary = $makeSpy('primary', $log);
+        $replica1 = $makeSpy('replica1', $log);
+        $replica2 = $makeSpy('replica2', $log);
+        $analytics = $makeSpy('analytics', $log);
+
+        $rw = new ReadWriteConnection($primary, [$replica1, $replica2], stickyAfterWrite: true);
+        self::assertSame(Dialect::Postgres, $rw->dialect());
+        self::assertSame($primary, $rw->writeConnection());
+        self::assertCount(2, $rw->readConnections());
+
+        // 1. Pure SELECTs round-robin across read replicas
+        self::assertSame('replica1', $rw->table('posts')->get()[0]['source']);
+        self::assertSame('replica2', $rw->query('/* comment */ SELECT id FROM posts')[0]['source']);
+        self::assertSame('replica1', $rw->first('WITH cte AS (SELECT 1) SELECT * FROM cte')['source'] ?? null);
+
+        // 2. Locking reads (FOR UPDATE) always route to primary WITHOUT flipping sticky
+        self::assertSame('primary', $rw->query('SELECT * FROM jobs FOR UPDATE SKIP LOCKED')[0]['source']);
+        self::assertFalse($rw->isSticky());
+
+        // 3. Mutating query (INSERT ... RETURNING) routes to primary AND sets sticky-after-write
+        self::assertSame('primary', $rw->query('INSERT INTO posts (title) VALUES (?) RETURNING id', ['hi'])[0]['source']);
+        self::assertTrue($rw->isSticky());
+
+        // Subsequent SELECTs stay pinned to primary until resetSticky()
+        self::assertSame('primary', $rw->query('SELECT * FROM posts')[0]['source']);
+
+        // 4. ConnectionManager supports named connections, lazy closures, and cascades resetSticky()
+        $lazyCalls = 0;
+        $manager = (new ConnectionManager())
+            ->register('default', $rw)
+            ->register('analytics', static function () use (&$lazyCalls, $analytics): ConnectionInterface {
+                ++$lazyCalls;
+
+                return $analytics;
+            });
+
+        self::assertSame(['analytics', 'default'], $manager->names());
+        self::assertSame(0, $lazyCalls);
+        self::assertSame($analytics, $manager->connection('analytics'));
+        self::assertSame($analytics, $manager->connection('analytics'));
+        self::assertSame(1, $lazyCalls);
+        self::assertSame('analytics', $manager->table('events', 'analytics')->get()[0]['source']);
+
+        // Reset sticky at end of persistent-worker request -> reads return to replicas
+        $manager->resetSticky();
+        self::assertFalse($rw->isSticky());
+        self::assertSame('replica2', $rw->query('SELECT * FROM posts')[0]['source']);
+
+        // Transactions always run on primary and keep sticky enabled
+        $txSource = $rw->transaction(static fn(ConnectionInterface $tx): string => (string) ($tx->query('SELECT 1')[0]['source'] ?? ''));
+        self::assertSame('primary', $txSource);
+        self::assertTrue($rw->isSticky());
+
+        $this->expectException(DatabaseException::class);
+        $manager->connection('missing');
     }
 }

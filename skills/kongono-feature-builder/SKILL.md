@@ -15,6 +15,7 @@ Follow this workflow to ship a complete, idiomatic Kongono PHP 8.5 feature witho
 
 - If the `kongono` MCP server (`.mcp.json` / `kongo mcp`) is connected, call `kongono_graph`, `kongono_routes`, and `kongono_openapi` first.
 - Otherwise run `php vendor/bin/kongo routes --json` and inspect `app/bootstrap.php` to see registered services, middleware, and controllers.
+- Tip: Scaffold full CRUD slices in one command with `php vendor/bin/kongo make:resource <Name>`, or single files with `make:controller|dto|migration|seeder|test|job|policy|middleware|factory|rule|mail`.
 
 ## Step 2: Evolve the Schema Safely (When Persistence Changes)
 

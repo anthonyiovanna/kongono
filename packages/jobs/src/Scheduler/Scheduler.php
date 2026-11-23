@@ -7,15 +7,21 @@ namespace Kongono\Jobs\Scheduler;
 use Closure;
 use DateTimeImmutable;
 use DateTimeInterface;
+use Kongono\Core\Cache\AtomicCacheInterface;
 use Kongono\Core\Diagnostics\SecretScrubber;
+use Kongono\Jobs\JobException;
 use Kongono\Jobs\Queue;
 use Throwable;
 
-/** Deterministic, expressive recurring task scheduler (`kongo schedule:run`). */
+/** Deterministic, cluster-safe recurring task scheduler (`kongo schedule:run`). */
 final class Scheduler
 {
     /** @var list<ScheduledTask> */
     private array $tasks = [];
+
+    public function __construct(
+        private readonly ?AtomicCacheInterface $lockStore = null,
+    ) {}
 
     /** @param Closure(): void $callback */
     public function call(string $name, Closure $callback): ScheduledTask
@@ -57,23 +63,63 @@ final class Scheduler
 
     /**
      * Run all tasks due at $now and return a structured execution report.
+     * Tasks configured with `withoutOverlapping()` or `onOneServer()` require an `AtomicCacheInterface`.
      *
-     * @return array{ran: list<string>, failed: array<string, string>}
+     * @return array{ran: list<string>, skipped: list<string>, failed: array<string, string>}
      */
-    public function runDue(?DateTimeInterface $now = null): array
+    public function runDue(?DateTimeInterface $now = null, ?AtomicCacheInterface $lockStore = null): array
     {
+        $moment = $now ?? new DateTimeImmutable('now');
+        $store = $lockStore ?? $this->lockStore;
         $ran = [];
+        $skipped = [];
         $failed = [];
 
-        foreach ($this->dueTasks($now) as $task) {
+        foreach ($this->dueTasks($moment) as $task) {
+            $needsLock = $task->preventsOverlap() || $task->runsOnOneServer();
+            if ($needsLock && null === $store) {
+                throw new JobException(sprintf(
+                    'Scheduled task "%s" requires an AtomicCacheInterface for withoutOverlapping()/onOneServer() locking.',
+                    $task->name,
+                ));
+            }
+
+            $taskHash = hash('sha256', $task->name);
+            $ownerToken = bin2hex(random_bytes(16));
+            $overlapKey = null;
+
+            if ($task->preventsOverlap() && null !== $store) {
+                $candidateOverlapKey = 'kongo:schedule:overlap:' . $taskHash;
+                if (!$store->add($candidateOverlapKey, $ownerToken, $task->overlapTtlSeconds())) {
+                    $skipped[] = $task->name;
+                    continue;
+                }
+                $overlapKey = $candidateOverlapKey;
+            }
+
+            if ($task->runsOnOneServer() && null !== $store) {
+                $serverKey = 'kongo:schedule:oneserver:' . $moment->format('YmdHi') . ':' . $taskHash;
+                if (!$store->add($serverKey, $ownerToken, $task->singleServerTtlSeconds())) {
+                    if (null !== $overlapKey && $store->get($overlapKey) === $ownerToken) {
+                        $store->delete($overlapKey);
+                    }
+                    $skipped[] = $task->name;
+                    continue;
+                }
+            }
+
             try {
                 ($task->callback)();
                 $ran[] = $task->name;
             } catch (Throwable $e) {
                 $failed[$task->name] = SecretScrubber::scrub($e->getMessage());
+            } finally {
+                if (null !== $overlapKey && $store->get($overlapKey) === $ownerToken) {
+                    $store->delete($overlapKey);
+                }
             }
         }
 
-        return ['ran' => $ran, 'failed' => $failed];
+        return ['ran' => $ran, 'skipped' => $skipped, 'failed' => $failed];
     }
 }

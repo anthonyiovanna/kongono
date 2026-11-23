@@ -1429,6 +1429,188 @@ PHP;
         }
     }
 
+    public function testMakeGeneratorsResourceAuthInitAndStarterPresets(): void
+    {
+        $repoRoot = dirname(__DIR__, 3);
+        $cli = new KongoCli($repoRoot);
+        $baseTmp = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-scaffold-suite-' . bin2hex(random_bytes(5));
+        mkdir($baseTmp, 0o775, true);
+
+        try {
+            // 1. Scaffold minimal app and exercise all 6 new make:* generators + make:resource + auth:init
+            $minDir = $baseTmp . DIRECTORY_SEPARATOR . 'minimal-app';
+            [$newCode] = $cli->run(['new', $minDir, '--name=Minimal Demo']);
+            self::assertSame(0, $newCode);
+
+            foreach ([
+                ['make:job', 'SendInvoice', 'src/Jobs/SendInvoiceJob.php'],
+                ['make:policy', 'Invoice', 'src/Security/InvoicePolicy.php'],
+                ['make:middleware', 'AuditTrace', 'src/Http/Middleware/AuditTraceMiddleware.php'],
+                ['make:factory', 'Invoice', 'src/Testing/InvoiceFactory.php'],
+                ['make:rule', 'SlugFormat', 'src/Validation/SlugFormat.php'],
+            ] as [$cmd, $arg, $expectedPath]) {
+                [$c, $o] = $cli->run([$cmd, $arg, '--app=' . $minDir]);
+                self::assertSame(0, $c, $o);
+                self::assertFileExists($minDir . '/' . $expectedPath);
+            }
+
+            [$mailCode, $mailOut] = $cli->run(['make:mail', 'Welcome', '--app=' . $minDir]);
+            self::assertSame(0, $mailCode, $mailOut);
+            self::assertFileExists($minDir . '/src/Mail/WelcomeMail.php');
+            self::assertFileExists($minDir . '/views/mail/welcome.kgn.html');
+
+            [$resCode, $resOut] = $cli->run(['make:resource', 'Category', '--app=' . $minDir]);
+            self::assertSame(0, $resCode, $resOut);
+            self::assertFileExists($minDir . '/src/Http/CategoryController.php');
+            self::assertFileExists($minDir . '/src/Repository/CategoryRepository.php');
+            self::assertFileExists($minDir . '/src/Http/Dto/CategoryDto.php');
+            self::assertFileExists($minDir . '/src/Http/Dto/CreateCategoryInput.php');
+            self::assertFileExists($minDir . '/src/Http/Dto/UpdateCategoryInput.php');
+            self::assertFileExists($minDir . '/tests/CategoryResourceTest.php');
+            self::assertStringContainsString('categories', (string) file_get_contents($minDir . '/src/Repository/CategoryRepository.php'));
+
+            // auth:init skip/force lifecycle
+            [$a1Code, $a1Out] = $cli->run(['auth:init', '--mode=web', '--app=' . $minDir]);
+            self::assertSame(0, $a1Code, $a1Out);
+            self::assertFileExists($minDir . '/src/Http/WebAuthController.php');
+            self::assertFileDoesNotExist($minDir . '/src/Http/ApiAuthController.php');
+
+            [$a2Code, $a2Out] = $cli->run(['auth:init', '--mode=both', '--app=' . $minDir]);
+            self::assertSame(0, $a2Code, $a2Out);
+            self::assertStringContainsString('[SKIPPED]', $a2Out);
+            self::assertFileExists($minDir . '/src/Http/ApiAuthController.php');
+
+            [$a3Code, $a3Out] = $cli->run(['auth:init', '--mode=both', '--force', '--app=' . $minDir]);
+            self::assertSame(0, $a3Code, $a3Out);
+            self::assertStringContainsString('[OVERWRITTEN]', $a3Out);
+
+            [$aBadCode] = $cli->run(['auth:init', '--mode=invalid', '--app=' . $minDir]);
+            self::assertSame(1, $aBadCode);
+
+            // Lint every generated PHP file in minimal-app
+            $this->assertDirectoryPhpSyntaxValid($minDir);
+
+            // 2. Scaffold --starter=api and boot it end-to-end in an isolated subprocess
+            $apiDir = $baseTmp . DIRECTORY_SEPARATOR . 'api-app';
+            [$apiCode, $apiOut] = $cli->run(['new', $apiDir, '--name=Pulse API', '--starter=api']);
+            self::assertSame(0, $apiCode, $apiOut);
+            self::assertFileExists($apiDir . '/src/Http/ApiAuthController.php');
+            self::assertFileDoesNotExist($apiDir . '/src/Http/WebAuthController.php');
+            $this->assertDirectoryPhpSyntaxValid($apiDir);
+            $this->assertStarterBootsAndPassesFlow($repoRoot, $apiDir, 'api');
+
+            // 3. Scaffold --starter=saas and boot it end-to-end in an isolated subprocess
+            $saasDir = $baseTmp . DIRECTORY_SEPARATOR . 'saas-app';
+            [$saasCode, $saasOut] = $cli->run(['new', $saasDir, '--name=Kanso Cloud', '--starter=saas']);
+            self::assertSame(0, $saasCode, $saasOut);
+            self::assertFileExists($saasDir . '/src/Http/WebAuthController.php');
+            self::assertFileExists($saasDir . '/src/Http/ApiAuthController.php');
+            self::assertFileExists($saasDir . '/.agents/skills/kongono-feature-builder/SKILL.md');
+            $this->assertDirectoryPhpSyntaxValid($saasDir);
+            $this->assertStarterBootsAndPassesFlow($repoRoot, $saasDir, 'saas');
+
+            // 4. Reject unknown starter preset
+            [$badStarterCode] = $cli->run(['new', $baseTmp . DIRECTORY_SEPARATOR . 'bad-app', '--starter=nope']);
+            self::assertSame(1, $badStarterCode);
+        } finally {
+            $this->removeDir($baseTmp);
+        }
+    }
+
+    private function assertDirectoryPhpSyntaxValid(string $dir): void
+    {
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS));
+        foreach ($it as $file) {
+            if (!$file instanceof \SplFileInfo || 'php' !== $file->getExtension()) {
+                continue;
+            }
+            $cmd = [PHP_BINARY, '-l', $file->getPathname()];
+            $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+            self::assertIsResource($proc);
+            $stdout = stream_get_contents($pipes[1]);
+            $stderr = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $exit = proc_close($proc);
+            self::assertSame(0, $exit, sprintf('Syntax error in %s: %s %s', $file->getPathname(), (string) $stdout, (string) $stderr));
+        }
+    }
+
+    private function assertStarterBootsAndPassesFlow(string $repoRoot, string $appDir, string $preset): void
+    {
+        $script = <<<'PHP'
+<?php
+declare(strict_types=1);
+$repoRoot = $argv[1];
+$appDir = $argv[2];
+$preset = $argv[3];
+
+require $repoRoot . '/vendor/autoload.php';
+spl_autoload_register(static function (string $class) use ($appDir): void {
+    if (!str_starts_with($class, 'App\\')) {
+        return;
+    }
+    $rel = str_replace('\\', DIRECTORY_SEPARATOR, substr($class, 4)) . '.php';
+    $path = $appDir . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . $rel;
+    if (is_file($path)) {
+        require $path;
+    }
+});
+
+/** @var Kongono\Http\App $app */
+$app = require $appDir . '/app/bootstrap.php';
+$client = new Kongono\Http\Testing\TestClient($app);
+
+$client->get('/health')->assertOk();
+$client->get('/api/auth/me')->assertUnauthorized();
+$client->get('/_ops')->assertUnauthorized();
+
+$reg = $client->postJson('/api/auth/register', [
+    'name' => 'Ada Lovelace',
+    'email' => 'ada@example.test',
+    'password' => 'correct-horse-battery-staple',
+    'passwordConfirmation' => 'correct-horse-battery-staple',
+])->assertCreated()->json();
+
+$token = (string) ($reg['token'] ?? '');
+$tokenId = (string) ($reg['token_id'] ?? '');
+if (!str_starts_with($token, 'kgn_pat_')) {
+    fwrite(STDERR, "Expected kgn_pat_ token\n");
+    exit(2);
+}
+
+$client->withBearerToken($token)->get('/api/auth/me')->assertOk()->assertJsonPath('attributes.email', 'ada@example.test');
+$client->withBearerToken($token)->delete('/api/auth/tokens/' . $tokenId)->assertOk();
+$client->withBearerToken($token)->get('/api/auth/me')->assertUnauthorized();
+
+$opsAdmin = new Kongono\Security\Principal('ops-1', Kongono\Security\PrincipalKind::Human, ['ops.view', 'ops.manage']);
+$client->actingAs($opsAdmin)->get('/_ops')->assertOk();
+
+if ('saas' === $preset) {
+    $client->get('/')->assertOk()->assertSee('Kongono');
+    $client->get('/login')->assertOk()->assertSee('Sign In');
+    $client->get('/register')->assertOk()->assertSee('Create Account');
+    $client->get('/dashboard')->assertUnauthorized();
+}
+
+echo "STARTER_OK:" . $preset . "\n";
+PHP;
+
+        $probeFile = $appDir . DIRECTORY_SEPARATOR . '_probe.php';
+        file_put_contents($probeFile, $script);
+        $proc = proc_open([PHP_BINARY, $probeFile, $repoRoot, $appDir, $preset], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        self::assertIsResource($proc);
+        $stdout = (string) stream_get_contents($pipes[1]);
+        $stderr = (string) stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exit = proc_close($proc);
+        @unlink($probeFile);
+
+        self::assertSame(0, $exit, sprintf('Starter "%s" probe failed: %s %s', $preset, $stdout, $stderr));
+        self::assertStringContainsString('STARTER_OK:' . $preset, $stdout);
+    }
+
     private function exportPhpString(string $value): string
     {
         return var_export($value, true);

@@ -4,14 +4,22 @@ declare(strict_types=1);
 
 namespace Kongono\Cli;
 
+use Kongono\Cli\Auth\AuthScaffolder;
+use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Skills\SkillsInstaller;
 use Kongono\Core\CoreException;
 
-/** Scaffolds a fresh, runnable Kongono v1 application via `kongo new <dir>`. */
+/** Scaffolds a fresh, runnable Kongono v1 application via `kongo new <dir> [--starter=minimal|api|saas]`. */
 final class AppScaffolder
 {
     /** @return list<string> Relative paths created */
-    public function scaffold(string $targetDir, string $appName = 'My Kongono App'): array
+    public function scaffold(string $targetDir, string $appName = 'My Kongono App', string $starter = 'minimal'): array
     {
+        $normalizedStarter = strtolower(trim($starter));
+        if (!in_array($normalizedStarter, ['minimal', 'api', 'saas'], true)) {
+            throw new CoreException(sprintf('Unsupported starter preset "%s". Use minimal, api, or saas.', $starter));
+        }
+
         if (is_dir($targetDir)) {
             $entries = scandir($targetDir);
             if (is_array($entries) && count(array_diff($entries, ['.', '..'])) > 0) {
@@ -31,6 +39,13 @@ final class AppScaffolder
         if ('' === $slugName) {
             $slugName = 'kongono-app';
         }
+        $bootstrapPhp = match ($normalizedStarter) {
+            'api' => self::apiBootstrap($exportedName),
+            'saas' => self::saasBootstrap($exportedName),
+            default => self::minimalBootstrap($exportedName),
+        };
+        $homeView = 'saas' === $normalizedStarter ? self::saasHomeView() : self::minimalHomeView();
+
         $files = [
             'composer.json' => json_encode([
                 'name' => 'app/' . $slugName,
@@ -44,42 +59,7 @@ final class AppScaffolder
                 ],
             ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
             '.env.example' => "APP_ENV=local\nAPP_DEBUG=false\n# Run `php vendor/bin/kongo key:generate` and place the generated key in your untracked .env file:\nAPP_KEY=REPLACE_WITH_kongo_key_generate\n# Set any one AI provider for Oshie, Chie & Hantei:\n# OPENAI_API_KEY=\n# ANTHROPIC_API_KEY=\n# GEMINI_API_KEY=\n# GROQ_API_KEY=\n# OLLAMA_HOST=http://127.0.0.1:11434\n",
-            'app/bootstrap.php' => <<<PHP
-<?php
-
-declare(strict_types=1);
-
-use App\Http\HomeController;
-use Kongono\Core\Config;
-use Kongono\Core\EnvLoader;
-use Kongono\Core\Health\HealthCheck;
-use Kongono\Http\App;
-use Kongono\Http\Dev\DevDashboardMiddleware;
-use Kongono\Http\Dev\DevInspector;
-use Kongono\Security\Middleware\SecurityHeadersMiddleware;
-
-\$baseDir = dirname(__DIR__);
-EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
-
-\$debug = filter_var(Config::env('APP_DEBUG') ?? 'false', FILTER_VALIDATE_BOOL);
-\$inspector = new DevInspector();
-\$health = (new HealthCheck())->check('runtime', static fn(): bool => true);
-
-\$app = App::create(\$baseDir, name: {$exportedName})
-    ->config(['app' => ['debug' => \$debug]])
-    ->views(autoReload: \$debug)
-    ->instance(HealthCheck::class, \$health)
-    ->instance(DevInspector::class, \$inspector)
-    ->controller(HomeController::class);
-
-\$app->middleware(
-    new DevDashboardMiddleware(\$app, \$inspector),
-    new SecurityHeadersMiddleware(),
-);
-
-return \$app;
-
-PHP,
+            'app/bootstrap.php' => $bootstrapPhp,
             'public/index.php' => <<<'PHP'
 <?php
 
@@ -170,21 +150,7 @@ final readonly class HomeController
 }
 
 PHP,
-            'views/home.kgn.html' => <<<'HTML'
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>{{ $title }}</title>
-</head>
-<body>
-  <h1>{{ $title }}</h1>
-  <p>Running on Kongono Framework v1 (PHP {{ $phpVersion }}).</p>
-  <p><a href="/docs">API Explorer (/docs)</a> &middot; <a href="/_kongono">Dev Studio (/_kongono)</a> &middot; <a href="/health">Health</a></p>
-</body>
-</html>
-
-HTML,
+            'views/home.kgn.html' => $homeView,
             '.gitignore' => "/vendor/\n/var/\n.env\n",
             '.mcp.json' => json_encode([
                 'mcpServers' => [
@@ -211,7 +177,317 @@ HTML,
             $created[] = $relative;
         }
 
+        if ('api' === $normalizedStarter) {
+            $context = new ProjectContext($targetDir);
+            $authResult = (new AuthScaffolder())->scaffold($context, mode: 'api', force: true);
+            $created = [...$created, ...$authResult['created']];
+        } elseif ('saas' === $normalizedStarter) {
+            $context = new ProjectContext($targetDir);
+            $authResult = (new AuthScaffolder())->scaffold($context, mode: 'both', force: true);
+            $created = [...$created, ...$authResult['created']];
+
+            $skillsResult = (new SkillsInstaller())->install($targetDir, target: 'agents', force: true);
+            $created = [...$created, ...$skillsResult['installed']];
+        }
+
         return $created;
+    }
+
+    private static function minimalBootstrap(string $exportedName): string
+    {
+        return <<<PHP
+<?php
+
+declare(strict_types=1);
+
+use App\Http\HomeController;
+use Kongono\Core\Config;
+use Kongono\Core\EnvLoader;
+use Kongono\Core\Health\HealthCheck;
+use Kongono\Http\App;
+use Kongono\Http\Dev\DevDashboardMiddleware;
+use Kongono\Http\Dev\DevInspector;
+use Kongono\Security\Middleware\SecurityHeadersMiddleware;
+
+\$baseDir = dirname(__DIR__);
+EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
+
+\$debug = filter_var(Config::env('APP_DEBUG') ?? 'false', FILTER_VALIDATE_BOOL);
+\$inspector = new DevInspector();
+\$health = (new HealthCheck())->check('runtime', static fn(): bool => true);
+
+\$app = App::create(\$baseDir, name: {$exportedName})
+    ->config(['app' => ['debug' => \$debug]])
+    ->views(autoReload: \$debug)
+    ->instance(HealthCheck::class, \$health)
+    ->instance(DevInspector::class, \$inspector)
+    ->controller(HomeController::class);
+
+\$app->middleware(
+    new DevDashboardMiddleware(\$app, \$inspector),
+    new SecurityHeadersMiddleware(),
+);
+
+return \$app;
+
+PHP;
+    }
+
+    private static function apiBootstrap(string $exportedName): string
+    {
+        return <<<PHP
+<?php
+
+declare(strict_types=1);
+
+use App\Http\ApiAuthController;
+use App\Http\HomeController;
+use App\Security\MemoryUserStore;
+use App\Security\UserStoreInterface;
+use Kongono\Core\Cache\AtomicCacheInterface;
+use Kongono\Core\Cache\CacheInterface;
+use Kongono\Core\Cache\MemoryCache;
+use Kongono\Core\Config;
+use Kongono\Core\EnvLoader;
+use Kongono\Core\Health\HealthCheck;
+use Kongono\Core\Telemetry\Metrics;
+use Kongono\Http\App;
+use Kongono\Http\Dev\DevDashboardMiddleware;
+use Kongono\Http\Dev\DevInspector;
+use Kongono\Http\Ops\OpsDashboardMiddleware;
+use Kongono\Jobs\MemoryQueueDriver;
+use Kongono\Jobs\QueueDriverInterface;
+use Kongono\Security\Auth\LoginThrottler;
+use Kongono\Security\Auth\MemoryPersonalAccessTokenStore;
+use Kongono\Security\Auth\PersonalAccessTokenStoreInterface;
+use Kongono\Security\Gate;
+use Kongono\Security\Middleware\BearerAuthMiddleware;
+use Kongono\Security\Middleware\RateLimitMiddleware;
+use Kongono\Security\Middleware\SecurityHeadersMiddleware;
+use Kongono\Security\PasswordHasher;
+use Kongono\Security\Principal;
+
+\$baseDir = dirname(__DIR__);
+EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
+
+\$debug = filter_var(Config::env('APP_DEBUG') ?? 'false', FILTER_VALIDATE_BOOL);
+\$cache = new MemoryCache();
+\$queueDriver = new MemoryQueueDriver();
+\$metrics = new Metrics();
+\$inspector = new DevInspector();
+\$health = (new HealthCheck())->check('runtime', static fn(): bool => true);
+\$users = new MemoryUserStore();
+\$tokens = new MemoryPersonalAccessTokenStore();
+\$hasher = new PasswordHasher();
+\$throttler = new LoginThrottler(\$cache);
+\$gate = (new Gate())
+    ->define('ops.view', static fn(Principal \$p): bool => \$p->hasCapability('ops.view'))
+    ->define('ops.manage', static fn(Principal \$p): bool => \$p->hasCapability('ops.manage'));
+
+\$app = App::create(\$baseDir, name: {$exportedName})
+    ->config(['app' => ['debug' => \$debug]])
+    ->views(autoReload: \$debug)
+    ->instance(CacheInterface::class, \$cache)
+    ->instance(AtomicCacheInterface::class, \$cache)
+    ->instance(QueueDriverInterface::class, \$queueDriver)
+    ->instance(Metrics::class, \$metrics)
+    ->instance(HealthCheck::class, \$health)
+    ->instance(DevInspector::class, \$inspector)
+    ->instance(UserStoreInterface::class, \$users)
+    ->instance(PersonalAccessTokenStoreInterface::class, \$tokens)
+    ->instance(PasswordHasher::class, \$hasher)
+    ->instance(LoginThrottler::class, \$throttler)
+    ->instance(Gate::class, \$gate)
+    ->controller(HomeController::class)
+    ->controller(ApiAuthController::class);
+
+\$app->middleware(
+    new BearerAuthMiddleware(\$tokens->toBearerResolver(), required: false),
+    new RateLimitMiddleware(\$cache, maxRequests: 120, windowSeconds: 60),
+    new OpsDashboardMiddleware(
+        appName: {$exportedName},
+        queueDriver: \$queueDriver,
+        queues: ['default'],
+        healthCheck: \$health,
+        metrics: \$metrics,
+        inspector: \$inspector,
+        gate: \$gate,
+    ),
+    new DevDashboardMiddleware(\$app, \$inspector),
+    new SecurityHeadersMiddleware(),
+);
+
+return \$app;
+
+PHP;
+    }
+
+    private static function saasBootstrap(string $exportedName): string
+    {
+        return <<<PHP
+<?php
+
+declare(strict_types=1);
+
+use App\Http\ApiAuthController;
+use App\Http\HomeController;
+use App\Http\WebAuthController;
+use App\Security\MemoryUserStore;
+use App\Security\UserStoreInterface;
+use Kongono\Core\Cache\AtomicCacheInterface;
+use Kongono\Core\Cache\CacheInterface;
+use Kongono\Core\Cache\MemoryCache;
+use Kongono\Core\Config;
+use Kongono\Core\EnvLoader;
+use Kongono\Core\Health\HealthCheck;
+use Kongono\Core\Telemetry\Metrics;
+use Kongono\Http\App;
+use Kongono\Http\Dev\DevDashboardMiddleware;
+use Kongono\Http\Dev\DevInspector;
+use Kongono\Http\Live\LiveMiddleware;
+use Kongono\Http\Ops\OpsDashboardMiddleware;
+use Kongono\Http\Session\CacheSessionStore;
+use Kongono\Http\Session\Session;
+use Kongono\Http\Session\SessionMiddleware;
+use Kongono\Jobs\MemoryQueueDriver;
+use Kongono\Jobs\QueueDriverInterface;
+use Kongono\Security\Auth\LoginThrottler;
+use Kongono\Security\Auth\MemoryPersonalAccessTokenStore;
+use Kongono\Security\Auth\PersonalAccessTokenStoreInterface;
+use Kongono\Security\Auth\SessionAuth;
+use Kongono\Security\Gate;
+use Kongono\Security\Middleware\BearerAuthMiddleware;
+use Kongono\Security\Middleware\CsrfMiddleware;
+use Kongono\Security\Middleware\SecurityHeadersMiddleware;
+use Kongono\Security\Middleware\SessionAuthMiddleware;
+use Kongono\Security\PasswordHasher;
+use Kongono\Security\Principal;
+use Kongono\Security\TokenSigner;
+use Psr\Http\Message\ServerRequestInterface;
+
+\$baseDir = dirname(__DIR__);
+EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
+
+\$debug = filter_var(Config::env('APP_DEBUG') ?? 'false', FILTER_VALIDATE_BOOL);
+\$secureCookies = filter_var(Config::env('SESSION_SECURE') ?? 'false', FILTER_VALIDATE_BOOL);
+\$appKey = Config::env('APP_KEY');
+\$signingKey = (is_string(\$appKey) && strlen(\$appKey) >= 32 && !str_starts_with(\$appKey, 'REPLACE_WITH_'))
+    ? \$appKey
+    : bin2hex(random_bytes(32));
+
+\$cache = new MemoryCache();
+\$sessionStore = new CacheSessionStore(\$cache);
+\$queueDriver = new MemoryQueueDriver();
+\$metrics = new Metrics();
+\$inspector = new DevInspector();
+\$health = (new HealthCheck())->check('runtime', static fn(): bool => true);
+\$signer = new TokenSigner(\$signingKey);
+\$users = new MemoryUserStore();
+\$tokens = new MemoryPersonalAccessTokenStore();
+\$hasher = new PasswordHasher();
+\$sessionAuth = new SessionAuth();
+\$throttler = new LoginThrottler(\$cache);
+\$gate = (new Gate())
+    ->define('ops.view', static fn(Principal \$p): bool => \$p->hasCapability('ops.view'))
+    ->define('ops.manage', static fn(Principal \$p): bool => \$p->hasCapability('ops.manage'));
+
+\$app = App::create(\$baseDir, name: {$exportedName})
+    ->config(['app' => ['debug' => \$debug]])
+    ->views(autoReload: \$debug)
+    ->instance(CacheInterface::class, \$cache)
+    ->instance(AtomicCacheInterface::class, \$cache)
+    ->instance(QueueDriverInterface::class, \$queueDriver)
+    ->instance(Metrics::class, \$metrics)
+    ->instance(HealthCheck::class, \$health)
+    ->instance(DevInspector::class, \$inspector)
+    ->instance(TokenSigner::class, \$signer)
+    ->instance(UserStoreInterface::class, \$users)
+    ->instance(PersonalAccessTokenStoreInterface::class, \$tokens)
+    ->instance(PasswordHasher::class, \$hasher)
+    ->instance(SessionAuth::class, \$sessionAuth)
+    ->instance(LoginThrottler::class, \$throttler)
+    ->instance(Gate::class, \$gate)
+    ->controller(HomeController::class)
+    ->controller(WebAuthController::class)
+    ->controller(ApiAuthController::class);
+
+\$app->middleware(
+    new SessionMiddleware(\$sessionStore, secure: \$secureCookies),
+    new SessionAuthMiddleware(auth: \$sessionAuth),
+    new BearerAuthMiddleware(\$tokens->toBearerResolver(), required: false),
+    new CsrfMiddleware(\$signer, exemptPrefixes: ['/api/']),
+    new LiveMiddleware(),
+    new OpsDashboardMiddleware(
+        appName: {$exportedName},
+        queueDriver: \$queueDriver,
+        queues: ['default'],
+        healthCheck: \$health,
+        metrics: \$metrics,
+        inspector: \$inspector,
+        gate: \$gate,
+        csrfTokenProvider: static function (ServerRequestInterface \$req) use (\$signer): ?string {
+            \$session = \$req->getAttribute(Session::class);
+
+            return \$session instanceof Session ? \$signer->generateCsrfToken(\$session->id()) : null;
+        },
+    ),
+    new DevDashboardMiddleware(\$app, \$inspector),
+    new SecurityHeadersMiddleware(),
+);
+
+return \$app;
+
+PHP;
+    }
+
+    private static function minimalHomeView(): string
+    {
+        return <<<'HTML'
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ $title }}</title>
+</head>
+<body>
+  <h1>{{ $title }}</h1>
+  <p>Running on Kongono Framework v1 (PHP {{ $phpVersion }}).</p>
+  <p><a href="/docs">API Explorer (/docs)</a> &middot; <a href="/_kongono">Dev Studio (/_kongono)</a> &middot; <a href="/health">Health</a></p>
+</body>
+</html>
+
+HTML;
+    }
+
+    private static function saasHomeView(): string
+    {
+        return <<<'HTML'
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ $title }}</title>
+  @liveScript
+</head>
+<body>
+  <main style="max-width:720px;margin:3rem auto;font-family:system-ui,sans-serif;">
+    <h1>{{ $title }}</h1>
+    <p>Running on Kongono Framework v1 SaaS Starter (Live 2.5 + SessionAuth + PATs + /_ops, PHP {{ $phpVersion }}).</p>
+    <p>
+      <a href="/register">Create Account</a> &middot;
+      <a href="/login">Sign In</a> &middot;
+      <a href="/dashboard">Dashboard</a> &middot;
+      <a href="/_ops">Operations (/_ops)</a> &middot;
+      <a href="/docs">API Explorer (/docs)</a> &middot;
+      <a href="/_kongono">Dev Studio (/_kongono)</a> &middot;
+      <a href="/health">Health</a>
+    </p>
+  </main>
+</body>
+</html>
+
+HTML;
     }
 
     private static function agentsGuide(string $appName): string

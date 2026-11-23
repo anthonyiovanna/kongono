@@ -9,6 +9,7 @@ use Kongono\Ai\AiException;
 use Kongono\Ai\Eval\EvalCase;
 use Kongono\Ai\Eval\EvalRunner;
 use Kongono\Cli\Audit\SecurityAuditor;
+use Kongono\Cli\Auth\AuthScaffolder;
 use Kongono\Cli\Bridge\BridgeScaffolder;
 use Kongono\Cli\Bridge\TypeScriptPropsGenerator;
 use Kongono\Cli\Companions\ChieBuilder;
@@ -22,6 +23,7 @@ use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Cli\Sdk\SdkGenerator;
 use Kongono\Cli\Skills\SkillsInstaller;
 use Kongono\Cli\Ui\UiComponentGenerator;
+use Kongono\Core\Cache\AtomicCacheInterface;
 use Kongono\Core\Config;
 use Kongono\Core\CoreException;
 use Kongono\Core\Diagnostics\SecretScrubber;
@@ -74,6 +76,7 @@ final readonly class KongoCli
                 'bridge:init' => $this->cmdBridgeInit($appRoot, $rest, $options),
                 'bridge:types' => $this->cmdBridgeTypes($appRoot, $options),
                 'ui:add' => $this->cmdUiAdd($appRoot, $rest, $options),
+                'auth:init' => $this->cmdAuthInit($appRoot, $options),
                 'skills:install' => $this->cmdSkillsInstall($appRoot, $options),
                 'mcp' => $this->cmdMcp($appRoot),
                 'audit' => $this->cmdAudit($appRoot, $options),
@@ -100,6 +103,13 @@ final readonly class KongoCli
                 'make:migration' => $this->cmdMake('migration', $appRoot, $rest, $options),
                 'make:seeder' => $this->cmdMake('seeder', $appRoot, $rest, $options),
                 'make:test' => $this->cmdMake('test', $appRoot, $rest, $options),
+                'make:job' => $this->cmdMake('job', $appRoot, $rest, $options),
+                'make:policy' => $this->cmdMake('policy', $appRoot, $rest, $options),
+                'make:middleware' => $this->cmdMake('middleware', $appRoot, $rest, $options),
+                'make:factory' => $this->cmdMake('factory', $appRoot, $rest, $options),
+                'make:rule' => $this->cmdMake('rule', $appRoot, $rest, $options),
+                'make:mail' => $this->cmdMake('mail', $appRoot, $rest, $options),
+                'make:resource' => $this->cmdMake('resource', $appRoot, $rest, $options),
                 'key:generate' => [0, 'APP_KEY=' . Encryptor::generateKey() . "\n"],
                 'doctor' => $this->cmdDoctor($appRoot),
                 'env:check' => $this->cmdEnvCheck($appRoot),
@@ -262,16 +272,17 @@ final readonly class KongoCli
     {
         $dir = $args[0] ?? '';
         if ('' === $dir) {
-            return [1, "Usage: kongo new <directory> [--name=\"My App\"]\n"];
+            return [1, "Usage: kongo new <directory> [--name=\"My App\"] [--starter=minimal|api|saas]\n"];
         }
         $target = str_starts_with($dir, '/') || (strlen($dir) > 1 && ':' === $dir[1])
             ? $dir
             : $this->workingDirectory . DIRECTORY_SEPARATOR . $dir;
         $name = is_string($options['name'] ?? null) ? $options['name'] : ucwords(str_replace(['-', '_'], ' ', basename($dir)));
+        $starter = is_string($options['starter'] ?? null) ? $options['starter'] : 'minimal';
 
-        $created = (new AppScaffolder())->scaffold($target, $name);
+        $created = (new AppScaffolder())->scaffold($target, $name, $starter);
         $lines = [
-            sprintf('Created new Kongono v1 application "%s" in %s:', $name, $target),
+            sprintf('Created new Kongono v1 application "%s" (starter: %s) in %s:', $name, $starter, $target),
             ...array_map(static fn(string $f): string => '  + ' . $f, $created),
             '',
             'Next steps:',
@@ -476,12 +487,24 @@ final readonly class KongoCli
         }
 
         $scheduler = $app->container()->make(Scheduler::class);
-        $report = $scheduler->runDue();
+        $lockStore = $app->container()->has(AtomicCacheInterface::class)
+            ? $app->container()->make(AtomicCacheInterface::class)
+            : null;
+        $report = $scheduler->runDue(lockStore: $lockStore);
         $lines = [
-            sprintf('Scheduler evaluated %d task(s): ran=%d failed=%d', count($scheduler->tasks()), count($report['ran']), count($report['failed'])),
+            sprintf(
+                'Scheduler evaluated %d task(s): ran=%d skipped=%d failed=%d',
+                count($scheduler->tasks()),
+                count($report['ran']),
+                count($report['skipped']),
+                count($report['failed']),
+            ),
         ];
         foreach ($report['ran'] as $name) {
             $lines[] = '  [OK] ' . $name;
+        }
+        foreach ($report['skipped'] as $name) {
+            $lines[] = '  [SKIP] ' . $name . ' (locked)';
         }
         foreach ($report['failed'] as $name => $err) {
             $lines[] = sprintf('  [FAIL] %s: %s', $name, $err);
@@ -524,9 +547,9 @@ final readonly class KongoCli
     }
 
     /**
-     * @param 'controller'|'dto'|'migration'|'seeder'|'test' $kind
-     * @param list<string>                                   $args
-     * @param array<string, string|true>                     $options
+     * @param 'controller'|'dto'|'migration'|'seeder'|'test'|'job'|'policy'|'middleware'|'factory'|'rule'|'mail'|'resource' $kind
+     * @param list<string>                                                                                                  $args
+     * @param array<string, string|true>                                                                                    $options
      * @return array{0: int, 1: string}
      */
     private function cmdMake(string $kind, string $appRoot, array $args, array $options = []): array
@@ -539,15 +562,31 @@ final readonly class KongoCli
         $context = ProjectContext::discover($appRoot);
         $generator = new CodeGenerator();
         $alterTable = is_string($options['table'] ?? null) ? $options['table'] : null;
-        $createdPath = match ($kind) {
+        $created = match ($kind) {
             'controller' => $generator->makeController($context, $name),
             'dto' => $generator->makeDto($context, $name),
             'migration' => $generator->makeMigration($context, $name, $alterTable),
             'seeder' => $generator->makeSeeder($context, $name),
             'test' => $generator->makeTest($context, $name),
+            'job' => $generator->makeJob($context, $name),
+            'policy' => $generator->makePolicy($context, $name),
+            'middleware' => $generator->makeMiddleware($context, $name),
+            'factory' => $generator->makeFactory($context, $name),
+            'rule' => $generator->makeRule($context, $name),
+            'mail' => $generator->makeMail($context, $name),
+            'resource' => $generator->makeResource($context, $name),
         };
 
-        return [0, sprintf("Created %s: %s\n", $kind, $createdPath)];
+        if (is_array($created)) {
+            $lines = [sprintf('Created %s (%d files):', $kind, count($created))];
+            foreach ($created as $path) {
+                $lines[] = '  + ' . $path;
+            }
+
+            return [0, implode("\n", $lines) . "\n"];
+        }
+
+        return [0, sprintf("Created %s: %s\n", $kind, $created)];
     }
 
     /** @return array{0: int, 1: string} */
@@ -1692,6 +1731,33 @@ final readonly class KongoCli
      * @param array<string, string|true> $options
      * @return array{0: int, 1: string}
      */
+    private function cmdAuthInit(string $appRoot, array $options): array
+    {
+        $modeOpt = $options['mode'] ?? 'both';
+        $mode = is_string($modeOpt) ? $modeOpt : 'both';
+        $force = isset($options['force']);
+
+        $context = ProjectContext::discover($appRoot);
+        $result = (new AuthScaffolder())->scaffold($context, $mode, $force);
+
+        $lines = [sprintf('Kongono Auth Starter Kit (mode: %s):', $mode)];
+        foreach ($result['created'] as $path) {
+            $lines[] = '  [CREATED]     ' . $path;
+        }
+        foreach ($result['overwritten'] as $path) {
+            $lines[] = '  [OVERWRITTEN] ' . $path;
+        }
+        foreach ($result['skipped'] as $path) {
+            $lines[] = '  [SKIPPED]     ' . $path . ' (exists; pass --force to overwrite)';
+        }
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
     private function cmdSkillsInstall(string $appRoot, array $options): array
     {
         $targetOpt = $options['target'] ?? 'agents';
@@ -1734,7 +1800,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target', 'mode', 'starter'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -1799,7 +1865,7 @@ Usage:
   kongo <command> [arguments] [options]
 
 Core Commands:
-  new <dir> [--name="My App"]                           Scaffold a brand-new Kongono v1 project
+  new <dir> [--name="My App"] [--starter=minimal|api|saas] Scaffold a new Kongono app (minimal, API, or full SaaS)
   serve [--app=path] [--host=127.0.0.1] [--port=8000]   Start local PHP 8.5 dev server
   tinker [--app=path] [--eval="expr"]                   Interactive PHP 8.5 REPL with live $app & $container
   work [--app=path] [--queue=high,default] [--daemon]   Process background jobs (priority queues & daemon mode)
@@ -1820,6 +1886,14 @@ Core Commands:
   make:migration <Name> [--table=tbl] [--app=path]      Generate a Schema::create() or Schema::table() migration
   make:seeder <Name> [--app=path]                       Generate a database SeederInterface file
   make:test <Name> [--app=path]                         Generate a PHPUnit 13 TestClient test
+  make:job <Name> [--app=path]                          Generate a JobHandlerInterface background job
+  make:policy <Name> [--app=path]                       Generate a Gate authorization policy
+  make:middleware <Name> [--app=path]                   Generate a PSR-15 middleware
+  make:factory <Name> [--app=path]                      Generate a typed Factory helper
+  make:rule <Name> [--app=path]                         Generate a custom RuleInterface validation attribute
+  make:mail <Name> [--app=path]                         Generate a typed Email builder + .kgn.html view
+  make:resource <Name> [--app=path]                     Generate full CRUD vertical slice (migration, DTOs, repo, controller, test)
+  auth:init [--mode=web|api|both] [--force]             Scaffold zero-bloat SessionAuth + PAT Auth Starter Kit
   key:generate                                          Generate a 256-bit APP_KEY for .env
   doctor [--app=path]                                   Verify PHP 8.5, extensions, AI provider & app health
   audit [--app=path] [--attack] [--json] [--strict]     Run security audit (+ optional --attack red-team probes)

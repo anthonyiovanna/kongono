@@ -260,6 +260,7 @@ $alterStatements = Schema::table('posts', static function (Blueprint $t): void {
 
 - For `CREATE INDEX CONCURRENTLY`, implement `Kongono\Database\Migration\NonTransactionalMigrationInterface`.
 - PostgreSQL row-level isolation: `Kongono\Database\RowLevelSecurity`.
+- Multi-database & read replicas: `Kongono\Database\ConnectionManager` (named connections + lazy factories + `resetSticky()`) and `Kongono\Database\ReadWriteConnection` (round-robin `SELECT` replica routing, primary routing for DML/`FOR UPDATE`/transactions, persistent-worker-safe sticky-after-write).
 - N+1 detection in dev/tests: `Kongono\Database\QueryGuard`.
 
 ---
@@ -294,7 +295,7 @@ $hits = $hybrid->search(
 
 - **Cookie Sessions:** `Kongono\Security\Auth\SessionAuth` + `Kongono\Security\Middleware\SessionAuthMiddleware` + `#[Authenticated]`.
 - **Revocable API Tokens (PATs):** `Kongono\Security\Auth\PersonalAccessToken` + `MemoryPersonalAccessTokenStore` / `CachePersonalAccessTokenStore` / `PdoPersonalAccessTokenStore` (SHA-256 hashed at rest, `kgn_pat_` prefix automatically scrubbed by `SecretScrubber`) + `BearerAuthMiddleware`.
-- **Authorization:** `Kongono\Security\Gate` (fail-closed `allow()`, `before()`, `policy()`, `allows()`, `denies()`) + `#[Can('ability')]` + `AuthorizeMiddleware`.
+- **Authorization:** `Kongono\Security\Gate` (fail-closed `define()`, `before()`, `policy()`, `allows()`, `denies()`) + `#[Can('ability')]` + `AuthorizeMiddleware`.
 - **Account Flows:** `PasswordResetBroker`, `EmailVerifier`, `LoginThrottler`, theft-detecting split-token `RememberMeManager`, WebAuthn `PasskeyVerifier`, `MagicLinkAuth`, `PkceOAuthClient`, RFC 6238 `Totp`.
 - **Crypto & Egress:** Argon2id `PasswordHasher`, HKDF v2 AEAD `Encryptor` (`XChaCha20-Poly1305` + `previousKeys` rotation), `TokenSigner`, `SignedUrl`, DNS-pinned `SafeHttpClient`, signed `WebhookDispatcher` + `#[VerifyWebhook]`, `AiThreatShieldMiddleware`.
 
@@ -315,6 +316,7 @@ $hits = $hybrid->search(
 - Dead-letter replay: `listFailed()`, `retryFailed()`, `flushFailed()`, and CLI `kongo queue:failed`, `queue:retry`, `queue:flush`.
 - Parallel batches: `Kongono\Jobs\Batch\JobBatch` + `BatchDispatcher` (`MemoryBatchStore`, `CacheBatchStore`).
 - Durable workflows: `Kongono\Jobs\Workflow\WorkflowEngine` + `WorkflowContext` (`$wf->step()`, `sleep()`, `waitForEvent()`, `signal()`).
+- Cluster-safe cron scheduling: `Kongono\Jobs\Scheduler\Scheduler` with `->withoutOverlapping(ttlSeconds: 300)` and `->onOneServer(ttlSeconds: 60)` backed by `AtomicCacheInterface` (e.g., `RedisCache`).
 
 ---
 
@@ -412,6 +414,10 @@ php vendor/bin/kongo bridge:types
 php vendor/bin/kongo sdk:generate --lang=ts --out=sdk/client.ts
 php vendor/bin/kongo deploy:init --domain=app.example.com
 php vendor/bin/kongo optimize
+php vendor/bin/kongo new my-app --starter=saas   # minimal | api | saas
+php vendor/bin/kongo auth:init --mode=both       # web | api | both
+php vendor/bin/kongo make:resource Post          # migration, DTOs, repo, controller, test
+php vendor/bin/kongo make:job SendInvoice        # also policy|middleware|factory|rule|mail
 php vendor/bin/kongo skills:install --target=both
 php vendor/bin/kongo mcp
 php vendor/bin/kongo check

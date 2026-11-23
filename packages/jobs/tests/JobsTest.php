@@ -32,6 +32,7 @@ use Kongono\Jobs\Workflow\WorkflowContext;
 use Kongono\Jobs\Workflow\WorkflowEngine;
 use Kongono\Jobs\Workflow\WorkflowStatus;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 final class JobsTest extends TestCase
 {
@@ -878,5 +879,81 @@ final class JobsTest extends TestCase
         self::assertSame([], $strictCompleted);
         self::assertSame([[$strictBatch->id, 1]], $failedHooks);
         self::assertSame([$strictBatch->id], $strictFinally);
+    }
+
+    public function testSchedulerDistributedWithoutOverlappingAndOnOneServerLocks(): void
+    {
+        $lockStore = new MemoryCache();
+        $moment = new DateTimeImmutable('2026-11-22 10:15:00');
+        $runs = 0;
+
+        // 1. onOneServer() lets only the first pod execute for a given minute
+        $podA = new Scheduler($lockStore);
+        $podA->call('nightly-billing', static function () use (&$runs): void {
+            ++$runs;
+        })->everyFiveMinutes()->onOneServer();
+
+        $podB = new Scheduler($lockStore);
+        $podB->call('nightly-billing', static function () use (&$runs): void {
+            ++$runs;
+        })->everyFiveMinutes()->onOneServer();
+
+        $repA = $podA->runDue($moment);
+        $repB = $podB->runDue($moment);
+        self::assertSame(['nightly-billing'], $repA['ran']);
+        self::assertSame([], $repA['skipped']);
+        self::assertSame([], $repB['ran']);
+        self::assertSame(['nightly-billing'], $repB['skipped']);
+        self::assertSame(1, $runs);
+
+        // Next scheduled minute runs cleanly again
+        $repNext = $podB->runDue(new DateTimeImmutable('2026-11-22 10:20:00'));
+        self::assertSame(['nightly-billing'], $repNext['ran']);
+        self::assertSame(2, $runs);
+
+        // 2. withoutOverlapping() skips concurrent re-entry while held, and releases cleanly on completion or exception
+        $overlapRuns = 0;
+        $overlapReport = null;
+        $overlapScheduler = new Scheduler($lockStore);
+        $overlapScheduler->call('sync-inventory', static function () use (&$overlapRuns, &$overlapReport, $overlapScheduler, $moment): void {
+            ++$overlapRuns;
+            if (1 === $overlapRuns) {
+                // Re-entrant tick while first execution is still holding the lock must skip
+                $overlapReport = $overlapScheduler->runDue($moment);
+            }
+        })->everyMinute()->withoutOverlapping(ttlSeconds: 120);
+
+        $first = $overlapScheduler->runDue($moment);
+        self::assertSame(['sync-inventory'], $first['ran']);
+        self::assertIsArray($overlapReport);
+        self::assertSame(['sync-inventory'], $overlapReport['skipped']);
+        self::assertSame(1, $overlapRuns);
+
+        // Lock was released in finally -> subsequent tick succeeds
+        $second = $overlapScheduler->runDue($moment);
+        self::assertSame(['sync-inventory'], $second['ran']);
+        self::assertSame(2, $overlapRuns);
+
+        // Exception inside callback also releases overlap lock so next run can recover
+        $flakyAttempts = 0;
+        $flaky = new Scheduler($lockStore);
+        $flaky->call('flaky-task', static function () use (&$flakyAttempts): void {
+            ++$flakyAttempts;
+            if (1 === $flakyAttempts) {
+                throw new RuntimeException('transient boom');
+            }
+        })->everyMinute()->withoutOverlapping();
+
+        $f1 = $flaky->runDue($moment);
+        self::assertArrayHasKey('flaky-task', $f1['failed']);
+        $f2 = $flaky->runDue($moment);
+        self::assertSame(['flaky-task'], $f2['ran']);
+
+        // 3. Fail-closed JobException if locked task runs without any AtomicCacheInterface
+        $unconfigured = new Scheduler();
+        $unconfigured->call('locked-no-cache', static function (): void {})->everyMinute()->onOneServer();
+        $this->expectException(JobException::class);
+        $this->expectExceptionMessage('AtomicCacheInterface');
+        $unconfigured->runDue($moment);
     }
 }

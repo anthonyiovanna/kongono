@@ -11,6 +11,10 @@ use DateTimeInterface;
 final class ScheduledTask
 {
     private CronExpression $cron;
+    private bool $preventOverlap = false;
+    private int $overlapTtlSeconds = 300;
+    private bool $singleServer = false;
+    private int $singleServerTtlSeconds = 60;
 
     /** @param Closure(): void $callback */
     public function __construct(
@@ -75,5 +79,43 @@ final class ScheduledTask
     public function isDue(DateTimeInterface $moment): bool
     {
         return $this->cron->isDue($moment);
+    }
+
+    /** Prevent concurrent executions of this task across workers using an atomic mutex lock. */
+    public function withoutOverlapping(int $ttlSeconds = 300): self
+    {
+        $this->preventOverlap = true;
+        $this->overlapTtlSeconds = max(1, $ttlSeconds);
+
+        return $this;
+    }
+
+    /** Guarantee this task runs on at most one server per scheduled minute across a cluster. */
+    public function onOneServer(int $ttlSeconds = 60): self
+    {
+        $this->singleServer = true;
+        $this->singleServerTtlSeconds = max(60, $ttlSeconds);
+
+        return $this;
+    }
+
+    public function preventsOverlap(): bool
+    {
+        return $this->preventOverlap;
+    }
+
+    public function overlapTtlSeconds(): int
+    {
+        return $this->overlapTtlSeconds;
+    }
+
+    public function runsOnOneServer(): bool
+    {
+        return $this->singleServer;
+    }
+
+    public function singleServerTtlSeconds(): int
+    {
+        return $this->singleServerTtlSeconds;
     }
 }

@@ -31,6 +31,7 @@ use Kongono\Jobs\JobOutcome;
 use Kongono\Jobs\PostgresQueueDriver;
 use Kongono\Jobs\Queue;
 use Kongono\Jobs\RedisQueueDriver;
+use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
 use Kongono\Security\Auth\CachePersonalAccessTokenStore;
 use Kongono\Security\Auth\LoginThrottler;
@@ -562,6 +563,22 @@ final class LiveInfrastructureTest extends TestCase
         // Replaying old cookie revokes rotated cookie too!
         self::assertNull($redisRemember->consumeAndRotate($c1->value));
         self::assertNull($redisRemember->consumeAndRotate($rot['cookie']->value));
+
+        // Live Redis 7 distributed Scheduler onOneServer() + withoutOverlapping()
+        $schedMoment = new \DateTimeImmutable('2026-11-22 12:30:00');
+        $schedRuns = 0;
+        $pod1 = new Scheduler($cache);
+        $pod1->call('redis-nightly-job', static function () use (&$schedRuns): void {
+            ++$schedRuns;
+        })->everyFiveMinutes()->onOneServer()->withoutOverlapping();
+        $pod2 = new Scheduler($cache);
+        $pod2->call('redis-nightly-job', static function () use (&$schedRuns): void {
+            ++$schedRuns;
+        })->everyFiveMinutes()->onOneServer()->withoutOverlapping();
+
+        self::assertSame(['redis-nightly-job'], $pod1->runDue($schedMoment)['ran']);
+        self::assertSame(['redis-nightly-job'], $pod2->runDue($schedMoment)['skipped']);
+        self::assertSame(1, $schedRuns);
 
         $redisWorker2->close();
         $redis->close();
