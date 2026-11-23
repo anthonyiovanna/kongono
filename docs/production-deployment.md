@@ -1,6 +1,6 @@
 # Production Deployment & Scaling Guide
 
-Kongono v1.17 is engineered **persistent-runtime first**, with deterministic per-request lifecycle cleanup (`OperationScope` + `Container::resetScope()`), zero mutable static state, and zero-reflection handler dispatch caching so your application runs identically across PHP-FPM, FrankenPHP persistent workers, and RoadRunner.
+Kongono v1.18 is engineered **persistent-runtime first**, with deterministic per-request lifecycle cleanup (`OperationScope` + `Container::resetScope()`), zero mutable static state, and zero-reflection handler dispatch caching so your application runs identically across PHP-FPM, FrankenPHP persistent workers, and RoadRunner.
 
 ---
 

@@ -1,4 +1,4 @@
-# Getting Started with Kongono v1.17
+# Getting Started with Kongono v1.18
 
 Kongono is a zero-legacy **PHP 8.5+** application framework built from the ground up with **zero Symfony runtime dependencies**, **zero mutable static state**, Live 2.5 & Bridge frontends, built-in `/_ops`, Hybrid RRF search, and three built-in AI companions (**Oshie**, **Chie**, and **Hantei**).
 

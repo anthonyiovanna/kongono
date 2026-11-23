@@ -4,6 +4,24 @@ All notable changes to the **Kongono Framework** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - 2026-11-22
+
+### Added
+
+- **AI-Native DX, Native Groq & Bundled Workflow Skills (`kongono/ai`, `kongono/core`, `kongono/cli`, `skills/`, `site/`):**
+  - Added native `GroqProvider` (`llama-3.3-70b-versatile` on `https://api.groq.com/openai/v1`, streaming SSE + chat), `GROQ_API_KEY` / `GROQ_BASE_URL` / `KONGONO_AI_PROVIDER=groq` auto-detection in `AiClient::fromEnv()`, custom `$providerName` on `OpenAiProvider`, and automatic `gsk_*` key redaction in `SecretScrubber`.
+  - Bundled 5 progressive-disclosure cross-agent `SKILL.md` workflow recipes (`kongono-feature-builder`, `kongono-live-and-bridge`, `kongono-auth-and-security`, `kongono-ai-and-rag`, `kongono-queues-and-ops`) and `kongo skills:install [--target=agents|claude|both] [--force]` (`SkillsInstaller`).
+  - `kongo new` now automatically scaffolds `AGENTS.md`, `CLAUDE.md`, and `.mcp.json` (`php vendor/bin/kongo mcp`) and excludes local agent files in `.dockerignore`.
+  - Published `llms.txt` and `llms-full.txt` on GitHub Pages (`https://anthonyiovanna.github.io/kongono/llms.txt`).
+- **Complete Scaffolding Suite & Starter Presets (`kongono/cli`):**
+  - `kongo auth:init [--mode=web|api|both] [--force]` (`AuthScaffolder`) — zero-bloat editable auth starter kit (`users` + `personal_access_tokens` migration, DTOs, `MemoryUserStore` + `PdoUserStore`, `WebAuthController` + CSRF + `LoginThrottler` + `.kgn.html` views, `ApiAuthController` revocable PATs, and `AuthFlowTest`).
+  - `kongo make:resource <Name>` — full 7-file CRUD vertical slice (migration with soft deletes, `Create`/`Update`/`View` DTOs, `QueryBuilder` repository, REST controller, and `TestClient` test).
+  - Added `kongo make:job`, `make:policy`, `make:middleware`, `make:factory`, `make:rule`, and `make:mail` (builder + `.kgn.html` view).
+  - Added `--starter=minimal|api|saas` presets on `kongo new` (`api` wires PAT auth + rate limits + fail-closed `/_ops`; `saas` wires Live 2.5 + `CacheSessionStore` + `SessionAuth` + PATs + CSRF + `/_ops` + `.agents/skills`).
+- **Cluster-Safe Cron Locking & Read/Write Database Routing (`kongono/jobs`, `kongono/database`):**
+  - Added `ScheduledTask::withoutOverlapping(ttlSeconds: 300)` and `ScheduledTask::onOneServer(ttlSeconds: 60)` backed by `AtomicCacheInterface` (verified against live Redis 7) with owner-token release in `finally` and fail-closed `JobException` when no lock store is provided.
+  - Added `ConnectionManager` (named connections, lazy factory closures, persistent-worker `resetSticky()`) and `ReadWriteConnection` (round-robin `SELECT`/read-only `WITH` replica routing, primary routing for DML/`FOR UPDATE`/transactions, and persistent-runtime-safe sticky-after-write).
+
 ## [1.17.0] - 2026-11-22
 
 ### Added

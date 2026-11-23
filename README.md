@@ -1,4 +1,4 @@
-# Kongono Framework (v1.17.0)
+# Kongono Framework (v1.18.0)
 
 > **Build what comes next.**
 

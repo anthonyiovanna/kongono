@@ -52,7 +52,7 @@ final class AppScaffolder
                 'type' => 'project',
                 'require' => [
                     'php' => '>=8.5.13',
-                    'kongono/framework' => '^1.17',
+                    'kongono/framework' => '^1.18',
                 ],
                 'autoload' => [
                     'psr-4' => ['App\\' => 'src/'],

@@ -1,4 +1,4 @@
-# Kongono v1.17 Architecture & Deployment
+# Kongono v1.18 Architecture & Deployment
 
 ## 11 Cohesive, Zero-Legacy Packages
 
