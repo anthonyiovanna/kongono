@@ -83,9 +83,14 @@ final class DevInspector
         string $body = '',
     ): void {
         $safeHeaders = [];
+        $contentType = '';
         foreach ($headers as $name => $val) {
             $joined = is_array($val) ? implode(', ', $val) : $val;
-            $isSensitive = in_array(strtolower($name), self::REDACTED_HEADERS, true) || SecretScrubber::isSensitiveKey($name);
+            $lowerName = strtolower($name);
+            if ('content-type' === $lowerName) {
+                $contentType = $joined;
+            }
+            $isSensitive = in_array($lowerName, self::REDACTED_HEADERS, true) || SecretScrubber::isSensitiveKey($name);
             $safeHeaders[$name] = $isSensitive
                 ? '[REDACTED]'
                 : SecretScrubber::scrub($joined);
@@ -93,7 +98,7 @@ final class DevInspector
 
         $nPlusOne = $this->detectNPlusOne($this->currentQueries);
 
-        $scrubbedBody = $this->scrubBody($body);
+        $scrubbedBody = $this->scrubBody($body, $contentType);
 
         $this->traces[] = [
             'id' => ++$this->sequence,
@@ -198,10 +203,14 @@ final class DevInspector
         return $warnings;
     }
 
-    private function scrubBody(string $body): string
+    private function scrubBody(string $body, string $contentType = ''): string
     {
         if ('' === $body) {
             return '';
+        }
+
+        if (str_contains(strtolower($contentType), 'multipart/') || 1 === preg_match('/Content-Disposition:\s*form-data;/i', $body)) {
+            return '[MULTIPART BODY REDACTED]';
         }
 
         $trimmed = ltrim($body);
@@ -214,8 +223,6 @@ final class DevInspector
                     return $reencoded;
                 }
             }
-        } elseif (1 === preg_match('/Content-Disposition:\s*form-data;/i', $body)) {
-            return '[MULTIPART BODY REDACTED]';
         } elseif (!str_starts_with($trimmed, '<') && str_contains($body, '=') && !str_contains($body, "\n") && !str_contains($body, "\r")) {
             parse_str($body, $formFields);
             if ([] !== $formFields) {

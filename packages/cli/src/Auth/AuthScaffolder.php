@@ -521,7 +521,10 @@ final class WebAuthController
         $this->throttler->recordFailure('register:' . $ip, $ip);
 
         if (null !== $this->users->findByEmail($input->email)) {
-            $session->flash('auth_error', 'An account with that email already exists.');
+            // Match Argon2id timing and avoid explicitly confirming whether an email address is registered
+            $this->dummyHash ??= $this->hasher->hash('kongono-auth-dummy-timing-guard');
+            $this->hasher->verify($input->password, $this->dummyHash);
+            $session->flash('auth_error', 'Unable to complete registration. If you already have an account, try signing in.');
 
             return Response::redirect('/register');
         }
@@ -613,7 +616,11 @@ final class ApiAuthController
         $this->throttler->recordFailure('register:' . $ip, $ip);
 
         if (null !== $this->users->findByEmail($input->email)) {
-            return Response::json(['error' => 'An account with that email already exists.'], status: 409);
+            // Match Argon2id timing and return a generic non-enumerating error payload
+            $this->dummyHash ??= $this->hasher->hash('kongono-auth-dummy-timing-guard');
+            $this->hasher->verify($input->password, $this->dummyHash);
+
+            return Response::json(['error' => 'Unable to complete registration.'], status: 409);
         }
 
         $user = $this->users->create(

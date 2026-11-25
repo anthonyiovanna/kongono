@@ -55,6 +55,7 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
      * @param (Closure(string): array<string, mixed>)|null                                    $incidentReplayHandler Optional callback replaying a recorded `KGN-...` incident in-process
      * @param (Closure(string): array<string, mixed>)|null                                    $incidentTestHandler   Optional callback generating a PHPUnit 13 regression test preview for an incident
      * @param (Closure(): array<string, mixed>)|null                                          $schemaHandler         Optional read-only database schema inspection callback
+     * @param (Closure(ServerRequestInterface): bool)|null                                    $authorizer            Optional authentication/authorization gate for Dev Studio routes
      */
     public function __construct(
         private App $app,
@@ -72,6 +73,7 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         private ?Closure $incidentTestHandler = null,
         private bool $hotReload = false,
         private ?Closure $schemaHandler = null,
+        private ?Closure $authorizer = null,
     ) {
         $this->renderer = new DevDashboardRenderer();
     }
@@ -90,6 +92,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         if ($isDevRoute) {
             if ($this->loopbackOnly && !$this->isLoopbackClient($request)) {
                 return Response::json(['error' => 'Kongono Dev Studio is restricted to loopback clients.'], 403);
+            }
+            if (null !== $this->authorizer && !($this->authorizer)($request)) {
+                return Response::json(['error' => 'Unauthorized access to Kongono Dev Studio.'], 403);
             }
             if ('POST' === $method && !$this->isSameOriginMutatingRequest($request)) {
                 return Response::json(['error' => 'Cross-site Dev Studio mutation blocked (requires same-origin JSON or X-Kongono-Dev header).'], 403);

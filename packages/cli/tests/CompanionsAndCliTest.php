@@ -240,7 +240,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.20.1', $vOut);
+            self::assertStringContainsString('v1.20.2', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -2295,8 +2295,11 @@ PHP;
             self::assertSame('src/InvoiceService.php', $hits[0]['file']);
             self::assertSame(9, $hits[0]['line']);
 
-            $secretHits = $ctx->searchCode('gsk_1234567890abcdefghijKLMN');
-            self::assertCount(1, $secretHits); // .env MUST NOT be scanned; src match MUST be scrubbed!
+            // Raw secret value MUST NOT be searchable as an existence oracle (scrubbed pre-search)
+            self::assertSame([], $ctx->searchCode('gsk_1234567890abcdefghijKLMN'));
+            // Searching surrounding label skips .env and returns scrubbed src match
+            $secretHits = $ctx->searchCode('secret=');
+            self::assertCount(1, $secretHits);
             self::assertSame('src/InvoiceService.php', $secretHits[0]['file']);
             self::assertStringContainsString('[REDACTED]', $secretHits[0]['text']);
             self::assertStringNotContainsString('gsk_1234567890abcdefghijKLMN', $secretHits[0]['text']);

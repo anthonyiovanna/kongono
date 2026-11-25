@@ -92,7 +92,7 @@ final readonly class KongoCli
             return [0, $this->helpText()];
         }
         if ('help' === $command && isset($options['version'])) {
-            return [0, 'Kongono Framework v1.20.1 (PHP ' . PHP_VERSION . ")\n"];
+            return [0, 'Kongono Framework v1.20.2 (PHP ' . PHP_VERSION . ")\n"];
         }
 
         $appRoot = $this->resolveAppRoot($options['app'] ?? null);
@@ -100,7 +100,7 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h' => [0, $this->helpText()],
-                'version', '-v' => [0, 'Kongono Framework v1.20.1 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v' => [0, 'Kongono Framework v1.20.2 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
@@ -1669,16 +1669,16 @@ final readonly class KongoCli
             $lines = [
                 sprintf(
                     'Chie Self-Verifying Build (%s / %s): %s [%s after %d attempt(s)]',
-                    $report['provider'],
-                    $report['model'],
-                    $report['summary'],
+                    self::sanitizeTerminalText($report['provider']),
+                    self::sanitizeTerminalText($report['model']),
+                    self::sanitizeTerminalText($report['summary']),
                     $report['verified'] ? 'VERIFIED' : ($report['rolled_back'] ? 'FAILED — ROLLED BACK' : 'FAILED'),
                     $report['attempts'],
                 ),
             ];
             if ([] !== $report['gates']) {
                 $gateLabels = array_map(
-                    static fn(array $g): string => sprintf('%s:%s', $g['name'], $g['passed'] ? 'PASS' : 'FAIL'),
+                    static fn(array $g): string => sprintf('%s:%s', self::sanitizeTerminalText($g['name']), $g['passed'] ? 'PASS' : 'FAIL'),
                     $report['gates'],
                 );
                 $lines[] = 'Gates: ' . implode(' | ', $gateLabels);
@@ -1686,16 +1686,22 @@ final readonly class KongoCli
             $lines[] = '';
             foreach ($report['changes'] as $change) {
                 $status = $report['rolled_back'] ? 'ROLLED BACK' : 'WRITTEN';
-                $lines[] = sprintf('[%s] (%s) %s — %s', $status, $change['action'], $change['path'], $change['explanation']);
+                $lines[] = sprintf(
+                    '[%s] (%s) %s — %s',
+                    $status,
+                    self::sanitizeTerminalText($change['action']),
+                    self::sanitizeTerminalText($change['path']),
+                    self::sanitizeTerminalText($change['explanation']),
+                );
             }
             if (!$report['verified'] && '' !== trim($report['verify_output'])) {
                 $lines[] = "\n--- Verification Output ---";
-                $lines[] = $report['verify_output'];
+                $lines[] = self::sanitizeTerminalText($report['verify_output'], singleLine: false);
             }
             if ([] !== $report['next_steps']) {
                 $lines[] = "\nNext steps:";
                 foreach ($report['next_steps'] as $step) {
-                    $lines[] = '  - ' . $step;
+                    $lines[] = '  - ' . self::sanitizeTerminalText($step);
                 }
             }
             $lines[] = "\n" . $report['telemetry']->formatFooter();
@@ -1711,12 +1717,23 @@ final readonly class KongoCli
         $sessions->saveChiePlan($instruction, $result['summary'], $result['changes'], $result['applied']);
 
         $lines = [
-            sprintf('Chie (%s / %s): %s', $result['provider'], $result['model'], $result['summary']),
+            sprintf(
+                'Chie (%s / %s): %s',
+                self::sanitizeTerminalText($result['provider']),
+                self::sanitizeTerminalText($result['model']),
+                self::sanitizeTerminalText($result['summary']),
+            ),
             '',
         ];
         foreach ($result['changes'] as $change) {
             $status = $apply ? 'WRITTEN' : 'PREVIEW';
-            $lines[] = sprintf('[%s] (%s) %s — %s', $status, $change['action'], $change['path'], $change['explanation']);
+            $lines[] = sprintf(
+                '[%s] (%s) %s — %s',
+                $status,
+                self::sanitizeTerminalText($change['action']),
+                self::sanitizeTerminalText($change['path']),
+                self::sanitizeTerminalText($change['explanation']),
+            );
             if (!$apply) {
                 $before = null;
                 try {
@@ -1724,7 +1741,10 @@ final readonly class KongoCli
                 } catch (Throwable) {
                     $before = null;
                 }
-                $lines[] = DiffRenderer::render($change['path'], $before, SecretScrubber::scrub($change['content']));
+                $lines[] = self::sanitizeTerminalText(
+                    DiffRenderer::render($change['path'], $before, SecretScrubber::scrub($change['content'])),
+                    singleLine: false,
+                );
                 $lines[] = '';
             }
         }
@@ -1734,7 +1754,7 @@ final readonly class KongoCli
         if ([] !== $result['next_steps']) {
             $lines[] = "\nNext steps:";
             foreach ($result['next_steps'] as $step) {
-                $lines[] = '  - ' . $step;
+                $lines[] = '  - ' . self::sanitizeTerminalText($step);
             }
         }
         $lines[] = "\n" . $result['telemetry']->formatFooter();
@@ -1755,7 +1775,12 @@ final readonly class KongoCli
     ): array {
         $result = $builder->build($instruction, $context, apply: false, maxCostUsd: $maxCostUsd, previousContext: $previousContext);
         $lines = [
-            sprintf('Chie Interactive Review (%s / %s): %s', $result['provider'], $result['model'], $result['summary']),
+            sprintf(
+                'Chie Interactive Review (%s / %s): %s',
+                self::sanitizeTerminalText($result['provider']),
+                self::sanitizeTerminalText($result['model']),
+                self::sanitizeTerminalText($result['summary']),
+            ),
             '',
         ];
 
@@ -2796,11 +2821,11 @@ final readonly class KongoCli
         } else {
             foreach ($report['findings'] as $f) {
                 $lines[] = '';
-                $lines[] = sprintf('  [%-7s] %s (%s)', strtoupper($f['severity']), $f['code'], $f['where']);
-                $lines[] = sprintf('    What:  %s', $f['what']);
-                $lines[] = sprintf('    Why:   %s', $f['why']);
+                $lines[] = sprintf('  [%-7s] %s (%s)', strtoupper(self::sanitizeTerminalText($f['severity'])), self::sanitizeTerminalText($f['code']), self::sanitizeTerminalText($f['where']));
+                $lines[] = sprintf('    What:  %s', self::sanitizeTerminalText($f['what']));
+                $lines[] = sprintf('    Why:   %s', self::sanitizeTerminalText($f['why']));
                 foreach ($f['how_to_fix'] as $idx => $step) {
-                    $lines[] = sprintf('    Fix %d: %s', $idx + 1, $step);
+                    $lines[] = sprintf('    Fix %d: %s', $idx + 1, self::sanitizeTerminalText($step));
                 }
             }
         }
@@ -2876,9 +2901,9 @@ final readonly class KongoCli
         } else {
             foreach ($report['findings'] as $f) {
                 $lines[] = '';
-                $lines[] = sprintf('  [%-7s] %s (%s)', strtoupper($f['severity']), $f['code'], $f['where']);
-                $lines[] = sprintf('    What:  %s', $f['what']);
-                $lines[] = sprintf('    Why:   %s', $f['why']);
+                $lines[] = sprintf('  [%-7s] %s (%s)', strtoupper(self::sanitizeTerminalText($f['severity'])), self::sanitizeTerminalText($f['code']), self::sanitizeTerminalText($f['where']));
+                $lines[] = sprintf('    What:  %s', self::sanitizeTerminalText($f['what']));
+                $lines[] = sprintf('    Why:   %s', self::sanitizeTerminalText($f['why']));
             }
         }
 
@@ -3299,13 +3324,37 @@ final readonly class KongoCli
             sprintf('Kongono AI Eval — %s: %d/%d passed (%.1f%%)', $modeLabel, $report->passedCount, $report->total, $report->passRate),
         ];
         foreach ($report->results as $res) {
-            $lines[] = sprintf('  [%-4s] %-30s (%.2fms) %s', $res->passed ? 'PASS' : 'FAIL', $res->name, $res->durationMs, $res->outputExcerpt);
+            $lines[] = sprintf(
+                '  [%-4s] %-30s (%.2fms) %s',
+                $res->passed ? 'PASS' : 'FAIL',
+                self::sanitizeTerminalText($res->name),
+                $res->durationMs,
+                self::sanitizeTerminalText($res->outputExcerpt),
+            );
             foreach ($res->failures as $failure) {
-                $lines[] = '         -> ' . $failure;
+                $lines[] = '         -> ' . self::sanitizeTerminalText($failure);
             }
         }
 
         return [$report->passed ? 0 : 1, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * Neutralize ANSI/OSC terminal escape sequences and control characters before emitting untrusted
+     * model-, response-, or snapshot-derived text to human-readable terminal output.
+     */
+    private static function sanitizeTerminalText(string $text, bool $singleLine = true): string
+    {
+        $clean = (string) preg_replace('/\x1b(?:\[[0-?]*[ -\/]*[@-~]|\][^\x07\x1b]*(?:\x07|\x1b\\\\)|[@-Z\\\\-_])/', '', $text);
+        if ($singleLine) {
+            $clean = (string) preg_replace('/[\x00-\x1f\x7f\x{0080}-\x{009f}]/u', ' ', $clean);
+
+            return trim((string) preg_replace('/\s+/', ' ', $clean));
+        }
+
+        $clean = str_replace("\r\n", "\n", $clean);
+
+        return (string) preg_replace('/[\x00-\x08\x0b-\x1f\x7f\x{0080}-\x{009f}]/u', '', $clean);
     }
 
     private function tryAiClient(?string $companion = null): ?AiClient

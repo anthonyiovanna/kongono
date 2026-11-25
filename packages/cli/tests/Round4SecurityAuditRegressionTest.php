@@ -25,6 +25,7 @@ use Kongono\Cli\Companions\ChieBuilder;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Deploy\DeployBlueprintGenerator;
 use Kongono\Cli\Eval\AgentCodingBenchmark;
+use Kongono\Cli\KongoCli;
 use Kongono\Cli\Lsp\KongonoLanguageServer;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
 use Kongono\Cli\Policy\PolicyVerifier;
@@ -1073,6 +1074,112 @@ final class Round4SecurityAuditRegressionTest extends TestCase
         self::assertStringContainsString('VERIFY_SIGNATURES', $deploySh);
         self::assertStringContainsString('git checkout --detach --force', $deploySh);
         self::assertStringNotContainsString('git reset --hard "origin/', $deploySh);
+    }
+
+    public function testAikidoWave2SecretScrubberSearchCodeTotpAtomicDevStudioAuthAndTerminalSanitization(): void
+    {
+        // 1. SecretScrubber redacts credentials under keys longer than 48 chars without corrupting Bearer [REDACTED]
+        $longKey1 = 'enterprise_multi_region_production_cluster_billing_service_api_key';
+        $longKey2 = 'superLongOrganizationInternalPlatformDatabaseMasterPassword';
+        $longKey3 = 'ACME_GLOBAL_INFRASTRUCTURE_BACKUP_CLUSTER_SIGNING_SECRET_TOKEN';
+        $rawText = sprintf(
+            '%s="val-one-999" \'%s\' => \'val-two-888\' %s=val-three-777 Authorization: Bearer tok123456',
+            $longKey1,
+            $longKey2,
+            $longKey3,
+        );
+        $scrubbed = SecretScrubber::scrub($rawText);
+        self::assertStringNotContainsString('val-one-999', $scrubbed);
+        self::assertStringNotContainsString('val-two-888', $scrubbed);
+        self::assertStringNotContainsString('val-three-777', $scrubbed);
+        self::assertStringNotContainsString('tok123456', $scrubbed);
+        self::assertStringContainsString('Authorization: Bearer [REDACTED]', $scrubbed);
+
+        // 2. ProjectContext::searchCode() scrubs entire file BEFORE searching (blocks multiline PEM line leakage & secret oracles)
+        $searchDir = $this->makeTempDir('search_pem');
+        try {
+            $pemMiddle = 'MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC9UNIQUEPEMMARKER';
+            file_put_contents(
+                $searchDir . '/cert_holder.txt',
+                "header line\n-----BEGIN PRIVATE KEY-----\n{$pemMiddle}\n-----END PRIVATE KEY-----\nfooter safe_marker\n",
+            );
+            $ctx = ProjectContext::discover($searchDir, allowBootstrap: false);
+            self::assertSame([], $ctx->searchCode('UNIQUEPEMMARKER'), 'searchCode must never match or return interior lines of a PEM private key.');
+            $safeHits = $ctx->searchCode('safe_marker');
+            self::assertCount(1, $safeHits);
+        } finally {
+            $this->removeDir($searchDir);
+        }
+
+        // 3. Totp::verifyAndReturnTimeStep() fails closed when given a non-atomic CacheInterface
+        $totp = new Totp();
+        $secret = Totp::generateSecret();
+        $tNow = 1_700_000_060;
+        $nonAtomicCache = new Round4InterceptingCache(new MemoryCache(), static function (string $_k): void {});
+        try {
+            $totp->verify($secret, $totp->code($secret, $tNow), timestamp: $tNow, replayCache: $nonAtomicCache);
+            self::fail('Expected Totp to reject non-atomic replayCache with SecurityException.');
+        } catch (SecurityException $e) {
+            self::assertStringContainsString('AtomicCacheInterface', $e->getMessage());
+        }
+
+        // 4. DevInspector redacts multipart bodies based on Content-Type header even without Content-Disposition in body
+        $inspector = new \Kongono\Http\Dev\DevInspector();
+        $inspector->recordRequest(
+            method: 'POST',
+            path: '/upload',
+            status: 200,
+            durationMs: 1.5,
+            headers: ['Content-Type' => 'multipart/form-data; boundary=----Boundary123'],
+            body: '------Boundary123\r\nraw-password-value-without-disposition',
+        );
+        $traces = $inspector->traces();
+        self::assertCount(1, $traces);
+        self::assertSame('[MULTIPART BODY REDACTED]', $traces[0]['body']);
+
+        // 5. DevDashboardMiddleware enforces optional $authorizer callback even on loopback clients
+        $devApp = App::create(dirname(__DIR__, 3))->debug(true);
+        $devAuthMw = new DevDashboardMiddleware(
+            app: $devApp,
+            inspector: $inspector,
+            authorizer: static fn(ServerRequestInterface $r): bool => 'dev-ok' === $r->getHeaderLine('X-Dev-Auth'),
+        );
+        $noop = $this->handler(static fn(): ResponseInterface => Response::text('ok'));
+        $denied = $devAuthMw->process(
+            Request::create('GET', '/_kongono/api/traces', headers: ['Host' => '127.0.0.1:8000'], serverParams: ['REMOTE_ADDR' => '127.0.0.1']),
+            $noop,
+        );
+        self::assertSame(403, $denied->getStatusCode());
+        $allowed = $devAuthMw->process(
+            Request::create('GET', '/_kongono/api/traces', headers: ['Host' => '127.0.0.1:8000', 'X-Dev-Auth' => 'dev-ok'], serverParams: ['REMOTE_ADDR' => '127.0.0.1']),
+            $noop,
+        );
+        self::assertSame(200, $allowed->getStatusCode());
+
+        // 6. KongoCli::sanitizeTerminalText() strips ANSI CSI, OSC, C1, and newline log-injection controls
+        $refSan = new \ReflectionMethod(KongoCli::class, 'sanitizeTerminalText');
+        $hostile = "safe\x1b[31mRED\x1b[0m\x1b]0;PWN\x07\u{009B}2J\r\nforged line";
+        $sanSingle = $refSan->invoke(null, $hostile, true);
+        self::assertIsString($sanSingle);
+        self::assertStringNotContainsString("\x1b", $sanSingle);
+        self::assertStringNotContainsString("\n", $sanSingle);
+        self::assertStringNotContainsString("\r", $sanSingle);
+        self::assertStringNotContainsString("\u{009B}", $sanSingle);
+        self::assertStringContainsString('safeRED', $sanSingle);
+
+        // 7. AuthScaffolder uses generic non-enumerating registration responses with dummy Argon2id timing guard
+        $regDir = $this->makeTempDir('auth_enum');
+        try {
+            (new AuthScaffolder())->scaffold(ProjectContext::discover($regDir, allowBootstrap: false), mode: 'both');
+            $webCtrl = (string) file_get_contents($regDir . '/src/Http/WebAuthController.php');
+            $apiCtrl = (string) file_get_contents($regDir . '/src/Http/ApiAuthController.php');
+            self::assertStringNotContainsString('An account with that email already exists.', $webCtrl);
+            self::assertStringNotContainsString('An account with that email already exists.', $apiCtrl);
+            self::assertStringContainsString('Unable to complete registration', $webCtrl);
+            self::assertStringContainsString('Unable to complete registration', $apiCtrl);
+        } finally {
+            $this->removeDir($regDir);
+        }
     }
 
     /** @param \Closure(ServerRequestInterface): ResponseInterface $fn */

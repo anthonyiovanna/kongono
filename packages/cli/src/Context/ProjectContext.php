@@ -207,9 +207,14 @@ final readonly class ProjectContext
         $canonicalRelative = str_replace('\\', '/', substr($fullPath, strlen($this->rootPath) + 1));
         $this->assertReadablePath($canonicalRelative);
 
-        $raw = file_get_contents($fullPath, length: $maxBytes);
-        if (false === $raw) {
-            throw new CoreException(sprintf('Unable to read "%s".', $relativePath));
+        $handle = $this->openVerifiedContainedFile($fullPath, $relativePath);
+        try {
+            $raw = fread($handle, $maxBytes);
+            if (false === $raw) {
+                throw new CoreException(sprintf('Unable to read "%s".', $relativePath));
+            }
+        } finally {
+            fclose($handle);
         }
 
         return SecretScrubber::scrub($raw);
@@ -233,25 +238,22 @@ final readonly class ProjectContext
         $canonicalRelative = str_replace('\\', '/', substr($fullPath, strlen($this->rootPath) + 1));
         $this->assertReadablePath($canonicalRelative);
 
-        clearstatcache(true, $fullPath);
-        $size = @filesize($fullPath);
-        if (false === $size) {
-            throw new CoreException(sprintf('Unable to stat "%s".', $relativePath));
-        }
-
-        $start = null !== $fromOffset && $fromOffset >= 0 && $fromOffset <= $size
-            ? max($fromOffset, $size - $maxBytes)
-            : max(0, $size - $maxBytes);
-        $toRead = $size - $start;
-        if ($toRead <= 0) {
-            return ['content' => '', 'size' => $size, 'offset' => $size];
-        }
-
-        $handle = @fopen($fullPath, 'rb');
-        if (false === $handle) {
-            throw new CoreException(sprintf('Unable to read "%s".', $relativePath));
-        }
+        $handle = $this->openVerifiedContainedFile($fullPath, $relativePath);
         try {
+            $stat = fstat($handle);
+            if (false === $stat) {
+                throw new CoreException(sprintf('Unable to stat "%s".', $relativePath));
+            }
+            $size = $stat['size'];
+
+            $start = null !== $fromOffset && $fromOffset >= 0 && $fromOffset <= $size
+                ? max($fromOffset, $size - $maxBytes)
+                : max(0, $size - $maxBytes);
+            $toRead = $size - $start;
+            if ($toRead <= 0) {
+                return ['content' => '', 'size' => $size, 'offset' => $size];
+            }
+
             if ($start > 0 && 0 !== fseek($handle, $start, SEEK_SET)) {
                 throw new CoreException(sprintf('Unable to seek "%s".', $relativePath));
             }
@@ -268,6 +270,53 @@ final readonly class ProjectContext
             'size' => $size,
             'offset' => $start + strlen($raw),
         ];
+    }
+
+    /**
+     * Open a contained regular file while tightening symlink-replacement TOCTOU windows via pre/post
+     * `is_link()`, `realpath()` containment, regular-file mode, and POSIX device/inode verification.
+     *
+     * @return resource
+     */
+    private function openVerifiedContainedFile(string $fullPath, string $relativePath)
+    {
+        clearstatcache(true, $fullPath);
+        if (is_link($fullPath)) {
+            throw new CoreException(sprintf('Refusing to read symbolic link "%s".', $relativePath));
+        }
+        $preStat = @lstat($fullPath);
+        if (false === $preStat || 0o100000 !== ($preStat['mode'] & 0o170000)) {
+            throw new CoreException(sprintf('Refusing to read non-regular file "%s".', $relativePath));
+        }
+
+        $handle = @fopen($fullPath, 'rb');
+        if (false === $handle) {
+            throw new CoreException(sprintf('Unable to read "%s".', $relativePath));
+        }
+
+        $postStat = @fstat($handle);
+        clearstatcache(true, $fullPath);
+        $postReal = realpath($fullPath);
+        $prefix = rtrim($this->rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+        $inodeMismatch = false !== $postStat
+            && $preStat['ino'] > 0
+            && $postStat['ino'] > 0
+            && ($preStat['ino'] !== $postStat['ino'] || $preStat['dev'] !== $postStat['dev']);
+
+        if (
+            false === $postStat
+            || 0o100000 !== ($postStat['mode'] & 0o170000)
+            || is_link($fullPath)
+            || false === $postReal
+            || !str_starts_with($postReal, $prefix)
+            || $inodeMismatch
+        ) {
+            fclose($handle);
+            throw new CoreException(sprintf('File "%s" failed containment verification during read.', $relativePath));
+        }
+
+        return $handle;
     }
 
     /**
@@ -326,19 +375,31 @@ final readonly class ProjectContext
                 continue;
             }
 
-            $size = @filesize($fullPath);
-            if (false === $size || $size > 262_144) {
+            try {
+                $handle = $this->openVerifiedContainedFile($fullPath, $relative);
+            } catch (CoreException) {
                 continue;
             }
-            $raw = @file_get_contents($fullPath);
-            if (false === $raw || str_contains($raw, "\0")) {
+            try {
+                $stat = fstat($handle);
+                if (false === $stat || $stat['size'] > 262_144) {
+                    continue;
+                }
+                $raw = stream_get_contents($handle, 262_145);
+            } finally {
+                fclose($handle);
+            }
+            if (!is_string($raw) || strlen($raw) > 262_144 || str_contains($raw, "\0")) {
                 continue;
             }
-            if (false === stripos($raw, $needle)) {
+            // Scrub the ENTIRE file before searching so multiline PEM private keys and secrets can never
+            // be matched line-by-line or probed as an existence oracle before transmission to an AI provider
+            $scrubbedFile = SecretScrubber::scrub($raw);
+            if (false === stripos($scrubbedFile, $needle)) {
                 continue;
             }
 
-            $lines = preg_split("/\r\n|\n|\r/", $raw);
+            $lines = preg_split("/\r\n|\n|\r/", $scrubbedFile);
             if (false === $lines) {
                 continue;
             }
@@ -347,7 +408,7 @@ final readonly class ProjectContext
                     $matches[] = [
                         'file' => $relative,
                         'line' => $idx + 1,
-                        'text' => substr(SecretScrubber::scrub(trim($lineText)), 0, 240),
+                        'text' => substr(trim($lineText), 0, 240),
                     ];
                     if (count($matches) >= $limit) {
                         return $matches;
