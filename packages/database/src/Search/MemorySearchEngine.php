@@ -34,7 +34,7 @@ final class MemorySearchEngine implements SearchEngineInterface
             return [];
         }
 
-        $phrase = strtolower(trim($query));
+        $phrase = mb_strtolower(trim($query), 'UTF-8');
         $hits = [];
 
         foreach ($this->documents as $id => $doc) {
@@ -42,8 +42,8 @@ final class MemorySearchEngine implements SearchEngineInterface
                 continue;
             }
 
-            $titleLower = strtolower($doc['title']);
-            $bodyLower = strtolower($doc['body']);
+            $titleLower = mb_strtolower($doc['title'], 'UTF-8');
+            $bodyLower = mb_strtolower($doc['body'], 'UTF-8');
             $score = 0.0;
 
             foreach ($terms as $term) {
@@ -72,13 +72,13 @@ final class MemorySearchEngine implements SearchEngineInterface
 
         usort($hits, static fn(TextSearchHit $a, TextSearchHit $b): int => $b->score <=> $a->score);
 
-        return array_slice($hits, 0, max(1, $limit));
+        return array_slice($hits, 0, min(1000, max(1, $limit)));
     }
 
     /** @return list<string> */
     private static function tokenize(string $text): array
     {
-        $clean = strtolower(trim($text));
+        $clean = mb_strtolower(trim($text), 'UTF-8');
         if ('' === $clean) {
             return [];
         }
@@ -114,14 +114,15 @@ final class MemorySearchEngine implements SearchEngineInterface
 
     private static function excerpt(string $body, string $firstTerm, int $maxLength = 160): string
     {
-        $trimmed = trim((string) preg_replace('/\s+/', ' ', $body));
-        if (strlen($trimmed) <= $maxLength) {
+        $trimmed = trim((string) preg_replace('/\s+/u', ' ', $body));
+        $totalLen = mb_strlen($trimmed, 'UTF-8');
+        if ($totalLen <= $maxLength) {
             return $trimmed;
         }
-        $pos = stripos($trimmed, $firstTerm);
+        $pos = mb_stripos($trimmed, $firstTerm, 0, 'UTF-8');
         $start = false !== $pos ? max(0, $pos - 40) : 0;
-        $slice = substr($trimmed, $start, $maxLength);
+        $slice = mb_substr($trimmed, $start, $maxLength, 'UTF-8');
 
-        return ($start > 0 ? '...' : '') . trim($slice) . ($start + $maxLength < strlen($trimmed) ? '...' : '');
+        return ($start > 0 ? '...' : '') . trim($slice) . ($start + $maxLength < $totalLen ? '...' : '');
     }
 }

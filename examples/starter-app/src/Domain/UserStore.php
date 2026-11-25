@@ -9,13 +9,15 @@ use Kongono\Security\PasswordHasher;
 use Kongono\Storage\StorageInterface;
 
 /** Atomic storage-backed user store with Argon2id password hashing. */
-final readonly class UserStore
+final class UserStore
 {
     private const string STORAGE_KEY = 'data/users.json';
 
+    private ?string $dummyHash = null;
+
     public function __construct(
-        private StorageInterface $storage,
-        private PasswordHasher $hasher,
+        private readonly StorageInterface $storage,
+        private readonly PasswordHasher $hasher,
     ) {}
 
     /** @return array{id: string, name: string, email: string, password_hash: string}|null */
@@ -47,7 +49,14 @@ final readonly class UserStore
     public function verifyCredentials(string $email, #[\SensitiveParameter] string $password): ?array
     {
         $user = $this->findByEmail($email);
-        if (null === $user || !$this->hasher->verify($password, $user['password_hash'])) {
+        if (null === $user) {
+            // Perform a single Argon2id verify against a cached dummy hash (matches real-user cost 1:1)
+            $this->dummyHash ??= $this->hasher->hash('kongono-dummy-timing-guard');
+            $this->hasher->verify($password, $this->dummyHash);
+
+            return null;
+        }
+        if (!$this->hasher->verify($password, $user['password_hash'])) {
             return null;
         }
 

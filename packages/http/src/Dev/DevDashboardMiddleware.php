@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Kongono\Http\Dev;
 
 use Closure;
+use Kongono\Core\Dev\DevMailboxInterface;
+use Kongono\Core\Dev\FileDevMailbox;
+use Kongono\Core\Diagnostics\IncidentStoreInterface;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Http\App;
 use Kongono\Http\Brand\KongonoBrand;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Http\SseEvent;
+use Kongono\Http\Stream;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -46,7 +50,11 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
      *     queries: list<array{sql: string, ms: float}>,
      *     n_plus_one: list<array{pattern: string, count: int}>,
      *     error: ?string
-     * }): array<string, mixed>)|null                                                       $hanteiTraceHandler  Optional callback diagnosing a captured DevInspector trace
+     * }): array<string, mixed>)|null                                                       $hanteiTraceHandler    Optional callback diagnosing a captured DevInspector trace
+     * @param (Closure(): array<string, mixed>)|null                                          $proofsHandler         Optional callback running Kongono MasterProver across all 5 proof engines
+     * @param (Closure(string): array<string, mixed>)|null                                    $incidentReplayHandler Optional callback replaying a recorded `KGN-...` incident in-process
+     * @param (Closure(string): array<string, mixed>)|null                                    $incidentTestHandler   Optional callback generating a PHPUnit 13 regression test preview for an incident
+     * @param (Closure(): array<string, mixed>)|null                                          $schemaHandler         Optional read-only database schema inspection callback
      */
     public function __construct(
         private App $app,
@@ -59,6 +67,11 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         private ?Closure $oshieStreamHandler = null,
         private ?Closure $hanteiStreamHandler = null,
         private ?Closure $hanteiTraceHandler = null,
+        private ?Closure $proofsHandler = null,
+        private ?Closure $incidentReplayHandler = null,
+        private ?Closure $incidentTestHandler = null,
+        private bool $hotReload = false,
+        private ?Closure $schemaHandler = null,
     ) {
         $this->renderer = new DevDashboardRenderer();
     }
@@ -84,7 +97,11 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         }
 
         if ($path === $base && 'GET' === $method) {
-            return Response::html($this->renderer->render($this->app, $this->inspector, $base));
+            return Response::html($this->renderer->render($this->app, $this->inspector, $base), 200, [
+                'X-Frame-Options' => 'DENY',
+                'Content-Security-Policy' => "frame-ancestors 'none'",
+                'Cache-Control' => 'no-store',
+            ]);
         }
 
         if ($path === $base . '/assets/dev-error.js' && 'GET' === $method) {
@@ -92,6 +109,51 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
                 'Content-Type' => 'application/javascript; charset=utf-8',
                 'Cache-Control' => 'no-store',
             ]);
+        }
+
+        if ($path === $base . '/assets/hot-reload.js' && 'GET' === $method) {
+            return Response::text(DevHotReloadWatcher::clientScript($base), 200, [
+                'Content-Type' => 'application/javascript; charset=utf-8',
+                'Cache-Control' => 'no-store',
+            ]);
+        }
+
+        if ($path === $base . '/api/reload-token' && 'GET' === $method) {
+            return Response::json((new DevHotReloadWatcher())->fingerprint($this->app->basePath()), 200, [
+                'Cache-Control' => 'no-store',
+            ]);
+        }
+
+        if ($path === $base . '/live-reload' && 'GET' === $method) {
+            $state = (new DevHotReloadWatcher())->fingerprint($this->app->basePath());
+            $sseBody = "retry: 500\nevent: state\ndata: "
+                . json_encode($state, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)
+                . "\n\n";
+
+            return Response::text($sseBody, 200, [
+                'Content-Type' => 'text/event-stream; charset=utf-8',
+                'Cache-Control' => 'no-store',
+            ]);
+        }
+
+        if ($path === $base . '/api/mailbox' && 'GET' === $method) {
+            return Response::json(['messages' => $this->resolveDevMailbox()->messages()], 200, [
+                'Cache-Control' => 'no-store',
+            ]);
+        }
+
+        if ($path === $base . '/api/mailbox/clear' && 'POST' === $method) {
+            $this->resolveDevMailbox()->clear();
+
+            return Response::json(['cleared' => true]);
+        }
+
+        if ($path === $base . '/api/schema' && 'GET' === $method) {
+            if (null === $this->schemaHandler) {
+                return Response::json(['connected' => false, 'dialect' => null, 'tables' => []]);
+            }
+
+            return Response::json(($this->schemaHandler)());
         }
 
         if ($path === $base . '/assets/favicon.svg' && 'GET' === $method) {
@@ -201,11 +263,58 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             return Response::json(($this->chieHandler)($instruction));
         }
 
+        if ($path === $base . '/api/proofs' && 'POST' === $method) {
+            if (null === $this->proofsHandler) {
+                return Response::json(['error' => 'Proof Command Center bridge is not configured on DevDashboardMiddleware.'], 501);
+            }
+
+            return Response::json(($this->proofsHandler)());
+        }
+
+        if ($path === $base . '/api/incidents' && 'GET' === $method) {
+            $records = [];
+            if ($this->app->container()->hasBinding(IncidentStoreInterface::class)) {
+                $store = $this->app->container()->get(IncidentStoreInterface::class);
+                if ($store instanceof IncidentStoreInterface) {
+                    $records = array_map(static fn($r): array => $r->toArray(), $store->recent(20));
+                }
+            }
+
+            return Response::json(['incidents' => $records]);
+        }
+
+        if (1 === preg_match('#\A' . preg_quote($base, '#') . '/api/incidents/(KGN-\d{8}-[A-F0-9]{8})/replay\z#', $path, $incReplayMatch) && 'POST' === $method) {
+            if (null === $this->incidentReplayHandler) {
+                return Response::json(['error' => 'Incident replay bridge is not configured on DevDashboardMiddleware.'], 501);
+            }
+
+            return Response::json(($this->incidentReplayHandler)($incReplayMatch[1]));
+        }
+
+        if (1 === preg_match('#\A' . preg_quote($base, '#') . '/api/incidents/(KGN-\d{8}-[A-F0-9]{8})/test\z#', $path, $incTestMatch) && 'GET' === $method) {
+            if (null === $this->incidentTestHandler) {
+                return Response::json(['error' => 'Incident test preview bridge is not configured on DevDashboardMiddleware.'], 501);
+            }
+
+            return Response::json(($this->incidentTestHandler)($incTestMatch[1]));
+        }
+
         $this->inspector->beginRequest();
         $start = hrtime(true);
         $rawQuery = $request->getUri()->getQuery();
         $rawHeaders = $request->getHeaders();
-        $rawBody = (string) $request->getBody();
+        $bodyStream = $request->getBody();
+        $bodySize = $bodyStream->getSize();
+        if ($bodyStream->isSeekable()) {
+            $bodyStream->rewind();
+            $rawBody = $bodyStream->read(16_384);
+            $bodyStream->rewind();
+        } elseif (null !== $bodySize && $bodySize <= 16_384) {
+            $rawBody = $bodyStream->getContents();
+            $request = $request->withBody(Stream::fromString($rawBody));
+        } else {
+            $rawBody = '';
+        }
 
         try {
             $response = $handler->handle($request);
@@ -219,6 +328,10 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
                 headers: $rawHeaders,
                 body: $rawBody,
             );
+
+            if ($this->hotReload && !$isDevRoute && 200 === $response->getStatusCode()) {
+                $response = $this->injectHotReloadScript($response, $base);
+            }
 
             return $response;
         } catch (Throwable $e) {
@@ -235,6 +348,35 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             );
             throw $e;
         }
+    }
+
+    private function resolveDevMailbox(): DevMailboxInterface
+    {
+        if ($this->app->container()->hasBinding(DevMailboxInterface::class)) {
+            $bound = $this->app->container()->get(DevMailboxInterface::class);
+            if ($bound instanceof DevMailboxInterface) {
+                return $bound;
+            }
+        }
+
+        return new FileDevMailbox($this->app->basePath() . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'dev' . DIRECTORY_SEPARATOR . 'mailbox.json');
+    }
+
+    private function injectHotReloadScript(ResponseInterface $response, string $base): ResponseInterface
+    {
+        $ct = strtolower($response->getHeaderLine('Content-Type'));
+        if (!str_contains($ct, 'text/html')) {
+            return $response;
+        }
+        $body = (string) $response->getBody();
+        $pos = strripos($body, '</body>');
+        if (false === $pos || str_contains($body, '/assets/hot-reload.js')) {
+            return $response;
+        }
+        $tag = sprintf('<script src="%s/assets/hot-reload.js" defer></script>', htmlspecialchars($base, ENT_QUOTES, 'UTF-8'));
+        $updated = substr($body, 0, $pos) . $tag . "\n" . substr($body, $pos);
+
+        return $response->withoutHeader('Content-Length')->withBody(Stream::fromString($updated));
     }
 
     /**

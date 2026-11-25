@@ -41,6 +41,12 @@ final readonly class KnowledgeBase
             throw new AiException(sprintf('Embedding provider returned %d vectors for %d chunks.', count($vectors), count($chunks)));
         }
 
+        if ($this->store instanceof MemoryVectorStore || $this->store instanceof PgVectorStore) {
+            $this->store->deleteByDocumentId($documentId);
+        } else {
+            $this->store->delete($documentId);
+        }
+
         /** @var array<string, mixed> $safeMetadata */
         $safeMetadata = SecretScrubber::scrubArray($metadata);
 
@@ -89,11 +95,12 @@ final readonly class KnowledgeBase
 
         foreach ($hits as $i => $hit) {
             $n = $i + 1;
-            $contextBlocks[] = sprintf('[%d] (id: %s, score: %.3f)\n%s', $n, $hit->document->id, $hit->score, $hit->document->content);
+            $safeContent = SecretScrubber::scrub($hit->document->content);
+            $contextBlocks[] = sprintf("[%d] (id: %s, score: %.3f)\n%s", $n, $hit->document->id, $hit->score, $safeContent);
             $sources[] = [
                 'id' => $hit->document->id,
                 'score' => round($hit->score, 4),
-                'excerpt' => mb_substr($hit->document->content, 0, 200),
+                'excerpt' => mb_substr($safeContent, 0, 200),
             ];
         }
 

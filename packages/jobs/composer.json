@@ -5,7 +5,9 @@
   "license": "MIT",
   "require": {
     "php": ">=8.5.0",
-    "ext-json": "*"
+    "ext-json": "*",
+    "kongono/core": "^1.0",
+    "kongono/database": "^1.0"
   },
   "autoload": {
     "psr-4": {

@@ -4,7 +4,17 @@
   "type": "library",
   "license": "MIT",
   "require": {
-    "php": ">=8.5.0"
+    "php": ">=8.5.0",
+    "ext-json": "*",
+    "kongono/ai": "^1.0",
+    "kongono/core": "^1.0",
+    "kongono/database": "^1.0",
+    "kongono/http": "^1.0",
+    "kongono/jobs": "^1.0",
+    "kongono/mail": "^1.0",
+    "kongono/security": "^1.0",
+    "kongono/validation": "^1.0",
+    "kongono/view": "^1.0"
   },
   "autoload": {
     "psr-4": {

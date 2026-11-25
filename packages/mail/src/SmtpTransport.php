@@ -22,10 +22,21 @@ final readonly class SmtpTransport implements MailTransportInterface
         private ?string $password = null,
         private bool $startTls = true,
         private int $timeoutSeconds = 15,
+        private bool $implicitTls = false,
+        private bool $allowInsecureAuth = false,
     ) {
         $this->host = self::validateHost($host);
         if ($port < 1 || $port > 65535) {
             throw new MailException(sprintf('Invalid SMTP port %d.', $port));
+        }
+        if ($timeoutSeconds < 1) {
+            throw new MailException(sprintf('Invalid SMTP timeout %d seconds.', $timeoutSeconds));
+        }
+        if (null !== $username && false !== strpbrk($username, "\0\r\n")) {
+            throw new MailException('SMTP username cannot contain NUL, CR, or LF bytes.');
+        }
+        if (null !== $password && false !== strpbrk($password, "\0\r\n")) {
+            throw new MailException('SMTP password cannot contain NUL, CR, or LF bytes.');
         }
     }
 
@@ -38,16 +49,24 @@ final readonly class SmtpTransport implements MailTransportInterface
             throw new MailException('SMTP message payload cannot contain NUL bytes.');
         }
 
-        // Canonicalize CRLF, bare CR, and bare LF to CRLF before dot-stuffing every leading dot
-        $normalized = (string) preg_replace('/\r\n|\r|\n/', "\r\n", $mime);
+        // Canonicalize CRLF, bare CR, and bare LF to CRLF deterministically (no PCRE backtrack limit on large payloads)
+        $normalized = str_replace(["\r\n", "\r", "\n"], "\n", $mime);
+        $crlf = str_replace("\n", "\r\n", $normalized);
+        $stuffed = str_replace("\r\n.", "\r\n..", $crlf);
+        if (str_starts_with($stuffed, '.')) {
+            $stuffed = '.' . $stuffed;
+        }
 
-        return (string) preg_replace('/^\./m', '..', $normalized);
+        return $stuffed;
     }
 
     public function send(Email $email): string
     {
         if (null === $email->from) {
             throw new MailException('SMTP send requires a From address.');
+        }
+        if (null !== $this->username && null !== $this->password && !$this->startTls && !$this->implicitTls && !$this->allowInsecureAuth) {
+            throw new MailException('Refusing cleartext SMTP AUTH PLAIN without TLS. Enable STARTTLS/implicit TLS or pass allowInsecureAuth: true explicitly.');
         }
 
         $mime = $email->toMimeString();
@@ -62,8 +81,9 @@ final readonly class SmtpTransport implements MailTransportInterface
                 'crypto_method' => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT,
             ],
         ]);
+        $transport = $this->implicitTls ? 'tls' : 'tcp';
         $socket = @stream_socket_client(
-            sprintf('tcp://%s:%d', $this->host, $this->port),
+            sprintf('%s://%s:%d', $transport, $this->host, $this->port),
             $errno,
             $errstr,
             $this->timeoutSeconds,
@@ -80,8 +100,13 @@ final readonly class SmtpTransport implements MailTransportInterface
             $this->expectCode($socket, 220);
             $this->command($socket, 'EHLO kongono.local', 250);
 
-            if ($this->startTls) {
+            if ($this->startTls && !$this->implicitTls) {
                 $this->command($socket, 'STARTTLS', 220);
+                // Block STARTTLS response-injection (CVE-2011-0411 class): reject any unconsumed plaintext bytes before TLS upgrade
+                $meta = stream_get_meta_data($socket);
+                if ($meta['unread_bytes'] > 0) {
+                    throw new MailException('SMTP STARTTLS response injection detected: unexpected plaintext bytes buffered before TLS handshake.');
+                }
                 $crypto = stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT);
                 if (true !== $crypto) {
                     throw new MailException('SMTP STARTTLS negotiation failed.');
@@ -102,7 +127,12 @@ final readonly class SmtpTransport implements MailTransportInterface
             $this->command($socket, 'DATA', 354);
             $this->writeAll($socket, $stuffed . "\r\n.\r\n");
             $this->expectCode($socket, 250);
-            $this->command($socket, 'QUIT', 221);
+            // Message is already accepted (250 OK); treat QUIT failures as best-effort to prevent duplicate retries
+            try {
+                $this->command($socket, 'QUIT', 221);
+            } catch (MailException) {
+                // Ignore graceful disconnect errors after 250 acceptance
+            }
 
             return 'smtp_' . bin2hex(random_bytes(8));
         } finally {
@@ -139,6 +169,7 @@ final readonly class SmtpTransport implements MailTransportInterface
     {
         $linesRead = 0;
         $bytesRead = 0;
+        $firstCode = null;
         $finalCode = null;
 
         while (true) {
@@ -154,18 +185,27 @@ final readonly class SmtpTransport implements MailTransportInterface
                 }
             }
             if ('' === $line) {
+                $meta = stream_get_meta_data($socket);
+                if ($meta['timed_out']) {
+                    throw new MailException('SMTP server response timed out.');
+                }
                 break;
             }
             ++$linesRead;
             if ($linesRead > self::MAX_RESPONSE_LINES) {
                 throw new MailException('SMTP server response exceeded maximum safe size.');
             }
-            if (strlen($line) < 4 || !ctype_digit(substr($line, 0, 3))) {
+            if (strlen($line) < 3 || !ctype_digit(substr($line, 0, 3))) {
                 throw new MailException('Malformed SMTP server response line.');
             }
             $lineCode = (int) substr($line, 0, 3);
-            $sep = $line[3];
-            if (' ' === $sep) {
+            if (null === $firstCode) {
+                $firstCode = $lineCode;
+            } elseif ($lineCode !== $firstCode) {
+                throw new MailException('Inconsistent SMTP multi-line response codes.');
+            }
+            $sep = $line[3] ?? '';
+            if (' ' === $sep || "\r" === $sep || "\n" === $sep || '' === $sep) {
                 $finalCode = $lineCode;
                 break;
             }

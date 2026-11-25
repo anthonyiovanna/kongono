@@ -59,9 +59,14 @@ final class ScheduledTask
 
     public function dailyAt(string $hhmm): self
     {
-        $parts = explode(':', $hhmm);
-        $hour = ctype_digit($parts[0]) ? (int) $parts[0] : 0;
-        $minute = isset($parts[1]) && ctype_digit($parts[1]) ? (int) $parts[1] : 0;
+        if (1 !== preg_match('/\A(\d{1,2}):(\d{2})\z/', trim($hhmm), $m)) {
+            throw new \Kongono\Jobs\JobException(sprintf('Invalid dailyAt() time "%s" (expected HH:MM).', $hhmm));
+        }
+        $hour = (int) $m[1];
+        $minute = (int) $m[2];
+        if ($hour < 0 || $hour > 23 || $minute < 0 || $minute > 59) {
+            throw new \Kongono\Jobs\JobException(sprintf('Out-of-range dailyAt() time "%s" (expected 00:00..23:59).', $hhmm));
+        }
 
         return $this->cron(sprintf('%d %d * * *', $minute, $hour));
     }

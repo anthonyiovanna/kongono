@@ -47,7 +47,11 @@ final class Blueprint
     public function __construct(
         public readonly string $table,
         private readonly Dialect $dialect = Dialect::Postgres,
-    ) {}
+    ) {
+        if ('' === trim($table)) {
+            throw new DatabaseException('Blueprint table name cannot be empty.');
+        }
+    }
 
     public function id(string $name = 'id'): ColumnDefinition
     {
@@ -263,7 +267,7 @@ final class Blueprint
             if ([] === $columnsOrName) {
                 throw new DatabaseException('dropIndex() requires an index name or non-empty list of columns.');
             }
-            $name = sprintf('idx_%s_%s', $this->table, implode('_', $columnsOrName));
+            $name = sprintf('idx_%s_%s', str_replace('.', '_', $this->table), implode('_', $columnsOrName));
         } else {
             $name = $columnsOrName;
         }
@@ -409,7 +413,7 @@ final class Blueprint
      */
     private function compileCreateIndexSql(string $tableQuoted, array $idx): string
     {
-        $idxName = $idx['name'] ?? sprintf('idx_%s_%s', $this->table, implode('_', $idx['columns']));
+        $idxName = $idx['name'] ?? sprintf('idx_%s_%s', str_replace('.', '_', $this->table), implode('_', $idx['columns']));
         $cols = implode(', ', array_map($this->dialect->quoteIdentifier(...), $idx['columns']));
         $unique = $idx['unique'] ? 'UNIQUE ' : '';
         $quotedName = $this->dialect->quoteIdentifier($idxName);
@@ -445,7 +449,7 @@ final class Blueprint
      */
     private function compileForeignKeyClause(array $fk): string
     {
-        $constraintName = $fk['name'] ?? sprintf('fk_%s_%s', $this->table, $fk['column']);
+        $constraintName = $fk['name'] ?? sprintf('fk_%s_%s', str_replace('.', '_', $this->table), $fk['column']);
         $sql = sprintf(
             'CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s (%s) ON DELETE %s',
             $this->dialect->quoteIdentifier($constraintName),

@@ -9,6 +9,7 @@ use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
 use Kongono\Ai\ChatRequest;
 use Kongono\Ai\Message;
+use Kongono\Ai\Role;
 use Kongono\Ai\Security\PromptGuard;
 use Kongono\Ai\Security\UntrustedInput;
 use Kongono\Ai\TokenUsage;
@@ -63,6 +64,22 @@ final readonly class AgentRunner
         $guard = new PromptGuard();
 
         $messages = $initialMessages;
+        // Detect any pre-embedded PromptGuard canary or embed a fresh per-run canary automatically
+        if ([] !== $messages && Role::System === $messages[0]->role) {
+            if (1 === preg_match('/kgn_canary_[a-f0-9]{12,64}/', $messages[0]->content, $m)) {
+                $canary = $m[0];
+            } else {
+                $protected = $guard->buildProtectedSystemPrompt($messages[0]->content);
+                $canary = $protected['canary'];
+                $messages[0] = Message::system($protected['prompt']);
+            }
+        } else {
+            $protected = $guard->buildProtectedSystemPrompt(
+                'You are a Kongono governed AI assistant. Strictly obey all security boundaries and tool policies.',
+            );
+            $canary = $protected['canary'];
+            array_unshift($messages, Message::system($protected['prompt']));
+        }
         $steps = 0;
         $toolCallsExecuted = 0;
         $audit = [];
@@ -88,27 +105,42 @@ final readonly class AgentRunner
 
             $estimatedCostUsd = (($totalInput / 1000.0) * $this->inputCostPer1kTokens)
                 + (($totalOutput / 1000.0) * $this->outputCostPer1kTokens);
-            if ($this->principal->exceedsCostBudget($estimatedCostUsd)) {
+            $modelCostUsd = AiClient::estimateCostUsd($response->provider, $response->model, new TokenUsage($totalInput, $totalOutput));
+            $effectiveCostUsd = max($estimatedCostUsd, $modelCostUsd);
+            if ($this->principal->exceedsCostBudget($effectiveCostUsd)) {
                 throw new AiException(sprintf(
                     'Agent "%s" exceeded its USD cost budget ($%.4f > $%.4f).',
                     $this->principal->id,
-                    $estimatedCostUsd,
+                    $effectiveCostUsd,
                     $this->principal->maxCostUsd,
                 ));
             }
 
             if (!$response->hasToolCalls()) {
+                $finalText = SecretScrubber::scrub($response->text);
+                $checked = $guard->inspectOutput($finalText, $canary);
+                if (!$checked['safe']) {
+                    throw new AiException(sprintf(
+                        'Agent "%s" output blocked by PromptGuard due to suspected prompt injection or canary exfiltration.',
+                        $this->principal->id,
+                    ));
+                }
+                $finalText = $checked['output'];
+
                 return new AgentReceipt(
                     principalId: $this->principal->id,
                     provider: $response->provider,
                     model: $lastModel,
-                    finalText: SecretScrubber::scrub($response->text),
+                    finalText: $finalText,
                     steps: $steps,
                     toolCallsExecuted: $toolCallsExecuted,
                     toolAudit: $audit,
                     usage: new TokenUsage($totalInput, $totalOutput),
                 );
             }
+
+            // Inspect BOTH assistant text and every tool call's arguments BEFORE executing or returning any tool call
+            $this->assertNoCanaryExfiltration($guard, $canary, $response->text, $response->toolCalls);
 
             $messages[] = Message::assistant($response->text, $response->toolCalls);
 
@@ -173,5 +205,66 @@ final readonly class AgentRunner
             $this->principal->id,
             $this->principal->maxSteps,
         ));
+    }
+
+    /**
+     * Block canary exfiltration via assistant text or tool-call names/arguments before any tool executes or pauses.
+     *
+     * @param list<ToolCall> $toolCalls
+     */
+    private function assertNoCanaryExfiltration(PromptGuard $guard, string $canary, string $text, array $toolCalls): void
+    {
+        if ('' !== $text) {
+            $checked = $guard->inspectOutput($text, $canary);
+            if (!$checked['safe']) {
+                throw new AiException(sprintf(
+                    'Agent "%s" output blocked by PromptGuard due to suspected prompt injection or canary exfiltration.',
+                    $this->principal->id,
+                ));
+            }
+        }
+
+        foreach ($toolCalls as $call) {
+            $blobs = [$call->name];
+            $encoded = json_encode($call->arguments, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+            if (is_string($encoded)) {
+                $blobs[] = $encoded;
+            }
+            $leaves = [];
+            self::collectLeafStrings($call->arguments, $leaves);
+            if ([] !== $leaves) {
+                array_push($blobs, ...$leaves);
+                $blobs[] = implode(' ', $leaves);
+            }
+
+            foreach ($blobs as $blob) {
+                if ('' === $blob) {
+                    continue;
+                }
+                $checked = $guard->inspectOutput($blob, $canary);
+                if (!$checked['safe']) {
+                    throw new AiException(sprintf(
+                        'Agent "%s" tool call "%s" blocked by PromptGuard due to suspected prompt injection or canary exfiltration.',
+                        $this->principal->id,
+                        $call->name,
+                    ));
+                }
+            }
+        }
+    }
+
+    /**
+     * @param array<mixed> $values
+     * @param list<string> $out
+     */
+    private static function collectLeafStrings(array $values, array &$out): void
+    {
+        foreach ($values as $v) {
+            if (is_string($v)) {
+                $out[] = $v;
+            } elseif (is_array($v)) {
+                self::collectLeafStrings($v, $out);
+            }
+        }
     }
 }

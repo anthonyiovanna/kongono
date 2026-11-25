@@ -21,7 +21,7 @@ use Throwable;
  */
 final class ViewEngine
 {
-    private const string CACHE_VERSION = 'v7';
+    private const string CACHE_VERSION = 'v9';
 
     private readonly string $viewsPath;
     private readonly string $cachePath;
@@ -364,6 +364,15 @@ final class ViewEngine
                 throw new ViewException(sprintf('Failed to read template "%s".', $template));
             }
             $compiled = $this->compiler->compile($source);
+            $sourceTag = sprintf(
+                "<?php declare(strict_types=1);\n// @kongono-source: %s (views/%s%s)\n",
+                $template,
+                $template,
+                $this->extension,
+            );
+            if (str_starts_with($compiled, "<?php declare(strict_types=1);\n")) {
+                $compiled = $sourceTag . substr($compiled, strlen("<?php declare(strict_types=1);\n"));
+            }
             $tmp = $cacheFile . '.' . bin2hex(random_bytes(12)) . '.tmp';
             $handle = @fopen($tmp, 'xb');
             if (false === $handle) {
@@ -375,14 +384,27 @@ final class ViewEngine
                 if (false === $written || $written !== strlen($compiled)) {
                     throw new ViewException(sprintf('Failed to write compiled template cache for "%s".', $template));
                 }
-            } finally {
                 fclose($handle);
+            } catch (Throwable $e) {
+                if (is_resource($handle)) {
+                    fclose($handle);
+                }
+                @unlink($tmp);
+                throw $e;
             }
             if (!@rename($tmp, $cacheFile)) {
-                @unlink($cacheFile);
-                if (!@rename($tmp, $cacheFile)) {
+                clearstatcache(true, $cacheFile);
+                $existingMtime = is_file($cacheFile) ? @filemtime($cacheFile) : false;
+                $srcMtime = @filemtime($sourcePath);
+                // If another worker just published a fresh version, avoid unlinking out from under readers
+                if (false !== $existingMtime && (false === $srcMtime || $existingMtime >= $srcMtime)) {
                     @unlink($tmp);
-                    throw new ViewException(sprintf('Failed to publish compiled template cache for "%s".', $template));
+                } else {
+                    @unlink($cacheFile);
+                    if (!@rename($tmp, $cacheFile)) {
+                        @unlink($tmp);
+                        throw new ViewException(sprintf('Failed to publish compiled template cache for "%s".', $template));
+                    }
                 }
             }
             if (function_exists('opcache_invalidate')) {

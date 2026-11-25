@@ -29,13 +29,13 @@ final class Request implements ServerRequestInterface
     private ?string $requestTarget = null;
 
     /**
-     * @param array<string, string|list<string>>   $headers
-     * @param array<string, mixed>                 $serverParams
-     * @param array<string, string>                $cookieParams
-     * @param array<string, mixed>                 $queryParams
-     * @param array<string, UploadedFileInterface> $uploadedFiles
-     * @param array<string, mixed>|object|null     $parsedBody
-     * @param array<string, mixed>                 $attributes
+     * @param array<string, string|list<string>>                        $headers
+     * @param array<string, mixed>                                      $serverParams
+     * @param array<string, string>                                     $cookieParams
+     * @param array<string, mixed>                                      $queryParams
+     * @param array<string, UploadedFileInterface|array<array-key, mixed>> $uploadedFiles
+     * @param array<string, mixed>|object|null                          $parsedBody
+     * @param array<string, mixed>                                      $attributes
      */
     public function __construct(
         private string $method,
@@ -196,19 +196,16 @@ final class Request implements ServerRequestInterface
             }
         }
 
-        /** @var array<string, UploadedFileInterface> $files */
+        /** @var array<string, UploadedFileInterface|array<array-key, mixed>> $files */
         $files = [];
         foreach ($_FILES as $field => $spec) {
-            if (!is_string($field) || !is_array($spec) || !isset($spec['tmp_name']) || !is_string($spec['tmp_name'])) {
+            if (!is_string($field) || !is_array($spec) || !isset($spec['tmp_name'])) {
                 continue;
             }
-            $files[$field] = new UploadedFile(
-                filePath: '' !== $spec['tmp_name'] ? $spec['tmp_name'] : null,
-                size: isset($spec['size']) && is_int($spec['size']) ? $spec['size'] : null,
-                error: isset($spec['error']) && is_int($spec['error']) ? $spec['error'] : UPLOAD_ERR_NO_FILE,
-                clientFilename: isset($spec['name']) && is_string($spec['name']) ? $spec['name'] : null,
-                clientMediaType: isset($spec['type']) && is_string($spec['type']) ? $spec['type'] : null,
-            );
+            $normalized = self::normalizeUploadedFileSpec($spec);
+            if (null !== $normalized) {
+                $files[$field] = $normalized;
+            }
         }
 
         return new self(
@@ -222,6 +219,68 @@ final class Request implements ServerRequestInterface
             uploadedFiles: $files,
             parsedBody: $parsedBody,
         );
+    }
+
+    /**
+     * @param array<mixed> $spec
+     * @return UploadedFileInterface|array<array-key, mixed>|null
+     */
+    private static function normalizeUploadedFileSpec(array $spec): UploadedFileInterface|array|null
+    {
+        $tmpName = $spec['tmp_name'] ?? null;
+        if (is_string($tmpName)) {
+            return new UploadedFile(
+                filePath: '' !== $tmpName ? $tmpName : null,
+                size: isset($spec['size']) && is_int($spec['size']) ? $spec['size'] : null,
+                error: isset($spec['error']) && is_int($spec['error']) ? $spec['error'] : UPLOAD_ERR_NO_FILE,
+                clientFilename: isset($spec['name']) && is_string($spec['name']) ? $spec['name'] : null,
+                clientMediaType: isset($spec['type']) && is_string($spec['type']) ? $spec['type'] : null,
+            );
+        }
+        if (!is_array($tmpName)) {
+            return null;
+        }
+
+        $sizes = is_array($spec['size'] ?? null) ? $spec['size'] : [];
+        $errors = is_array($spec['error'] ?? null) ? $spec['error'] : [];
+        $names = is_array($spec['name'] ?? null) ? $spec['name'] : [];
+        $types = is_array($spec['type'] ?? null) ? $spec['type'] : [];
+
+        return self::normalizeNestedFiles($tmpName, $sizes, $errors, $names, $types);
+    }
+
+    /**
+     * @param array<array-key, mixed> $tmpNames
+     * @param array<array-key, mixed> $sizes
+     * @param array<array-key, mixed> $errors
+     * @param array<array-key, mixed> $names
+     * @param array<array-key, mixed> $types
+     * @return array<array-key, mixed>
+     */
+    private static function normalizeNestedFiles(array $tmpNames, array $sizes, array $errors, array $names, array $types): array
+    {
+        $normalized = [];
+        foreach ($tmpNames as $key => $tmp) {
+            if (is_array($tmp)) {
+                $normalized[$key] = self::normalizeNestedFiles(
+                    $tmp,
+                    is_array($sizes[$key] ?? null) ? $sizes[$key] : [],
+                    is_array($errors[$key] ?? null) ? $errors[$key] : [],
+                    is_array($names[$key] ?? null) ? $names[$key] : [],
+                    is_array($types[$key] ?? null) ? $types[$key] : [],
+                );
+            } elseif (is_string($tmp)) {
+                $normalized[$key] = new UploadedFile(
+                    filePath: '' !== $tmp ? $tmp : null,
+                    size: isset($sizes[$key]) && is_int($sizes[$key]) ? $sizes[$key] : null,
+                    error: isset($errors[$key]) && is_int($errors[$key]) ? $errors[$key] : UPLOAD_ERR_NO_FILE,
+                    clientFilename: isset($names[$key]) && is_string($names[$key]) ? $names[$key] : null,
+                    clientMediaType: isset($types[$key]) && is_string($types[$key]) ? $types[$key] : null,
+                );
+            }
+        }
+
+        return $normalized;
     }
 
     // --- Ergonomic Kongono Accessors ---
@@ -288,24 +347,68 @@ final class Request implements ServerRequestInterface
     }
 
     /**
-     * Return merged input from JSON body, POST form body, or query string.
+     * Return merged input from JSON body, form body (including PUT/PATCH/DELETE urlencoded), or query string.
      *
      * @return array<string, mixed>
      */
     public function allInput(): array
     {
+        $bodyParams = $this->bodyInput();
+        if (null !== $bodyParams) {
+            return [...$this->queryParams, ...$bodyParams];
+        }
+
+        return $this->queryParams;
+    }
+
+    /**
+     * Return input strictly for DTO hydration: on mutating requests carrying a body,
+     * never allow URL query parameters to supply omitted DTO fields (prevents query-param smuggling).
+     *
+     * @return array<string, mixed>
+     */
+    public function dtoInput(): array
+    {
+        $bodyParams = $this->bodyInput();
+        if (null !== $bodyParams) {
+            return $bodyParams;
+        }
+        if (in_array($this->method, ['POST', 'PUT', 'PATCH'], true)) {
+            return [];
+        }
+
+        return $this->queryParams;
+    }
+
+    /** @return ?array<string, mixed> */
+    private function bodyInput(): ?array
+    {
         $contentType = strtolower($this->getHeaderLine('Content-Type'));
         if (str_contains($contentType, 'application/json')) {
-            return [...$this->queryParams, ...$this->jsonBody()];
+            return $this->jsonBody();
         }
         if (is_array($this->parsedBody)) {
             /** @var array<string, mixed> $body */
             $body = $this->parsedBody;
 
-            return [...$this->queryParams, ...$body];
+            return $body;
+        }
+        if (str_contains($contentType, 'application/x-www-form-urlencoded')) {
+            $raw = (string) $this->body;
+            if ('' === $raw) {
+                return [];
+            }
+            parse_str($raw, $parsed);
+            /** @var array<string, mixed> $out */
+            $out = [];
+            foreach ($parsed as $k => $v) {
+                $out[(string) $k] = $v;
+            }
+
+            return $out;
         }
 
-        return $this->queryParams;
+        return null;
     }
 
     public function input(string $key, mixed $default = null): mixed
@@ -327,7 +430,9 @@ final class Request implements ServerRequestInterface
 
     public function file(string $name): ?UploadedFileInterface
     {
-        return $this->uploadedFiles[$name] ?? null;
+        $entry = $this->uploadedFiles[$name] ?? null;
+
+        return $entry instanceof UploadedFileInterface ? $entry : null;
     }
 
     public function expectsJson(): bool
@@ -489,6 +594,17 @@ final class Request implements ServerRequestInterface
         $clone = clone $this;
         $clone->uri = $uri;
 
+        $host = $uri->getHost();
+        if ('' !== $host && (!$preserveHost || !$clone->hasHeader('Host') || '' === $clone->getHeaderLine('Host'))) {
+            $port = $uri->getPort();
+            $hostValue = null !== $port ? $host . ':' . $port : $host;
+            if (isset($clone->headerNames['host'])) {
+                unset($clone->headers[$clone->headerNames['host']]);
+            }
+            $clone->headerNames['host'] = 'Host';
+            $clone->headers['Host'] = [$hostValue];
+        }
+
         return $clone;
     }
 
@@ -538,7 +654,7 @@ final class Request implements ServerRequestInterface
         return $clone;
     }
 
-    /** @return array<string, UploadedFileInterface> */
+    /** @return array<string, UploadedFileInterface|array<array-key, mixed>> */
     public function getUploadedFiles(): array
     {
         return $this->uploadedFiles;
@@ -550,7 +666,7 @@ final class Request implements ServerRequestInterface
         $clone = clone $this;
         $typed = [];
         foreach ($uploadedFiles as $k => $v) {
-            if (is_string($k) && $v instanceof UploadedFileInterface) {
+            if (is_string($k) && ($v instanceof UploadedFileInterface || is_array($v))) {
                 $typed[$k] = $v;
             }
         }

@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace Kongono\Ai\Security;
 
+use Closure;
+use Kongono\Core\CoreException;
+
 /**
  * Cryptographic & structural defense against prompt injection and system-prompt exfiltration.
  *
  * - Embeds a unique per-operation Canary Token into trusted system instructions
  * - Wraps external data inside neutralized <untrusted_data> XML boundaries
  * - Detects common prompt-injection attack patterns deterministically
- * - Inspects LLM responses and fails closed if the canary token ever leaks
+ * - Inspects LLM responses (both batch and streaming) and fails closed if the canary token ever leaks
  */
 final readonly class PromptGuard
 {
@@ -91,8 +94,60 @@ final readonly class PromptGuard
     }
 
     /**
-     * Inspect an LLM response against the session canary token (raw, case-folded, base64/unpadded,
-     * ROT13, reversed, hex, percent-encoded, space/delimiter-split, and random suffix) and fail closed on leakage.
+     * Create a lookahead-buffered streaming filter so SSE/CLI streams NEVER flush canary tokens
+     * to the caller before `inspectOutput()` verifies them.
+     *
+     * @param Closure(string): void $onSafeDelta
+     * @return array{push: Closure(string): void, flush: Closure(): void}
+     */
+    public function createStreamingFilter(string $canary, Closure $onSafeDelta): array
+    {
+        $holdback = max(256, strlen($canary) * 6);
+        $scanWindow = max($holdback * 4, 4096);
+        $accumulated = '';
+        $emittedLen = 0;
+
+        $push = function (string $delta) use ($canary, $holdback, $scanWindow, $onSafeDelta, &$accumulated, &$emittedLen): void {
+            if ('' === $delta) {
+                return;
+            }
+            $accumulated .= $delta;
+            $len = strlen($accumulated);
+            $window = $len > $scanWindow ? substr($accumulated, -$scanWindow) : $accumulated;
+            $check = $this->inspectOutput($window, $canary);
+            if (!$check['safe']) {
+                throw new CoreException('Streaming output blocked by PromptGuard due to suspected prompt injection or canary exfiltration.');
+            }
+            $safeEnd = $len - $holdback;
+            while ($safeEnd > $emittedLen && (ord($accumulated[$safeEnd]) & 0xC0) === 0x80) {
+                --$safeEnd;
+            }
+            if ($safeEnd > $emittedLen) {
+                $chunk = substr($accumulated, $emittedLen, $safeEnd - $emittedLen);
+                $emittedLen = $safeEnd;
+                $onSafeDelta($chunk);
+            }
+        };
+
+        $flush = function () use ($canary, $onSafeDelta, &$accumulated, &$emittedLen): void {
+            $check = $this->inspectOutput($accumulated, $canary);
+            if (!$check['safe']) {
+                throw new CoreException('Streaming output blocked by PromptGuard due to suspected prompt injection or canary exfiltration.');
+            }
+            if ($emittedLen < strlen($accumulated)) {
+                $tail = substr($accumulated, $emittedLen);
+                $emittedLen = strlen($accumulated);
+                $onSafeDelta($tail);
+            }
+        };
+
+        return ['push' => $push, 'flush' => $flush];
+    }
+
+    /**
+     * Inspect an LLM response against the session canary token (raw, case-folded, all 3 base64
+     * alignment windows, decoded base64/hex runs, ROT13, reversed, hex, percent-encoded,
+     * space/delimiter-split, and random suffix encodings) and fail closed on leakage.
      *
      * @return array{safe: bool, leaked_canary: bool, output: string}
      */
@@ -101,25 +156,17 @@ final readonly class PromptGuard
         if ('' !== $canary) {
             $normalizedOut = UntrustedInput::normalizeForInspection($modelOutput);
             $collapsedOut = (string) preg_replace('/[^a-zA-Z0-9]+/', '', $normalizedOut);
-            $hex = bin2hex($canary);
-            $percentHex = '%' . implode('%', str_split($hex, 2));
+            $variants = self::buildCanaryVariants($canary);
 
-            $variants = [
-                $canary,
-                rtrim(base64_encode($canary), '='),
-                rawurlencode($canary),
-                strrev($canary),
-                str_rot13($canary),
-                $hex,
-                $percentHex,
-            ];
             if (str_starts_with($canary, 'kgn_canary_')) {
                 $suffix = substr($canary, strlen('kgn_canary_'));
                 if (strlen($suffix) >= 12) {
-                    $variants[] = $suffix;
-                    $variants[] = strrev($suffix);
+                    array_push($variants, ...self::buildCanaryVariants($suffix));
                 }
             }
+
+            // Also inspect any embedded Base64 or Hex payloads decoded from the model output
+            $decodedRuns = self::extractDecodedPayloads($normalizedOut);
 
             foreach ($variants as $variant) {
                 if ('' === $variant) {
@@ -131,6 +178,15 @@ final readonly class PromptGuard
                         'leaked_canary' => true,
                         'output' => self::BLOCKED_OUTPUT,
                     ];
+                }
+                foreach ($decodedRuns as $decoded) {
+                    if (false !== stripos($decoded, $variant)) {
+                        return [
+                            'safe' => false,
+                            'leaked_canary' => true,
+                            'output' => self::BLOCKED_OUTPUT,
+                        ];
+                    }
                 }
                 $collapsedVariant = (string) preg_replace('/[^a-zA-Z0-9]+/', '', $variant);
                 if (strlen($collapsedVariant) >= 12 && false !== stripos($collapsedOut, $collapsedVariant)) {
@@ -148,5 +204,79 @@ final readonly class PromptGuard
             'leaked_canary' => false,
             'output' => $modelOutput,
         ];
+    }
+
+    /** @return list<string> */
+    private static function buildCanaryVariants(string $token): array
+    {
+        $hex = bin2hex($token);
+        $percentHex = '%' . implode('%', str_split($hex, 2));
+        $variants = [
+            $token,
+            rtrim(base64_encode($token), '='),
+            rawurlencode($token),
+            strrev($token),
+            str_rot13($token),
+            $hex,
+            $percentHex,
+        ];
+
+        // Cover all 3 Base64 byte-offset alignments (mod 3) by stripping partial edge quartets
+        foreach (['', 'A', 'AA'] as $pad) {
+            $b64 = rtrim(base64_encode($pad . $token), '=');
+            $start = '' === $pad ? 0 : 4;
+            $coreLen = strlen($b64) - $start - 2;
+            if ($coreLen >= 12) {
+                $variants[] = substr($b64, $start, $coreLen);
+            }
+        }
+
+        return array_values(array_unique($variants));
+    }
+
+    /** @return list<string> */
+    private static function extractDecodedPayloads(string $text): array
+    {
+        $decoded = [];
+        if (preg_match_all('/[A-Za-z0-9+\/_-]{16,}={0,2}/', $text, $b64Matches) > 0) {
+            $highSignal = [];
+            $lowSignal = [];
+            $seen = [];
+            foreach ($b64Matches[0] as $candidate) {
+                if (isset($seen[$candidate])) {
+                    continue;
+                }
+                $seen[$candidate] = true;
+                $hasNonAlpha = 1 === preg_match('/[0-9+\/_=-]/', $candidate);
+                $hasMixedCase = 1 === preg_match('/[A-Z]/', $candidate) && 1 === preg_match('/[a-z]/', $candidate);
+                if ($hasNonAlpha || $hasMixedCase) {
+                    $highSignal[] = $candidate;
+                } elseif (count($lowSignal) < 32) {
+                    $lowSignal[] = $candidate;
+                }
+            }
+            $prioritized = [...array_slice($highSignal, 0, 256), ...$lowSignal];
+            foreach ($prioritized as $candidate) {
+                $std = strtr($candidate, '-_', '+/');
+                $rem = strlen($std) % 4;
+                if (0 !== $rem) {
+                    $std .= str_repeat('=', 4 - $rem);
+                }
+                $raw = base64_decode($std, true);
+                if (false !== $raw && '' !== $raw) {
+                    $decoded[] = $raw;
+                }
+            }
+        }
+        if (preg_match_all('/\b(?:[0-9a-fA-F]{2}){12,}\b/', $text, $hexMatches) > 0) {
+            foreach (array_slice(array_values(array_unique($hexMatches[0])), 0, 256) as $hexCand) {
+                $raw = @hex2bin($hexCand);
+                if (false !== $raw && '' !== $raw) {
+                    $decoded[] = $raw;
+                }
+            }
+        }
+
+        return $decoded;
     }
 }

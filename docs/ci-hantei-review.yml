@@ -1,4 +1,4 @@
-# Drop this file into `.github/workflows/hantei-review.yml` in any Kongono v1.19+ application
+# Drop this file into `.github/workflows/hantei-review.yml` in any Kongono v1.20+ application
 # to run deterministic Kongono invariant checks (persistent-runtime leaks, secrets, SecurityAuditor,
 # MigrationLinter) and upload SARIF 2.1.0 findings directly to GitHub Code Scanning on every PR.
 name: Kongono Hantei Review

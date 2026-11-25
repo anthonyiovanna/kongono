@@ -370,8 +370,19 @@ final class Response implements ResponseInterface
             $headers['ETag'] = trim($etag);
         }
 
-        $lowerType = strtolower(explode(';', $cleanType, 2)[0]);
-        if ($inline && in_array($lowerType, ['image/svg+xml', 'text/html', 'application/xhtml+xml'], true)) {
+        $lowerType = trim(strtolower(explode(';', $cleanType, 2)[0]));
+        $isActiveDocument = in_array($lowerType, [
+            'image/svg+xml',
+            'text/html',
+            'application/xhtml+xml',
+            'application/xml',
+            'text/xml',
+            'text/xsl',
+            'application/xslt+xml',
+            'application/mathml+xml',
+            'application/rdf+xml',
+        ], true) || str_ends_with($lowerType, '+xml');
+        if ($inline && $isActiveDocument) {
             $headers['Content-Security-Policy'] = 'sandbox';
         }
 

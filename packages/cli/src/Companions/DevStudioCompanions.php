@@ -8,6 +8,10 @@ use Closure;
 use Kongono\Ai\AiClient;
 use Kongono\Ai\AiException;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Diagnostics\IncidentReplayer;
+use Kongono\Cli\Diagnostics\IncidentTestGenerator;
+use Kongono\Cli\Proof\MasterProver;
+use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Http\App;
 use Kongono\Http\Dev\DevDashboardMiddleware;
 use Kongono\Http\Dev\DevInspector;
@@ -27,6 +31,7 @@ final readonly class DevStudioCompanions
         string $prefix = '/_kongono',
         ?AiClient $aiOverride = null,
         ?float $maxCostUsd = null,
+        bool $hotReload = true,
     ): DevDashboardMiddleware {
         $tryAi = static function (string $companion) use ($aiOverride): ?AiClient {
             if (null !== $aiOverride) {
@@ -95,7 +100,7 @@ final readonly class DevStudioCompanions
                         'path' => $change['path'],
                         'action' => $change['action'],
                         'explanation' => $change['explanation'],
-                        'diff' => DiffRenderer::render($change['path'], $before, $change['content']),
+                        'diff' => DiffRenderer::render($change['path'], $before, SecretScrubber::scrub($change['content'])),
                     ];
                 }
 
@@ -151,6 +156,26 @@ final readonly class DevStudioCompanions
                     'telemetry' => $res['telemetry']?->toArray(),
                 ];
             },
+            proofsHandler: static fn(): array => (new MasterProver())->proveAll($baseDir, $app),
+            incidentReplayHandler: static function (string $reference) use ($app, $baseDir): array {
+                $replayer = new IncidentReplayer();
+                $record = $replayer->resolveStore($baseDir, $app)->find($reference);
+                if (null === $record) {
+                    return ['error' => sprintf('Incident "%s" not found.', $reference)];
+                }
+
+                return $replayer->replay($app, $record);
+            },
+            incidentTestHandler: static function (string $reference) use ($app, $baseDir): array {
+                $record = (new IncidentReplayer())->resolveStore($baseDir, $app)->find($reference);
+                if (null === $record) {
+                    return ['error' => sprintf('Incident "%s" not found.', $reference)];
+                }
+
+                return (new IncidentTestGenerator())->generate($record);
+            },
+            hotReload: $hotReload,
+            schemaHandler: static fn(): array => (new ProjectContext($baseDir, $app->graph(), $app))->inspectSchema(),
         );
     }
 

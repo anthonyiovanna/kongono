@@ -20,8 +20,10 @@ use Kongono\Validation\Attributes\Url;
 use Kongono\Validation\Attributes\Uuid;
 use ReflectionClass;
 use ReflectionEnum;
+use ReflectionIntersectionType;
 use ReflectionNamedType;
 use ReflectionParameter;
+use ReflectionUnionType;
 
 /**
  * Validates raw request/input arrays into strictly typed PHP 8.5 DTOs
@@ -32,6 +34,7 @@ use ReflectionParameter;
 final class Validator
 {
     private const int MAX_NESTING_DEPTH = 16;
+    private const int MAX_TOTAL_NODES = 10_000;
 
     /**
      * Compiled per-DTO validation metadata cached once per persistent worker process.
@@ -39,6 +42,8 @@ final class Validator
      * @var array<string, list<array{
      *     name: string,
      *     typeName: ?string,
+     *     unionTypes: ?list<string>,
+     *     preserveWhitespace: bool,
      *     hasDefault: bool,
      *     default: mixed,
      *     allowsNull: bool,
@@ -66,6 +71,19 @@ final class Validator
      */
     public function validate(string $dtoClass, array $input, int $depth = 0): object
     {
+        $nodeCount = 0;
+
+        return $this->validateInternal($dtoClass, $input, $depth, $nodeCount);
+    }
+
+    /**
+     * @template T of object
+     * @param class-string<T>      $dtoClass
+     * @param array<string, mixed> $input
+     * @return T
+     */
+    private function validateInternal(string $dtoClass, array $input, int $depth, int &$nodeCount): object
+    {
         if ($depth > self::MAX_NESTING_DEPTH) {
             throw new ValidationException(['_root' => ['Nested input exceeded maximum depth limit.']]);
         }
@@ -82,12 +100,26 @@ final class Validator
         $arguments = [];
 
         foreach ($schema as $field) {
+            if (++$nodeCount > self::MAX_TOTAL_NODES) {
+                throw new ValidationException(['_root' => ['Input payload exceeded maximum validation complexity limit.']]);
+            }
+
             $name = $field['name'];
             $present = array_key_exists($name, $input);
             $raw = $present ? $input[$name] : null;
             $fieldErrors = [];
 
-            if (!$present || null === $raw || (is_string($raw) && '' === trim($raw))) {
+            $isEmptyArrayRequired = [] === $raw && (
+                $field['isRequired']
+                || ([] !== $field['requiredIf'] && null !== $this->checkRequiredIf($field['requiredIf'], $name, $input))
+            );
+
+            if (
+                !$present
+                || null === $raw
+                || (is_string($raw) && '' === trim($raw))
+                || $isEmptyArrayRequired
+            ) {
                 $conditionalError = $this->checkRequiredIf($field['requiredIf'], $name, $input);
                 if ($field['isRequired']) {
                     $fieldErrors[] = $field['requiredMessage'] ?? sprintf('The %s field is required.', $name);
@@ -110,7 +142,25 @@ final class Validator
             }
 
             try {
-                [$coerced, $typeError] = $this->coerceByTypeName($field['typeName'], $raw, $name, $depth);
+                if (null !== $field['unionTypes']) {
+                    [$coerced, $typeError] = $this->coerceUnion(
+                        $field['unionTypes'],
+                        $raw,
+                        $name,
+                        $depth,
+                        $field['preserveWhitespace'],
+                        $nodeCount,
+                    );
+                } else {
+                    [$coerced, $typeError] = $this->coerceByTypeName(
+                        $field['typeName'],
+                        $raw,
+                        $name,
+                        $depth,
+                        $field['preserveWhitespace'],
+                        $nodeCount,
+                    );
+                }
             } catch (ValidationException $nested) {
                 foreach ($nested->errors as $subField => $subMessages) {
                     $errors[$name . '.' . $subField] = $subMessages;
@@ -128,9 +178,17 @@ final class Validator
                 continue;
             }
 
-            if ('array' === $field['typeName'] && null !== $field['arrayOf'] && is_array($coerced)) {
+            if (null !== $field['arrayOf'] && is_array($coerced)) {
                 $itemErrors = [];
-                $hydratedItems = $this->validateArrayItems($coerced, $field['arrayOf'], $name, $input, $depth, $itemErrors);
+                $hydratedItems = $this->validateArrayItems(
+                    $coerced,
+                    $field['arrayOf'],
+                    $name,
+                    $input,
+                    $depth,
+                    $itemErrors,
+                    $nodeCount,
+                );
                 if ([] !== $itemErrors) {
                     foreach ($itemErrors as $itemField => $msgs) {
                         $errors[$itemField] = $msgs;
@@ -208,6 +266,7 @@ final class Validator
         array $allInput,
         int $depth,
         array &$errors,
+        int &$nodeCount,
     ): array {
         if (count($items) > $arrayOf->maxItems) {
             $errors[$fieldName] = [
@@ -219,9 +278,19 @@ final class Validator
 
         $validated = [];
         foreach ($items as $idx => $rawItem) {
+            if (++$nodeCount > self::MAX_TOTAL_NODES) {
+                throw new ValidationException(['_root' => ['Input payload exceeded maximum validation complexity limit.']]);
+            }
             $itemKey = $fieldName . '.' . (string) $idx;
             try {
-                [$coercedItem, $itemTypeError] = $this->coerceByTypeName($arrayOf->type, $rawItem, $itemKey, $depth + 1);
+                [$coercedItem, $itemTypeError] = $this->coerceByTypeName(
+                    $arrayOf->type,
+                    $rawItem,
+                    $itemKey,
+                    $depth + 1,
+                    self::isSensitivePreserveWhitespaceField($fieldName),
+                    $nodeCount,
+                );
             } catch (ValidationException $nested) {
                 foreach ($nested->errors as $subField => $subMessages) {
                     $errors[$itemKey . '.' . $subField] = $subMessages;
@@ -253,6 +322,8 @@ final class Validator
      * @return list<array{
      *     name: string,
      *     typeName: ?string,
+     *     unionTypes: ?list<string>,
+     *     preserveWhitespace: bool,
      *     hasDefault: bool,
      *     default: mixed,
      *     allowsNull: bool,
@@ -265,7 +336,19 @@ final class Validator
      */
     private function compileSchema(string $dtoClass): array
     {
+        $lowerType = strtolower(ltrim($dtoClass, '\\'));
+        if (str_starts_with($lowerType, 'kongono\\') && !str_contains($lowerType, '\\tests\\')) {
+            throw new CoreException(sprintf('Refusing to hydrate framework class "%s" from untrusted input.', $dtoClass));
+        }
+
         $reflection = new ReflectionClass($dtoClass);
+        if ($reflection->isInternal()) {
+            throw new CoreException(sprintf('Refusing to hydrate PHP internal class "%s" from untrusted input.', $dtoClass));
+        }
+        if (!$reflection->isInstantiable()) {
+            throw new CoreException(sprintf('DTO class "%s" is not instantiable.', $dtoClass));
+        }
+
         $constructor = $reflection->getConstructor();
         if (null === $constructor) {
             return [];
@@ -273,21 +356,54 @@ final class Validator
 
         $schema = [];
         foreach ($constructor->getParameters() as $parameter) {
+            if ($parameter->isVariadic()) {
+                throw new CoreException(sprintf('Variadic parameter "$%s" is not supported on DTO "%s".', $parameter->getName(), $dtoClass));
+            }
             $attributes = $this->collectAttributes($reflection, $parameter);
             $requiredAttr = $this->findAttribute($attributes, Required::class);
             $arrayOfAttr = $this->findAttribute($attributes, ArrayOf::class);
             $requiredIfAttrs = [];
+            $preserveWhitespace = self::isSensitivePreserveWhitespaceField($parameter->getName());
             foreach ($attributes as $attr) {
                 if ($attr instanceof RequiredIf) {
                     $requiredIfAttrs[] = $attr;
+                } elseif ($attr instanceof Confirmed && self::isSensitivePreserveWhitespaceField($attr->otherField)) {
+                    $preserveWhitespace = true;
                 }
             }
+
             $type = $parameter->getType();
+            $typeName = null;
+            $unionTypes = null;
+            if ($type instanceof ReflectionIntersectionType) {
+                throw new CoreException(sprintf('Intersection type on "$%s" is not supported on DTO "%s".', $parameter->getName(), $dtoClass));
+            }
+            if ($type instanceof ReflectionUnionType) {
+                $unionTypes = [];
+                foreach ($type->getTypes() as $member) {
+                    if ($member instanceof ReflectionIntersectionType) {
+                        throw new CoreException(sprintf('DNF intersection type on "$%s" is not supported on DTO "%s".', $parameter->getName(), $dtoClass));
+                    }
+                    $memberName = $member->getName();
+                    if ('null' !== $memberName) {
+                        $unionTypes[] = $memberName;
+                    }
+                }
+                if (1 === count($unionTypes)) {
+                    $typeName = $unionTypes[0];
+                    $unionTypes = null;
+                }
+            } elseif ($type instanceof ReflectionNamedType) {
+                $typeName = $type->getName();
+            }
+
             $hasDefault = $parameter->isDefaultValueAvailable();
 
             $schema[] = [
                 'name' => $parameter->getName(),
-                'typeName' => $type instanceof ReflectionNamedType ? $type->getName() : null,
+                'typeName' => $typeName,
+                'unionTypes' => $unionTypes,
+                'preserveWhitespace' => $preserveWhitespace,
                 'hasDefault' => $hasDefault,
                 'default' => $hasDefault ? $parameter->getDefaultValue() : null,
                 'allowsNull' => $parameter->allowsNull(),
@@ -341,16 +457,67 @@ final class Validator
         return null;
     }
 
+    /**
+     * @param list<string> $unionTypes
+     * @return array{0: mixed, 1: ?string}
+     */
+    private function coerceUnion(
+        array $unionTypes,
+        mixed $value,
+        string $name,
+        int $depth,
+        bool $preserveWhitespace,
+        int &$nodeCount,
+    ): array {
+        // First try exact native type matches so e.g. int|string preserves ints and bool|string preserves bools
+        $nativeType = match (true) {
+            is_int($value) => 'int',
+            is_float($value) => 'float',
+            is_bool($value) => 'bool',
+            is_string($value) => 'string',
+            is_array($value) => 'array',
+            default => null,
+        };
+        if (null !== $nativeType && in_array($nativeType, $unionTypes, true)) {
+            [$coerced, $err] = $this->coerceByTypeName($nativeType, $value, $name, $depth, $preserveWhitespace, $nodeCount);
+            if (null === $err) {
+                return [$coerced, null];
+            }
+        }
+
+        foreach ($unionTypes as $candidateType) {
+            if ($candidateType === $nativeType) {
+                continue;
+            }
+            try {
+                [$coerced, $err] = $this->coerceByTypeName($candidateType, $value, $name, $depth, $preserveWhitespace, $nodeCount);
+                if (null === $err) {
+                    return [$coerced, null];
+                }
+            } catch (ValidationException) {
+                continue;
+            }
+        }
+
+        return [null, sprintf('The %s field must be a valid %s.', $name, implode('|', $unionTypes))];
+    }
+
     /** @return array{0: mixed, 1: ?string} */
-    private function coerceByTypeName(?string $typeName, mixed $value, string $name, int $depth = 0): array
-    {
-        if (null === $typeName) {
+    private function coerceByTypeName(
+        ?string $typeName,
+        mixed $value,
+        string $name,
+        int $depth = 0,
+        bool $preserveWhitespace = false,
+        int &$nodeCount = 0,
+    ): array {
+        if (null === $typeName || 'mixed' === $typeName) {
             return [$value, null];
         }
 
         return match ($typeName) {
             'string' => is_string($value)
-                ? [trim($value), null]
+                ? [($preserveWhitespace || self::isSensitivePreserveWhitespaceField($name)) ? $value : trim($value), null]
                 : [null, sprintf('The %s field must be a string.', $name)],
             'int' => $this->coerceInt($value, $name),
             'float' => $this->coerceFloat($value, $name),
@@ -359,15 +526,31 @@ final class Validator
                 : (is_string($value) && in_array(strtolower(trim($value)), ['1', '0', 'true', 'false', 'yes', 'no', 'on', 'off'], true)
                     ? [in_array(strtolower(trim($value)), ['1', 'true', 'yes', 'on'], true), null]
                     : [null, sprintf('The %s field must be a boolean.', $name)]),
-            'array' => is_array($value)
+            'array', 'iterable' => is_array($value)
                 ? [$value, null]
                 : [null, sprintf('The %s field must be an array.', $name)],
-            default => $this->coerceObjectOrEnum($typeName, $value, $name, $depth),
+            'object' => is_object($value)
+                ? [$value, null]
+                : [null, sprintf('The %s field must be an object.', $name)],
+            'true' => true === $value
+                ? [true, null]
+                : [null, sprintf('The %s field must be true.', $name)],
+            'false' => false === $value
+                ? [false, null]
+                : [null, sprintf('The %s field must be false.', $name)],
+            default => $this->coerceObjectOrEnum($typeName, $value, $name, $depth, $nodeCount),
         };
     }
 
+    private static function isSensitivePreserveWhitespaceField(string $fieldName): bool
+    {
+        $lower = strtolower($fieldName);
+
+        return str_contains($lower, 'password') || str_contains($lower, 'passphrase') || str_contains($lower, 'secret');
+    }
+
     /** @return array{0: mixed, 1: ?string} */
-    private function coerceObjectOrEnum(string $typeName, mixed $value, string $name, int $depth = 0): array
+    private function coerceObjectOrEnum(string $typeName, mixed $value, string $name, int $depth = 0, int &$nodeCount = 0): array
     {
         if (is_subclass_of($typeName, BackedEnum::class)) {
             if ($value instanceof $typeName) {
@@ -402,10 +585,20 @@ final class Validator
         }
 
         if (class_exists($typeName)) {
-            if (str_starts_with($typeName, 'Kongono\\') && !str_contains($typeName, '\\Tests\\')) {
+            $lowerType = strtolower(ltrim($typeName, '\\'));
+            if (str_starts_with($lowerType, 'kongono\\') && !str_contains($lowerType, '\\tests\\')) {
                 throw new CoreException(sprintf('Refusing to hydrate framework class "%s" from untrusted input for "$%s".', $typeName, $name));
             }
+            $rc = new ReflectionClass($typeName);
+            if ($rc->isInternal()) {
+                throw new CoreException(sprintf('Refusing to hydrate PHP internal class "%s" from untrusted input for "$%s".', $typeName, $name));
+            }
+            if (!$rc->isInstantiable()) {
+                throw new CoreException(sprintf('DTO field class "%s" for "$%s" is not instantiable.', $typeName, $name));
+            }
             if ($value instanceof $typeName) {
+                $this->runDtoHook($value);
+
                 return [$value, null];
             }
             if (is_array($value)) {
@@ -415,7 +608,7 @@ final class Validator
                     $nestedInput[(string) $k] = $v;
                 }
 
-                return [$this->validate($typeName, $nestedInput, $depth + 1), null];
+                return [$this->validateInternal($typeName, $nestedInput, $depth + 1, $nodeCount), null];
             }
 
             return [null, sprintf('The %s field must be an object.', $name)];
@@ -438,6 +631,10 @@ final class Validator
                 $error = $attribute->validate($value, $name, $allInput);
                 if (null !== $error) {
                     $errors[] = $error;
+                }
+            } elseif ($attribute instanceof Required) {
+                if (null === $value || (is_string($value) && '' === trim($value)) || [] === $value) {
+                    $errors[] = $attribute->message ?? sprintf('The %s field is required.', $name);
                 }
             } elseif ($attribute instanceof Min) {
                 if (is_string($value)) {
@@ -519,7 +716,11 @@ final class Validator
                 }
             } elseif ($attribute instanceof Confirmed) {
                 $other = $allInput[$attribute->otherField] ?? null;
-                $normalizedOther = is_string($other) ? trim($other) : $other;
+                $preserveOther = self::isSensitivePreserveWhitespaceField($attribute->otherField)
+                    || self::isSensitivePreserveWhitespaceField($name);
+                $normalizedOther = is_string($other)
+                    ? ($preserveOther ? $other : trim($other))
+                    : $other;
                 if ($value !== $normalizedOther) {
                     $errors[] = $attribute->message ?? sprintf('The %s field must match %s.', $name, $attribute->otherField);
                 }

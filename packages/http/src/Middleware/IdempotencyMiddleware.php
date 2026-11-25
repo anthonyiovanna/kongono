@@ -12,21 +12,29 @@ use Kongono\Http\Response;
 use Kongono\Http\Stream;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\UploadedFileInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Throwable;
 
 /**
  * Stripe-grade Idempotency-Key middleware for mutating HTTP requests (POST/PUT/PATCH).
  *
  * Prevents duplicate writes/charges on network retries:
- *   - Replays the exact cached status, content-type, and body with `Idempotency-Replayed: true`
+ *   - Replays the exact cached status, safe headers, and body with `Idempotency-Replayed: true`
  *   - Fails closed with 409 Conflict if the same Idempotency-Key is reused with a different request payload
  *   - Prevents concurrent duplicate execution with an in-flight lock key
  */
 final readonly class IdempotencyMiddleware implements MiddlewareInterface
 {
     private const array MUTATING_METHODS = ['POST', 'PUT', 'PATCH'];
+
+    /** @var list<string> */
+    private const array SAFE_REPLAY_HEADERS = [
+        'location',
+        'etag',
+        'vary',
+        'content-language',
+    ];
 
     /** @param (Closure(ServerRequestInterface): string)|null $scopeResolver Optional actor/tenant scope resolver */
     public function __construct(
@@ -53,7 +61,15 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
         }
 
         $actorScope = $this->resolveActorScope($request);
-        $body = (string) $request->getBody();
+        $bodyStream = $request->getBody();
+        if ($bodyStream->isSeekable()) {
+            $bodyStream->rewind();
+            $body = $bodyStream->getContents();
+            $bodyStream->rewind();
+        } else {
+            $body = $bodyStream->getContents();
+            $request = $request->withBody(Stream::fromString($body));
+        }
         if ('' === $body) {
             $parsedBody = $request->getParsedBody();
             if (is_array($parsedBody) && [] !== $parsedBody) {
@@ -61,9 +77,11 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
                 $body = is_string($encodedParsed) ? $encodedParsed : '';
             }
         }
+        $filesDigest = $this->fingerprintUploadedFiles($request->getUploadedFiles());
+        $reqContentType = strtolower(trim($request->getHeaderLine('Content-Type')));
         $path = self::canonicalizePath($request->getUri()->getPath());
         $query = $request->getUri()->getQuery();
-        $fingerprint = hash('sha256', $method . '|' . $path . '|' . $query . '|' . $body);
+        $fingerprint = hash('sha256', $method . '|' . $path . '|' . $query . '|' . $reqContentType . '|' . $body . '|' . $filesDigest);
         $cacheKey = $this->cachePrefix . hash('sha256', $actorScope . '|' . $method . '|' . $path . '|' . $idempotencyKey);
         $lockKey = $cacheKey . ':lock';
 
@@ -77,13 +95,21 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
             $status = is_int($existing['status'] ?? null) ? $existing['status'] : 200;
             $contentType = is_string($existing['content_type'] ?? null) ? $existing['content_type'] : 'application/json; charset=utf-8';
             $storedBody = is_string($existing['body'] ?? null) ? $existing['body'] : '';
+            $replayHeaders = [
+                'Content-Type' => $contentType,
+            ];
+            if (is_array($existing['headers'] ?? null)) {
+                foreach ($existing['headers'] as $hName => $hVal) {
+                    if (is_string($hName) && is_string($hVal)) {
+                        $replayHeaders[$hName] = $hVal;
+                    }
+                }
+            }
+            $replayHeaders['Idempotency-Replayed'] = 'true';
 
             return new Response(
                 statusCode: $status,
-                headers: [
-                    'Content-Type' => $contentType,
-                    'Idempotency-Replayed' => 'true',
-                ],
+                headers: $replayHeaders,
                 body: Stream::fromString($storedBody),
             );
         }
@@ -102,28 +128,101 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
 
         try {
             $response = $handler->handle($request);
-            // Cache deterministic non-transient responses only (never cache 5xx, auth/rate-limit rejections, Set-Cookie, or no-store)
+            // Cache deterministic non-streaming, non-transient responses only (never cache 5xx, auth/rate-limit rejections, Set-Cookie, or no-store)
             $status = $response->getStatusCode();
             $cc = strtolower($response->getHeaderLine('Cache-Control'));
-            $isCacheable = $status < 500
+            $isStreaming = $response instanceof Response && $response->isStreaming();
+            $isCacheable = !$isStreaming
+                && $status < 500
                 && !in_array($status, [401, 403, 408, 429], true)
                 && !$response->hasHeader('Set-Cookie')
                 && !str_contains($cc, 'no-store');
             if ($isCacheable) {
                 $contentType = $response->getHeaderLine('Content-Type');
+                $safeHeaders = [];
+                foreach ($response->getHeaders() as $hName => $hVals) {
+                    $lower = strtolower($hName);
+                    if (in_array($lower, self::SAFE_REPLAY_HEADERS, true) || str_starts_with($lower, 'x-kongono-')) {
+                        $safeHeaders[$hName] = implode(', ', $hVals);
+                    }
+                }
+                $respBody = $response->getBody();
+                if ($respBody->isSeekable()) {
+                    $respBody->rewind();
+                    $cachedBody = $respBody->getContents();
+                    $respBody->rewind();
+                } else {
+                    $cachedBody = $respBody->getContents();
+                    $response = $response->withBody(Stream::fromString($cachedBody));
+                }
                 $this->cache->set($cacheKey, [
                     'fingerprint' => $fingerprint,
                     'status' => $status,
                     'content_type' => '' !== $contentType ? $contentType : 'application/json; charset=utf-8',
-                    'body' => (string) $response->getBody(),
+                    'headers' => $safeHeaders,
+                    'body' => $cachedBody,
                 ], $this->ttlSeconds);
             }
 
             return $response;
-        } catch (Throwable $e) {
-            throw $e;
         } finally {
             $this->cache->delete($lockKey);
+        }
+    }
+
+    /** @param array<array-key, mixed> $uploadedFiles */
+    private function fingerprintUploadedFiles(array $uploadedFiles): string
+    {
+        if ([] === $uploadedFiles) {
+            return '';
+        }
+
+        $ctx = hash_init('sha256');
+        $this->hashUploadedTree($ctx, '', $uploadedFiles);
+
+        return hash_final($ctx);
+    }
+
+    /** @param array<array-key, mixed> $tree */
+    private function hashUploadedTree(\HashContext $ctx, string $prefix, array $tree): void
+    {
+        ksort($tree, SORT_STRING);
+        foreach ($tree as $key => $item) {
+            $path = '' === $prefix ? (string) $key : $prefix . '.' . (string) $key;
+            if ($item instanceof UploadedFileInterface) {
+                $contentHash = '';
+                if (UPLOAD_ERR_OK === $item->getError()) {
+                    try {
+                        $s = $item->getStream();
+                        if ($s->isSeekable()) {
+                            $s->rewind();
+                            $fileCtx = hash_init('sha256');
+                            while (!$s->eof()) {
+                                $chunk = $s->read(65536);
+                                if ('' === $chunk) {
+                                    break;
+                                }
+                                hash_update($fileCtx, $chunk);
+                            }
+                            $s->rewind();
+                            $contentHash = hash_final($fileCtx);
+                        }
+                    } catch (\Throwable) {
+                        $contentHash = 'unreadable';
+                    }
+                }
+                hash_update($ctx, sprintf(
+                    '%s|%s|%s|%d|%d|%s;',
+                    $path,
+                    $item->getClientFilename() ?? '',
+                    $item->getClientMediaType() ?? '',
+                    $item->getSize() ?? -1,
+                    $item->getError(),
+                    $contentHash,
+                ));
+            } elseif (is_array($item)) {
+                $this->hashUploadedTree($ctx, $path, $item);
+            }
         }
     }
 

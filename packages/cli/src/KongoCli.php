@@ -22,13 +22,29 @@ use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Database\MigrationLinter;
 use Kongono\Cli\Deploy\DeployBlueprintGenerator;
+use Kongono\Cli\Diagnostics\AppAutoFixer;
+use Kongono\Cli\Diagnostics\IncidentReplayer;
+use Kongono\Cli\Diagnostics\IncidentTestGenerator;
+use Kongono\Cli\Diagnostics\KongonoAppInspector;
+use Kongono\Cli\Eval\AgentCodingBenchmark;
+use Kongono\Cli\Impact\AppSnapshot;
+use Kongono\Cli\Impact\ImpactAnalyzer;
+use Kongono\Cli\Lsp\KongonoLanguageServer;
 use Kongono\Cli\Mcp\KongonoMcpFactory;
+use Kongono\Cli\Perf\PerfProver;
+use Kongono\Cli\Policy\PolicyVerifier;
+use Kongono\Cli\Proof\MasterProver;
 use Kongono\Cli\Sdk\SdkGenerator;
+use Kongono\Cli\Security\TenantIsolationProver;
+use Kongono\Cli\Shadow\ShadowDiffProver;
 use Kongono\Cli\Skills\SkillsInstaller;
 use Kongono\Cli\Ui\UiComponentGenerator;
+use Kongono\Cli\Upgrade\UpgradeEngine;
+use Kongono\Cli\Watch\WatchRunner;
 use Kongono\Core\Cache\AtomicCacheInterface;
 use Kongono\Core\Config;
 use Kongono\Core\CoreException;
+use Kongono\Core\Diagnostics\ErrorExplainer;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Core\Graph\RouteNode;
 use Kongono\Database\ConnectionInterface;
@@ -72,12 +88,19 @@ final readonly class KongoCli
         $rest = array_slice($parsed['positional'], 1);
         $options = $parsed['options'];
 
+        if (isset($options['help'])) {
+            return [0, $this->helpText()];
+        }
+        if ('help' === $command && isset($options['version'])) {
+            return [0, 'Kongono Framework v1.20.0 (PHP ' . PHP_VERSION . ")\n"];
+        }
+
         $appRoot = $this->resolveAppRoot($options['app'] ?? null);
 
         try {
             return match ($command) {
-                'help', '-h', '--help' => [0, $this->helpText()],
-                'version', '-v', '--version' => [0, 'Kongono Framework v1.19.0 (PHP ' . PHP_VERSION . ")\n"],
+                'help', '-h' => [0, $this->helpText()],
+                'version', '-v' => [0, 'Kongono Framework v1.20.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
@@ -88,7 +111,23 @@ final readonly class KongoCli
                 'auth:init' => $this->cmdAuthInit($appRoot, $options),
                 'skills:install' => $this->cmdSkillsInstall($appRoot, $options),
                 'mcp' => $this->cmdMcp($appRoot),
+                'lsp' => $this->cmdLsp($appRoot),
                 'audit' => $this->cmdAudit($appRoot, $options),
+                'diagnose' => $this->cmdDiagnose($appRoot, $options),
+                'prove' => $this->cmdProve($appRoot, $options),
+                'policy:check' => $this->cmdPolicyCheck($appRoot, $options),
+                'perf' => $this->cmdPerf($appRoot, $options),
+                'prove:isolation' => $this->cmdProveIsolation($appRoot, $options),
+                'snapshot' => $this->cmdSnapshot($appRoot, $options),
+                'impact' => $this->cmdImpact($appRoot, $options),
+                'shadow:record' => $this->cmdShadowRecord($appRoot, $options),
+                'shadow:diff' => $this->cmdShadowDiff($appRoot, $options),
+                'upgrade' => $this->cmdUpgrade($appRoot, $options),
+                'watch' => $this->cmdWatch($appRoot, $options),
+                'incident:list' => $this->cmdIncidentList($appRoot, $options),
+                'incident:show' => $this->cmdIncidentShow($appRoot, $rest, $options),
+                'incident:replay' => $this->cmdIncidentReplay($appRoot, $rest, $options),
+                'incident:test' => $this->cmdIncidentTest($appRoot, $rest, $options),
                 'eval' => $this->cmdEval($appRoot, $options),
                 'deploy:init' => $this->cmdDeployInit($appRoot, $options),
                 'serve' => $this->cmdServe($appRoot, $options),
@@ -127,11 +166,91 @@ final readonly class KongoCli
                 'oshie' => $this->cmdOshie($appRoot, $rest, $options),
                 'chie' => $this->cmdChie($appRoot, $rest, $options),
                 'hantei' => $this->cmdHantei($appRoot, $rest, $options),
-                default => [1, sprintf("Unknown command \"%s\". Run `kongo help` for usage.\n", $command)],
+                default => $this->unknownCommand($command),
             };
         } catch (Throwable $e) {
-            return [1, sprintf("Error: %s\n", SecretScrubber::scrub($e->getMessage()))];
+            $exp = (new ErrorExplainer())->explainThrowable(
+                exception: $e,
+                basePath: $appRoot,
+            );
+            if (isset($options['json'])) {
+                return [1, json_encode(['error' => $exp->toArray()], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+            }
+
+            return [1, $this->formatCliExplanation($exp->toArray())];
         }
+    }
+
+    /** @return array{0: int, 1: string} */
+    private function unknownCommand(string $command): array
+    {
+        $known = [
+            'help', 'version', 'routes', 'graph', 'openapi', 'sdk:generate', 'bridge:init',
+            'bridge:types', 'ui:add', 'auth:init', 'skills:install', 'mcp', 'lsp', 'audit', 'diagnose', 'prove',
+            'policy:check', 'perf', 'prove:isolation', 'snapshot', 'impact', 'shadow:record', 'shadow:diff', 'upgrade', 'watch',
+            'incident:list', 'incident:show', 'incident:replay', 'incident:test',
+            'eval', 'deploy:init', 'serve', 'tinker', 'new', 'work', 'queue:failed', 'queue:retry',
+            'queue:flush', 'schedule:run', 'migrate', 'migrate:fresh', 'migrate:rollback',
+            'migrate:status', 'migrate:lint', 'db:seed', 'optimize', 'cache:clear',
+            'make:controller', 'make:dto', 'make:migration', 'make:seeder', 'make:test',
+            'make:job', 'make:policy', 'make:middleware', 'make:factory', 'make:rule',
+            'make:mail', 'make:resource', 'key:generate', 'doctor', 'env:check', 'check',
+            'test', 'oshie', 'chie', 'hantei',
+        ];
+        $best = null;
+        $bestDist = 99;
+        $needle = strtolower($command);
+        foreach ($known as $cand) {
+            $d = levenshtein($needle, $cand);
+            if ($d < $bestDist && $d <= max(2, (int) floor(strlen($needle) / 2))) {
+                $bestDist = $d;
+                $best = $cand;
+            }
+        }
+        $hint = null !== $best
+            ? sprintf("  Did you mean: `kongo %s`?\n", $best)
+            : '';
+
+        return [1, sprintf("Unknown command \"%s\".\n%sRun `kongo help` for usage.\n", $command, $hint)];
+    }
+
+    /**
+     * @param array{
+     *     code: string,
+     *     who: string,
+     *     what: string,
+     *     why: string,
+     *     where: string,
+     *     when: string,
+     *     how_to_fix: list<string>,
+     *     code_fix: ?string,
+     *     command: ?string,
+     *     did_you_mean: list<string>
+     * } $exp
+     */
+    private function formatCliExplanation(array $exp): string
+    {
+        $lines = [
+            sprintf('Error [%s]: %s', $exp['code'], $exp['what']),
+            sprintf('  Why:   %s', $exp['why']),
+            sprintf('  Who:   %s', $exp['who']),
+            sprintf('  Where: %s', $exp['where']),
+            sprintf('  When:  %s', $exp['when']),
+        ];
+        if ([] !== $exp['did_you_mean']) {
+            $lines[] = sprintf('  Did you mean: %s', implode(', ', $exp['did_you_mean']));
+        }
+        if ([] !== $exp['how_to_fix']) {
+            $lines[] = '  How to fix:';
+            foreach ($exp['how_to_fix'] as $idx => $step) {
+                $lines[] = sprintf('    %d. %s', $idx + 1, $step);
+            }
+        }
+        if (null !== $exp['command'] && '' !== $exp['command']) {
+            $lines[] = sprintf('  Run:   %s', $exp['command']);
+        }
+
+        return implode("\n", $lines) . "\n";
     }
 
     /**
@@ -220,14 +339,7 @@ final readonly class KongoCli
 
         if (is_string($options['out'] ?? null) && '' !== trim($options['out'])) {
             $outPath = trim($options['out']);
-            $dest = str_starts_with($outPath, '/') || (strlen($outPath) > 1 && ':' === $outPath[1])
-                ? $outPath
-                : $appRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $outPath);
-            $dir = dirname($dest);
-            if (!is_dir($dir)) {
-                @mkdir($dir, 0o775, true);
-            }
-            file_put_contents($dest, $code);
+            $dest = $this->writeSafeCliFile($appRoot, $outPath, $code, allowAbsolute: true);
 
             return [0, sprintf("Generated %s SDK (%d bytes) -> %s\n", strtoupper($generator->normalizeLanguage($lang)), strlen($code), $dest)];
         }
@@ -242,6 +354,15 @@ final readonly class KongoCli
         $server->serveStdio();
 
         return [0, ''];
+    }
+
+    /** @return array{0: int, 1: string} */
+    private function cmdLsp(string $appRoot): array
+    {
+        $server = new KongonoLanguageServer($appRoot);
+        $code = $server->serveStreams(STDIN, STDOUT);
+
+        return [$code, ''];
     }
 
     /**
@@ -259,6 +380,13 @@ final readonly class KongoCli
             return [1, sprintf("Cannot serve: %s does not exist.\n", $routerScript)];
         }
 
+        if (!isset($options['no-diagnose'])) {
+            $banner = $this->formatStartupDiagnostics($appRoot);
+            if ('' !== $banner) {
+                fwrite(STDOUT, $banner);
+            }
+        }
+
         $address = sprintf('%s:%s', $host, $port);
         fwrite(STDOUT, sprintf("Kongono dev server running at http://%s (app: %s)\nPress Ctrl+C to stop.\n", $address, $appRoot));
 
@@ -270,6 +398,62 @@ final readonly class KongoCli
         $code = proc_close($process);
 
         return [$code, ''];
+    }
+
+    /**
+     * Fast non-blocking diagnostic summary printed on `kongo serve` boot in local development.
+     */
+    public function formatStartupDiagnostics(string $appRoot): string
+    {
+        $app = null;
+        $bootError = null;
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (is_file($bootstrap)) {
+            try {
+                $loaded = require $bootstrap;
+                if ($loaded instanceof App) {
+                    $app = $loaded;
+                }
+            } catch (Throwable $e) {
+                $bootError = (new ErrorExplainer())->explainThrowable($e, basePath: $appRoot)->toArray();
+            }
+        }
+
+        if (null !== $bootError) {
+            return "[diagnose] Boot error detected:\n" . $this->formatCliExplanation($bootError);
+        }
+
+        $report = (new KongonoAppInspector())->inspect($appRoot, $app);
+        if ($report['passed'] && 0 === $report['counts']['warning']) {
+            return sprintf(
+                "[diagnose] %d/100 PASS (%d route(s), %d view(s), %d PHP file(s))\n",
+                $report['score'],
+                $report['routes_checked'],
+                $report['views_checked'],
+                $report['php_files_checked'],
+            );
+        }
+
+        $lines = [
+            sprintf(
+                '[diagnose] Score: %d/100 (%d error(s), %d warning(s))',
+                $report['score'],
+                $report['counts']['error'],
+                $report['counts']['warning'],
+            ),
+        ];
+        foreach (array_slice($report['findings'], 0, 5) as $f) {
+            $lines[] = sprintf('  [%-7s] %s (%s): %s', strtoupper($f['severity']), $f['code'], $f['where'], $f['what']);
+        }
+        if (count($report['findings']) > 5) {
+            $lines[] = sprintf('  ... and %d more finding(s). Run `kongo diagnose` for full 5W1H fixes.', count($report['findings']) - 5);
+        } elseif ($report['fixable_count'] > 0) {
+            $lines[] = sprintf('  Tip: %d issue(s) can be auto-fixed with `kongo diagnose --fix`.', $report['fixable_count']);
+        } else {
+            $lines[] = '  Run `kongo diagnose` for full 5W1H explanations and fixes.';
+        }
+
+        return implode("\n", $lines) . "\n";
     }
 
     /**
@@ -375,7 +559,7 @@ final readonly class KongoCli
                 'status' => $j->status->value,
                 'attempt' => $j->attempt,
                 'max_attempts' => $j->maxAttempts,
-                'last_error' => $j->lastError,
+                'last_error' => null !== $j->lastError ? SecretScrubber::scrub($j->lastError) : null,
             ], $jobs);
 
             return [0, json_encode($payload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
@@ -397,7 +581,7 @@ final readonly class KongoCli
                 $job->type,
                 $job->attempt,
                 $job->maxAttempts,
-                $job->lastError ?? '-',
+                null !== $job->lastError ? SecretScrubber::scrub($job->lastError) : '-',
             );
         }
 
@@ -552,6 +736,22 @@ final readonly class KongoCli
             }
         }
 
+        if (!$failed && (is_file($appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php') || is_dir($appRoot . DIRECTORY_SEPARATOR . 'views'))) {
+            [$diagCode, $diagOut] = $this->cmdDiagnose($appRoot, []);
+            $lines[] = sprintf('  [%-4s] diagnose', 0 === $diagCode ? 'PASS' : 'FAIL');
+            if (0 !== $diagCode) {
+                $failed = true;
+                $lines[] = rtrim($diagOut);
+            } else {
+                [$policyCode, $policyOut] = $this->cmdPolicyCheck($appRoot, []);
+                $lines[] = sprintf('  [%-4s] policy:check', 0 === $policyCode ? 'PASS' : 'FAIL');
+                if (0 !== $policyCode) {
+                    $failed = true;
+                    $lines[] = rtrim($policyOut);
+                }
+            }
+        }
+
         return [$failed ? 1 : 0, implode("\n", $lines) . "\n"];
     }
 
@@ -611,7 +811,12 @@ final readonly class KongoCli
             return [1, "app/bootstrap.php did not return a Kongono\\Http\\App instance.\n"];
         }
 
-        $cacheDir = $app->basePath() . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'cache';
+        $basePath = $app->basePath();
+        $varDir = $basePath . DIRECTORY_SEPARATOR . 'var';
+        $cacheDir = $varDir . DIRECTORY_SEPARATOR . 'cache';
+        if (is_link($varDir) || is_link($cacheDir)) {
+            throw new CoreException('Refusing to optimize: var/cache cannot be a symbolic link.');
+        }
         if (!is_dir($cacheDir) && !@mkdir($cacheDir, 0o775, true) && !is_dir($cacheDir)) {
             return [1, sprintf("Unable to create cache directory %s.\n", $cacheDir)];
         }
@@ -621,9 +826,9 @@ final readonly class KongoCli
             $compiledViews = $app->container()->make(ViewEngine::class)->warmCache();
         }
 
-        file_put_contents($cacheDir . DIRECTORY_SEPARATOR . 'graph.json', $app->graph()->toJson(pretty: true), LOCK_EX);
-        file_put_contents($cacheDir . DIRECTORY_SEPARATOR . 'openapi.json', (new OpenApiGenerator())->generateJson($app), LOCK_EX);
-        file_put_contents($cacheDir . DIRECTORY_SEPARATOR . 'routes.compiled.php', $app->router()->exportCompiledPhp(), LOCK_EX);
+        $this->writeSafeCliFile($basePath, 'var/cache/graph.json', $app->graph()->toJson(pretty: true));
+        $this->writeSafeCliFile($basePath, 'var/cache/openapi.json', (new OpenApiGenerator())->generateJson($app));
+        $this->writeSafeCliFile($basePath, 'var/cache/routes.compiled.php', $app->router()->exportCompiledPhp());
 
         return [0, sprintf(
             "Optimized \"%s\":\n  + Precompiled %d template(s)\n  + Compiled var/cache/routes.compiled.php\n  + Cached var/cache/graph.json\n  + Cached var/cache/openapi.json\n",
@@ -635,13 +840,21 @@ final readonly class KongoCli
     /** @return array{0: int, 1: string} */
     private function cmdCacheClear(string $appRoot): array
     {
-        $cacheDir = $appRoot . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'cache';
-        if (is_link($cacheDir)) {
-            throw new CoreException('Refusing to clear cache directory: var/cache cannot be a symbolic link.');
+        $realRoot = realpath($appRoot);
+        $varDir = $appRoot . DIRECTORY_SEPARATOR . 'var';
+        $cacheDir = $varDir . DIRECTORY_SEPARATOR . 'cache';
+        if (is_link($varDir) || is_link($cacheDir)) {
+            throw new CoreException('Refusing to clear cache directory: var or var/cache cannot be a symbolic link.');
         }
         $realCache = realpath($cacheDir);
         if (false === $realCache || !is_dir($realCache)) {
             return [0, "Cache directory is already empty.\n"];
+        }
+        if (false !== $realRoot) {
+            $prefix = rtrim($realRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+            if (!str_starts_with($realCache, $prefix)) {
+                throw new CoreException('Refusing to clear cache directory: resolved path escapes project root.');
+            }
         }
 
         $removed = $this->deleteDirectoryFiles($realCache, $realCache);
@@ -1477,7 +1690,7 @@ final readonly class KongoCli
                 } catch (Throwable) {
                     $before = null;
                 }
-                $lines[] = DiffRenderer::render($change['path'], $before, $change['content']);
+                $lines[] = DiffRenderer::render($change['path'], $before, SecretScrubber::scrub($change['content']));
                 $lines[] = '';
             }
         }
@@ -1531,7 +1744,7 @@ final readonly class KongoCli
             } catch (Throwable) {
                 $before = null;
             }
-            $diff = DiffRenderer::render($change['path'], $before, $change['content']);
+            $diff = DiffRenderer::render($change['path'], $before, SecretScrubber::scrub($change['content']));
 
             if ($approveAll) {
                 $approvedPaths[] = $change['path'];
@@ -1957,6 +2170,772 @@ final readonly class KongoCli
     }
 
     /**
+     * Run Kongono's framework-native self-inspector (`kongo diagnose [--app=...] [--json] [--strict]`).
+     *
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdDiagnose(string $appRoot, array $options): array
+    {
+        $fixReport = null;
+        if (isset($options['fix'])) {
+            $fixReport = (new AppAutoFixer())->fixDirectory($appRoot, dryRun: isset($options['dry-run']));
+        }
+
+        $app = null;
+        $bootError = null;
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (is_file($bootstrap)) {
+            try {
+                $loaded = require $bootstrap;
+                if ($loaded instanceof App) {
+                    $app = $loaded;
+                }
+            } catch (Throwable $e) {
+                $bootError = (new ErrorExplainer())->explainThrowable($e, basePath: $appRoot)->toArray();
+            }
+        }
+
+        $report = (new KongonoAppInspector())->inspect($appRoot, $app);
+        if (null !== $fixReport) {
+            $report['autofix'] = $fixReport;
+        }
+        if (null !== $bootError) {
+            $report['boot_error'] = $bootError;
+            $report['passed'] = false;
+            $report['score'] = 0;
+        }
+
+        $strict = isset($options['strict']);
+        $failed = !$report['passed'] || ($strict && $report['counts']['warning'] > 0);
+
+        if (isset($options['json'])) {
+            return [$failed ? 1 : 0, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [];
+        if (null !== $fixReport) {
+            $modeLabel = $fixReport['dry_run'] ? 'Autofix dry-run preview' : 'Autofix applied';
+            $lines[] = sprintf(
+                '%s: %d fix(es) across %d file(s).',
+                $modeLabel,
+                $fixReport['total_fixes'],
+                $fixReport['files_changed'],
+            );
+            foreach ($fixReport['changes'] as $change) {
+                $lines[] = '';
+                $lines[] = $change['diff'];
+            }
+            $lines[] = '';
+        }
+
+        $lines[] = sprintf('Kongono Self-Diagnosis — Score: %d/100 (%s)', $report['score'], $failed ? 'FAILED' : 'PASS');
+        $lines[] = sprintf(
+            '  Checked: %d route(s), %d view(s), %d PHP file(s) | Errors: %d, Warnings: %d',
+            $report['routes_checked'],
+            $report['views_checked'],
+            $report['php_files_checked'],
+            $report['counts']['error'],
+            $report['counts']['warning'],
+        );
+
+        if (null !== $bootError) {
+            $lines[] = '';
+            $lines[] = rtrim($this->formatCliExplanation($bootError));
+        }
+
+        if ([] === $report['findings'] && null === $bootError) {
+            $lines[] = '  [OK] Zero Kongono framework, DI, Live 2.5, template, CSRF, route, migration, or persistent-worker issues detected.';
+        } else {
+            foreach ($report['findings'] as $f) {
+                $lines[] = '';
+                $lines[] = sprintf(
+                    '  [%-7s] %s (%s)%s',
+                    strtoupper($f['severity']),
+                    $f['code'],
+                    $f['where'],
+                    $f['fixable'] ? ' [auto-fixable]' : '',
+                );
+                $lines[] = sprintf('    What:  %s', $f['what']);
+                $lines[] = sprintf('    Why:   %s', $f['why']);
+                $lines[] = sprintf('    Who:   %s', $f['who']);
+                if ([] !== $f['did_you_mean']) {
+                    $lines[] = sprintf('    Did you mean: %s', implode(', ', $f['did_you_mean']));
+                }
+                foreach ($f['how_to_fix'] as $idx => $step) {
+                    $lines[] = sprintf('    Fix %d: %s', $idx + 1, $step);
+                }
+                if (null !== $f['command'] && '' !== $f['command']) {
+                    $lines[] = sprintf('    Run:   %s', $f['command']);
+                }
+            }
+            if ($report['fixable_count'] > 0 && !isset($options['fix'])) {
+                $lines[] = '';
+                $lines[] = sprintf(
+                    '  Tip: %d issue(s) can be fixed automatically with `php vendor/bin/kongo diagnose --fix` (add `--dry-run` to preview diffs).',
+                    $report['fixable_count'],
+                );
+            }
+        }
+
+        return [$failed ? 1 : 0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdProve(string $appRoot, array $options): array
+    {
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $report = (new MasterProver())->proveAll($appRoot, $app);
+        $strict = isset($options['strict']);
+        $failed = !$report['passed'] || ($strict && $report['total_warnings'] > 0);
+
+        if (isset($options['json'])) {
+            return [$failed ? 1 : 0, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [
+            sprintf(
+                'Kongono Readiness Certificate — %s — Grade: %s (%d/100 %s) [%.1fms]',
+                $report['app_name'],
+                $report['grade'],
+                $report['overall_score'],
+                $failed ? 'FAILED' : 'PASS',
+                $report['elapsed_ms'],
+            ),
+            str_repeat('=', 84),
+        ];
+
+        foreach ($report['pillars'] as $pillar) {
+            $lines[] = sprintf(
+                '  [%-4s] %3d/100  %-44s %s',
+                $pillar['passed'] ? 'PASS' : 'FAIL',
+                $pillar['score'],
+                $pillar['label'],
+                $pillar['summary'],
+            );
+        }
+
+        $lines[] = str_repeat('=', 84);
+        $lines[] = sprintf(
+            '  Totals: %d error(s), %d warning(s), %d auto-fixable | Routes: %d | Recorded incidents: %d',
+            $report['total_errors'],
+            $report['total_warnings'],
+            $report['fixable_count'],
+            count($report['route_capabilities']),
+            count($report['incidents']),
+        );
+
+        foreach ($report['pillars'] as $pillar) {
+            if (!isset($pillar['findings']) || [] === $pillar['findings']) {
+                continue;
+            }
+            foreach ($pillar['findings'] as $f) {
+                $sev = is_string($f['severity'] ?? null) ? strtoupper($f['severity']) : 'ERROR';
+                $code = is_string($f['code'] ?? null) ? $f['code'] : 'KGN';
+                $where = is_string($f['where'] ?? null) ? $f['where'] : '';
+                $what = is_string($f['what'] ?? null) ? $f['what'] : '';
+                $lines[] = '';
+                $lines[] = sprintf('  [%-7s] %s (%s): %s', $sev, $code, $where, $what);
+            }
+        }
+
+        return [$failed ? 1 : 0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdPolicyCheck(string $appRoot, array $options): array
+    {
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $report = (new PolicyVerifier())->verify($appRoot, $app);
+
+        if (isset($options['json'])) {
+            return [$report['passed'] ? 0 : 1, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [
+            sprintf('Kongono Architecture & Security Policy — Score: %d/100 (%s)', $report['score'], $report['passed'] ? 'PASS' : 'FAILED'),
+            sprintf(
+                '  Rules evaluated: %d (%s) | Violations: %d error(s), %d warning(s)',
+                $report['rules_evaluated'],
+                $report['custom_policy_loaded'] ? 'defaults + app/invariants.php' : 'built-in defaults',
+                $report['counts']['error'],
+                $report['counts']['warning'],
+            ),
+        ];
+
+        if ([] === $report['violations']) {
+            $lines[] = '  [OK] All architecture and security invariants verified.';
+        } else {
+            foreach ($report['violations'] as $v) {
+                $lines[] = '';
+                $lines[] = sprintf('  [%-7s] %s (%s)', strtoupper($v['severity']), $v['code'], $v['where']);
+                $lines[] = sprintf('    What:  %s', $v['what']);
+                $lines[] = sprintf('    Why:   %s', $v['why']);
+                foreach ($v['how_to_fix'] as $idx => $step) {
+                    $lines[] = sprintf('    Fix %d: %s', $idx + 1, $step);
+                }
+            }
+        }
+
+        return [$report['passed'] ? 0 : 1, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdPerf(string $appRoot, array $options): array
+    {
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        if (null === $app) {
+            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $iterations = is_string($options['iterations'] ?? null) && is_numeric($options['iterations'])
+            ? max(1, (int) $options['iterations'])
+            : 3;
+        $maxMs = is_string($options['max-ms'] ?? null) && is_numeric($options['max-ms'])
+            ? max(1.0, (float) $options['max-ms'])
+            : 250.0;
+        $paths = is_string($options['path'] ?? null) && '' !== trim($options['path'])
+            ? [trim($options['path'])]
+            : null;
+
+        $report = (new PerfProver())->prove($app, $paths, $iterations, $maxMs);
+
+        if (isset($options['json'])) {
+            return [$report['passed'] ? 0 : 1, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [
+            sprintf('Kongono Persistent-Worker & N+1 Proof — Score: %d/100 (%s)', $report['score'], $report['passed'] ? 'PASS' : 'FAILED'),
+            sprintf(
+                '  Probed: %d route(s) × %d iter(s) | Queries: %d | N+1: %d | Leaks: %d | Budget: %.0fms',
+                $report['routes_probed'],
+                $report['iterations'],
+                $report['total_queries'],
+                $report['n_plus_one_detected'],
+                $report['leaks_detected'],
+                $report['max_ms_budget'],
+            ),
+            str_repeat('-', 84),
+            sprintf('  %-28s %-6s %-9s %-9s %-8s %-10s', 'PATH', 'STATUS', 'P50(ms)', 'P95(ms)', 'QUERIES', 'MEM/REQ'),
+            str_repeat('-', 84),
+        ];
+
+        foreach ($report['routes'] as $r) {
+            $lines[] = sprintf(
+                '  %-28s %-6d %-9.2f %-9.2f %-8d %d KB',
+                $r['path'],
+                $r['status'],
+                $r['p50_ms'],
+                $r['p95_ms'],
+                $r['queries_per_req'],
+                (int) round($r['bytes_per_req'] / 1024),
+            );
+        }
+
+        if ([] !== $report['findings']) {
+            foreach ($report['findings'] as $f) {
+                $lines[] = '';
+                $lines[] = sprintf('  [%-7s] %s (%s)', strtoupper($f['severity']), $f['code'], $f['where']);
+                $lines[] = sprintf('    What:  %s', $f['what']);
+                $lines[] = sprintf('    Why:   %s', $f['why']);
+                foreach ($f['how_to_fix'] as $idx => $step) {
+                    $lines[] = sprintf('    Fix %d: %s', $idx + 1, $step);
+                }
+            }
+        } else {
+            $lines[] = '  [OK] Zero persistent-worker leaks, zero SQL N+1 loops, and all routes within latency budget.';
+        }
+
+        return [$report['passed'] ? 0 : 1, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdIncidentList(string $appRoot, array $options): array
+    {
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $store = (new IncidentReplayer())->resolveStore($appRoot, $app);
+        $limit = is_string($options['limit'] ?? null) && is_numeric($options['limit']) ? max(1, (int) $options['limit']) : 20;
+        $records = $store->recent($limit);
+
+        if (isset($options['json'])) {
+            return [0, json_encode(array_map(static fn($r): array => $r->toArray(), $records), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        if ([] === $records) {
+            return [0, "No recorded incidents found (enable with `\$app->recordIncidents()` in app/bootstrap.php).\n"];
+        }
+
+        $lines = [
+            sprintf('Recorded Kongono Incidents (%d shown):', count($records)),
+            str_repeat('-', 86),
+            sprintf('  %-22s %-6s %-7s %-24s %s', 'REFERENCE', 'STATUS', 'METHOD', 'PATH', 'CODE'),
+            str_repeat('-', 86),
+        ];
+        foreach ($records as $r) {
+            $code = is_string($r->explanation['code'] ?? null) ? $r->explanation['code'] : '-';
+            $lines[] = sprintf('  %-22s %-6d %-7s %-24s %s', $r->reference, $r->statusCode, $r->method, $r->path, $code);
+        }
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param list<string>               $args
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdIncidentShow(string $appRoot, array $args, array $options): array
+    {
+        $ref = trim($args[0] ?? '');
+        if ('' === $ref) {
+            return [1, "Usage: kongo incident:show <KGN-YYYYMMDD-XXXXXXXX> [--app=path] [--json]\n"];
+        }
+
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $store = (new IncidentReplayer())->resolveStore($appRoot, $app);
+        $record = $store->find($ref);
+        if (null === $record) {
+            return [1, sprintf("Incident \"%s\" not found.\n", $ref)];
+        }
+
+        if (isset($options['json'])) {
+            return [0, json_encode($record->toArray(), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $exp = $record->explanation;
+        $lines = [
+            sprintf('Kongono Incident %s (HTTP %d — %s %s)', $record->reference, $record->statusCode, $record->method, $record->path),
+            sprintf('  Occurred: %s | App: %s', $record->occurredAt, $record->appName),
+            sprintf('  Code:     %s', is_string($exp['code'] ?? null) ? $exp['code'] : '-'),
+            sprintf('  What:     %s', is_string($exp['what'] ?? null) ? $exp['what'] : '-'),
+            sprintf('  Why:      %s', is_string($exp['why'] ?? null) ? $exp['why'] : '-'),
+            sprintf('  Who:      %s', is_string($exp['who'] ?? null) ? $exp['who'] : '-'),
+            sprintf('  Where:    %s', is_string($exp['where'] ?? null) ? $exp['where'] : '-'),
+        ];
+        if (is_array($exp['how_to_fix'] ?? null)) {
+            $lines[] = '  How to fix:';
+            foreach ($exp['how_to_fix'] as $idx => $step) {
+                if (is_string($step)) {
+                    $lines[] = sprintf('    %d. %s', ((int) $idx) + 1, $step);
+                }
+            }
+        }
+        $lines[] = sprintf('  Replay:   php vendor/bin/kongo incident:replay %s', $record->reference);
+        $lines[] = sprintf('  Test:     php vendor/bin/kongo incident:test %s --apply', $record->reference);
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param list<string>               $args
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdIncidentReplay(string $appRoot, array $args, array $options): array
+    {
+        $ref = trim($args[0] ?? '');
+        if ('' === $ref) {
+            return [1, "Usage: kongo incident:replay <KGN-YYYYMMDD-XXXXXXXX> [--app=path] [--json]\n"];
+        }
+
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        if (null === $app) {
+            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $replayer = new IncidentReplayer();
+        $record = $replayer->resolveStore($appRoot, $app)->find($ref);
+        if (null === $record) {
+            return [1, sprintf("Incident \"%s\" not found.\n", $ref)];
+        }
+
+        $result = $replayer->replay($app, $record);
+
+        if (isset($options['json'])) {
+            return [$result['resolved'] ? 0 : 1, json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [
+            sprintf(
+                'Incident Replay %s (%s %s) — %s',
+                $result['reference'],
+                $result['method'],
+                $result['path'],
+                $result['resolved'] ? 'RESOLVED' : 'STILL FAILING',
+            ),
+            sprintf(
+                '  Status: HTTP %d -> HTTP %d (%.2fms)',
+                $result['original_status'],
+                $result['replayed_status'],
+                $result['elapsed_ms'],
+            ),
+        ];
+        if ($result['resolved']) {
+            $lines[] = sprintf('  Lock in this fix with: php vendor/bin/kongo incident:test %s --apply', $result['reference']);
+        } elseif ('' !== $result['response_preview']) {
+            $lines[] = '  Response preview: ' . $result['response_preview'];
+        }
+
+        return [$result['resolved'] ? 0 : 1, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param list<string>               $args
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdIncidentTest(string $appRoot, array $args, array $options): array
+    {
+        $ref = trim($args[0] ?? '');
+        if ('' === $ref) {
+            return [1, "Usage: kongo incident:test <KGN-YYYYMMDD-XXXXXXXX> [--app=path] [--apply]\n"];
+        }
+
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $record = (new IncidentReplayer())->resolveStore($appRoot, $app)->find($ref);
+        if (null === $record) {
+            return [1, sprintf("Incident \"%s\" not found.\n", $ref)];
+        }
+
+        $generated = (new IncidentTestGenerator())->generate($record);
+        if (isset($options['apply'])) {
+            $this->writeSafeCliFile($appRoot, $generated['relative_path'], $generated['content']);
+
+            return [0, sprintf("Generated regression test: %s\n", $generated['relative_path'])];
+        }
+
+        return [0, sprintf("# Preview: %s (pass --apply to write)\n\n%s", $generated['relative_path'], $generated['content'])];
+    }
+
+    private function tryLoadBootstrappedApp(string $appRoot): ?App
+    {
+        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (!is_file($bootstrap)) {
+            return null;
+        }
+
+        try {
+            $loaded = require $bootstrap;
+
+            return $loaded instanceof App ? $loaded : null;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdProveIsolation(string $appRoot, array $options): array
+    {
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        if (null === $app) {
+            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $report = (new TenantIsolationProver())->prove($appRoot, $app);
+        if (isset($options['json'])) {
+            return [$report['passed'] ? 0 : 1, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [
+            sprintf('Kongono Multi-Tenant Isolation Proof — Score: %d/100 (%s)', $report['score'], $report['passed'] ? 'PASS' : 'FAILED'),
+            sprintf(
+                '  Protected routes probed: %d | Cross-tenant probes: %d | Leaks detected: %d',
+                $report['protected_routes_probed'],
+                $report['tenant_probes_executed'],
+                $report['leaks_detected'],
+            ),
+        ];
+
+        if ([] === $report['findings']) {
+            $lines[] = '  [OK] Zero unauthenticated exposures or cross-tenant BOLA/IDOR leaks detected.';
+        } else {
+            foreach ($report['findings'] as $f) {
+                $lines[] = '';
+                $lines[] = sprintf('  [%-7s] %s (%s)', strtoupper($f['severity']), $f['code'], $f['where']);
+                $lines[] = sprintf('    What:  %s', $f['what']);
+                $lines[] = sprintf('    Why:   %s', $f['why']);
+                foreach ($f['how_to_fix'] as $idx => $step) {
+                    $lines[] = sprintf('    Fix %d: %s', $idx + 1, $step);
+                }
+            }
+        }
+
+        return [$report['passed'] ? 0 : 1, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdSnapshot(string $appRoot, array $options): array
+    {
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        if (null === $app) {
+            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $snapshot = AppSnapshot::capture($appRoot, $app);
+        $outOpt = is_string($options['out'] ?? null) && '' !== trim($options['out'])
+            ? trim($options['out'])
+            : 'storage/kongono-snapshot.json';
+        $this->writeSafeCliFile($appRoot, $outOpt, $snapshot->toJson(), allowAbsolute: true);
+
+        return [0, sprintf(
+            "Captured Kongono semantic snapshot: %s (%d route(s), %d view(s), %d middleware)\n",
+            $outOpt,
+            count($snapshot->routes),
+            count($snapshot->views),
+            count($snapshot->middleware),
+        )];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdImpact(string $appRoot, array $options): array
+    {
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        if (null === $app) {
+            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $baseOpt = is_string($options['against'] ?? null) && '' !== trim($options['against'])
+            ? trim($options['against'])
+            : 'storage/kongono-snapshot.json';
+        $basePath = str_starts_with($baseOpt, '/') || 1 === preg_match('/\A[a-zA-Z]:[\\\\\/]/', $baseOpt)
+            ? $baseOpt
+            : rtrim($appRoot, '\\/') . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $baseOpt);
+
+        if (!is_file($basePath)) {
+            return [1, sprintf("Baseline snapshot not found at %s. Create one first with `kongo snapshot`.\n", $baseOpt)];
+        }
+        $decoded = json_decode((string) file_get_contents($basePath), true);
+        if (!is_array($decoded)) {
+            return [1, sprintf("Invalid snapshot JSON at %s.\n", $baseOpt)];
+        }
+
+        /** @var array<string, mixed> $decoded */
+        $baseline = AppSnapshot::fromArray($decoded);
+        $current = AppSnapshot::capture($appRoot, $app);
+        $report = (new ImpactAnalyzer())->diff($baseline, $current);
+        $failed = $report['breaking_changes'] > 0 || $report['security_regressions'] > 0;
+
+        if (isset($options['json'])) {
+            return [$failed ? 1 : 0, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [
+            sprintf('Kongono Semantic Blast-Radius Report — Risk: %s', strtoupper($report['risk_level'])),
+            sprintf(
+                '  Security regressions: %d | Breaking changes: %d | Routes: +%d/-%d | Views: +%d/-%d',
+                $report['security_regressions'],
+                $report['breaking_changes'],
+                count($report['routes_added']),
+                count($report['routes_removed']),
+                count($report['views_added']),
+                count($report['views_removed']),
+            ),
+        ];
+
+        if ([] === $report['findings']) {
+            $lines[] = '  [OK] Zero security regressions or breaking API/DTO/route changes detected.';
+        } else {
+            foreach ($report['findings'] as $f) {
+                $lines[] = '';
+                $lines[] = sprintf('  [%-7s] %s (%s)', strtoupper($f['severity']), $f['code'], $f['where']);
+                $lines[] = sprintf('    What:  %s', $f['what']);
+                $lines[] = sprintf('    Why:   %s', $f['why']);
+                foreach ($f['how_to_fix'] as $idx => $step) {
+                    $lines[] = sprintf('    Fix %d: %s', $idx + 1, $step);
+                }
+            }
+        }
+
+        return [$failed ? 1 : 0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdShadowRecord(string $appRoot, array $options): array
+    {
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        if (null === $app) {
+            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $corpus = (new ShadowDiffProver())->record($app);
+        $outOpt = is_string($options['out'] ?? null) && '' !== trim($options['out'])
+            ? trim($options['out'])
+            : 'storage/kongono-shadow.json';
+        $this->writeSafeCliFile(
+            $appRoot,
+            $outOpt,
+            json_encode($corpus, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
+            allowAbsolute: true,
+        );
+
+        return [0, sprintf("Recorded behavioral shadow baseline: %s (%d route(s))\n", $outOpt, count($corpus['entries']))];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdShadowDiff(string $appRoot, array $options): array
+    {
+        $app = $this->tryLoadBootstrappedApp($appRoot);
+        if (null === $app) {
+            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+
+        $baseOpt = is_string($options['against'] ?? null) && '' !== trim($options['against'])
+            ? trim($options['against'])
+            : 'storage/kongono-shadow.json';
+        $basePath = str_starts_with($baseOpt, '/') || 1 === preg_match('/\A[a-zA-Z]:[\\\\\/]/', $baseOpt)
+            ? $baseOpt
+            : rtrim($appRoot, '\\/') . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $baseOpt);
+
+        if (!is_file($basePath)) {
+            return [1, sprintf("Shadow baseline not found at %s. Record one first with `kongo shadow:record`.\n", $baseOpt)];
+        }
+        $decoded = json_decode((string) file_get_contents($basePath), true);
+        if (!is_array($decoded)) {
+            return [1, sprintf("Invalid shadow baseline JSON at %s.\n", $baseOpt)];
+        }
+
+        /** @var array<string, mixed> $decoded */
+        $report = (new ShadowDiffProver())->diff($decoded, $app);
+        $failed = $report['regressions'] > 0;
+
+        if (isset($options['json'])) {
+            return [$failed ? 1 : 0, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [
+            sprintf('Kongono Behavioral Shadow Diff — %s', $report['equivalent'] ? 'EQUIVALENT' : ($failed ? 'REGRESSION' : 'DRIFT WARNING')),
+            sprintf('  Routes compared: %d | Regressions: %d | Findings: %d', $report['routes_compared'], $report['regressions'], count($report['findings'])),
+        ];
+        if ([] === $report['findings']) {
+            $lines[] = '  [OK] 100% behavioral equivalence verified across all recorded routes.';
+        } else {
+            foreach ($report['findings'] as $f) {
+                $lines[] = '';
+                $lines[] = sprintf('  [%-7s] %s (%s)', strtoupper($f['severity']), $f['code'], $f['where']);
+                $lines[] = sprintf('    What:  %s', $f['what']);
+                $lines[] = sprintf('    Why:   %s', $f['why']);
+            }
+        }
+
+        return [$failed ? 1 : 0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdUpgrade(string $appRoot, array $options): array
+    {
+        $plan = isset($options['plan']);
+        $apply = isset($options['apply']);
+        if ($plan && $apply) {
+            return [1, "Cannot combine --plan and --apply; pass --plan to preview or --apply to write changes.\n"];
+        }
+        $verify = isset($options['verify']);
+        $app = $verify ? $this->tryLoadBootstrappedApp($appRoot) : null;
+
+        $report = (new UpgradeEngine())->run($appRoot, apply: $apply, app: $app, verify: $verify);
+        $failed = null !== $report['verification'] && (!$report['verification']['diagnose_passed'] || !$report['verification']['policy_passed']);
+
+        if (isset($options['json'])) {
+            return [$failed ? 1 : 0, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $lines = [
+            sprintf(
+                'Kongono Self-Upgrading Codemods (%s) — Scanned %d file(s), %d changed, %d transform(s)',
+                strtoupper($report['mode']),
+                $report['files_scanned'],
+                $report['files_changed'],
+                $report['transforms_applied'],
+            ),
+        ];
+
+        if ([] === $report['changes']) {
+            $lines[] = '  [OK] Project is already up to date with all Kongono codemods.';
+        } else {
+            foreach ($report['changes'] as $change) {
+                $lines[] = '';
+                $lines[] = sprintf('  %s [%s]', $change['file'], implode(', ', $change['codemods']));
+                $lines[] = $change['diff'];
+            }
+            if (!$apply) {
+                $lines[] = '';
+                $lines[] = '  Run with `--apply --verify` to apply these syntax-verified transforms and run post-upgrade proofs.';
+            }
+        }
+
+        if (null !== $report['verification']) {
+            $v = $report['verification'];
+            $lines[] = '';
+            $lines[] = sprintf(
+                '  Post-upgrade verification: diagnose=%d/100 (%s) | policy=%d/100 (%s)',
+                $v['diagnose_score'],
+                $v['diagnose_passed'] ? 'PASS' : 'FAIL',
+                $v['policy_score'],
+                $v['policy_passed'] ? 'PASS' : 'FAIL',
+            );
+        }
+
+        return [$failed ? 1 : 0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdWatch(string $appRoot, array $options): array
+    {
+        $intervalMs = is_string($options['interval'] ?? null) && is_numeric($options['interval'])
+            ? max(100, (int) $options['interval'])
+            : 500;
+        $once = isset($options['once']);
+        $runTests = !isset($options['no-tests']);
+        $maxCycles = is_string($options['max-cycles'] ?? null) && is_numeric($options['max-cycles'])
+            ? max(1, (int) $options['max-cycles'])
+            : null;
+        $phpunitCmd = $runTests && is_dir($appRoot . DIRECTORY_SEPARATOR . 'tests')
+            ? $this->resolveVerifyCommand($appRoot)
+            : null;
+
+        return (new WatchRunner())->watch(
+            appRoot: $appRoot,
+            intervalMs: $intervalMs,
+            once: $once,
+            runTests: $runTests,
+            phpunitCommand: $phpunitCmd,
+            maxCycles: $maxCycles,
+        );
+    }
+
+    /**
      * @param array<string, string|true> $options
      * @return array{0: int, 1: string}
      */
@@ -2059,11 +3038,7 @@ final readonly class KongoCli
                 $lines[] = sprintf('  [SKIP ] %s (already exists; pass --force to overwrite)', $rel);
                 continue;
             }
-            $dir = dirname($dest);
-            if (!is_dir($dir)) {
-                @mkdir($dir, 0o775, true);
-            }
-            file_put_contents($dest, $content);
+            $this->writeSafeCliFile($appRoot, $rel, $content);
             $lines[] = sprintf('  [WRITE] %s', $rel);
         }
 
@@ -2090,11 +3065,7 @@ final readonly class KongoCli
                 $lines[] = sprintf('  [SKIP ] %s (already exists; pass --force to overwrite)', $rel);
                 continue;
             }
-            $dir = dirname($dest);
-            if (!is_dir($dir)) {
-                @mkdir($dir, 0o775, true);
-            }
-            file_put_contents($dest, $content);
+            $this->writeSafeCliFile($appRoot, $rel, $content);
             $lines[] = sprintf('  [WRITE] %s', $rel);
         }
 
@@ -2113,10 +3084,15 @@ final readonly class KongoCli
         /** @var list<class-string> $classes */
         $classes = [];
 
-        if (is_dir($srcDir)) {
-            $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($srcDir));
+        if (is_dir($srcDir) && !is_link($srcDir)) {
+            $dirIt = new \RecursiveDirectoryIterator($srcDir, \FilesystemIterator::SKIP_DOTS);
+            $filter = new \RecursiveCallbackFilterIterator(
+                $dirIt,
+                static fn(\SplFileInfo $cur): bool => !$cur->isLink(),
+            );
+            $it = new \RecursiveIteratorIterator($filter);
             foreach ($it as $file) {
-                if (!$file instanceof \SplFileInfo || !$file->isFile() || 'php' !== $file->getExtension()) {
+                if (!$file instanceof \SplFileInfo || $file->isLink() || !$file->isFile() || 'php' !== $file->getExtension()) {
                     continue;
                 }
                 $contents = file_get_contents($file->getPathname());
@@ -2179,11 +3155,7 @@ final readonly class KongoCli
                 $lines[] = sprintf('  [SKIP ] %s (already exists; pass --force to overwrite)', $rel);
                 continue;
             }
-            $dir = dirname($dest);
-            if (!is_dir($dir)) {
-                @mkdir($dir, 0o775, true);
-            }
-            file_put_contents($dest, $content);
+            $this->writeSafeCliFile($appRoot, $rel, $content);
             $lines[] = sprintf('  [WRITE] %s', $rel);
         }
 
@@ -2241,9 +3213,20 @@ final readonly class KongoCli
 
         $forceRedTeam = isset($options['redteam']);
         $evalCompanions = isset($options['companions']);
+        $evalAgentBench = isset($options['agent-bench']);
         $useLive = isset($options['live']);
 
-        if ($evalCompanions) {
+        if ($evalAgentBench) {
+            $ai = $useLive ? $this->tryAiClient() : null;
+            $exportOpt = is_string($options['export-jsonl'] ?? null) && '' !== trim($options['export-jsonl']) ? trim($options['export-jsonl']) : null;
+            $exportPath = null !== $exportOpt
+                ? (str_starts_with($exportOpt, '/') || (strlen($exportOpt) > 1 && ':' === $exportOpt[1])
+                    ? $exportOpt
+                    : $appRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $exportOpt))
+                : null;
+            $report = (new AgentCodingBenchmark())->run($ai, $exportPath);
+            $modeLabel = null !== $ai ? 'Kongono Agent Coding Benchmark (Live LLM + RAG)' : 'Kongono Agent Coding Benchmark (Offline Reference + RAG)';
+        } elseif ($evalCompanions) {
             $ai = $useLive ? $this->tryAiClient() : null;
             $context = ProjectContext::discover($appRoot);
             $report = (new CompanionEvalSuite())->run($context, $ai);
@@ -2405,7 +3388,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'exercise', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target', 'mode', 'starter', 'max-repairs', 'max-cost', 'base', 'format', 'log', 'interval', 'max-cycles'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'exercise', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target', 'mode', 'starter', 'max-repairs', 'max-cost', 'base', 'format', 'log', 'interval', 'max-cycles', 'iterations', 'max-ms', 'path', 'against', 'sleep', 'max-sleep', 'max-runtime', 'prune-after', 'framework', 'export-jsonl'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -2416,6 +3399,84 @@ final readonly class KongoCli
         }
 
         return ['positional' => $positional, 'options' => $options];
+    }
+
+    /**
+     * Write a CLI output file safely: rejects symlinks on every segment and enforces project-root
+     * containment on all relative paths (and on absolute paths unless explicitly opted in for `--out`).
+     */
+    private function writeSafeCliFile(string $appRoot, string $path, string $content, bool $allowAbsolute = false): string
+    {
+        if (str_contains($path, "\0") || 1 === preg_match('/[\x00-\x1f\x7f]/', $path)) {
+            throw new CoreException(sprintf('Refusing to write invalid path "%s".', $path));
+        }
+
+        $isAbsolute = str_starts_with($path, '/') || 1 === preg_match('/\A[a-zA-Z]:[\\\\\/]/', $path);
+        if ($isAbsolute) {
+            if (!$allowAbsolute) {
+                throw new CoreException(sprintf('Refusing to write absolute path "%s" outside project root.', $path));
+            }
+            $dest = str_replace('/', DIRECTORY_SEPARATOR, $path);
+            if (is_link($dest)) {
+                throw new CoreException(sprintf('Refusing to write through symbolic link "%s".', $path));
+            }
+            $parent = dirname($dest);
+            if (is_link($parent)) {
+                throw new CoreException(sprintf('Refusing to write into symbolic link directory "%s".', $parent));
+            }
+            if (!is_dir($parent) && !@mkdir($parent, 0o775, true) && !is_dir($parent)) {
+                throw new CoreException(sprintf('Unable to create directory for "%s".', $path));
+            }
+            if (false === file_put_contents($dest, $content, LOCK_EX)) {
+                throw new CoreException(sprintf('Unable to write file "%s".', $path));
+            }
+
+            return $dest;
+        }
+
+        $realRoot = realpath($appRoot);
+        if (false === $realRoot || !is_dir($realRoot)) {
+            throw new CoreException(sprintf('Project root directory does not exist: "%s".', $appRoot));
+        }
+        $normalized = ltrim(str_replace('\\', '/', trim($path)), '/');
+        if ('' === $normalized || str_contains($normalized, '..') || str_contains($normalized, ':')) {
+            throw new CoreException(sprintf('Refusing to write unsafe relative path "%s".', $path));
+        }
+        $walk = $realRoot;
+        foreach (explode('/', $normalized) as $segment) {
+            if (
+                '' === $segment
+                || '.' === $segment
+                || str_ends_with($segment, '.')
+                || str_ends_with($segment, ' ')
+                || 1 === preg_match('/\A(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|\z)/i', $segment)
+            ) {
+                throw new CoreException(sprintf('Refusing to write invalid path segment in "%s".', $path));
+            }
+            $walk .= DIRECTORY_SEPARATOR . $segment;
+            if (is_link($walk)) {
+                throw new CoreException(sprintf('Refusing to write through symbolic link "%s".', $path));
+            }
+        }
+
+        $dest = $realRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalized);
+        $parent = dirname($dest);
+        if (!is_dir($parent) && !@mkdir($parent, 0o775, true) && !is_dir($parent)) {
+            throw new CoreException(sprintf('Unable to create directory for "%s".', $path));
+        }
+        $realParent = realpath($parent);
+        $prefix = rtrim($realRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (false === $realParent || ($realParent !== $realRoot && !str_starts_with($realParent . DIRECTORY_SEPARATOR, $prefix))) {
+            throw new CoreException(sprintf('Target path "%s" escapes project root.', $path));
+        }
+        if (is_link($dest)) {
+            throw new CoreException(sprintf('Refusing to write through symbolic link "%s".', $path));
+        }
+        if (false === file_put_contents($dest, $content, LOCK_EX)) {
+            throw new CoreException(sprintf('Unable to write file "%s".', $path));
+        }
+
+        return $dest;
     }
 
     /** @param array<string, string|true> $options */
@@ -2628,80 +3689,71 @@ final readonly class KongoCli
     private function helpText(): string
     {
         return <<<'TEXT'
-Kongono Framework v1 — Modern PHP 8.5+ with Built-in AI Companions
+Kongono Framework v1.20 — Zero-Legacy, Self-Verifying PHP 8.5+
 
 Usage:
   kongo <command> [arguments] [options]
 
-Core Commands:
+Day-1 Essentials:
   new <dir> [--name="My App"] [--starter=minimal|api|saas] Scaffold a new Kongono app (minimal, API, or full SaaS)
-  serve [--app=path] [--host=127.0.0.1] [--port=8000]   Start local PHP 8.5 dev server
-  tinker [--app=path] [--eval="expr"]                   Interactive PHP 8.5 REPL with live $app & $container
-  work [--app=path] [--queue=high,default] [--daemon]   Process background jobs (priority queues & daemon mode)
-  queue:failed [--queue=default] [--limit=50] [--json]  Inspect failed & dead-lettered background jobs
-  queue:retry [<id>|--all] [--queue=default]            Replay one or all failed jobs back to pending
-  queue:flush [--queue=default]                         Permanently delete failed & dead-lettered jobs
-  schedule:run [--app=path]                             Execute due scheduled cron tasks
+  serve [--app=path] [--host=127.0.0.1] [--port=8000]   Start local PHP 8.5 dev server (+ Hot Reload & /_kongono)
+  prove [--app=path] [--strict] [--json]                Run all 5 Kongono proof engines (Readiness Certificate A+..F)
+  diagnose [--app=path] [--fix] [--dry-run] [--json]    Run 17-rule 5W1H self-inspector & contract auto-fixer
+  watch [--app=path] [--interval=500] [--no-tests]      Continuously re-run diagnose, policy:check & PHPUnit on save
   migrate [--app=path] [--pretend] [--json]             Run pending migrations (or dry-run preview SQL)
-  migrate:fresh [--app=path] [--seed] [--force]         Drop all tables & re-run all migrations (guarded in prod)
-  migrate:rollback [--app=path] [--steps=1]             Roll back applied database migrations
-  migrate:status [--app=path]                           Show applied vs pending database migrations
-  migrate:lint [--app=path] [--json] [--strict]         Lint migrations for zero-downtime DDL & locking hazards
-  db:seed [--app=path]                                  Execute SeederInterface files in seeders/
-  optimize [--app=path]                                 Precompile .kgn.html views & cache graph/OpenAPI
-  cache:clear [--app=path]                              Clear compiled views & cached app files
-  make:controller <Name> [--app=path]                   Generate a PHP 8.5 attribute controller
-  make:dto <Name> [--app=path]                          Generate a validated readonly input DTO
-  make:migration <Name> [--table=tbl] [--app=path]      Generate a Schema::create() or Schema::table() migration
-  make:seeder <Name> [--app=path]                       Generate a database SeederInterface file
-  make:test <Name> [--app=path]                         Generate a PHPUnit 13 TestClient test
-  make:job <Name> [--app=path]                          Generate a JobHandlerInterface background job
-  make:policy <Name> [--app=path]                       Generate a Gate authorization policy
-  make:middleware <Name> [--app=path]                   Generate a PSR-15 middleware
-  make:factory <Name> [--app=path]                      Generate a typed Factory helper
-  make:rule <Name> [--app=path]                         Generate a custom RuleInterface validation attribute
-  make:mail <Name> [--app=path]                         Generate a typed Email builder + .kgn.html view
-  make:resource <Name> [--app=path]                     Generate full CRUD vertical slice (migration, DTOs, repo, controller, test)
-  auth:init [--mode=web|api|both] [--force]             Scaffold zero-bloat SessionAuth + PAT Auth Starter Kit
-  key:generate                                          Generate a 256-bit APP_KEY for .env
-  doctor [--app=path]                                   Verify PHP 8.5, extensions, AI provider & app health
+  tinker [--app=path] [--eval="expr"]                   Interactive PHP 8.5 REPL with live $app & $container
+  check / test                                          Run full quality suite (CS + PHPStan L9 + PHPUnit + Diagnose)
+
+Self-Verifying Proofs, Incidents & Change-Safety:
+  policy:check [--app=path] [--json]                    Verify executable architecture & security invariants (app/invariants.php)
+  perf [--app=path] [--iterations=3] [--max-ms=250]     Prove zero persistent-worker leaks, zero SQL N+1 & latency budgets
+  prove:isolation [--app=path] [--json]                 Prove multi-tenant & auth isolation against BOLA/IDOR attacks
   audit [--app=path] [--attack] [--json] [--strict]     Run security audit (+ optional --attack red-team probes)
-  eval [--app=path] [--file=evals/suite.php] [--redteam] Run AI eval suite or PromptGuard red-team battery
-  deploy:init [--app=path] --domain=app.example.com     Generate zero-downtime FrankenPHP Dockerfile, Caddyfile & VPS scripts
-  env:check [--app=path]                                Verify required keys from .env.example exist in .env
-  routes [--app=path] [--json]                          List all registered routes
-  graph [--app=path]                                    Print live ApplicationGraph JSON
-  openapi [--app=path]                                  Generate OpenAPI 3.1 JSON spec from routes & DTOs
-  sdk:generate --lang=ts|swift|kotlin|dart [--out=file] Generate typed Web/iOS/Android/Flutter client SDK
-  bridge:init <react|vue|svelte> [--app=path] [--force] Scaffold first-class React 19, Vue 3, or Svelte 5 Bridge SPA
-  bridge:types [--app=path] [--out=file]                Generate strict TypeScript interfaces from PHP 8.5 DTOs & enums
+  incident:list [--app=path] [--limit=20] [--json]      List recorded secret-scrubbed KGN-... runtime incidents
+  incident:show <KGN-...> [--app=path] [--json]         Inspect 5W1H root cause & trace for a recorded incident
+  incident:replay <KGN-...> [--app=path] [--json]       Replay a sanitized production incident offline in-process
+  incident:test <KGN-...> [--app=path] [--apply]        Generate a permanent PHPUnit 13 regression test from an incident
+  snapshot [--app=path] [--out=file]                    Capture semantic baseline snapshot (routes, security attrs, DTOs, views)
+  impact [--app=path] [--against=file] [--json]         Compute semantic PR blast-radius & security regressions
+  shadow:record [--app=path] [--out=file]               Record golden behavioral baseline across GET routes
+  shadow:diff [--app=path] [--against=file] [--json]    Prove behavioral equivalence after a refactor
+  upgrade [--app=path] [--plan|--apply] [--verify]      Run syntax-verified PHP 8.5 & template upgrade codemods
+
+Database & Background Jobs:
+  migrate:lint [--app=path] [--json] [--strict]         Lint migrations for zero-downtime DDL & locking hazards
+  migrate:status / migrate:rollback [--steps=1]         Inspect or roll back applied database migrations
+  migrate:fresh [--app=path] [--seed] [--force]         Drop all tables & re-run all migrations (guarded in prod)
+  db:seed [--app=path]                                  Execute SeederInterface files in seeders/
+  work [--app=path] [--queue=high,default] [--daemon]   Process background jobs (priority queues & daemon mode)
+  queue:failed / queue:retry [<id>|--all] / queue:flush Inspect, replay, or clear dead-lettered background jobs
+  schedule:run [--app=path]                             Execute due scheduled cron tasks
+
+Scaffolding, Frontend & SDKs:
+  make:resource <Name> [--app=path]                     Generate full CRUD slice (migration, DTOs, repo, controller, test)
+  make:controller|dto|migration|seeder|test <Name>      Generate strict PHP 8.5 core application files
+  make:job|policy|middleware|factory|rule|mail <Name>   Generate strict PHP 8.5 infrastructure & domain files
+  auth:init [--mode=web|api|both] [--force]             Scaffold zero-bloat SessionAuth + PAT Auth Starter Kit
+  bridge:init <react|vue|svelte> / bridge:types         Scaffold React 19, Vue 3, or Svelte 5 Bridge SPA & TS types
   ui:add <modal|drawer|dropdown|tabs|toast|datatable|kanban|all> Add zero-npm accessible Kongono UI components
-  skills:install [--target=agents|claude|both] [--force] Install bundled Kongono AI agent SKILL.md recipes
-  mcp [--app=path]                                      Run Model Context Protocol (MCP) JSON-RPC stdio server
-  check                                                 Run full CS + PHPStan + PHPUnit suite
-  test                                                  Run PHPUnit test suite
+  sdk:generate --lang=ts|swift|kotlin|dart [--out=file] Generate typed Web/iOS/Android/Flutter client SDK
+  skills:install [--target=agents|claude|both] [--force] Install 6 bundled Kongono AI agent SKILL.md recipes
+
+Inspection, Editor & Production:
+  doctor / env:check / key:generate                     Verify PHP 8.5 + env keys, or generate a 256-bit APP_KEY
+  routes [--json] / graph / openapi                     Inspect routes, live ApplicationGraph, or OpenAPI 3.1 spec
+  optimize / cache:clear                                Precompile views & AOT route/graph caches (or clear caches)
+  deploy:init [--app=path] --domain=app.example.com     Generate zero-downtime FrankenPHP Dockerfile, Caddyfile & VPS scripts
+  lsp [--app=path]                                      Run zero-dependency Language Server (LSP 3.17) for VS Code / Cursor
+  mcp [--app=path]                                      Run read-only 26-tool Model Context Protocol (MCP) stdio server
   version                                               Show Kongono & PHP version
 
-Built-in AI Companions (per-companion routing: KONGONO_{OSHIE,CHIE,HANTEI}_MODEL, auto-failover, cap: KONGONO_AI_MAX_COST_USD):
-  oshie --lessons                                       List built-in learning lessons
-  oshie --lesson <id>                                   Study a lesson & record progress (AI-tailored when configured)
-  oshie --exercises                                     List verifiable hands-on Kongono exercises
-  oshie --exercise <id>                                 Grade a hands-on exercise against your live project
-  oshie --progress                                      Track completed lessons, verified exercises & recommendations
-  oshie --interactive                                   Start multi-turn streaming interactive AI tutor REPL
-  oshie "<question>" [--stream] [--max-cost=0.10]       Ask Oshie anything about Kongono or your app
-  chie "<what to build>" [--apply] [--verify]           Generate/patch Kongono code (multi-gate PHPStan+tests+lint+audit auto-repair)
-  chie "<follow-up>" --continue [--apply]               Iterate on your previous Chie build session
-  chie "<what to build>" --interactive                  Approve or reject each proposed file diff interactively
-  hantei check                                          Run tests & diagnose failures with AI
-  hantei debug "<error or diagnostic>" [--stream]       Diagnose an error using live code & schema tools
-  hantei fix ["<error>"] [--apply] [--verify]           Diagnose a failure, hand off minimal patch to Chie, and verify
-  hantei review [--base=main] [--format=markdown|sarif] Review git diff for Kongono invariants (CI/SARIF ready)
-  hantei watch [--log=file] [--queue=default] [--once]  Tail error logs or failed queues and auto-diagnose live
-  hantei history [--limit=10]                           List recent Hantei diagnoses for this project
-  hantei queue-failed [<job-id>] [--queue=default]      Diagnose a failed/dead-lettered background job with AI
-  hantei generate-tests <relative/file.php> [--apply]   Generate PHPUnit 13 tests for a file
-  eval --companions [--live] [--json]                   Run Oshie/Chie/Hantei zero-hallucination & safety benchmarks
+Optional AI Companions & Evals (per-companion routing: KONGONO_{OSHIE,CHIE,HANTEI}_MODEL, cap: KONGONO_AI_MAX_COST_USD):
+  oshie --lessons / --lesson <id> / --exercises / --exercise <id> / --progress
+  oshie --interactive / oshie "<question>" [--stream]   Interactive AI tutor (offline v1.20 RAG + live streaming)
+  chie "<what to build>" [--interactive] [--apply --verify] [--continue]
+  hantei check / debug "<err>" [--stream] / fix [--apply --verify] / review [--base=main --format=sarif]
+  hantei watch [--log=file] [--queue=default] / history / queue-failed / generate-tests <file> [--apply]
+  eval [--redteam|--companions|--agent-bench] [--live] [--export-jsonl=file] [--json]
 
 TEXT;
     }

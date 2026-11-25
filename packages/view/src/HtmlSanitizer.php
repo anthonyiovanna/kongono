@@ -109,10 +109,13 @@ final readonly class HtmlSanitizer
         'link' => true,
         'math' => true,
         'meta' => true,
+        'noembed' => true,
+        'noframes' => true,
         'noscript' => true,
         'object' => true,
         'optgroup' => true,
         'option' => true,
+        'plaintext' => true,
         'portal' => true,
         'script' => true,
         'select' => true,
@@ -312,8 +315,8 @@ final readonly class HtmlSanitizer
         if (1 === preg_match('/[\x00-\x1F\x7F\\\\]/', $trimmed)) {
             return false;
         }
-        if ($allowFragment && str_starts_with($trimmed, '#')) {
-            return true;
+        if (str_starts_with($trimmed, '#')) {
+            return $allowFragment;
         }
         // Reject protocol-relative `//evil.test` explicitly before relative-path admission
         if (str_starts_with($trimmed, '//')) {

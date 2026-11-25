@@ -52,10 +52,11 @@ final class McpServer
         $handlerAttr = [] !== $refHandler->getAttributes(RequiresApproval::class)
             || (null !== $scopeClass && [] !== $scopeClass->getAttributes(RequiresApproval::class))
             || (null !== $calledClass && [] !== $calledClass->getAttributes(RequiresApproval::class));
+        $priorApproval = isset($this->tools[$definition->name]) && $this->tools[$definition->name]['requiresApproval'];
         $this->tools[$definition->name] = [
             'definition' => $definition,
             'handler' => $handler,
-            'requiresApproval' => $definition->requiresApproval || $handlerAttr,
+            'requiresApproval' => $priorApproval || $definition->requiresApproval || $handlerAttr,
         ];
 
         return $this;
@@ -93,14 +94,18 @@ final class McpServer
         $id = $decoded['id'] ?? null;
         $isNotification = !array_key_exists('id', $decoded);
         $method = $decoded['method'];
+        $responseId = is_int($id) || is_string($id) ? $id : null;
+
+        if (array_key_exists('params', $decoded) && null !== $decoded['params'] && !is_array($decoded['params'])) {
+            return $isNotification ? null : $this->encodeError($responseId, -32602, 'Invalid params: expected JSON object or array.');
+        }
+
         /** @var array<string, mixed> $params */
         $params = is_array($decoded['params'] ?? null) ? $decoded['params'] : [];
 
         if ($isNotification) {
             return null;
         }
-
-        $responseId = is_int($id) || is_string($id) ? $id : null;
 
         return match ($method) {
             'initialize' => $this->encodeResult($responseId, [
@@ -190,7 +195,10 @@ final class McpServer
         if (null !== $this->principal && $this->toolCallsExecuted >= $this->principal->maxToolCalls) {
             return $this->encodeError($id, -32003, sprintf('MCP tool call budget exceeded (%d max calls).', $this->principal->maxToolCalls));
         }
-        ++$this->toolCallsExecuted;
+
+        if (array_key_exists('arguments', $params) && null !== $params['arguments'] && !is_array($params['arguments'])) {
+            return $this->encodeError($id, -32602, sprintf('Invalid arguments for tool "%s": expected JSON object.', $name));
+        }
 
         /** @var array<string, mixed> $arguments */
         $arguments = [];
@@ -199,6 +207,13 @@ final class McpServer
                 $arguments[(string) $k] = $v;
             }
         }
+
+        $schemaError = self::validateArgumentsAgainstSchema($arguments, $this->tools[$name]['definition']->parametersSchema);
+        if (null !== $schemaError) {
+            return $this->encodeError($id, -32602, sprintf('Invalid arguments for tool "%s": %s', $name, $schemaError));
+        }
+
+        ++$this->toolCallsExecuted;
 
         try {
             $rawResult = ($this->tools[$name]['handler'])($arguments);
@@ -220,6 +235,66 @@ final class McpServer
                 'isError' => true,
             ]);
         }
+    }
+
+    /**
+     * Validate tool call arguments against JSON Schema `required` and top-level `properties.<k>.type`.
+     *
+     * @param array<string, mixed> $arguments
+     * @param array<string, mixed> $schema
+     */
+    private static function validateArgumentsAgainstSchema(array $arguments, array $schema): ?string
+    {
+        if (isset($schema['required']) && is_array($schema['required'])) {
+            foreach ($schema['required'] as $reqField) {
+                if (is_string($reqField) && !array_key_exists($reqField, $arguments)) {
+                    return sprintf('missing required argument "%s".', $reqField);
+                }
+            }
+        }
+
+        $props = is_array($schema['properties'] ?? null) ? $schema['properties'] : [];
+        foreach ($arguments as $key => $val) {
+            if (!isset($props[$key]) || !is_array($props[$key])) {
+                continue;
+            }
+            $rawType = $props[$key]['type'] ?? null;
+            /** @var list<string> $allowedTypes */
+            $allowedTypes = [];
+            if (is_string($rawType)) {
+                $allowedTypes[] = strtolower($rawType);
+            } elseif (is_array($rawType)) {
+                foreach ($rawType as $t) {
+                    if (is_string($t)) {
+                        $allowedTypes[] = strtolower($t);
+                    }
+                }
+            }
+            if ([] === $allowedTypes) {
+                continue;
+            }
+            $valid = false;
+            foreach ($allowedTypes as $expectedType) {
+                $matches = match ($expectedType) {
+                    'null' => null === $val,
+                    'string' => is_string($val),
+                    'integer' => is_int($val),
+                    'number' => is_int($val) || is_float($val),
+                    'boolean' => is_bool($val),
+                    'array', 'object' => is_array($val),
+                    default => true,
+                };
+                if ($matches) {
+                    $valid = true;
+                    break;
+                }
+            }
+            if (!$valid) {
+                return sprintf('argument "%s" must be of type %s.', $key, implode('|', $allowedTypes));
+            }
+        }
+
+        return null;
     }
 
     private function encodeResult(int|string|null $id, mixed $result): string

@@ -50,10 +50,10 @@ final readonly class SigV4Signer
         $lowerHeaders = [];
         foreach ($headers as $k => $v) {
             $name = strtolower(trim($k));
-            $val = trim($v);
-            if (1 !== preg_match('/\A[a-z0-9!#$%&\'*+.^_`|~-]+\z/', $name) || false !== strpbrk($val, "\r\n\0")) {
+            if (1 !== preg_match('/\A[a-z0-9!#$%&\'*+.^_`|~-]+\z/', $name) || 1 === preg_match('/[\x00-\x08\x0a-\x1f\x7f]/', $v)) {
                 throw new StorageException(sprintf('Unsafe header "%s" rejected by SigV4Signer.', $k));
             }
+            $val = (string) preg_replace('/[ \t]+/', ' ', trim($v));
             $lowerHeaders[$name] = $val;
         }
         self::assertSafeMethod($method);

@@ -18,6 +18,21 @@ use Psr\Http\Message\UploadedFileInterface;
  */
 final readonly class UploadedFileStore
 {
+    /** @var list<string> */
+    private const array FORBIDDEN_KEY_EXTENSIONS = [
+        'php', 'phtml', 'phar', 'php3', 'php4', 'php5', 'php7', 'php8', 'pht', 'phps', 'inc',
+        'html', 'htm', 'xhtml', 'xht', 'shtml', 'mhtml', 'svg', 'svgz', 'xml', 'xsl', 'xslt',
+        'js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx', 'jsp', 'asp', 'aspx', 'cgi', 'pl', 'py',
+        'sh', 'bat', 'cmd', 'exe', 'ps1', 'vbs', 'hta', 'swf', 'jar',
+    ];
+
+    /** @var list<string> */
+    private const array WINDOWS_RESERVED = [
+        'con', 'prn', 'aux', 'nul',
+        'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9',
+        'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9',
+    ];
+
     /** @var array<string, string> */
     public const array MIME_EXTENSIONS = [
         'image/png' => 'png',
@@ -106,6 +121,25 @@ final readonly class UploadedFileStore
             }
 
             $detectedMime = self::detectMimeType($header);
+            // Fix JSON > 4KB misclassified as text/plain when header truncation cut off closing brace
+            if ('text/plain' === $detectedMime && $totalBytes > 4096 && $totalBytes <= $this->maxBytes) {
+                $trimmedHead = ltrim($header, "\xEF\xBB\xBF \t\r\n");
+                if ('' !== $trimmedHead && ('{' === $trimmedHead[0] || '[' === $trimmedHead[0])) {
+                    rewind($temp);
+                    $fullContent = stream_get_contents($temp);
+                    if (is_string($fullContent) && self::looksLikeJson(ltrim($fullContent, "\xEF\xBB\xBF \t\r\n"))) {
+                        $detectedMime = 'application/json';
+                    }
+                }
+            }
+
+            // Full-stream active-script & polyglot inspection across ALL file types (including PDF/ZIP/XML/images)
+            rewind($temp);
+            $activeScriptMime = self::scanStreamForActivePayload($temp, $detectedMime);
+            if (null !== $activeScriptMime) {
+                $detectedMime = $activeScriptMime;
+            }
+
             if (!in_array($detectedMime, $this->allowedMimeTypes, true)) {
                 throw new StorageException(sprintf(
                     'Uploaded file MIME type "%s" is not allowed (allowed: %s).',
@@ -115,7 +149,7 @@ final readonly class UploadedFileStore
             }
 
             $key = null !== $explicitKey && '' !== trim($explicitKey)
-                ? trim($explicitKey)
+                ? self::validateExplicitKey(trim($explicitKey))
                 : $this->generateSafeKey($prefix, $detectedMime);
 
             $mergedMeta = $metadata;
@@ -179,19 +213,9 @@ final readonly class UploadedFileStore
 
         // Actively detect disguised executable/markup scripts so they cannot masquerade as plain text
         $trimmed = ltrim($headerBytes, "\xEF\xBB\xBF \t\r\n");
-        $lowerPrefix = strtolower(substr($trimmed, 0, 512));
-        if (str_contains($lowerPrefix, '<?php') || str_contains($lowerPrefix, '<?=')) {
-            return 'application/x-httpd-php';
-        }
-        if (str_contains($lowerPrefix, '<svg')) {
-            return 'image/svg+xml';
-        }
-        if (
-            str_starts_with($lowerPrefix, '<!doctype html')
-            || str_contains($lowerPrefix, '<html')
-            || str_contains($lowerPrefix, '<script')
-        ) {
-            return 'text/html';
+        $prefixActive = self::detectActivePayloadInWindow(substr($trimmed, 0, 1024), strictHtml: true);
+        if (null !== $prefixActive) {
+            return $prefixActive;
         }
 
         if (class_exists(\finfo::class)) {
@@ -234,13 +258,109 @@ final readonly class UploadedFileStore
         return sprintf('%s/%s/%s.%s', $cleanPrefix, gmdate('Y/m'), bin2hex(random_bytes(16)), $ext);
     }
 
+    /**
+     * Stream-scan staged bytes across ALL MIME types (including PDF, ZIP, XML, images, and text)
+     * in overlapping 64 KiB windows — including NUL-stripped views for UTF-16LE/BE payloads —
+     * so disguised PHP/HTML/SVG/polyglot payloads are caught fail-closed.
+     *
+     * @param resource $stream
+     */
+    private static function scanStreamForActivePayload(mixed $stream, string $detectedMime): ?string
+    {
+        $strictHtml = str_starts_with($detectedMime, 'text/')
+            || 'application/json' === $detectedMime
+            || 'application/octet-stream' === $detectedMime
+            || 'application/xml' === $detectedMime
+            || 'text/xml' === $detectedMime
+            || str_ends_with($detectedMime, '+xml');
+
+        $overlap = '';
+        while (!feof($stream)) {
+            $chunk = fread($stream, 65536);
+            if (false === $chunk || '' === $chunk) {
+                break;
+            }
+            $rawWindow = $overlap . $chunk;
+            $hit = self::detectActivePayloadInWindow($rawWindow, $strictHtml);
+            if (null !== $hit) {
+                return $hit;
+            }
+            if (str_contains($rawWindow, "\0")) {
+                $noNulHit = self::detectActivePayloadInWindow(str_replace("\0", '', $rawWindow), strictHtml: false);
+                if (null !== $noNulHit) {
+                    return $noNulHit;
+                }
+            }
+            $overlap = substr($rawWindow, -64);
+        }
+
+        return null;
+    }
+
+    private static function detectActivePayloadInWindow(string $window, bool $strictHtml): ?string
+    {
+        if (1 === preg_match('/<\?(?:php(?:\s|\/|$)|=[ \t\r\n\$"\'a-zA-Z_])/i', $window)) {
+            return 'application/x-httpd-php';
+        }
+        if (1 === preg_match('/<svg(?:\s|\/|>)/i', $window)) {
+            return 'image/svg+xml';
+        }
+        if (1 === preg_match('/<(?:script|iframe|object|embed|math|form|meta|style|link|details|marquee)(?:\s|\/|>)|<!doctype\s+html\b|<html(?:\s|\/|>)|<body(?:\s|\/|>)|<img(?:\s|\/)/i', $window)) {
+            return 'text/html';
+        }
+        if ($strictHtml && 1 === preg_match('/<(?:video|audio|input)(?:\s|\/|>)|\bjavascript\s*:/i', $window)) {
+            return 'text/html';
+        }
+
+        return null;
+    }
+
+    private static function validateExplicitKey(string $key): string
+    {
+        $normalized = ltrim(str_replace('\\', '/', $key), '/');
+        if (
+            '' === $normalized
+            || str_contains($normalized, ':')
+            || 1 === preg_match('/[\x00-\x1f\x7f]/', $normalized)
+        ) {
+            throw new StorageException(sprintf('Unsafe explicit upload storage key "%s".', $key));
+        }
+
+        $segments = explode('/', $normalized);
+        foreach ($segments as $segment) {
+            if (
+                '' === $segment
+                || '.' === $segment
+                || '..' === $segment
+                || str_contains($segment, '..')
+                || str_starts_with($segment, '.')
+                || str_ends_with($segment, '.')
+                || str_ends_with($segment, ' ')
+            ) {
+                throw new StorageException(sprintf('Unsafe explicit upload storage key "%s".', $key));
+            }
+            $lowerSeg = strtolower($segment);
+            $parts = explode('.', $lowerSeg);
+            if (in_array($parts[0], self::WINDOWS_RESERVED, true)) {
+                throw new StorageException(sprintf('Reserved device name in explicit upload key "%s".', $key));
+            }
+            // Inspect EVERY dot-separated sub-extension (blocks `shell.php.bak` and `shell.php.`)
+            for ($idx = 1, $cnt = count($parts); $idx < $cnt; ++$idx) {
+                if (in_array($parts[$idx], self::FORBIDDEN_KEY_EXTENSIONS, true)) {
+                    throw new StorageException(sprintf('Dangerous executable/web file extension ".%s" is forbidden on upload key "%s".', $parts[$idx], $key));
+                }
+            }
+        }
+
+        return $normalized;
+    }
+
     private static function looksLikeJson(string $trimmed): bool
     {
         if ('' === $trimmed || ('{' !== $trimmed[0] && '[' !== $trimmed[0])) {
             return false;
         }
-        json_decode($trimmed);
 
-        return JSON_ERROR_NONE === json_last_error();
+        return json_validate($trimmed);
     }
 }

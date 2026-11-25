@@ -25,7 +25,9 @@ use Kongono\Http\Session\Session;
 use Kongono\Http\SseEvent;
 use Kongono\Jobs\Queue;
 use Kongono\Jobs\Worker;
+use Kongono\Security\Attributes\Can;
 use Kongono\Security\Middleware\BearerAuthMiddleware;
+use Kongono\Security\Principal;
 use Kongono\Security\TokenSigner;
 use Kongono\Storage\StorageInterface;
 use Kongono\View\ViewEngine;
@@ -34,6 +36,23 @@ use StarterApp\Domain\NoteStore;
 
 final readonly class NoteController
 {
+    private const int MAX_UPLOAD_BYTES = 5_242_880;
+
+    /** @var array<string, list<string>> */
+    private const array ALLOWED_UPLOAD_TYPES = [
+        'txt' => ['text/plain'],
+        'md' => ['text/plain', 'text/markdown'],
+        'csv' => ['text/plain', 'text/csv', 'application/csv'],
+        'json' => ['application/json', 'text/plain'],
+        'pdf' => ['application/pdf'],
+        'png' => ['image/png'],
+        'jpg' => ['image/jpeg'],
+        'jpeg' => ['image/jpeg'],
+        'gif' => ['image/gif'],
+        'webp' => ['image/webp'],
+        'zip' => ['application/zip'],
+    ];
+
     public function __construct(
         private NoteStore $store,
         private ViewEngine $views,
@@ -93,10 +112,12 @@ final readonly class NoteController
     }
 
     #[Post('/api/notes', name: 'api.notes.create')]
+    #[Middleware(BearerAuthMiddleware::class)]
+    #[Can('notes.write')]
     #[Idempotent(ttlSeconds: 3600)]
-    public function apiCreate(CreateNoteInput $input): Response
+    public function apiCreate(CreateNoteInput $input, Principal $principal): Response
     {
-        $note = $this->store->create($input->title, $input->body);
+        $note = $this->store->create($input->title, $input->body, $principal->id);
         $job = $this->queue->dispatch('note.indexed', ['note_id' => $note->id]);
         $this->events->publish('notes', 'note.created', $note->toArray());
 
@@ -122,11 +143,19 @@ final readonly class NoteController
     }
 
     #[Delete('/api/notes/{id:\d+}', name: 'api.notes.delete')]
-    public function apiDelete(int $id): Response
+    #[Middleware(BearerAuthMiddleware::class)]
+    #[Can('notes.write')]
+    public function apiDelete(int $id, Principal $principal): Response
     {
-        if (!$this->store->delete($id)) {
+        $existing = $this->store->find($id);
+        if (null === $existing) {
             throw new HttpException(404, sprintf('Note #%d not found.', $id));
         }
+        $isOpsAdmin = in_array('ops.manage', $principal->capabilities, true);
+        if (!$isOpsAdmin && (null === $existing->ownerId || $existing->ownerId !== $principal->id)) {
+            throw new HttpException(403, 'You do not have permission to delete this note.');
+        }
+        $this->store->delete($id);
         $this->events->publish('notes', 'note.deleted', ['id' => $id]);
 
         return Response::noContent();
@@ -134,28 +163,56 @@ final readonly class NoteController
 
     #[Post('/api/upload', name: 'api.upload')]
     #[Middleware(BearerAuthMiddleware::class)]
-    public function apiUpload(Request $request): Response
+    #[Can('notes.write')]
+    public function apiUpload(Request $request, Principal $principal): Response
     {
         $file = $request->file('document');
         if (null === $file) {
             throw new HttpException(400, 'Expected multipart file field "document".');
         }
+        if (UPLOAD_ERR_OK !== $file->getError()) {
+            throw new HttpException(400, 'File upload failed or was incomplete.');
+        }
 
-        $rawName = basename($file->getClientFilename() ?? 'upload.bin');
+        $declaredSize = $file->getSize();
+        if (null !== $declaredSize && $declaredSize > self::MAX_UPLOAD_BYTES) {
+            throw new HttpException(413, 'Uploaded file exceeds maximum allowed size (5 MiB).');
+        }
+
+        $rawName = basename($file->getClientFilename() ?? 'upload.txt');
         $safeName = (string) preg_replace('/[^a-zA-Z0-9._-]/', '_', $rawName);
-        if ('' === $safeName || str_starts_with($safeName, '.')) {
-            $safeName = 'upload.bin';
+        if ('' === $safeName || str_starts_with($safeName, '.') || str_contains($safeName, '..')) {
+            $safeName = 'upload.txt';
         }
-        $bytes = (string) $file->getStream();
-        $finfoMime = class_exists(\finfo::class) ? (new \finfo(FILEINFO_MIME_TYPE))->buffer($bytes) : false;
-        $detectedMime = is_string($finfoMime) && '' !== $finfoMime ? $finfoMime : 'application/octet-stream';
-        $blockedMimes = ['text/html', 'application/xhtml+xml', 'image/svg+xml', 'text/javascript', 'application/javascript', 'application/x-httpd-php'];
         $lowerExt = strtolower(pathinfo($safeName, PATHINFO_EXTENSION));
-        if (in_array(strtolower($detectedMime), $blockedMimes, true) || in_array($lowerExt, ['html', 'htm', 'xhtml', 'svg', 'js', 'mjs', 'php', 'phtml'], true)) {
-            throw new HttpException(415, 'Active web/script content types are not allowed for upload.');
+        if (!isset(self::ALLOWED_UPLOAD_TYPES[$lowerExt])) {
+            throw new HttpException(415, 'Unsupported file extension; only allowlisted document and image formats are accepted.');
         }
 
-        $key = 'uploads/' . $safeName;
+        $stream = $file->getStream();
+        if ($stream->isSeekable()) {
+            $stream->rewind();
+        }
+        $bytes = '';
+        while (!$stream->eof()) {
+            $chunk = $stream->read(65536);
+            if ('' === $chunk) {
+                break;
+            }
+            $bytes .= $chunk;
+            if (strlen($bytes) > self::MAX_UPLOAD_BYTES) {
+                throw new HttpException(413, 'Uploaded file exceeds maximum allowed size (5 MiB).');
+            }
+        }
+
+        $finfoMime = class_exists(\finfo::class) ? (new \finfo(FILEINFO_MIME_TYPE))->buffer($bytes) : false;
+        $detectedMime = is_string($finfoMime) && '' !== $finfoMime ? strtolower($finfoMime) : 'application/octet-stream';
+        if (!in_array($detectedMime, self::ALLOWED_UPLOAD_TYPES[$lowerExt], true)) {
+            throw new HttpException(415, 'Detected content type does not match the allowlisted file extension.');
+        }
+
+        $ownerScope = (string) preg_replace('/[^a-zA-Z0-9_-]/', '_', $principal->id);
+        $key = 'uploads/' . $ownerScope . '/' . $safeName;
         $result = $this->storage->put(
             $key,
             $bytes,
@@ -175,25 +232,33 @@ final readonly class NoteController
 
     #[Get('/api/files/{name}', name: 'api.files.download')]
     #[Middleware(BearerAuthMiddleware::class)]
-    public function apiDownload(string $name): Response
+    #[Can('notes.read')]
+    public function apiDownload(string $name, Principal $principal): Response
     {
         $safeName = (string) preg_replace('/[^a-zA-Z0-9._-]/', '_', basename($name));
-        $key = 'uploads/' . $safeName;
-        $bytes = $this->storage->get($key);
+        if ('' === $safeName || '.' === $safeName || '..' === $safeName || str_starts_with($safeName, '.') || str_contains($safeName, '..')) {
+            throw new HttpException(404, 'File not found.');
+        }
+        $ownerScope = (string) preg_replace('/[^a-zA-Z0-9_-]/', '_', $principal->id);
+        $key = 'uploads/' . $ownerScope . '/' . $safeName;
         $meta = $this->storage->meta($key);
-        if (null === $bytes || null === $meta) {
-            throw new HttpException(404, sprintf('File "%s" not found.', $name));
+        $stream = $this->storage->getStream($key);
+        if (null === $meta || !is_resource($stream)) {
+            throw new HttpException(404, sprintf('File "%s" not found.', $safeName));
         }
 
-        return Response::text($bytes, 200, [
+        return new Response(200, [
             'Content-Type' => 'application/octet-stream',
             'Content-Disposition' => sprintf('attachment; filename="%s"', $safeName),
             'Content-Security-Policy' => "default-src 'none'; sandbox",
             'ETag' => '"' . $meta->version . '"',
-        ]);
+            'Content-Length' => (string) $meta->size,
+        ], new \Kongono\Http\Stream($stream));
     }
 
     #[Post('/api/jobs/run', name: 'api.jobs.run')]
+    #[Middleware(BearerAuthMiddleware::class)]
+    #[Can('ops.manage')]
     public function apiRunJobs(): Response
     {
         $report = $this->worker->run();
@@ -209,12 +274,16 @@ final readonly class NoteController
     }
 
     #[Get('/api/graph', name: 'api.graph')]
+    #[Middleware(BearerAuthMiddleware::class)]
+    #[Can('ops.view')]
     public function apiGraph(): Response
     {
         return Response::json($this->app->graph()->toArray());
     }
 
     #[Get('/metrics', name: 'metrics')]
+    #[Middleware(BearerAuthMiddleware::class)]
+    #[Can('ops.view')]
     public function metrics(): Response
     {
         return Response::text($this->metrics->toPrometheus(), 200, [
@@ -232,7 +301,16 @@ final readonly class NoteController
     #[Get('/docs', name: 'api.docs')]
     public function apiDocs(): Response
     {
-        return Response::html((new ApiDocsRenderer())->render($this->app));
+        return Response::html((new ApiDocsRenderer())->render($this->app, scriptSrc: '/docs/explorer.js'));
+    }
+
+    #[Get('/docs/explorer.js', name: 'api.docs.script')]
+    #[CacheControl(maxAge: 3600, public: true)]
+    public function apiDocsScript(): Response
+    {
+        return Response::text(ApiDocsRenderer::clientScript(), 200, [
+            'Content-Type' => 'application/javascript; charset=utf-8',
+        ]);
     }
 
     #[Get('/health', name: 'health')]
@@ -245,6 +323,7 @@ final readonly class NoteController
 
     #[Post('/mcp', name: 'mcp')]
     #[Middleware(BearerAuthMiddleware::class)]
+    #[Can('mcp.access')]
     public function mcp(Request $request): Response
     {
         $server = KongonoMcpFactory::forApp($this->app->basePath(), $this->app);
@@ -268,7 +347,7 @@ final readonly class NoteController
             foreach ($replayed as $ev) {
                 yield $ev;
             }
-            yield SseEvent::json(['framework' => 'Kongono v1', 'php' => PHP_VERSION], event: 'info');
+            yield SseEvent::json(['framework' => 'Kongono'], event: 'info');
         });
     }
 }

@@ -39,14 +39,14 @@ final readonly class Date implements RuleInterface
 
         if (null !== $this->after) {
             $afterDate = $this->resolveBound($this->after, $allInput);
-            if (null !== $afterDate && $parsed <= $afterDate) {
+            if (null === $afterDate || $parsed <= $afterDate) {
                 return $this->message ?? sprintf('The %s field must be a date after %s.', $field, $this->after);
             }
         }
 
         if (null !== $this->before) {
             $beforeDate = $this->resolveBound($this->before, $allInput);
-            if (null !== $beforeDate && $parsed >= $beforeDate) {
+            if (null === $beforeDate || $parsed >= $beforeDate) {
                 return $this->message ?? sprintf('The %s field must be a date before %s.', $field, $this->before);
             }
         }
@@ -59,7 +59,8 @@ final readonly class Date implements RuleInterface
         $utc = new DateTimeZone('UTC');
 
         if (null !== $this->format) {
-            $dt = DateTimeImmutable::createFromFormat('!' . $this->format, $value, $utc);
+            $fmt = ltrim($this->format, '!');
+            $dt = DateTimeImmutable::createFromFormat('!' . $fmt, $value, $utc);
             $errors = DateTimeImmutable::getLastErrors();
             if (false === $dt) {
                 return null;
@@ -70,6 +71,13 @@ final readonly class Date implements RuleInterface
 
             return $dt;
         }
+
+        return self::parseIsoDate($value);
+    }
+
+    private static function parseIsoDate(string $value): ?DateTimeImmutable
+    {
+        $utc = new DateTimeZone('UTC');
 
         if (1 === preg_match('/\A(\d{4})-(\d{2})-(\d{2})\z/', $value, $m)) {
             if (!checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
@@ -107,24 +115,33 @@ final readonly class Date implements RuleInterface
     private function resolveBound(string $bound, array $allInput): ?DateTimeImmutable
     {
         $utc = new DateTimeZone('UTC');
-        $raw = $bound;
+        $trimmedBound = trim($bound);
+        $lowerBound = strtolower($trimmedBound);
 
-        if (array_key_exists($bound, $allInput)) {
-            $sibling = $allInput[$bound];
-            if (!is_string($sibling) || '' === trim($sibling)) {
-                return null;
-            }
-            $raw = trim($sibling);
-        }
-
-        $lower = strtolower($raw);
-        if ('today' === $lower) {
+        // 1. Always resolve reserved keywords (`today`, `now`) before user input so injected fields cannot shadow them
+        if ('today' === $lowerBound) {
             return new DateTimeImmutable('today', $utc);
         }
-        if ('now' === $lower) {
+        if ('now' === $lowerBound) {
             return new DateTimeImmutable('now', $utc);
         }
 
-        return $this->parseDate($raw);
+        // 2. Always resolve literal calendar/ISO date bounds (both configured format AND ISO-8601) before user input
+        $literal = $this->parseDate($trimmedBound) ?? self::parseIsoDate($trimmedBound);
+        if (null !== $literal) {
+            return $literal;
+        }
+
+        // 3. Only treat `$bound` as a sibling field name when it is a valid identifier (prevents date-literal fallback to input keys)
+        if (1 !== preg_match('/\A[a-zA-Z_][a-zA-Z0-9_]*\z/', $bound) || !array_key_exists($bound, $allInput)) {
+            return null;
+        }
+
+        $sibling = $allInput[$bound];
+        if (!is_string($sibling) || '' === trim($sibling)) {
+            return null;
+        }
+
+        return $this->parseDate(trim($sibling));
     }
 }

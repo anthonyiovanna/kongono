@@ -36,9 +36,11 @@ To scaffold an editable zero-bloat auth starter kit immediately, run `php vendor
    - `$gate->before(fn(Principal $p, string $ability): ?bool => ...)` (return `null` to defer to normal checks; `true`/`false` short-circuits).
 2. Attach `AuthorizeMiddleware` and decorate routes with `#[Can('posts.write')]`, or check explicitly with `$gate->allows(...)` / `$gate->denies(...)`.
 
-## Step 3: Multi-Tenancy, Crypto & Outbound Egress
+## Step 3: Least-Privilege Capabilities, Multi-Tenancy, Crypto & Outbound Egress
 
-- **Multi-Tenant Isolation:** Scope every tenant query via `QueryBuilder::forTenant($tenant)` and enable PostgreSQL `Kongono\Database\RowLevelSecurity`.
+- **Least-Privilege Route Capabilities:** Mount `Kongono\Security\Middleware\CapabilityMiddleware` and annotate routes with `#[ReadOnlyDb]`, `#[NoOutboundHttp]`, `#[MaxQueries(N)]`, and `#[MaxAiCost(maxUsd: ...)]` (`Kongono\Security\Attributes\*`) so unauthorized DB writes, SSRF egress, or query explosions fail closed before execution.
+- **Executable Policies (`app/invariants.php`):** Enforce route-level security invariants (e.g., `/api/admin/*` must carry `#[Authenticated]`, `/webhooks/*` must verify signatures) via `Kongono\Cli\Policy\Invariant` and `php vendor/bin/kongo policy:check`.
+- **Multi-Tenant Isolation:** Scope every tenant query via `QueryBuilder::forTenant($tenant)` and enable PostgreSQL `Kongono\Database\RowLevelSecurity`. Prove zero BOLA/IDOR leaks with `php vendor/bin/kongo prove:isolation`.
 - **Encryption at Rest:** Use `Kongono\Security\Encryptor` (HKDF v2 `XChaCha20-Poly1305` AEAD). Pass `previousKeys: [$oldKey]` for zero-downtime key rotation.
 - **Outbound HTTP & Webhooks:** Always use `Kongono\Security\Egress\SafeHttpClient` (DNS IP pinning via `CURLOPT_RESOLVE`, blocks loopback/private/metadata IPs). Use `WebhookDispatcher` outbound and `#[VerifyWebhook]` inbound.
 - **Bot & AI Recon Defense:** Mount `SecurityHeadersMiddleware` and `AiThreatShieldMiddleware` for public web/API deployments.
@@ -46,9 +48,12 @@ To scaffold an editable zero-bloat auth starter kit immediately, run `php vendor
 ## Step 4: Verify Security & Nondisclosure
 
 1. Write auth tests using `(new TestClient($app))->actingAs($principal)->withStatefulCookies()` and test both authorized (`200`/`201`) and unauthorized (`401`/`403`) paths.
-2. Confirm secrets (`sk-*`, `sk-ant-*`, `AIza*`, `gsk_*`, `kgn_pat_*`, DSNs, JWTs) never appear in error payloads or logs.
-3. Run the automated red-team security audit and confirm **100/100 PASS**:
+2. Confirm secrets (`sk-*`, `sk-ant-*`, `AIza*`, `gsk_*`, `kgn_pat_*`, DSNs, JWTs) never appear in error payloads or logs, and that `APP_DEBUG=false` responses return only a vague message + `KGN-*` Reference ID.
+3. Run the automated security, isolation, policy, and unified proof gates and confirm **100/100 PASS**:
    ```bash
+   php vendor/bin/kongo prove
+   php vendor/bin/kongo policy:check
+   php vendor/bin/kongo prove:isolation
    php vendor/bin/kongo audit --attack --strict
    php vendor/bin/kongo test
    ```

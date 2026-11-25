@@ -97,6 +97,7 @@ final class UploadedFile implements UploadedFileInterface
             if (false === $dest) {
                 throw new RuntimeException(sprintf('Failed to create temporary upload file in "%s".', $targetDir));
             }
+            @chmod($tmp, 0o600);
             try {
                 while (!$stream->eof()) {
                     $chunk = $stream->read(65536);
@@ -115,7 +116,6 @@ final class UploadedFile implements UploadedFileInterface
                 throw $e;
             }
             fclose($dest);
-            @chmod($tmp, 0o600);
             if (!@rename($tmp, $targetPath)) {
                 @unlink($tmp);
                 throw new RuntimeException(sprintf('Failed to finalize uploaded file to "%s".', $targetPath));

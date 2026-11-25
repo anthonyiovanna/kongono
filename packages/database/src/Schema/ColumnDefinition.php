@@ -70,6 +70,9 @@ final class ColumnDefinition
 
     public function default(mixed $value): self
     {
+        if (null !== $value && !is_scalar($value)) {
+            throw new DatabaseException('SQL column default must be null or a scalar value.');
+        }
         $this->default = $value;
         $this->hasDefault = true;
 
@@ -131,6 +134,6 @@ final class ColumnDefinition
             return "'" . $escaped . "'";
         }
 
-        return 'NULL';
+        throw new DatabaseException('Unsupported non-scalar SQL column default.');
     }
 }

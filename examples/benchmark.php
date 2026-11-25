@@ -114,7 +114,8 @@ $results = [
 $app->shutdown();
 
 // Clean temporary benchmark view cache
-foreach (glob($benchCache . DIRECTORY_SEPARATOR . '*') ?: [] as $f) {
+$cachedFiles = glob($benchCache . DIRECTORY_SEPARATOR . '*');
+foreach (false !== $cachedFiles ? $cachedFiles : [] as $f) {
     @unlink($f);
 }
 @rmdir($benchCache);

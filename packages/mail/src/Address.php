@@ -13,7 +13,10 @@ final readonly class Address
     public function __construct(string $email, ?string $name = null)
     {
         $trimmed = trim($email);
-        if (false === filter_var($trimmed, FILTER_VALIDATE_EMAIL) || 1 === preg_match('/[\x00-\x1f\x7f]/', $trimmed)) {
+        if (
+            false === filter_var($trimmed, FILTER_VALIDATE_EMAIL)
+            || 1 === preg_match('/[\x00-\x1f\x7f<>"\\\\]/', $trimmed)
+        ) {
             throw new MailException(sprintf('Invalid email address "%s".', $email));
         }
         $this->email = $trimmed;
@@ -30,6 +33,9 @@ final readonly class Address
     {
         if (null === $this->name) {
             return $this->email;
+        }
+        if (1 === preg_match('/[^\x20-\x7e]/', $this->name)) {
+            return sprintf('=?UTF-8?B?%s?= <%s>', base64_encode($this->name), $this->email);
         }
 
         return sprintf('"%s" <%s>', str_replace(['\\', '"'], ['\\\\', '\\"'], $this->name), $this->email);

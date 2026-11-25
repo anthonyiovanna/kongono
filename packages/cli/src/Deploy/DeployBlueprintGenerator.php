@@ -100,7 +100,7 @@ WORKDIR /app
 
 RUN install-php-extensions dom pdo_pgsql sodium opcache zip \\
     && adduser -D -u 10001 -H -s /sbin/nologin kongono \\
-    && printf "expose_php=Off\nsession.upload_progress.enabled=Off\nzend.exception_ignore_args=On\nallow_url_include=Off\ndisplay_errors=Off\nlog_errors=On\n" > /usr/local/etc/php/conf.d/99-kongono-security.ini
+    && printf 'expose_php=Off\\nsession.upload_progress.enabled=Off\\nzend.exception_ignore_args=On\\nallow_url_include=Off\\ndisplay_errors=Off\\nlog_errors=On\\n' > /usr/local/etc/php/conf.d/99-kongono-security.ini
 
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
@@ -137,6 +137,14 @@ DOCKER;
         }
     }
     order php_server before file_server
+}
+
+:8080 {
+    handle /health {
+        root * /app/public
+        php_server
+    }
+    respond 404
 }
 
 {$domain} {
@@ -277,8 +285,7 @@ YAML;
 set -euo pipefail
 
 apt-get update -qq
-DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ca-certificates curl gnupg ufw fail2ban git unzip
-command -v docker >/dev/null 2>&1 || curl -fsSL https://get.docker.com | sh
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ca-certificates curl gnupg ufw fail2ban git unzip docker.io docker-compose-v2
 systemctl enable --now docker
 
 ufw default deny incoming
@@ -340,10 +347,12 @@ SH;
             'APP_KEY=REPLACE_WITH_kongo_key_generate',
         ];
         if ($pg) {
+            $lines[] = 'POSTGRES_PASSWORD=CHANGE_ME';
             $lines[] = 'DATABASE_URL=pgsql://postgres:CHANGE_ME@' . $slug . '_postgres:5432/' . $slug . '?sslmode=prefer';
         }
         if ($redis) {
-            $lines[] = 'REDIS_URL=redis://' . $slug . '_redis:6379/0';
+            $lines[] = 'REDIS_PASSWORD=CHANGE_ME';
+            $lines[] = 'REDIS_URL=redis://:CHANGE_ME@' . $slug . '_redis:6379/0';
         }
         $lines[] = '# Optional S3-compatible object storage (AWS S3 / Cloudflare R2 / MinIO) for multi-node scale-out:';
         $lines[] = '# S3_BUCKET=';

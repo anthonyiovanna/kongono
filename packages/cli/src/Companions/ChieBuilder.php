@@ -16,6 +16,7 @@ use Kongono\Ai\ToolCall;
 use Kongono\Cli\Audit\SecurityAuditor;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Database\MigrationLinter;
+use Kongono\Cli\Knowledge\KongonoKnowledgeIndex;
 use Kongono\Core\CoreException;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Throwable;
@@ -29,7 +30,7 @@ use Throwable;
 final readonly class ChieBuilder
 {
     private const string SYSTEM_PROMPT = <<<'PROMPT'
-You are Chie (知恵), the built-in AI code builder for Kongono v1.18+ (pure PHP 8.5.13+, zero Symfony, zero mutable static state, zero global magic facades).
+You are Chie (知恵), the built-in AI code builder for Kongono v1.20+ (pure PHP 8.5.13+, zero Symfony, zero mutable static state, zero global magic facades, self-verifying stack).
 
 You can inspect the project's files, code search matches, live ApplicationGraph, and live DB schema via tools before generating code.
 When you are ready with your final answer, respond ONLY with a valid JSON object matching this exact structure:
@@ -46,18 +47,19 @@ When you are ready with your final answer, respond ONLY with a valid JSON object
       ]
     }
   ],
-  "next_steps": ["Optional reminder such as registering a route in app/bootstrap.php"]
+  "next_steps": ["Optional reminder such as registering a route in app/bootstrap.php or running kongo prove"]
 }
 Prefer `"action": "patch"` with minimal exact `"edits"` when editing existing files so unrelated code is never dropped. Use `"action": "create"` with full `"content"` for new files.
 
-Exact Kongono v1.18+ rules & namespaces:
+Exact Kongono v1.20+ rules & namespaces:
 - Always start every PHP file with `<?php` and `declare(strict_types=1);`. Use `final readonly class`, backed enums, and native attributes.
 - Never invent Laravel or Symfony APIs (`Route::get`, `Auth::user()`, `DB::table`, `Http::fake`, `Carbon::setTestNow`, ActiveRecord magic, or `$_SESSION`/`$_POST`/`$_GET`).
 - Routing: `Kongono\Http\Routing\{Prefix, Get, Post, Put, Patch, Delete, Middleware, CacheControl, Idempotent, Feature}`, `Kongono\Http\{Request, Response}` (`Response::json/html/fragment/page/adaptive/download/fromStorage/sse`).
-- Auth & Security: `Kongono\Security\{Principal, Gate}` (`Gate::define()`, `policy()`, `before()`), `Kongono\Security\Attributes\{Authenticated, Can}`, `Kongono\Security\Auth\{SessionAuth, PersonalAccessToken, LoginThrottler, PasswordResetBroker, EmailVerifier, RememberMeManager}`, `Kongono\Http\Session\{Session, CacheSessionStore}`, `Kongono\Security\Egress\SafeHttpClient`.
+- Auth, Capabilities & Security: `Kongono\Security\{Principal, Gate}` (`Gate::define()`, `policy()`, `before()`), `Kongono\Security\Attributes\{Authenticated, Can, ReadOnlyDb, NoOutboundHttp, MaxQueries, MaxAiCost}`, `Kongono\Security\Middleware\CapabilityMiddleware`, `Kongono\Security\Auth\{SessionAuth, PersonalAccessToken, LoginThrottler, PasswordResetBroker, EmailVerifier, RememberMeManager}`, `Kongono\Http\Session\{Session, CacheSessionStore}`, `Kongono\Security\Egress\SafeHttpClient`. Annotate read-only endpoints with `#[ReadOnlyDb]`.
 - Validation: `Kongono\Validation\Attributes\{Required, Min, Max, Between, Email, Url, Uuid, Date, Ip, In, NotIn, Regex, Confirmed, RequiredIf, ArrayOf}`, `RuleInterface`, `ValidatableDtoInterface`.
 - Database: `Kongono\Database\{ConnectionInterface, PdoConnection, ConnectionManager, ReadWriteConnection, QueryBuilder, BatchLoader}`, `Kongono\Database\Schema\{Schema, Blueprint}`, `Kongono\Database\Testing\{DatabaseTestHelper, Factory}`, `Kongono\Database\Search\PostgresFullTextSearch`.
-- Views & Live 2.5 / Bridge: `Kongono\View\ViewEngine` (`{{ $escaped }}`, `@safeHtml($html)`, `@old('field')`, `@error('field')`, `@liveScript`, `@island`, `kgn-post`/`kgn-target`/`kgn-swap="morph"`).
+- Views, Dev Studio & Mail: `Kongono\View\ViewEngine` (`{{ $escaped }}`, `@safeHtml($html)`, `@old('field')`, `@error('field')`, `@liveScript`, `@island`, `kgn-post`/`kgn-target`/`kgn-swap="morph"`), `Kongono\Mail\DevMailboxTransport` + `Kongono\Core\Dev\FileDevMailbox`, `$app->recordIncidents()`.
+- Verification & Policies: `app/invariants.php` (`Kongono\Cli\Policy\Invariant`), `php vendor/bin/kongo prove`, `kongo diagnose --fix`, `kongo watch`.
 - Testing: `Kongono\Http\Testing\{TestClient, TestUpload}` (`actingAs`, `withStatefulCookies`, `withBearerToken`, `postMultipart`), `Kongono\Core\Clock\FrozenClock`, `SafeHttpClient::fake()`.
 - Always return valid JSON with no markdown code fences around it.
 PROMPT;
@@ -93,7 +95,7 @@ PROMPT;
             allowedTools: CompanionTools::NAMES,
             maxSteps: 8,
             maxToolCalls: 14,
-            maxCostUsd: 'ollama' === strtolower($this->ai->providerName()) ? 0.0 : max(0.0, $cap),
+            maxCostUsd: max(0.0, $cap),
         );
 
         $tools = CompanionTools::definitions();
@@ -104,6 +106,10 @@ PROMPT;
             "Current project summary (untrusted repository contents):\n"
                 . $guard->wrapUntrusted(new UntrustedInput($context->promptSummary(), source: 'project_summary')),
         ];
+        $knowledge = (new KongonoKnowledgeIndex())->formatContextForPrompt($instruction, limit: 2, maxChars: 3000);
+        if ('' !== $knowledge) {
+            $userParts[] = "Verified Kongono v1.20 reference & workflow recipes matching this task:\n" . $knowledge;
+        }
         if (null !== $previousContext && '' !== trim($previousContext)) {
             $userParts[] = "Previous Chie session context (untrusted prior plan):\n"
                 . $guard->wrapUntrusted(new UntrustedInput(substr(SecretScrubber::scrub($previousContext), 0, 6000), source: 'prior_session'));
@@ -379,11 +385,16 @@ PROMPT;
 
     private static function buildRepairInstruction(string $originalInstruction, string $scrubbedFailure, int $attempt): string
     {
+        $guard = new PromptGuard();
+        $wrappedFailure = $guard->wrapUntrusted(
+            new UntrustedInput(substr($scrubbedFailure, 0, 6000), source: 'verify_output'),
+        );
+
         return sprintf(
-            "Original build task:\n%s\n\nVerification attempt #%d failed with the following secret-scrubbed output:\n%s\n\nFix the root cause cleanly while preserving all Kongono PHP 8.5 strict conventions.",
+            "Original build task:\n%s\n\nVerification attempt #%d failed with the following untrusted secret-scrubbed output:\n%s\n\nFix the root cause cleanly while preserving all Kongono PHP 8.5 strict conventions.",
             $originalInstruction,
             $attempt,
-            substr($scrubbedFailure, 0, 6000),
+            $wrappedFailure,
         );
     }
 
@@ -396,12 +407,11 @@ PROMPT;
         $snapshots = [];
         foreach ($changes as $change) {
             $path = $change['path'];
-            $full = $context->rootPath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim(str_replace('\\', '/', $path), '/'));
-            if (is_file($full) && !is_link($full)) {
-                $raw = file_get_contents($full);
-                $snapshots[$path] = false !== $raw ? $raw : null;
-            } else {
-                $snapshots[$path] = null;
+            try {
+                self::assertAllowedChieWriteTarget($path);
+                $snapshots[$path] = $context->readRawWritableFileIfExists($path);
+            } catch (CoreException) {
+                continue;
             }
         }
 
@@ -414,16 +424,13 @@ PROMPT;
         foreach ($snapshots as $path => $previous) {
             try {
                 self::assertAllowedChieWriteTarget($path);
+                if (null === $previous) {
+                    $context->deleteFileContained($path);
+                } else {
+                    $context->writeFileContained($path, $previous);
+                }
             } catch (CoreException) {
                 continue;
-            }
-            $full = $context->rootPath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, ltrim(str_replace('\\', '/', $path), '/'));
-            if (null === $previous) {
-                if (is_file($full) && !is_link($full)) {
-                    @unlink($full);
-                }
-            } else {
-                $context->writeFileContained($path, $previous);
             }
         }
     }
@@ -552,13 +559,8 @@ PROMPT;
     private function readRawTargetForPatch(string $relativePath, ProjectContext $context): string
     {
         self::assertAllowedChieWriteTarget($relativePath);
-        // Validate containment & non-symlink safety via ProjectContext::readFileSafe() first
-        $context->readFileSafe($relativePath);
-
-        $normalized = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
-        $full = $context->rootPath . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalized);
-        $raw = file_get_contents($full);
-        if (false === $raw) {
+        $raw = $context->readRawWritableFileIfExists($relativePath);
+        if (null === $raw) {
             throw new CoreException(sprintf('Unable to read "%s" for patching.', $relativePath));
         }
 
@@ -650,13 +652,18 @@ PROMPT;
     private static function assertAllowedChieWriteTarget(string $relativePath): void
     {
         $normalized = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
-        if (
-            str_contains($normalized, '..')
-            || str_contains($normalized, "\0")
-            || 1 !== preg_match('#\A(?:src|views|tests|migrations|seeders|public/assets)/[a-zA-Z0-9._/\-]+\.(?:php|kgn\.html|css|js|json)\z#', $normalized)
-        ) {
+        if (str_contains($normalized, '..') || str_contains($normalized, "\0")) {
+            throw new CoreException(sprintf('Chie refused to write "%s": path traversal is forbidden.', $relativePath));
+        }
+
+        // Strict per-directory extension allowlist: NEVER permit executable `.php` files inside public/assets/ or views/
+        $allowed = 1 === preg_match('#\A(?:src|tests|migrations|seeders)/[a-zA-Z0-9._/\-]+\.php\z#', $normalized)
+            || 1 === preg_match('#\Aviews/[a-zA-Z0-9._/\-]+\.(?:kgn\.html|html|css|js|json)\z#', $normalized)
+            || 1 === preg_match('#\Apublic/assets/[a-zA-Z0-9._/\-]+\.(?:css|js|json|svg|txt)\z#', $normalized);
+
+        if (!$allowed) {
             throw new CoreException(sprintf(
-                'Chie refused to write "%s": AI --apply is restricted to src/, views/, tests/, migrations/, seeders/, or public/assets/.',
+                'Chie refused to write "%s": AI --apply restricts .php to src/, tests/, migrations/, seeders/, views to views/, and static assets only to public/assets/.',
                 $relativePath,
             ));
         }
@@ -678,8 +685,36 @@ PROMPT;
 
         fwrite($pipes[0], $clean);
         fclose($pipes[0]);
-        $stdout = (string) stream_get_contents($pipes[1]);
-        $stderr = (string) stream_get_contents($pipes[2]);
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+        $stdout = '';
+        $stderr = '';
+        $open = [1 => $pipes[1], 2 => $pipes[2]];
+        while ([] !== $open) {
+            $read = array_values($open);
+            $write = null;
+            $except = null;
+            $ready = @stream_select($read, $write, $except, 1);
+            if (false === $ready) {
+                break;
+            }
+            foreach ($read as $stream) {
+                $chunk = fread($stream, 65536);
+                if (false === $chunk || ('' === $chunk && feof($stream))) {
+                    foreach ($open as $k => $s) {
+                        if ($s === $stream) {
+                            unset($open[$k]);
+                        }
+                    }
+                    continue;
+                }
+                if ($stream === $pipes[1]) {
+                    $stdout .= $chunk;
+                } else {
+                    $stderr .= $chunk;
+                }
+            }
+        }
         fclose($pipes[1]);
         fclose($pipes[2]);
         $exit = proc_close($proc);

@@ -9,9 +9,14 @@ use Kongono\Cli\Companions\DiffRenderer;
 use Kongono\Cli\Companions\HanteiDebugger;
 use Kongono\Cli\Companions\OshieTutor;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Diagnostics\IncidentReplayer;
+use Kongono\Cli\Diagnostics\IncidentTestGenerator;
+use Kongono\Cli\Proof\MasterProver;
 use Kongono\Core\Cache\CacheInterface;
 use Kongono\Core\Cache\FileCache;
 use Kongono\Core\Config;
+use Kongono\Core\Dev\DevMailboxInterface;
+use Kongono\Core\Dev\FileDevMailbox;
 use Kongono\Core\EnvLoader;
 use Kongono\Core\Features\FeatureManager;
 use Kongono\Core\Health\HealthCheck;
@@ -33,6 +38,7 @@ use Kongono\Jobs\Queue;
 use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
 use Kongono\Mail\Address;
+use Kongono\Mail\DevMailboxTransport;
 use Kongono\Mail\LogTransport;
 use Kongono\Mail\Mailer;
 use Kongono\Security\Encryptor;
@@ -91,18 +97,24 @@ $translator = (new Translator('en'))
 
 $health = (new HealthCheck())
     ->check('cache', static function () use ($cache): bool {
-        $cache->set('health:probe', 'ok', 15);
-        $ok = 'ok' === $cache->get('health:probe');
-        $cache->delete('health:probe');
+        $probeKey = 'health:probe:' . bin2hex(random_bytes(8));
+        try {
+            $cache->set($probeKey, 'ok', 15);
 
-        return $ok;
+            return 'ok' === $cache->get($probeKey);
+        } finally {
+            $cache->delete($probeKey);
+        }
     })
     ->check('storage', static function () use ($storage): bool {
-        $storage->put('_health/probe.txt', 'ok', 'text/plain');
-        $ok = 'ok' === $storage->get('_health/probe.txt');
-        $storage->delete('_health/probe.txt');
+        $probeKey = '_health/probe-' . bin2hex(random_bytes(8)) . '.txt';
+        try {
+            $storage->put($probeKey, 'ok', 'text/plain');
 
-        return $ok;
+            return 'ok' === $storage->get($probeKey);
+        } finally {
+            $storage->delete($probeKey);
+        }
     });
 
 $scheduler = new Scheduler();
@@ -120,7 +132,16 @@ $bearerAuth = new BearerAuthMiddleware(static function (string $token) use ($sig
         return null;
     }
 
-    return new Principal($claims['sub'], PrincipalKind::Human, ['notes.read', 'notes.write'], $claims);
+    /** @var list<string> $capabilities */
+    $capabilities = ['notes.read', 'notes.write'];
+    if (is_array($claims['capabilities'] ?? null)) {
+        $claimed = array_values(array_filter($claims['capabilities'], static fn(mixed $v): bool => is_string($v) && '' !== $v));
+        if ([] !== $claimed) {
+            $capabilities = $claimed;
+        }
+    }
+
+    return new Principal($claims['sub'], PrincipalKind::Human, $capabilities, $claims);
 });
 
 $app = App::create($baseDir, name: 'Kongono Starter App')
@@ -155,6 +176,8 @@ $tryAi = static function (): ?AiClient {
         return null;
     }
 };
+
+$app->recordIncidents();
 
 $app->middleware(
     new DevDashboardMiddleware(
@@ -194,7 +217,9 @@ $app->middleware(
                     'path' => $change['path'],
                     'action' => $change['action'],
                     'explanation' => $change['explanation'],
-                    'diff' => DiffRenderer::render($change['path'], $before, $change['content']),
+                    'diff' => \Kongono\Core\Diagnostics\SecretScrubber::scrub(
+                        DiffRenderer::render($change['path'], $before, \Kongono\Core\Diagnostics\SecretScrubber::scrub($change['content'])),
+                    ),
                 ];
             }
 
@@ -205,6 +230,26 @@ $app->middleware(
                 'apply_command' => sprintf('php bin/kongo chie %s --apply', escapeshellarg($instruction)),
             ];
         },
+        proofsHandler: static fn(): array => (new MasterProver())->proveAll($baseDir, $app),
+        incidentReplayHandler: static function (string $reference) use ($app, $baseDir): array {
+            $replayer = new IncidentReplayer();
+            $record = $replayer->resolveStore($baseDir, $app)->find($reference);
+            if (null === $record) {
+                return ['error' => sprintf('Incident "%s" not found.', $reference)];
+            }
+
+            return $replayer->replay($app, $record);
+        },
+        incidentTestHandler: static function (string $reference) use ($app, $baseDir): array {
+            $record = (new IncidentReplayer())->resolveStore($baseDir, $app)->find($reference);
+            if (null === $record) {
+                return ['error' => sprintf('Incident "%s" not found.', $reference)];
+            }
+
+            return (new IncidentTestGenerator())->generate($record);
+        },
+        hotReload: true,
+        schemaHandler: static fn(): array => (new ProjectContext($baseDir, $app->graph(), $app))->inspectSchema(),
     ),
     new CompressionMiddleware(),
     new StaticFilesMiddleware($baseDir . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets', '/assets/'),
@@ -219,8 +264,11 @@ $app->middleware(
 $viewsWithI18n = $app->container()->make(ViewEngine::class)->withTranslator($translator->get(...));
 $app->instance(ViewEngine::class, $viewsWithI18n);
 
+$devMailbox = new FileDevMailbox($baseDir . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'dev' . DIRECTORY_SEPARATOR . 'mailbox.json');
+$app->instance(DevMailboxInterface::class, $devMailbox);
+
 $mailer = new Mailer(
-    new LogTransport($logger),
+    $app->isDebug() ? new DevMailboxTransport($devMailbox, $logger) : new LogTransport($logger),
     new Address('no-reply@kongono.local', 'Kongono Starter'),
     $viewsWithI18n,
 );

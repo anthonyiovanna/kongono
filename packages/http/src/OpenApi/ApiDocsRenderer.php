@@ -13,27 +13,34 @@ use Kongono\Http\Brand\KongonoBrand;
  */
 final class ApiDocsRenderer
 {
-    public function render(App $app, string $specUrl = '/openapi.json', string $version = '1.0.0'): string
-    {
+    public function render(
+        App $app,
+        string $specUrl = '/openapi.json',
+        string $version = '1.0.0',
+        ?string $scriptSrc = null,
+        ?string $cspNonce = null,
+    ): string {
         $spec = (new OpenApiGenerator())->generate($app, $version);
         $info = is_array($spec['info'] ?? null) ? $spec['info'] : [];
         $title = htmlspecialchars(is_string($info['title'] ?? null) ? $info['title'] : 'Kongono API', ENT_QUOTES, 'UTF-8');
         $specJson = json_encode($spec, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-        $trimmedSpec = trim($specUrl);
-        $isSafeSpecUrl = '' !== $trimmedSpec
-            && 1 !== preg_match('/[\x00-\x1f\x7f]/', $trimmedSpec)
-            && (
-                (str_starts_with($trimmedSpec, '/') && !str_starts_with($trimmedSpec, '//') && !str_starts_with($trimmedSpec, '/\\'))
-                || str_starts_with(strtolower($trimmedSpec), 'https://')
-                || str_starts_with(strtolower($trimmedSpec), 'http://')
-            );
-        if (!$isSafeSpecUrl) {
-            throw new \InvalidArgumentException('Unsafe OpenAPI specUrl (must be a safe relative path or http(s):// URL).');
-        }
-        $safeSpecUrl = htmlspecialchars($trimmedSpec, ENT_QUOTES, 'UTF-8');
+        $safeSpecUrl = $this->validateAssetUrl($specUrl, 'OpenAPI specUrl');
         $brandSvg = KongonoBrand::markSvg(24, 'kgn-api-gm');
 
-        $head = <<<HTML
+        // Pre-render endpoint cards in HTML5 so /docs stays readable even under strict script-src 'none' CSP
+        $ssrCardsHtml = $this->renderStaticEndpointCards($spec);
+
+        if (null !== $scriptSrc) {
+            $safeScriptSrc = $this->validateAssetUrl($scriptSrc, 'API docs scriptSrc');
+            $scriptTag = sprintf('<script src="%s" defer></script>', $safeScriptSrc);
+        } else {
+            $nonceAttr = null !== $cspNonce && '' !== trim($cspNonce) && 1 !== preg_match('/[\x00-\x20\x7f"\'<>]/', $cspNonce)
+                ? sprintf(' nonce="%s"', htmlspecialchars($cspNonce, ENT_QUOTES, 'UTF-8'))
+                : '';
+            $scriptTag = "<script{$nonceAttr}>\n" . self::clientScript() . "\n  </script>";
+        }
+
+        return <<<HTML
 <!doctype html>
 <html lang="en">
 <head>
@@ -104,61 +111,113 @@ final class ApiDocsRenderer
       <input id="bearerToken" type="password" placeholder="Optional Bearer token">
     </div>
   </header>
-  <div id="endpoints"></div>
-  <script>
-    const spec = {$specJson};
-
-HTML;
-
-        $script = <<<'JS'
-    const root = document.getElementById('endpoints');
-    const schemas = (spec.components && spec.components.schemas) || {};
-    function esc(s) {
-      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-    function sampleFor(schemaRef) {
-      if (!schemaRef || !schemaRef.$ref) return {};
-      const name = schemaRef.$ref.split('/').pop();
-      const s = schemas[name];
-      if (!s || !s.properties) return {};
-      const out = {};
-      for (const [k, p] of Object.entries(s.properties)) {
-        out[k] = p.type === 'integer' ? 1 : p.type === 'boolean' ? true : p.format === 'email' ? 'user@example.com' : '';
-      }
-      return out;
-    }
-    for (const [path, methods] of Object.entries(spec.paths || {})) {
-      for (const [method, op] of Object.entries(methods)) {
-        const card = document.createElement('section');
-        card.className = 'op';
-        const reqSchema = op.requestBody && op.requestBody.content && op.requestBody.content['application/json'] && op.requestBody.content['application/json'].schema;
-        const bodyHtml = reqSchema ? '<label class="meta">JSON Body</label><textarea rows="4">' + esc(JSON.stringify(sampleFor(reqSchema), null, 2)) + '</textarea>' : '';
-        const safeMethod = esc(method);
-        card.innerHTML =
-          '<div class="op-head"><span class="method m-' + safeMethod + '">' + safeMethod + '</span><span class="path">' + esc(path) + '</span><span class="op-id">' + esc(op.operationId || '') + '</span></div>' +
-          '<div class="op-body">' + bodyHtml + '<button class="try-btn">Send Request</button><pre class="out"></pre></div>';
-        card.querySelector('.op-head').addEventListener('click', () => card.classList.toggle('open'));
-        card.querySelector('.try-btn').addEventListener('click', async () => {
-          const out = card.querySelector('.out');
-          const ta = card.querySelector('textarea');
-          const headers = { 'Accept': 'application/json' };
-          const tok = document.getElementById('bearerToken').value.trim();
-          if (tok) headers['Authorization'] = 'Bearer ' + tok;
-          const opts = { method: method.toUpperCase(), headers };
-          if (ta) { headers['Content-Type'] = 'application/json'; opts.body = ta.value; }
-          const res = await fetch(path.replace(/\{[^}]+\}/g, '1'), opts);
-          const text = await res.text();
-          out.style.display = 'block';
-          out.textContent = 'HTTP ' + res.status + '\n' + text;
-        });
-        root.appendChild(card);
-      }
-    }
-  </script>
+  <div id="endpoints">{$ssrCardsHtml}</div>
+  <script id="kgn-openapi-spec" type="application/json">{$specJson}</script>
+  {$scriptTag}
 </body>
 </html>
-JS;
+HTML;
+    }
 
-        return $head . $script;
+    /** Return the CSP-safe standalone JavaScript asset for `/docs` (serve via `application/javascript` with `scriptSrc`). */
+    public static function clientScript(): string
+    {
+        return <<<'JS'
+    (() => {
+      const specEl = document.getElementById('kgn-openapi-spec');
+      const root = document.getElementById('endpoints');
+      if (!specEl || !root) return;
+      const spec = JSON.parse(specEl.textContent || '{}');
+      const schemas = (spec.components && spec.components.schemas) || {};
+      function esc(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+      }
+      function sampleFor(schemaRef) {
+        if (!schemaRef || !schemaRef.$ref) return {};
+        const name = schemaRef.$ref.split('/').pop();
+        const s = schemas[name];
+        if (!s || !s.properties) return {};
+        const out = {};
+        for (const [k, p] of Object.entries(s.properties)) {
+          out[k] = p.type === 'integer' ? 1 : p.type === 'boolean' ? true : p.format === 'email' ? 'user@example.com' : '';
+        }
+        return out;
+      }
+      root.textContent = '';
+      for (const [path, methods] of Object.entries(spec.paths || {})) {
+        for (const [method, op] of Object.entries(methods)) {
+          const card = document.createElement('section');
+          card.className = 'op';
+          const reqSchema = op.requestBody && op.requestBody.content && op.requestBody.content['application/json'] && op.requestBody.content['application/json'].schema;
+          const bodyHtml = reqSchema ? '<label class="meta">JSON Body</label><textarea rows="4">' + esc(JSON.stringify(sampleFor(reqSchema), null, 2)) + '</textarea>' : '';
+          const safeMethod = esc(method);
+          card.innerHTML =
+            '<div class="op-head"><span class="method m-' + safeMethod + '">' + safeMethod + '</span><span class="path">' + esc(path) + '</span><span class="op-id">' + esc(op.operationId || '') + '</span></div>' +
+            '<div class="op-body">' + bodyHtml + '<button class="try-btn">Send Request</button><pre class="out"></pre></div>';
+          card.querySelector('.op-head').addEventListener('click', () => card.classList.toggle('open'));
+          card.querySelector('.try-btn').addEventListener('click', async () => {
+            const out = card.querySelector('.out');
+            const ta = card.querySelector('textarea');
+            const headers = { 'Accept': 'application/json' };
+            const tok = document.getElementById('bearerToken').value.trim();
+            if (tok) headers['Authorization'] = 'Bearer ' + tok;
+            const opts = { method: method.toUpperCase(), headers };
+            if (ta) { headers['Content-Type'] = 'application/json'; opts.body = ta.value; }
+            const res = await fetch(path.replace(/\{[^}]+\}/g, '1'), opts);
+            const text = await res.text();
+            out.style.display = 'block';
+            out.textContent = 'HTTP ' + res.status + '\n' + text;
+          });
+          root.appendChild(card);
+        }
+      }
+    })();
+JS;
+    }
+
+    private function validateAssetUrl(string $rawUrl, string $label): string
+    {
+        $trimmed = trim($rawUrl);
+        $isSafe = '' !== $trimmed
+            && 1 !== preg_match('/[\x00-\x1f\x7f]/', $trimmed)
+            && (
+                (str_starts_with($trimmed, '/') && !str_starts_with($trimmed, '//') && !str_starts_with($trimmed, '/\\'))
+                || str_starts_with(strtolower($trimmed), 'https://')
+                || str_starts_with(strtolower($trimmed), 'http://')
+            );
+        if (!$isSafe) {
+            throw new \InvalidArgumentException(sprintf('Unsafe %s (must be a safe relative path or http(s):// URL).', $label));
+        }
+
+        return htmlspecialchars($trimmed, ENT_QUOTES, 'UTF-8');
+    }
+
+    /** @param array<string, mixed> $spec */
+    private function renderStaticEndpointCards(array $spec): string
+    {
+        $paths = is_array($spec['paths'] ?? null) ? $spec['paths'] : [];
+        $out = '';
+        foreach ($paths as $path => $methods) {
+            if (!is_string($path) || !is_array($methods)) {
+                continue;
+            }
+            foreach ($methods as $method => $op) {
+                if (!is_string($method) || !is_array($op)) {
+                    continue;
+                }
+                $safeMethod = htmlspecialchars(strtolower($method), ENT_QUOTES, 'UTF-8');
+                $safePath = htmlspecialchars($path, ENT_QUOTES, 'UTF-8');
+                $opId = htmlspecialchars(is_string($op['operationId'] ?? null) ? $op['operationId'] : '', ENT_QUOTES, 'UTF-8');
+                $out .= sprintf(
+                    '<section class="op"><div class="op-head"><span class="method m-%s">%s</span><span class="path">%s</span><span class="op-id">%s</span></div><div class="op-body"><button class="try-btn" type="button">Send Request</button><pre class="out"></pre></div></section>',
+                    $safeMethod,
+                    $safeMethod,
+                    $safePath,
+                    $opId,
+                );
+            }
+        }
+
+        return $out;
     }
 }

@@ -16,7 +16,7 @@ $app = require dirname(__DIR__) . '/app/bootstrap.php';
 
 if (function_exists('frankenphp_handle_request')) {
     $app->runWorker(
-        static fn(Closure $handle): bool => (bool) frankenphp_handle_request($handle),
+        static fn(Closure $handle): bool => true === frankenphp_handle_request($handle),
         maxRequests: 1000,
     );
 } else {

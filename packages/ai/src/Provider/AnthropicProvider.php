@@ -48,70 +48,7 @@ final readonly class AnthropicProvider implements StreamingAiProviderInterface
     public function chat(ChatRequest $request): ChatResponse
     {
         $model = $request->model ?? $this->model;
-        $systemParts = [];
-        $messages = [];
-
-        foreach ($request->messages as $msg) {
-            if (Role::System === $msg->role) {
-                $systemParts[] = $msg->content;
-                continue;
-            }
-            if (Role::Tool === $msg->role && null !== $msg->toolCallId) {
-                $messages[] = [
-                    'role' => 'user',
-                    'content' => [[
-                        'type' => 'tool_result',
-                        'tool_use_id' => $msg->toolCallId,
-                        'content' => $msg->content,
-                    ]],
-                ];
-                continue;
-            }
-            if (Role::Assistant === $msg->role && [] !== $msg->toolCalls) {
-                $blocks = [];
-                if ('' !== $msg->content) {
-                    $blocks[] = ['type' => 'text', 'text' => $msg->content];
-                }
-                foreach ($msg->toolCalls as $call) {
-                    $blocks[] = [
-                        'type' => 'tool_use',
-                        'id' => $call->id,
-                        'name' => $call->name,
-                        'input' => [] === $call->arguments ? (object) [] : $call->arguments,
-                    ];
-                }
-                $messages[] = ['role' => 'assistant', 'content' => $blocks];
-                continue;
-            }
-
-            $messages[] = [
-                'role' => Role::Assistant === $msg->role ? 'assistant' : 'user',
-                'content' => $msg->content,
-            ];
-        }
-
-        $payload = [
-            'model' => $model,
-            'max_tokens' => $request->maxTokens ?? 4096,
-            'messages' => $messages,
-        ];
-
-        if ([] !== $systemParts) {
-            $payload['system'] = implode("\n\n", $systemParts);
-        }
-        if (null !== $request->temperature) {
-            $payload['temperature'] = $request->temperature;
-        }
-        if ([] !== $request->tools) {
-            $payload['tools'] = array_map(
-                static fn(ToolDefinition $tool): array => [
-                    'name' => $tool->name,
-                    'description' => $tool->description,
-                    'input_schema' => $tool->parametersSchema,
-                ],
-                $request->tools,
-            );
-        }
+        $payload = $this->buildPayload($request, $model, stream: false);
 
         $url = rtrim($this->baseUrl, '/') . '/messages';
         $http = $this->transport->postJson(
@@ -185,36 +122,20 @@ final readonly class AnthropicProvider implements StreamingAiProviderInterface
         }
 
         $model = $request->model ?? $this->model;
-        $systemParts = [];
-        $messages = [];
-        foreach ($request->messages as $msg) {
-            if (Role::System === $msg->role) {
-                $systemParts[] = $msg->content;
-            } else {
-                $messages[] = ['role' => Role::Assistant === $msg->role ? 'assistant' : 'user', 'content' => $msg->content];
-            }
-        }
-
-        $payload = [
-            'model' => $model,
-            'max_tokens' => $request->maxTokens ?? 4096,
-            'stream' => true,
-            'messages' => $messages,
-        ];
-        if ([] !== $systemParts) {
-            $payload['system'] = implode("\n\n", $systemParts);
-        }
+        $payload = $this->buildPayload($request, $model, stream: true);
 
         $url = rtrim($this->baseUrl, '/') . '/messages';
         $buffer = '';
         $fullText = '';
         $finishReason = null;
+        $inputTokens = 0;
+        $outputTokens = 0;
 
         $status = $this->transport->postJsonStream(
             $url,
             ['x-api-key' => $this->apiKey, 'anthropic-version' => $this->anthropicVersion],
             json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
-            static function (string $chunk) use (&$buffer, &$fullText, &$finishReason, $onDelta): void {
+            static function (string $chunk) use (&$buffer, &$fullText, &$finishReason, &$inputTokens, &$outputTokens, $onDelta): void {
                 $buffer .= str_replace("\r\n", "\n", $chunk);
                 if (strlen($buffer) > 1_048_576) {
                     throw new AiException('Anthropic streaming line buffer exceeded maximum bound.');
@@ -230,15 +151,32 @@ final readonly class AnthropicProvider implements StreamingAiProviderInterface
                         continue;
                     }
                     $type = $frame['type'] ?? null;
-                    if ('content_block_delta' === $type && is_array($frame['delta'] ?? null) && is_string($frame['delta']['text'] ?? null)) {
+                    if ('message_start' === $type && is_array($frame['message'] ?? null) && is_array($frame['message']['usage'] ?? null)) {
+                        if (is_int($frame['message']['usage']['input_tokens'] ?? null)) {
+                            $inputTokens = $frame['message']['usage']['input_tokens'];
+                        }
+                        if (is_int($frame['message']['usage']['output_tokens'] ?? null)) {
+                            $outputTokens = $frame['message']['usage']['output_tokens'];
+                        }
+                    } elseif ('content_block_delta' === $type && is_array($frame['delta'] ?? null) && is_string($frame['delta']['text'] ?? null)) {
                         $delta = $frame['delta']['text'];
                         if (strlen($fullText) + strlen($delta) > 4_194_304) {
                             throw new AiException('Anthropic streaming output exceeded maximum bound.');
                         }
                         $fullText .= $delta;
                         $onDelta($delta);
-                    } elseif ('message_delta' === $type && is_array($frame['delta'] ?? null) && is_string($frame['delta']['stop_reason'] ?? null)) {
-                        $finishReason = $frame['delta']['stop_reason'];
+                    } elseif ('message_delta' === $type) {
+                        if (is_array($frame['delta'] ?? null) && is_string($frame['delta']['stop_reason'] ?? null)) {
+                            $finishReason = $frame['delta']['stop_reason'];
+                        }
+                        if (is_array($frame['usage'] ?? null)) {
+                            if (is_int($frame['usage']['output_tokens'] ?? null)) {
+                                $outputTokens = $frame['usage']['output_tokens'];
+                            }
+                            if (0 === $inputTokens && is_int($frame['usage']['input_tokens'] ?? null)) {
+                                $inputTokens = $frame['usage']['input_tokens'];
+                            }
+                        }
                     }
                 }
             },
@@ -248,6 +186,92 @@ final readonly class AnthropicProvider implements StreamingAiProviderInterface
             throw new AiException(sprintf('Anthropic streaming API returned HTTP %d.', $status));
         }
 
-        return new ChatResponse($fullText, $model, $this->name(), finishReason: $finishReason);
+        return new ChatResponse(
+            text: $fullText,
+            model: $model,
+            provider: $this->name(),
+            usage: new TokenUsage($inputTokens, $outputTokens),
+            finishReason: $finishReason,
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function buildPayload(ChatRequest $request, string $model, bool $stream): array
+    {
+        $systemParts = [];
+        /** @var list<array{role: string, content: string|list<array<string, mixed>>}> $messages */
+        $messages = [];
+
+        foreach ($request->messages as $msg) {
+            if (Role::System === $msg->role) {
+                $systemParts[] = $msg->content;
+                continue;
+            }
+            if (Role::Tool === $msg->role && null !== $msg->toolCallId) {
+                $block = [
+                    'type' => 'tool_result',
+                    'tool_use_id' => $msg->toolCallId,
+                    'content' => $msg->content,
+                ];
+                $lastIdx = count($messages) - 1;
+                if ($lastIdx >= 0 && 'user' === $messages[$lastIdx]['role'] && is_array($messages[$lastIdx]['content'])) {
+                    $messages[$lastIdx]['content'][] = $block;
+                } else {
+                    $messages[] = [
+                        'role' => 'user',
+                        'content' => [$block],
+                    ];
+                }
+                continue;
+            }
+            if (Role::Assistant === $msg->role && [] !== $msg->toolCalls) {
+                $blocks = [];
+                if ('' !== $msg->content) {
+                    $blocks[] = ['type' => 'text', 'text' => $msg->content];
+                }
+                foreach ($msg->toolCalls as $call) {
+                    $blocks[] = [
+                        'type' => 'tool_use',
+                        'id' => $call->id,
+                        'name' => $call->name,
+                        'input' => [] === $call->arguments ? (object) [] : $call->arguments,
+                    ];
+                }
+                $messages[] = ['role' => 'assistant', 'content' => $blocks];
+                continue;
+            }
+
+            $messages[] = [
+                'role' => Role::Assistant === $msg->role ? 'assistant' : 'user',
+                'content' => $msg->content,
+            ];
+        }
+
+        $payload = [
+            'model' => $model,
+            'max_tokens' => $request->maxTokens ?? 4096,
+            'messages' => $messages,
+        ];
+        if ($stream) {
+            $payload['stream'] = true;
+        }
+        if ([] !== $systemParts) {
+            $payload['system'] = implode("\n\n", $systemParts);
+        }
+        if (null !== $request->temperature) {
+            $payload['temperature'] = $request->temperature;
+        }
+        if ([] !== $request->tools) {
+            $payload['tools'] = array_map(
+                static fn(ToolDefinition $tool): array => [
+                    'name' => $tool->name,
+                    'description' => $tool->description,
+                    'input_schema' => $tool->parametersSchema,
+                ],
+                $request->tools,
+            );
+        }
+
+        return $payload;
     }
 }

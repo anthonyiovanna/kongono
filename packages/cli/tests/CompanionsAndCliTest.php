@@ -240,7 +240,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.19.0', $vOut);
+            self::assertStringContainsString('v1.20.0', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -1430,6 +1430,7 @@ PHP;
             'kongono-feature-builder',
             'kongono-live-and-bridge',
             'kongono-queues-and-ops',
+            'kongono-self-verifying-proofs',
         ];
         self::assertSame($expected, $installer->available());
 
@@ -1672,11 +1673,11 @@ PHP;
         try {
             $ctx = ProjectContext::discover($tmp);
 
-            // 1. Oshie: 12 offline lessons, multi-turn converse() REPL, and PromptGuard canary blocking
+            // 1. Oshie: 13 offline lessons, multi-turn converse() REPL, and PromptGuard canary blocking
             $offlineOshie = new OshieTutor();
             $lessons = $offlineOshie->listLessons();
-            self::assertCount(12, $lessons);
-            foreach (['routing', 'views', 'live-bridge', 'validation', 'database', 'auth', 'security', 'storage', 'jobs', 'testing', 'ai', 'ops-deploy'] as $id) {
+            self::assertCount(13, $lessons);
+            foreach (['routing', 'views', 'live-bridge', 'validation', 'database', 'auth', 'security', 'storage', 'jobs', 'testing', 'ai', 'ops-deploy', 'proofs'] as $id) {
                 self::assertArrayHasKey($id, $lessons);
                 self::assertStringContainsString('# Lesson:', $offlineOshie->teachLesson($id, $ctx));
             }
@@ -1936,7 +1937,8 @@ PHP;
                 },
                 $inspector->traces(),
             );
-            self::assertSame(['Use ', 'BatchLoader::hasMany()', ' to fix N+1!'], $receivedDeltas);
+            self::assertNotEmpty($receivedDeltas);
+            self::assertSame('Use BatchLoader::hasMany() to fix N+1!', implode('', $receivedDeltas));
             self::assertSame('Use BatchLoader::hasMany() to fix N+1!', $oshieRes['reply']);
             self::assertNotNull($oshieRes['telemetry']);
             self::assertSame(240, $oshieRes['telemetry']->totalTokens());
@@ -1955,7 +1957,7 @@ PHP;
             );
             [$oCode, $oOut] = $cli->run(['oshie', 'Explain BatchLoader', '--stream', '--app=' . $tmp]);
             self::assertSame(0, $oCode);
-            self::assertSame(['Streamed ', 'CLI ', 'answer.'], $cliChunks);
+            self::assertSame('Streamed CLI answer.', implode('', $cliChunks));
             self::assertStringContainsString('[openai/gpt-4.1-mini', $oOut);
 
             // 2. Hantei CLI --stream
@@ -1972,7 +1974,7 @@ PHP;
             );
             [$hCode, $hOut] = $hCli->run(['hantei', 'debug', 'Slow query on notes', '--stream', '--app=' . $tmp]);
             self::assertSame(0, $hCode);
-            self::assertSame(['Fix ', 'SQL ', 'index.'], $hanteiChunks);
+            self::assertSame('Fix SQL index.', implode('', $hanteiChunks));
             self::assertStringContainsString('[openai/gpt-4.1-mini', $hOut);
 
             // 3. Dev Studio SSE endpoints + POST /_kongono/api/hantei/trace/{id}
@@ -1988,14 +1990,14 @@ PHP;
             $oshieSse = $client->postJson('/_kongono/api/oshie/stream', ['question' => 'Why slow?']);
             $oshieSse->assertOk();
             self::assertStringContainsString('text/event-stream', $oshieSse->header('Content-Type'));
-            self::assertStringContainsString("event: delta\ndata: {\"text\":\"Oshie \"}", $oshieSse->body());
+            self::assertStringContainsString("event: delta\ndata: {\"text\":\"Oshie SSE works!\"}", $oshieSse->body());
             self::assertStringContainsString("event: done\n", $oshieSse->body());
             self::assertStringContainsString('"total_tokens":240', $oshieSse->body());
 
             $hanteiSse = $client->postJson('/_kongono/api/hantei/stream', ['diagnostic' => 'HTTP 500 on /api/notes']);
             $hanteiSse->assertOk();
             self::assertStringContainsString('text/event-stream', $hanteiSse->header('Content-Type'));
-            self::assertStringContainsString("event: delta\ndata: {\"text\":\"Hantei \"}", $hanteiSse->body());
+            self::assertStringContainsString("event: delta\ndata: {\"text\":\"Hantei SSE works!\"}", $hanteiSse->body());
             self::assertStringContainsString("event: done\n", $hanteiSse->body());
 
             $traceDiag = $client->postJson('/_kongono/api/hantei/trace/1', []);
@@ -2537,7 +2539,7 @@ DIFF;
 
             [$pCode, $pOut] = $offlineCli->run(['oshie', '--progress', '--app=' . $tmp]);
             self::assertSame(0, $pCode);
-            self::assertStringContainsString('(1/12 lessons, 0/6 exercises verified)', $pOut);
+            self::assertStringContainsString('(1/13 lessons, 0/6 exercises verified)', $pOut);
             self::assertStringContainsString('[DONE] routing', $pOut);
             self::assertStringContainsString('[TODO] views', $pOut);
             self::assertStringContainsString('Recommended next exercises', $pOut);
@@ -2925,7 +2927,7 @@ PHP;
 
             public function table(string $table, ?string $alias = null): \Kongono\Database\QueryBuilder
             {
-                return new \Kongono\Database\QueryBuilder($this, $table, $alias);
+                return new \Kongono\Database\QueryBuilder($table, $this->dialect(), $this, $alias);
             }
 
             public function transaction(Closure $callback): mixed

@@ -174,6 +174,7 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
         $payload = [
             'model' => $model,
             'stream' => true,
+            'stream_options' => ['include_usage' => true],
             'messages' => array_map($this->encodeMessage(...), $request->messages),
         ];
         if (null !== $request->temperature) {
@@ -181,6 +182,22 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
         }
         if (null !== $request->maxTokens) {
             $payload['max_tokens'] = $request->maxTokens;
+        }
+        if ($request->jsonMode) {
+            $payload['response_format'] = ['type' => 'json_object'];
+        }
+        if ([] !== $request->tools) {
+            $payload['tools'] = array_map(
+                static fn(ToolDefinition $tool): array => [
+                    'type' => 'function',
+                    'function' => [
+                        'name' => $tool->name,
+                        'description' => $tool->description,
+                        'parameters' => $tool->parametersSchema,
+                    ],
+                ],
+                $request->tools,
+            );
         }
 
         $headers = '' !== $this->apiKey ? ['Authorization' => 'Bearer ' . $this->apiKey] : [];
@@ -264,9 +281,10 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
     {
         $embedModel = $model ?? 'text-embedding-3-small';
         $url = rtrim($this->baseUrl, '/') . '/embeddings';
+        $headers = '' !== $this->apiKey ? ['Authorization' => 'Bearer ' . $this->apiKey] : [];
         $http = $this->transport->postJson(
             $url,
-            ['Authorization' => 'Bearer ' . $this->apiKey],
+            $headers,
             json_encode(['model' => $embedModel, 'input' => $texts], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
         );
 
@@ -278,7 +296,11 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
             ));
         }
 
-        $decoded = json_decode($http->body, true, 64, JSON_THROW_ON_ERROR);
+        try {
+            $decoded = json_decode($http->body, true, 64, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new AiException('Invalid JSON returned by OpenAI Embeddings API.', previous: $e);
+        }
         if (!is_array($decoded) || !isset($decoded['data']) || !is_array($decoded['data'])) {
             throw new AiException('Unexpected OpenAI embeddings response: missing data.');
         }

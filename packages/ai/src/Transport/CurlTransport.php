@@ -5,23 +5,86 @@ declare(strict_types=1);
 namespace Kongono\Ai\Transport;
 
 use Closure;
+use Fiber;
 use Kongono\Ai\AiException;
+use Kongono\Core\Capabilities\EgressGuardableInterface;
+use Kongono\Core\Capabilities\ExecutionCapabilities;
 use Kongono\Core\Diagnostics\SecretScrubber;
+use WeakMap;
 
-/** Pure PHP 8.5 ext-curl HTTP transport with HTTPS-by-default, SSRF egress protection, bounded buffers, and nondisclosing errors. */
-final readonly class CurlTransport implements StreamingHttpTransportInterface
+/** Pure PHP 8.5 ext-curl HTTP transport with HTTPS-by-default, SSRF egress protection, capability guards, bounded buffers, and nondisclosing errors. */
+final class CurlTransport implements EgressGuardableInterface, StreamingHttpTransportInterface
 {
     private const int MAX_RESPONSE_HEADERS = 256;
 
+    /** @var array<int, Closure(string): void> */
+    private array $rootGuards = [];
+
+    /** @var ?WeakMap<object, array<int, Closure(string): void>> */
+    private ?WeakMap $fiberGuards = null;
+
+    private int $nextGuardId = 0;
+
     public function __construct(
-        private bool $allowPlainHttp = false,
-        private bool $allowPrivateNetworks = false,
-        private int $maxResponseBytes = 10_485_760,
-        private int $maxStreamBytes = 16_777_216,
+        private readonly bool $allowPlainHttp = false,
+        private readonly bool $allowPrivateNetworks = false,
+        private readonly int $maxResponseBytes = 10_485_760,
+        private readonly int $maxStreamBytes = 16_777_216,
+        private readonly bool $allowLoopbackOnly = false,
     ) {}
+
+    public function guardBeforeRequest(Closure $guard): Closure
+    {
+        $id = ++$this->nextGuardId;
+        $fiber = Fiber::getCurrent();
+        if (null !== $fiber) {
+            if (null === $this->fiberGuards) {
+                /** @var WeakMap<object, array<int, Closure(string): void>> $map */
+                $map = new WeakMap();
+                $this->fiberGuards = $map;
+            }
+            $guards = $this->fiberGuards[$fiber] ?? [];
+            $guards[$id] = $guard;
+            $this->fiberGuards[$fiber] = $guards;
+
+            return function () use ($fiber, $id): void {
+                if (null === $this->fiberGuards || !isset($this->fiberGuards[$fiber])) {
+                    return;
+                }
+                $guards = $this->fiberGuards[$fiber];
+                unset($guards[$id]);
+                if ([] === $guards) {
+                    unset($this->fiberGuards[$fiber]);
+                } else {
+                    $this->fiberGuards[$fiber] = $guards;
+                }
+            };
+        }
+
+        $this->rootGuards[$id] = $guard;
+
+        return function () use ($id): void {
+            unset($this->rootGuards[$id]);
+        };
+    }
+
+    private function assertBeforeRequest(string $url): void
+    {
+        ExecutionCapabilities::current()?->assertOutboundHttpAllowed($url);
+        foreach ($this->rootGuards as $guard) {
+            $guard($url);
+        }
+        $fiber = Fiber::getCurrent();
+        if (null !== $fiber && null !== $this->fiberGuards && isset($this->fiberGuards[$fiber])) {
+            foreach ($this->fiberGuards[$fiber] as $guard) {
+                $guard($url);
+            }
+        }
+    }
 
     public function postJson(string $url, array $headers, string $jsonBody, int $timeoutSeconds = 60): HttpResponse
     {
+        $this->assertBeforeRequest($url);
         $target = $this->admitUrl($url);
         $ch = curl_init($target['url']);
         if (false === $ch) {
@@ -41,12 +104,14 @@ final readonly class CurlTransport implements StreamingHttpTransportInterface
             CURLOPT_HTTPHEADER => $headerLines,
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROXY => '',
             CURLOPT_PROTOCOLS_STR => $target['scheme'],
             CURLOPT_REDIR_PROTOCOLS_STR => $target['scheme'],
             CURLOPT_CONNECTTIMEOUT => min(15, max(1, $timeoutSeconds)),
             CURLOPT_TIMEOUT => max(1, $timeoutSeconds),
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2,
             CURLOPT_HEADERFUNCTION => static function (mixed $_ch, string $line) use (&$responseHeaders): int {
                 $parts = explode(':', $line, 2);
                 if (2 === count($parts) && count($responseHeaders) < self::MAX_RESPONSE_HEADERS) {
@@ -66,7 +131,7 @@ final readonly class CurlTransport implements StreamingHttpTransportInterface
                 return strlen($chunk);
             },
         ];
-        if (null !== $target['pinIp']) {
+        if (null !== $target['pinIp'] && false === filter_var(trim($target['host'], '[]'), FILTER_VALIDATE_IP)) {
             $pin = str_contains($target['pinIp'], ':') ? '[' . $target['pinIp'] . ']' : $target['pinIp'];
             $options[CURLOPT_RESOLVE] = [sprintf('%s:%d:%s', $target['host'], $target['port'], $pin)];
         }
@@ -88,6 +153,7 @@ final readonly class CurlTransport implements StreamingHttpTransportInterface
 
     public function postJsonStream(string $url, array $headers, string $jsonBody, Closure $onChunk, int $timeoutSeconds = 120): int
     {
+        $this->assertBeforeRequest($url);
         $target = $this->admitUrl($url);
         $ch = curl_init($target['url']);
         if (false === $ch) {
@@ -104,12 +170,14 @@ final readonly class CurlTransport implements StreamingHttpTransportInterface
             CURLOPT_POSTFIELDS => $jsonBody,
             CURLOPT_HTTPHEADER => $headerLines,
             CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_PROXY => '',
             CURLOPT_PROTOCOLS_STR => $target['scheme'],
             CURLOPT_REDIR_PROTOCOLS_STR => $target['scheme'],
             CURLOPT_CONNECTTIMEOUT => min(15, max(1, $timeoutSeconds)),
             CURLOPT_TIMEOUT => max(1, $timeoutSeconds),
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2,
             CURLOPT_WRITEFUNCTION => static function (mixed $_ch, string $chunk) use ($onChunk, &$streamedBytes, &$overflowed, $maxStream): int {
                 $streamedBytes += strlen($chunk);
                 if ($streamedBytes > $maxStream) {
@@ -122,7 +190,7 @@ final readonly class CurlTransport implements StreamingHttpTransportInterface
                 return strlen($chunk);
             },
         ];
-        if (null !== $target['pinIp']) {
+        if (null !== $target['pinIp'] && false === filter_var(trim($target['host'], '[]'), FILTER_VALIDATE_IP)) {
             $pin = str_contains($target['pinIp'], ':') ? '[' . $target['pinIp'] . ']' : $target['pinIp'];
             $options[CURLOPT_RESOLVE] = [sprintf('%s:%d:%s', $target['host'], $target['port'], $pin)];
         }
@@ -166,7 +234,21 @@ final readonly class CurlTransport implements StreamingHttpTransportInterface
         $port = $parts['port'] ?? ('https' === $scheme ? 443 : 80);
         $pinIp = null;
 
-        if (!$this->allowPrivateNetworks) {
+        if ($this->allowLoopbackOnly && !$this->allowPrivateNetworks) {
+            $trimmedHost = trim($host, '[]');
+            $ips = false !== filter_var($trimmedHost, FILTER_VALIDATE_IP)
+                ? [$trimmedHost]
+                : $this->resolveHostIps($host);
+            if ([] === $ips) {
+                throw new AiException(sprintf('Unable to resolve local AI transport host "%s".', $host));
+            }
+            foreach ($ips as $ip) {
+                if (!self::isLoopbackIp($ip)) {
+                    throw new AiException(sprintf('Local AI transport host "%s" must resolve to a loopback IP (127.0.0.0/8 or ::1); SSRF blocked.', $host));
+                }
+            }
+            $pinIp = $ips[0];
+        } elseif (!$this->allowPrivateNetworks) {
             $trimmedHost = trim($host, '[]');
             $ips = false !== filter_var($trimmedHost, FILTER_VALIDATE_IP)
                 ? [$trimmedHost]
@@ -216,6 +298,27 @@ final readonly class CurlTransport implements StreamingHttpTransportInterface
         }
 
         return array_values(array_unique($ips));
+    }
+
+    private static function isLoopbackIp(string $ip): bool
+    {
+        $packed = @inet_pton($ip);
+        if (false === $packed) {
+            return false;
+        }
+        if (4 === strlen($packed)) {
+            return 127 === ord($packed[0]);
+        }
+        if (16 === strlen($packed)) {
+            if ("\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01" === $packed) {
+                return true;
+            }
+            if (str_starts_with($packed, "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff")) {
+                return 127 === ord($packed[12]);
+            }
+        }
+
+        return false;
     }
 
     private static function isPublicIp(string $ip): bool

@@ -1,0 +1,90 @@
+{
+  "name": "kongono-vscode",
+  "displayName": "Kongono Framework",
+  "description": "Zero-logic editor bridge powered 100% by Kongono itself (`kongo lsp`): live 17-rule Full-Stack Contract squiggles, 5W1H hover explanations, one-click Quick Fixes, and .kgn.html syntax highlighting.",
+  "version": "1.20.0",
+  "publisher": "kongono",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Other"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Kongono LSP executes workspace PHP bootstrap and CLI binaries and requires a trusted workspace."
+    }
+  },
+  "activationEvents": [
+    "onLanguage:kongono-template",
+    "workspaceContains:app/bootstrap.php",
+    "workspaceContains:**/*.kgn.html"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "kongono-template",
+        "aliases": [
+          "Kongono Template",
+          "kgn"
+        ],
+        "extensions": [
+          ".kgn.html"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kongono-template",
+        "scopeName": "text.html.kongono",
+        "path": "./syntaxes/kgn.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "kongono.prove",
+        "title": "Kongono: Run All 5 Proof Engines (kongo prove)"
+      },
+      {
+        "command": "kongono.diagnose",
+        "title": "Kongono: Run 17-Rule Self-Diagnosis (kongo diagnose)"
+      },
+      {
+        "command": "kongono.autofix",
+        "title": "Kongono: Auto-Fix Safe Issues (kongo diagnose --fix)"
+      },
+      {
+        "command": "kongono.restartLsp",
+        "title": "Kongono: Restart Language Server (kongo lsp)"
+      }
+    ],
+    "configuration": {
+      "title": "Kongono",
+      "properties": {
+        "kongono.phpPath": {
+          "type": "string",
+          "default": "php",
+          "scope": "application",
+          "restricted": true,
+          "description": "Path to PHP 8.5+ binary used to launch `kongo lsp`."
+        },
+        "kongono.enableLsp": {
+          "type": "boolean",
+          "default": true,
+          "description": "Stream live diagnostics, 5W1H hovers, and Quick Fixes directly from `kongo lsp`."
+        },
+        "kongono.appPath": {
+          "type": "string",
+          "default": "",
+          "restricted": true,
+          "description": "Optional app root override passed to `--app=` (defaults to workspace root)."
+        }
+      }
+    }
+  }
+}

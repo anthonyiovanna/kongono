@@ -10,6 +10,13 @@ use Kongono\Core\Clock\SystemClock;
 use Kongono\Core\Config;
 use Kongono\Core\Container;
 use Kongono\Core\CoreException;
+use Kongono\Core\Diagnostics\ErrorExplainer;
+use Kongono\Core\Diagnostics\ErrorExplanation;
+use Kongono\Core\Diagnostics\ErrorReference;
+use Kongono\Core\Diagnostics\FileIncidentStore;
+use Kongono\Core\Diagnostics\IncidentRecord;
+use Kongono\Core\Diagnostics\IncidentStoreInterface;
+use Kongono\Core\Diagnostics\RequestTrace;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Core\Events\EventDispatcher;
 use Kongono\Core\Graph\ApplicationGraph;
@@ -28,6 +35,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Psr\Log\LoggerInterface;
 use ReflectionFunction;
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
@@ -114,6 +122,18 @@ final class App
     public function debug(bool $enabled = true): self
     {
         $this->debug = $enabled;
+
+        return $this;
+    }
+
+    /**
+     * Enable Kongono's Production Incident Time-Machine, recording secret-scrubbed 5W1H snapshots
+     * indexed by each response's `KGN-YYYYMMDD-XXXXXXXX` Reference ID for `kongo incident:replay`.
+     */
+    public function recordIncidents(?IncidentStoreInterface $store = null): self
+    {
+        $resolved = $store ?? new FileIncidentStore($this->basePath . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'incidents');
+        $this->container->instance(IncidentStoreInterface::class, $resolved);
 
         return $this;
     }
@@ -285,8 +305,10 @@ final class App
     public function handle(Request $request): ResponseInterface
     {
         $this->boot();
+        $startedNs = hrtime(true);
+        $tracedRequest = $request->withAttribute('_kgn_start_ns', $startedNs);
 
-        return $this->kernel->runOperation(function () use ($request): ResponseInterface {
+        return $this->kernel->runOperation(function () use ($tracedRequest, $startedNs): ResponseInterface {
             try {
                 $terminal = new readonly class ($this) implements RequestHandlerInterface {
                     public function __construct(private App $app) {}
@@ -300,17 +322,30 @@ final class App
                 };
 
                 $pipeline = new MiddlewarePipeline($terminal, ...$this->middleware);
-
-                return $pipeline->handle($request);
+                $response = $pipeline->handle($tracedRequest);
             } catch (ValidationException $e) {
-                return $this->renderValidationError($request, $e);
+                $response = $this->renderValidationError($tracedRequest, $e, $startedNs);
             } catch (HttpException $e) {
-                return $this->renderHttpError($request, $e);
+                $response = $this->renderHttpError($tracedRequest, $e, $startedNs);
             } catch (Throwable $e) {
-                return $this->renderUnexpectedError($request, $e);
+                $response = $this->renderUnexpectedError($tracedRequest, $e, $startedNs);
             } finally {
                 $this->container->resetScope();
             }
+
+            // RFC 9110 §9.3.2: HEAD responses MUST NOT transmit a message body (including on error paths)
+            if ('HEAD' === strtoupper($tracedRequest->getMethod())) {
+                if (!$response->hasHeader('Content-Length') && !($response instanceof Response && $response->isStreaming())) {
+                    $size = $response->getBody()->getSize();
+                    if (null !== $size) {
+                        $response = $response->withHeader('Content-Length', (string) $size);
+                    }
+                }
+                $response->getBody()->close();
+                $response = $response->withBody(Stream::fromString(''));
+            }
+
+            return $response;
         });
     }
 
@@ -368,14 +403,26 @@ final class App
     /** @internal */
     public function dispatchSafely(Request $request): ResponseInterface
     {
+        $startAttr = $request->getAttribute('_kgn_start_ns');
+        $startedNs = is_int($startAttr) ? $startAttr : hrtime(true);
+        $matchedRoute = null;
+        $matchedHandler = null;
+        /** @var array<string, string> $matchedParams */
+        $matchedParams = [];
+
         try {
-            return $this->dispatch($request);
+            $match = $this->router->match($request->method(), $request->path());
+            $matchedRoute = strtoupper($request->method()) . ' ' . $match->route->path;
+            $matchedHandler = $match->route->handlerLabel();
+            $matchedParams = $match->params;
+
+            return $this->dispatchMatched($request, $match);
         } catch (ValidationException $e) {
-            return $this->renderValidationError($request, $e);
+            return $this->renderValidationError($request, $e, $startedNs, $matchedRoute, $matchedHandler, $matchedParams);
         } catch (HttpException $e) {
-            return $this->renderHttpError($request, $e);
+            return $this->renderHttpError($request, $e, $startedNs, $matchedRoute, $matchedHandler, $matchedParams);
         } catch (Throwable $e) {
-            return $this->renderUnexpectedError($request, $e);
+            return $this->renderUnexpectedError($request, $e, $startedNs, $matchedRoute, $matchedHandler, $matchedParams);
         }
     }
 
@@ -402,10 +449,8 @@ final class App
         );
     }
 
-    /** @internal */
-    public function dispatch(Request $request): ResponseInterface
+    private function dispatchMatched(Request $request, RouteMatch $match): ResponseInterface
     {
-        $match = $this->router->match($request->method(), $request->path());
         $enriched = $request
             ->withAttribute('_route_params', $match->params)
             ->withAttribute('_route_pattern', $match->route->path);
@@ -581,7 +626,7 @@ final class App
 
             if ('security_attr' === $spec['kind']) {
                 if ($spec['hasDefault']) {
-                    $args[] = $spec['default'];
+                    $args[] = is_object($spec['default']) ? clone $spec['default'] : $spec['default'];
                     continue;
                 }
                 if ($spec['allowsNull']) {
@@ -601,7 +646,7 @@ final class App
                     continue;
                 }
                 if ($spec['hasDefault']) {
-                    $args[] = $spec['default'];
+                    $args[] = is_object($spec['default']) ? clone $spec['default'] : $spec['default'];
                     continue;
                 }
 
@@ -618,7 +663,7 @@ final class App
             }
 
             if ('dto' === $spec['kind'] && null !== $typeName && class_exists($typeName)) {
-                $args[] = $this->validator->validate($typeName, [...$request->allInput(), ...$routeParams]);
+                $args[] = $this->validator->validate($typeName, [...$request->dtoInput(), ...$routeParams]);
                 continue;
             }
 
@@ -653,6 +698,11 @@ final class App
     }
 
     /**
+     * Only explicitly opted-in DTOs (implementing ValidatableDtoInterface or carrying at least one
+     * Kongono validation attribute / RuleInterface) may be implicitly hydrated from HTTP input.
+     * Prevents forging arbitrary userland value objects (e.g. TenantContext, CurrentUser) when
+     * an auth/tenant middleware is omitted.
+     *
      * @param class-string              $className
      * @param array<class-string, true> $visited
      */
@@ -676,7 +726,7 @@ final class App
         }
 
         $visited[$className] = true;
-        $hasRequiredOrValidatedField = $ref->implementsInterface(ValidatableDtoInterface::class);
+        $hasExplicitValidationMarker = $ref->implementsInterface(ValidatableDtoInterface::class);
         foreach ($ctor->getParameters() as $param) {
             $type = $param->getType();
             if (!$type instanceof ReflectionNamedType) {
@@ -703,29 +753,44 @@ final class App
                 return false;
             }
 
-            if (!$param->isDefaultValueAvailable()) {
-                $hasRequiredOrValidatedField = true;
-            } else {
+            if (!$hasExplicitValidationMarker) {
                 foreach ($param->getAttributes() as $attr) {
                     $attrName = $attr->getName();
                     if (str_starts_with($attrName, 'Kongono\\Validation\\Attributes\\') || is_subclass_of($attrName, RuleInterface::class)) {
-                        $hasRequiredOrValidatedField = true;
+                        $hasExplicitValidationMarker = true;
                         break;
+                    }
+                }
+                if (!$hasExplicitValidationMarker && !$param->isPromoted() && $ref->hasProperty($param->getName())) {
+                    foreach ($ref->getProperty($param->getName())->getAttributes() as $attr) {
+                        $attrName = $attr->getName();
+                        if (str_starts_with($attrName, 'Kongono\\Validation\\Attributes\\') || is_subclass_of($attrName, RuleInterface::class)) {
+                            $hasExplicitValidationMarker = true;
+                            break;
+                        }
                     }
                 }
             }
         }
 
-        return $hasRequiredOrValidatedField;
+        return $hasExplicitValidationMarker;
     }
 
     private function coerceRouteParam(string $value, string $typeName, string $name): mixed
     {
+        if ('int' === $typeName) {
+            if (1 === preg_match('/\A-?\d+\z/', $value)) {
+                $validated = filter_var($value, FILTER_VALIDATE_INT);
+                if (false !== $validated) {
+                    return $validated;
+                }
+            }
+
+            throw new HttpException(400, sprintf('Route parameter "%s" must be an integer.', $name));
+        }
+
         return match ($typeName) {
-            'int' => 1 === preg_match('/\A-?\d+\z/', $value)
-                ? (int) $value
-                : throw new HttpException(400, sprintf('Route parameter "%s" must be an integer.', $name)),
-            'float' => is_numeric($value)
+            'float' => is_numeric($value) && is_finite((float) $value)
                 ? (float) $value
                 : throw new HttpException(400, sprintf('Route parameter "%s" must be numeric.', $name)),
             'bool' => in_array(strtolower($value), ['1', 'true', 'yes'], true),
@@ -748,13 +813,57 @@ final class App
         return $views->withFlash($errors, $old);
     }
 
-    private function renderValidationError(Request $request, ValidationException $e): Response
-    {
+    /**
+     * @param array<string, string> $matchedParams
+     */
+    private function renderValidationError(
+        Request $request,
+        ValidationException $e,
+        ?int $startedNs = null,
+        ?string $matchedRoute = null,
+        ?string $matchedHandler = null,
+        array $matchedParams = [],
+    ): Response {
+        $referenceId = ErrorReference::generate();
+        $explanation = $this->debug
+            ? (new ErrorExplainer())->explainHttpStatus(
+                statusCode: 422,
+                message: 'Please review the highlighted fields and try again.',
+                method: $request->method(),
+                path: $request->path(),
+                availableRoutes: $this->registeredRouteSignatures(),
+                validationErrors: $e->errors,
+            )
+            : null;
+        $trace = $this->debug
+            ? $this->buildRequestTrace($request, $referenceId, $startedNs, $matchedRoute, $matchedHandler, $matchedParams)
+            : null;
+
         if ($request->isBridge()) {
-            return Response::json([...$e->toArray(), 'errors' => $e->errors], 422, ['X-Kongono-Bridge' => 'true', 'Vary' => 'X-Kongono-Bridge']);
+            $body = [...$e->toArray(), 'errors' => $e->errors, 'reference' => $referenceId];
+            if (null !== $explanation) {
+                $body['explanation'] = $explanation->toArray();
+            }
+            if (null !== $trace) {
+                $body['execution_trace'] = $trace->toArray();
+            }
+
+            return Response::json($body, 422, [
+                'X-Kongono-Bridge' => 'true',
+                'Vary' => 'X-Kongono-Bridge',
+                'X-Kongono-Error-Id' => $referenceId,
+            ]);
         }
         if ($request->expectsJson()) {
-            return Response::json($e->toArray(), 422);
+            $body = [...$e->toArray(), 'reference' => $referenceId];
+            if (null !== $explanation) {
+                $body['explanation'] = $explanation->toArray();
+            }
+            if (null !== $trace) {
+                $body['execution_trace'] = $trace->toArray();
+            }
+
+            return Response::json($body, 422, ['X-Kongono-Error-Id' => $referenceId]);
         }
 
         // Standard browser HTML form submission with active Session and verified same-origin Referer:
@@ -773,7 +882,7 @@ final class App
 
         $custom = $this->tryRenderCustomErrorView(422, 'Validation Failed', 'Please review the highlighted fields and try again.', $request, $e->errors);
         if (null !== $custom) {
-            return Response::html($custom, 422);
+            return Response::html($custom, 422, ['X-Kongono-Error-Id' => $referenceId]);
         }
 
         return Response::html(
@@ -784,8 +893,12 @@ final class App
                 validationErrors: $e->errors,
                 debug: $this->debug,
                 appName: $this->name,
+                explanation: $explanation,
+                referenceId: $referenceId,
+                trace: $trace,
             ),
             422,
+            ['X-Kongono-Error-Id' => $referenceId],
         );
     }
 
@@ -796,7 +909,7 @@ final class App
     private function resolveSafeSameOriginReferer(Request $request): ?string
     {
         $referer = trim($request->getHeaderLine('Referer'));
-        if ('' === $referer || false !== strpbrk($referer, "\r\n\0")) {
+        if ('' === $referer || 1 === preg_match('/[\x00-\x1f\x7f]/', $referer)) {
             return null;
         }
 
@@ -848,76 +961,341 @@ final class App
         return $path . $query;
     }
 
-    private function renderHttpError(Request $request, HttpException $e): Response
-    {
-        $safeMessage = SecretScrubber::scrub($e->getMessage());
-        if ($request->expectsJson()) {
-            return Response::json([
-                'error' => 'http_error',
-                'status' => $e->statusCode,
-                'message' => $safeMessage,
-            ], $e->statusCode, $e->headers);
+    /**
+     * @param array<string, string> $matchedParams
+     */
+    private function renderHttpError(
+        Request $request,
+        HttpException $e,
+        ?int $startedNs = null,
+        ?string $matchedRoute = null,
+        ?string $matchedHandler = null,
+        array $matchedParams = [],
+    ): Response {
+        $referenceId = ErrorReference::generate();
+        $rawScrubbed = SecretScrubber::scrub($e->getMessage());
+        $publicMessage = $this->debug
+            ? $rawScrubbed
+            : $this->vaguePublicHttpMessage($e->statusCode, $rawScrubbed);
+
+        $explainer = new ErrorExplainer();
+        $fullExplanation = $explainer->explainHttpStatus(
+            statusCode: $e->statusCode,
+            message: $rawScrubbed,
+            method: $request->method(),
+            path: $request->path(),
+            availableRoutes: $this->debug ? $this->registeredRouteSignatures() : [],
+        );
+
+        // Log structured 5W1H incident server-side correlated by opaque Reference ID (for security/auth/server errors)
+        $serverTrace = null;
+        if ($e->statusCode >= 500 || in_array($e->statusCode, [401, 403, 405, 429], true)) {
+            $this->logIncident($referenceId, $e->statusCode >= 500 ? 'error' : 'warning', $fullExplanation);
+            if ($this->container->hasBinding(IncidentStoreInterface::class)) {
+                $serverTrace = $this->buildRequestTrace($request, $referenceId, $startedNs, $matchedRoute, $matchedHandler, $matchedParams);
+                $this->storeIncidentRecord($referenceId, $e->statusCode, $request, $fullExplanation, $serverTrace);
+            }
         }
 
-        $custom = $this->tryRenderCustomErrorView($e->statusCode, 'HTTP ' . $e->statusCode, $safeMessage, $request);
+        $devExplanation = $this->debug ? $fullExplanation : null;
+        $trace = $this->debug
+            ? ($serverTrace ?? $this->buildRequestTrace($request, $referenceId, $startedNs, $matchedRoute, $matchedHandler, $matchedParams))
+            : null;
+
+        $headers = $e->headers;
+        $headers['X-Kongono-Error-Id'] = $referenceId;
+        if ($e->statusCode >= 500 || in_array($e->statusCode, [401, 403], true)) {
+            $headers['Cache-Control'] ??= 'no-store';
+        }
+
+        if ($request->expectsJson()) {
+            $payload = [
+                'error' => 'http_error',
+                'status' => $e->statusCode,
+                'message' => $publicMessage,
+                'reference' => $referenceId,
+            ];
+            if (null !== $devExplanation) {
+                $payload['explanation'] = $devExplanation->toArray();
+            }
+            if (null !== $trace) {
+                $payload['execution_trace'] = $trace->toArray();
+            }
+
+            return Response::json($payload, $e->statusCode, $headers);
+        }
+
+        $custom = $this->tryRenderCustomErrorView($e->statusCode, 'HTTP ' . $e->statusCode, $publicMessage, $request);
         if (null !== $custom) {
-            return Response::html($custom, $e->statusCode, $e->headers);
+            return Response::html($custom, $e->statusCode, $headers);
         }
 
         return Response::html(
             (new ErrorPageRenderer())->render(
                 statusCode: $e->statusCode,
-                message: $safeMessage,
+                message: $publicMessage,
                 request: $request,
                 debug: $this->debug,
                 appName: $this->name,
+                explanation: $devExplanation,
+                referenceId: $referenceId,
+                trace: $trace,
             ),
             $e->statusCode,
-            $e->headers,
+            $headers,
         );
     }
 
-    private function renderUnexpectedError(Request $request, Throwable $e): Response
-    {
-        $safeMessage = $this->debug
+    /**
+     * @param array<string, string> $matchedParams
+     */
+    private function renderUnexpectedError(
+        Request $request,
+        Throwable $e,
+        ?int $startedNs = null,
+        ?string $matchedRoute = null,
+        ?string $matchedHandler = null,
+        array $matchedParams = [],
+    ): Response {
+        $referenceId = ErrorReference::generate();
+        $routes = $this->debug ? $this->registeredRouteSignatures() : [];
+        $explanation = (new ErrorExplainer())->explainThrowable(
+            exception: $e,
+            method: $request->method(),
+            path: $request->path(),
+            basePath: $this->basePath,
+            availableRoutes: $routes,
+        );
+
+        // Always record full secret-scrubbed 5W1H diagnosis server-side indexed by Reference ID
+        $this->logIncident($referenceId, 'error', $explanation);
+
+        $serverTrace = null;
+        if ($this->container->hasBinding(IncidentStoreInterface::class)) {
+            $serverTrace = $this->buildRequestTrace($request, $referenceId, $startedNs, $matchedRoute, $matchedHandler, $matchedParams);
+            $this->storeIncidentRecord($referenceId, 500, $request, $explanation, $serverTrace);
+        }
+
+        $trace = $this->debug
+            ? ($serverTrace ?? $this->buildRequestTrace($request, $referenceId, $startedNs, $matchedRoute, $matchedHandler, $matchedParams))
+            : null;
+
+        $headers = [
+            'X-Kongono-Error-Id' => $referenceId,
+            'Cache-Control' => 'no-store',
+        ];
+
+        // Production mode is strictly vague & nondisclosing — zero internal details, diagnostics, or traces!
+        $publicMessage = $this->debug
             ? SecretScrubber::scrub($e->getMessage())
             : 'An internal server error occurred.';
 
         $payload = [
             'error' => 'internal_server_error',
-            'message' => $safeMessage,
+            'message' => $publicMessage,
+            'reference' => $referenceId,
         ];
 
-        $safeDiagnostic = null;
-        if ($e instanceof CoreException && null !== $e->diagnostic) {
-            $safeDiagnostic = $e->diagnostic->toSafeArray();
-            $payload['diagnostic'] = $safeDiagnostic;
+        if ($this->debug && $e instanceof CoreException && null !== $e->diagnostic) {
+            $payload['diagnostic'] = $e->diagnostic->toSafeArray();
+        }
+
+        if ($this->debug && $request->expectsJson()) {
+            $payload['explanation'] = $explanation->toArray();
+            if (null !== $trace) {
+                $payload['execution_trace'] = $trace->toArray();
+            }
         }
 
         if ($request->expectsJson()) {
-            return Response::json($payload, 500);
+            return Response::json($payload, 500, $headers);
         }
 
         if ($this->debug) {
-            return Response::html((new DevErrorRenderer())->render($request, $e, $this->basePath, $this->name), 500);
+            return Response::html(
+                (new DevErrorRenderer())->render(
+                    $request,
+                    $e,
+                    $this->basePath,
+                    $this->name,
+                    availableRoutes: $routes,
+                    trace: $trace,
+                    explanation: $explanation,
+                ),
+                500,
+                $headers,
+            );
         }
 
-        $custom = $this->tryRenderCustomErrorView(500, 'Internal Server Error', $safeMessage, $request, safeDiagnostic: $safeDiagnostic);
+        $custom = $this->tryRenderCustomErrorView(500, 'Internal Server Error', $publicMessage, $request, safeDiagnostic: null);
         if (null !== $custom) {
-            return Response::html($custom, 500);
+            return Response::html($custom, 500, $headers);
         }
 
         return Response::html(
             (new ErrorPageRenderer())->render(
                 statusCode: 500,
-                message: $safeMessage,
+                message: $publicMessage,
                 request: $request,
-                safeDiagnostic: $safeDiagnostic,
+                safeDiagnostic: null,
                 debug: false,
                 appName: $this->name,
+                referenceId: $referenceId,
             ),
             500,
+            $headers,
         );
+    }
+
+    /**
+     * Neutralizes potentially revealing internal framework/security error wording in production (`APP_DEBUG=false`)
+     * so potential attackers receive only vague, non-enumerable messages.
+     */
+    private function vaguePublicHttpMessage(int $statusCode, string $scrubbedMessage): string
+    {
+        $fallback = ErrorPageRenderer::statusMeta($statusCode)['default_message'];
+        $trimmed = trim($scrubbedMessage);
+        if ('' === $trimmed || strlen($trimmed) > 120) {
+            return $fallback;
+        }
+
+        if (1 === preg_match('/\b(csrf|token|session|sqlstate|pdo|table|column|middleware|container|controller|exception|stack|route|method not allowed|rate limit|gate|policy|parameter|undefined|syntax|vendor|capability|feature|queue|allowlist|hmac|signature|webhook|principal|tenant|rls|guard|storage|bucket|redis|smtp|oauth|totp|passkey|argon2|bcrypt)\b|[\\\\\/]|\.php\b/i', $trimmed)) {
+            return $fallback;
+        }
+
+        return $trimmed;
+    }
+
+    /**
+     * @param array<string, string> $matchedParams
+     */
+    private function buildRequestTrace(
+        Request $request,
+        string $referenceId,
+        ?int $startedNs,
+        ?string $matchedRoute,
+        ?string $matchedHandler,
+        array $matchedParams,
+    ): RequestTrace {
+        $elapsedMs = null !== $startedNs ? max(0.0, (hrtime(true) - $startedNs) / 1_000_000.0) : 0.0;
+        $middlewareShort = [];
+        foreach ($this->middleware as $mw) {
+            $fqcn = $mw::class;
+            $pos = strrpos($fqcn, '\\');
+            $middlewareShort[] = false === $pos ? $fqcn : substr($fqcn, $pos + 1);
+        }
+
+        $queryKeys = array_keys($request->getQueryParams());
+        $parsedBody = $request->getParsedBody();
+        $inputKeys = is_array($parsedBody) ? array_keys($parsedBody) : [];
+
+        return new RequestTrace(
+            referenceId: $referenceId,
+            method: $request->method(),
+            path: $request->path(),
+            matchedRoute: $matchedRoute,
+            matchedHandler: $matchedHandler,
+            middleware: $middlewareShort,
+            routeParams: $matchedParams,
+            queryKeys: $queryKeys,
+            inputKeys: $inputKeys,
+            elapsedMs: $elapsedMs,
+        );
+    }
+
+    private function logIncident(string $referenceId, string $level, ErrorExplanation $explanation): void
+    {
+        if (!$this->container->has(LoggerInterface::class)) {
+            return;
+        }
+
+        try {
+            $logger = $this->container->get(LoggerInterface::class);
+            if (!$logger instanceof LoggerInterface) {
+                return;
+            }
+            $exp = $explanation->toArray();
+            $context = [
+                'reference' => $referenceId,
+                'code' => $exp['code'],
+                'who' => $exp['who'],
+                'what' => $exp['what'],
+                'why' => $exp['why'],
+                'where' => $exp['where'],
+                'when' => $exp['when'],
+                'how_to_fix' => $exp['how_to_fix'],
+                'did_you_mean' => $exp['did_you_mean'],
+            ];
+            $msg = sprintf('[%s] %s — %s', $referenceId, $exp['code'], $exp['what']);
+            if ('warning' === $level) {
+                $logger->warning($msg, $context);
+            } else {
+                $logger->error($msg, $context);
+            }
+        } catch (Throwable) {
+            // Never allow logging failures to cascade inside the error renderer
+        }
+    }
+
+    private function storeIncidentRecord(
+        string $referenceId,
+        int $statusCode,
+        Request $request,
+        ErrorExplanation $explanation,
+        RequestTrace $trace,
+    ): void {
+        try {
+            $store = $this->container->get(IncidentStoreInterface::class);
+            if (!$store instanceof IncidentStoreInterface) {
+                return;
+            }
+
+            try {
+                $rawBodyInput = $request->allInput();
+            } catch (Throwable) {
+                $rawBodyInput = [];
+            }
+
+            $record = new IncidentRecord(
+                reference: $referenceId,
+                occurredAt: gmdate('Y-m-d\TH:i:s\Z'),
+                appName: $this->name,
+                statusCode: $statusCode,
+                method: $request->method(),
+                path: SecretScrubber::scrub($request->path()),
+                query: IncidentRecord::sanitizePayload($request->getQueryParams()),
+                headers: IncidentRecord::sanitizeHeaders($request->getHeaders()),
+                body: IncidentRecord::sanitizePayload($rawBodyInput),
+                contentType: $request->getHeaderLine('Content-Type'),
+                explanation: $explanation->toArray(),
+                executionTrace: $trace->toArray(),
+            );
+            $store->record($record);
+        } catch (Throwable) {
+            // Never let incident recording break error responses
+        }
+    }
+
+    /**
+     * @internal Used by OpenApiGenerator to share identical DTO classification rules with App.
+     * @param class-string $className
+     */
+    public function isInputDtoClass(string $className): bool
+    {
+        return !$this->container->hasBinding($className) && $this->looksLikeInputDtoCached($className);
+    }
+
+    /** @return list<string> */
+    private function registeredRouteSignatures(): array
+    {
+        $out = [];
+        foreach ($this->router->routes() as $route) {
+            foreach ($route->methods as $m) {
+                $out[] = strtoupper($m) . ' ' . $route->path;
+            }
+        }
+
+        return $out;
     }
 
     /**

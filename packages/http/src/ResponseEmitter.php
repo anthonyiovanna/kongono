@@ -47,7 +47,13 @@ final class ResponseEmitter
 
         if ($response instanceof Response && null !== $response->streamProducer()) {
             foreach (($response->streamProducer())() as $chunk) {
+                if (0 !== connection_aborted()) {
+                    break;
+                }
                 echo $chunk;
+                if (ob_get_level() > 0) {
+                    @ob_flush();
+                }
                 if (function_exists('flush')) {
                     flush();
                 }
@@ -61,7 +67,14 @@ final class ResponseEmitter
             $body->rewind();
         }
         while (!$body->eof()) {
-            echo $body->read(8192);
+            if (0 !== connection_aborted()) {
+                break;
+            }
+            $chunk = $body->read(8192);
+            if ('' === $chunk) {
+                break;
+            }
+            echo $chunk;
         }
     }
 }

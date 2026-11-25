@@ -9,20 +9,21 @@ use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Http\Testing\TestClient;
 use Kongono\Http\UploadedFile;
+use Kongono\Security\TokenSigner;
 use PHPUnit\Framework\TestCase;
 
 final class StarterAppTest extends TestCase
 {
     protected function setUp(): void
     {
-        $varDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'var';
-        $this->removeDir($varDir);
+        $this->removeDir(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'var');
+        $this->removeDir(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage');
     }
 
     protected function tearDown(): void
     {
-        $varDir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'var';
-        $this->removeDir($varDir);
+        $this->removeDir(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'var');
+        $this->removeDir(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage');
     }
 
     private function bootApp(): App
@@ -41,7 +42,7 @@ final class StarterAppTest extends TestCase
         self::assertSame(200, $res->getStatusCode());
         self::assertStringContainsString('Kongono v1 Starter', (string) $res->getBody());
         self::assertStringContainsString('Welcome to Kongono v1', (string) $res->getBody());
-        self::assertStringContainsString('Kongono/1.0', $res->getHeaderLine('X-Powered-By'));
+        self::assertSame('', $res->getHeaderLine('X-Powered-By'));
         self::assertNotSame('', $res->getHeaderLine('X-Response-Time-Ms'));
         self::assertSame('nosniff', $res->getHeaderLine('X-Content-Type-Options'));
         self::assertSame('DENY', $res->getHeaderLine('X-Frame-Options'));
@@ -52,9 +53,13 @@ final class StarterAppTest extends TestCase
         self::assertSame(200, $css->getStatusCode());
         self::assertStringContainsString('text/css', $css->getHeaderLine('Content-Type'));
 
-        // Server-Timing & Prometheus /metrics endpoint
+        // Server-Timing & authenticated Prometheus /metrics endpoint (requires ops.view capability)
         self::assertStringContainsString('app;dur=', $res->getHeaderLine('Server-Timing'));
-        $metricsRes = $app->handle(Request::create('GET', '/metrics'));
+        self::assertSame(401, $app->handle(Request::create('GET', '/metrics'))->getStatusCode());
+        $regularMetricsToken = $app->container()->make(TokenSigner::class)->sign(['sub' => 'basic-user'], ttlSeconds: 300);
+        self::assertSame(403, $app->handle(Request::create('GET', '/metrics', ['Authorization' => 'Bearer ' . $regularMetricsToken]))->getStatusCode());
+        $metricsToken = $app->container()->make(TokenSigner::class)->sign(['sub' => 'ops-user', 'capabilities' => ['ops.view']], ttlSeconds: 300);
+        $metricsRes = $app->handle(Request::create('GET', '/metrics', ['Authorization' => 'Bearer ' . $metricsToken]));
         self::assertSame(200, $metricsRes->getStatusCode());
         self::assertStringContainsString('kongono_http_requests_total', (string) $metricsRes->getBody());
     }
@@ -63,8 +68,25 @@ final class StarterAppTest extends TestCase
     {
         $app = $this->bootApp();
 
+        // Unauthenticated mutating endpoints fail closed 401
+        self::assertSame(401, $app->handle(Request::json('POST', '/api/notes', ['title' => 'Nope', 'body' => 'Nope']))->getStatusCode());
+        self::assertSame(401, $app->handle(Request::create('POST', '/api/jobs/run', ['Accept' => 'application/json']))->getStatusCode());
+        self::assertSame(401, $app->handle(Request::create('DELETE', '/api/notes/1', ['Accept' => 'application/json']))->getStatusCode());
+
+        // Obtain signed bearer token via registration
+        $regRes = $app->handle(Request::json('POST', '/api/auth/register', [
+            'name' => 'Upload User',
+            'email' => 'upload@kongono.dev',
+            'password' => 'super-secure-pass-123',
+        ]));
+        self::assertSame(201, $regRes->getStatusCode());
+        $regJson = json_decode((string) $regRes->getBody(), true, 32, JSON_THROW_ON_ERROR);
+        self::assertIsArray($regJson);
+        $bearer = 'Bearer ' . (is_string($regJson['token'] ?? null) ? $regJson['token'] : '');
+        $authHeaders = ['Accept' => 'application/json', 'Authorization' => $bearer];
+
         // Validation error on short title
-        $invalid = $app->handle(Request::json('POST', '/api/notes', ['title' => 'Hi', 'body' => '']));
+        $invalid = $app->handle(Request::json('POST', '/api/notes', ['title' => 'Hi', 'body' => ''], ['Authorization' => $bearer]));
         self::assertSame(422, $invalid->getStatusCode());
         $errData = json_decode((string) $invalid->getBody(), true, 32, JSON_THROW_ON_ERROR);
         self::assertIsArray($errData);
@@ -72,7 +94,7 @@ final class StarterAppTest extends TestCase
         self::assertArrayHasKey('body', $errData['fields']);
 
         // Create valid note (also enqueues background job)
-        $created = $app->handle(Request::json('POST', '/api/notes', ['title' => 'Ship v1', 'body' => 'Kongono is alive!']));
+        $created = $app->handle(Request::json('POST', '/api/notes', ['title' => 'Ship v1', 'body' => 'Kongono is alive!'], ['Authorization' => $bearer]));
         self::assertSame(201, $created->getStatusCode());
         $note = json_decode((string) $created->getBody(), true, 32, JSON_THROW_ON_ERROR);
         self::assertIsArray($note);
@@ -80,8 +102,16 @@ final class StarterAppTest extends TestCase
         self::assertSame('Ship v1', $note['title']);
         self::assertNotEmpty($note['queued_job_id']);
 
-        // Process background job via Worker
-        $worked = $app->handle(Request::create('POST', '/api/jobs/run', ['Accept' => 'application/json']));
+        // Regular self-registered user CANNOT trigger worker execution (requires ops.manage)
+        self::assertSame(403, $app->handle(Request::create('POST', '/api/jobs/run', $authHeaders))->getStatusCode());
+
+        // Process background job via Worker with ops.manage capability
+        $opsToken = $app->container()->make(TokenSigner::class)->sign(
+            ['sub' => 'ops-admin', 'capabilities' => ['ops.view', 'ops.manage']],
+            ttlSeconds: 300,
+        );
+        $opsHeaders = ['Accept' => 'application/json', 'Authorization' => 'Bearer ' . $opsToken];
+        $worked = $app->handle(Request::create('POST', '/api/jobs/run', $opsHeaders));
         self::assertSame(200, $worked->getStatusCode());
         $workReport = json_decode((string) $worked->getBody(), true, 32, JSON_THROW_ON_ERROR);
         self::assertIsArray($workReport);
@@ -91,8 +121,12 @@ final class StarterAppTest extends TestCase
         $fetched = $app->handle(Request::create('GET', '/api/notes/3', ['Accept' => 'application/json']));
         self::assertSame(200, $fetched->getStatusCode());
 
-        // Delete note
-        $deleted = $app->handle(Request::create('DELETE', '/api/notes/3', ['Accept' => 'application/json']));
+        // Another user cannot delete this user's note (IDOR blocked 403)
+        $otherDeleteToken = $app->container()->make(TokenSigner::class)->sign(['sub' => 'usr_attacker'], ttlSeconds: 300);
+        self::assertSame(403, $app->handle(Request::create('DELETE', '/api/notes/3', ['Accept' => 'application/json', 'Authorization' => 'Bearer ' . $otherDeleteToken]))->getStatusCode());
+
+        // Owner deletes own note
+        $deleted = $app->handle(Request::create('DELETE', '/api/notes/3', $authHeaders));
         self::assertSame(204, $deleted->getStatusCode());
 
         // Unauthenticated upload/download fails closed 401
@@ -104,31 +138,20 @@ final class StarterAppTest extends TestCase
         ));
         self::assertSame(401, $unauthUpload->getStatusCode());
 
-        // Obtain signed bearer token via registration for authenticated upload/download
-        $regRes = $app->handle(Request::json('POST', '/api/auth/register', [
-            'name' => 'Upload User',
-            'email' => 'upload@kongono.dev',
-            'password' => 'super-secure-pass-123',
-        ]));
-        self::assertSame(201, $regRes->getStatusCode());
-        $regJson = json_decode((string) $regRes->getBody(), true, 32, JSON_THROW_ON_ERROR);
-        self::assertIsArray($regJson);
-        $bearer = 'Bearer ' . (is_string($regJson['token'] ?? null) ? $regJson['token'] : '');
-
-        // Active HTML/JS uploads are rejected with 415 (prevents same-origin Stored XSS)
+        // Active HTML/JS/XML uploads are rejected with 415 (prevents same-origin Stored XSS)
         $xssUpload = $app->handle(Request::create(
             'POST',
             '/api/upload',
-            headers: ['Accept' => 'application/json', 'Authorization' => $bearer],
+            headers: $authHeaders,
             files: ['document' => UploadedFile::fromString('<script>alert(1)</script>', 'evil.html', 'text/html')],
         ));
         self::assertSame(415, $xssUpload->getStatusCode());
 
-        // Multipart upload stored atomically via LocalStorage & downloaded back safely as sandboxed attachment
+        // Multipart upload stored per-user atomically via LocalStorage & downloaded back safely as sandboxed attachment
         $upload = $app->handle(Request::create(
             'POST',
             '/api/upload',
-            headers: ['Accept' => 'application/json', 'Authorization' => $bearer],
+            headers: $authHeaders,
             files: ['document' => UploadedFile::fromString('hello world', 'hello.txt', 'text/plain')],
         ));
         self::assertSame(201, $upload->getStatusCode());
@@ -146,13 +169,19 @@ final class StarterAppTest extends TestCase
         self::assertStringContainsString('sandbox', $downloaded->getHeaderLine('Content-Security-Policy'));
         self::assertSame('"' . $meta['version'] . '"', $downloaded->getHeaderLine('ETag'));
 
-        // Live ApplicationGraph endpoint
-        $graphRes = $app->handle(Request::create('GET', '/api/graph'));
+        // Second user cannot read first user's uploaded file (cross-user IDOR blocked)
+        $otherToken = $app->container()->make(TokenSigner::class)->sign(['sub' => 'usr_other_user'], ttlSeconds: 300);
+        self::assertSame(404, $app->handle(Request::create('GET', '/api/files/hello.txt', ['Authorization' => 'Bearer ' . $otherToken]))->getStatusCode());
+
+        // Authenticated ApplicationGraph endpoint (unauthenticated fails closed 401; regular user 403; ops.view 200)
+        self::assertSame(401, $app->handle(Request::create('GET', '/api/graph'))->getStatusCode());
+        self::assertSame(403, $app->handle(Request::create('GET', '/api/graph', ['Authorization' => $bearer]))->getStatusCode());
+        $graphRes = $app->handle(Request::create('GET', '/api/graph', $opsHeaders));
         self::assertSame(200, $graphRes->getStatusCode());
         self::assertStringContainsString('Kongono Starter App', (string) $graphRes->getBody());
 
         // Verify created notes persist across fresh app restarts via LocalStorage
-        $created2 = $app->handle(Request::json('POST', '/api/notes', ['title' => 'Persistent Note', 'body' => 'Survives restart!']));
+        $created2 = $app->handle(Request::json('POST', '/api/notes', ['title' => 'Persistent Note', 'body' => 'Survives restart!'], ['Authorization' => $bearer]));
         self::assertSame(201, $created2->getStatusCode());
         $freshApp = $this->bootApp();
         $listAfterRestart = $freshApp->handle(Request::create('GET', '/api/notes', ['Accept' => 'application/json']));
@@ -251,13 +280,26 @@ final class StarterAppTest extends TestCase
             'params' => [],
         ])->assertStatus(401);
 
-        // Obtain authenticated Bearer token for live MCP JSON-RPC 2.0 endpoint over HTTP (POST /mcp)
-        $mcpAuth = $client->postJson('/api/auth/register', [
-            'name' => 'MCP Admin',
+        // Self-registered regular user CANNOT access POST /mcp (fails closed 403 — requires explicit `mcp.access` capability)
+        $regAuth = $client->postJson('/api/auth/register', [
+            'name' => 'Regular User',
             'email' => 'mcp@kongono.dev',
             'password' => 'super-secure-pass-123',
         ])->assertCreated();
-        $mcpToken = is_string($mcpAuth->json()['token'] ?? null) ? $mcpAuth->json()['token'] : '';
+        $regularToken = is_string($regAuth->json()['token'] ?? null) ? $regAuth->json()['token'] : '';
+        $regularClient = $client->withBearerToken($regularToken);
+        $regularClient->postJson('/mcp', [
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'initialize',
+            'params' => [],
+        ])->assertStatus(403);
+
+        // Explicitly minted MCP admin token with `mcp.access` capability accesses live MCP JSON-RPC 2.0 endpoint
+        $mcpToken = $app->container()->make(TokenSigner::class)->sign(
+            ['sub' => 'mcp-admin', 'capabilities' => ['mcp.access', 'notes.read', 'notes.write']],
+            ttlSeconds: 300,
+        );
         $authedClient = $client->withBearerToken($mcpToken);
 
         $init = $authedClient->postJson('/mcp', [
@@ -295,22 +337,22 @@ final class StarterAppTest extends TestCase
         self::assertNotEmpty($traces);
 
         // Creating a note publishes onto EventBus and replays over /api/events SSE
-        $client->postJson('/api/notes', ['title' => 'Live Event', 'body' => 'Streams via EventBus'])->assertCreated();
+        $regularClient->postJson('/api/notes', ['title' => 'Live Event', 'body' => 'Streams via EventBus'])->assertCreated();
         $sse = $app->handle(Request::create('GET', '/api/events', ['Last-Event-ID' => '0']));
         self::assertInstanceOf(Response::class, $sse);
         self::assertStringContainsString('event: note.created', $sse->bodyString());
         self::assertStringContainsString('Live Event', $sse->bodyString());
 
         // #[Idempotent] on POST /api/notes prevents duplicate note creation on retries
-        $firstIdemp = $client->withHeader('Idempotency-Key', 'note-idem-1')
+        $firstIdemp = $regularClient->withHeader('Idempotency-Key', 'note-idem-1')
             ->postJson('/api/notes', ['title' => 'Once Only', 'body' => 'Never duplicated'])
             ->assertCreated();
-        $secondIdemp = $client->withHeader('Idempotency-Key', 'note-idem-1')
+        $secondIdemp = $regularClient->withHeader('Idempotency-Key', 'note-idem-1')
             ->postJson('/api/notes', ['title' => 'Once Only', 'body' => 'Never duplicated'])
             ->assertCreated();
         self::assertSame($firstIdemp->json()['id'], $secondIdemp->json()['id']);
         self::assertSame('true', $secondIdemp->header('Idempotency-Replayed'));
-        $client->withHeader('Idempotency-Key', 'note-idem-1')
+        $regularClient->withHeader('Idempotency-Key', 'note-idem-1')
             ->postJson('/api/notes', ['title' => 'Different', 'body' => 'Conflict'])
             ->assertStatus(409);
 

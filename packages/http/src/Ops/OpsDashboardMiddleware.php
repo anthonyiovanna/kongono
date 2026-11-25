@@ -98,6 +98,61 @@ final readonly class OpsDashboardMiddleware implements MiddlewareInterface
         throw new HttpException(404, 'Ops endpoint not found.');
     }
 
+    /** @param array<string, mixed> $input */
+    private function assertCsrfSafe(ServerRequestInterface $request, array $input): void
+    {
+        $fetchSite = strtolower(trim($request->getHeaderLine('Sec-Fetch-Site')));
+        if ('' !== $fetchSite && !in_array($fetchSite, ['same-origin', 'none'], true)) {
+            throw new HttpException(403, 'Cross-site Ops Dashboard mutation blocked.');
+        }
+
+        $origin = trim($request->getHeaderLine('Origin'));
+        if ('' !== $origin) {
+            $parsedOrigin = parse_url($origin);
+            $originHost = is_array($parsedOrigin) && is_string($parsedOrigin['host'] ?? null) ? strtolower($parsedOrigin['host']) : '';
+            $reqHost = strtolower($request->getUri()->getHost());
+            if ('' === $reqHost) {
+                $hostHeader = trim($request->getHeaderLine('Host'));
+                $parsedHost = '' !== $hostHeader ? parse_url('http://' . $hostHeader, PHP_URL_HOST) : false;
+                $reqHost = is_string($parsedHost) ? strtolower($parsedHost) : '';
+            }
+            if ('' === $originHost || ('' !== $reqHost && $originHost !== $reqHost)) {
+                throw new HttpException(403, 'Cross-origin Ops Dashboard mutation blocked.');
+            }
+        }
+
+        $auth = trim($request->getHeaderLine('Authorization'));
+        $apiKey = trim($request->getHeaderLine('X-API-Key'));
+        $isNonCookieAuth = str_starts_with(strtolower($auth), 'bearer ') || '' !== $apiKey;
+        if ($isNonCookieAuth) {
+            return;
+        }
+
+        if (null !== $this->csrfTokenProvider) {
+            $expected = ($this->csrfTokenProvider)($request);
+            if (null !== $expected && '' !== $expected) {
+                $headerToken = trim($request->getHeaderLine('X-CSRF-Token'));
+                $bodyToken = is_string($input['_csrf'] ?? null) ? trim($input['_csrf']) : '';
+                $submitted = '' !== $headerToken ? $headerToken : $bodyToken;
+                if ('' === $submitted || !hash_equals($expected, $submitted)) {
+                    throw new HttpException(419, 'Invalid or missing CSRF token for Ops Dashboard action.');
+                }
+
+                return;
+            }
+        }
+
+        $hasCookies = '' !== trim($request->getHeaderLine('Cookie')) || [] !== $request->getCookieParams();
+        if ($hasCookies) {
+            $hasCustomHeader = $this->isLiveRequest($request)
+                || '' !== trim($request->getHeaderLine('X-CSRF-Token'))
+                || str_contains(strtolower($request->getHeaderLine('Content-Type')), 'application/json');
+            if (!$hasCustomHeader) {
+                throw new HttpException(403, 'Cookie-authenticated Ops Dashboard POST requires a CSRF token or same-origin JSON/Live request.');
+            }
+        }
+    }
+
     private function handleQueueDiagnose(ServerRequestInterface $request, string $base): ResponseInterface
     {
         if (null === $this->queueDriver) {
@@ -108,6 +163,7 @@ final readonly class OpsDashboardMiddleware implements MiddlewareInterface
         }
 
         $input = $this->extractInput($request);
+        $this->assertCsrfSafe($request, $input);
         $queue = $this->resolveAllowedQueue($input['queue'] ?? null);
         $jobId = is_string($input['job_id'] ?? null) ? trim($input['job_id']) : '';
 
@@ -145,9 +201,6 @@ final readonly class OpsDashboardMiddleware implements MiddlewareInterface
             $diagnosis,
             null !== $footer && '' !== $footer ? "\n" . $footer : '',
         );
-        if ($this->isLiveRequest($request)) {
-            return $this->respondWithSnapshot($request, $base, $notice);
-        }
 
         return $this->respondWithSnapshot($request, $base, $notice);
     }
@@ -159,6 +212,7 @@ final readonly class OpsDashboardMiddleware implements MiddlewareInterface
         }
 
         $input = $this->extractInput($request);
+        $this->assertCsrfSafe($request, $input);
         $queue = $this->resolveAllowedQueue($input['queue'] ?? null);
         $rawJobId = is_string($input['job_id'] ?? null) ? trim($input['job_id']) : '';
         $jobId = ('' === $rawJobId || 'all' === strtolower($rawJobId)) ? null : $rawJobId;
@@ -187,6 +241,7 @@ final readonly class OpsDashboardMiddleware implements MiddlewareInterface
         }
 
         $input = $this->extractInput($request);
+        $this->assertCsrfSafe($request, $input);
         $queue = $this->resolveAllowedQueue($input['queue'] ?? null);
         $removed = $this->queueDriver->flushFailed($queue);
 

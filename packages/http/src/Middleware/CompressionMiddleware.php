@@ -74,13 +74,18 @@ final readonly class CompressionMiddleware implements MiddlewareInterface
         }
 
         $stream = $response->getBody();
+        $seekable = $stream->isSeekable();
         $size = $stream->getSize();
         if (null !== $size && ($size < $this->minBytes || $size > $this->maxBytes)) {
             return $response;
         }
+        // Never drain an unbounded non-seekable response stream
+        if (!$seekable && null === $size) {
+            return $response;
+        }
 
         // Bounded streaming read so unknown-length streams cannot cause OOM before maxBytes is checked
-        if ($stream->isSeekable()) {
+        if ($seekable) {
             $stream->rewind();
         }
         $body = '';
@@ -91,7 +96,7 @@ final readonly class CompressionMiddleware implements MiddlewareInterface
             }
             $body .= $chunk;
             if (strlen($body) > $this->maxBytes) {
-                if ($stream->isSeekable()) {
+                if ($seekable) {
                     $stream->rewind();
                 }
 
@@ -100,25 +105,36 @@ final readonly class CompressionMiddleware implements MiddlewareInterface
         }
         $bodyLen = strlen($body);
         if ($bodyLen < $this->minBytes) {
-            if ($stream->isSeekable()) {
+            if ($seekable) {
                 $stream->rewind();
+
+                return $response;
             }
 
-            return $response;
+            return $response->withBody(Stream::fromString($body));
         }
 
         $compressed = 'gzip' === $encoding
             ? gzencode($body, $this->level)
-            : gzdeflate($body, $this->level);
+            : gzcompress($body, $this->level);
 
         if (!is_string($compressed) || strlen($compressed) >= $bodyLen) {
-            return $response;
+            if ($seekable) {
+                $stream->rewind();
+
+                return $response;
+            }
+
+            return $response->withBody(Stream::fromString($body));
         }
 
-        $existingVary = $response->getHeaderLine('Vary');
-        $vary = '' === $existingVary
-            ? 'Accept-Encoding'
-            : (str_contains(strtolower($existingVary), 'accept-encoding') ? $existingVary : $existingVary . ', Accept-Encoding');
+        $existingVary = trim($response->getHeaderLine('Vary'));
+        $varyTokens = '' !== $existingVary ? array_map('trim', explode(',', $existingVary)) : [];
+        $lowerTokens = array_map('strtolower', $varyTokens);
+        if (!in_array('accept-encoding', $lowerTokens, true) && !in_array('*', $lowerTokens, true)) {
+            $varyTokens[] = 'Accept-Encoding';
+        }
+        $vary = implode(', ', array_filter($varyTokens, static fn(string $t): bool => '' !== $t));
 
         $out = $response
             ->withBody(Stream::fromString($compressed))
@@ -156,10 +172,19 @@ final readonly class CompressionMiddleware implements MiddlewareInterface
             $weights[$name] = $q;
         }
 
-        if (($weights['gzip'] ?? 0.0) > 0.0 && function_exists('gzencode')) {
+        $gzipQ = $weights['gzip'] ?? ($weights['*'] ?? 0.0);
+        $deflateQ = $weights['deflate'] ?? ($weights['*'] ?? 0.0);
+
+        if ($gzipQ <= 0.0 && $deflateQ <= 0.0) {
+            return null;
+        }
+        if ($deflateQ > $gzipQ && function_exists('gzcompress')) {
+            return 'deflate';
+        }
+        if ($gzipQ > 0.0 && function_exists('gzencode')) {
             return 'gzip';
         }
-        if (($weights['deflate'] ?? 0.0) > 0.0 && function_exists('gzdeflate')) {
+        if ($deflateQ > 0.0 && function_exists('gzcompress')) {
             return 'deflate';
         }
 

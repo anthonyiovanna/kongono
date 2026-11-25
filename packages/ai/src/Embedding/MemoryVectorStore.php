@@ -36,6 +36,17 @@ final class MemoryVectorStore implements VectorStoreInterface
         unset($this->documents[$id]);
     }
 
+    /** Delete the base document ID and any `#chunk-*` entries associated with `$documentId`. */
+    public function deleteByDocumentId(string $documentId): void
+    {
+        $prefix = $documentId . '#chunk-';
+        foreach (array_keys($this->documents) as $id) {
+            if ($id === $documentId || str_starts_with($id, $prefix)) {
+                unset($this->documents[$id]);
+            }
+        }
+    }
+
     public function count(): int
     {
         return count($this->documents);

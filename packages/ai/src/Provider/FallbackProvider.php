@@ -122,28 +122,35 @@ final readonly class FallbackProvider implements EmbeddingProviderInterface, Str
     {
         $errors = [];
 
-        foreach ($this->providers as $idx => $provider) {
-            if (!$provider instanceof EmbeddingProviderInterface) {
-                continue;
-            }
-            $targetModel = 0 === $idx ? $model : null;
-            $attempts = 1 + max(0, $this->maxRetriesPerProvider);
-
-            for ($attempt = 1; $attempt <= $attempts; ++$attempt) {
-                try {
-                    return $provider->embed($texts, $targetModel);
-                } catch (AiException $e) {
-                    $errors[] = sprintf('%s (attempt %d): %s', $provider->name(), $attempt, SecretScrubber::scrub($e->getMessage()));
-                    if ($attempt < $attempts && self::isTransient($e)) {
-                        $this->sleepBackoff($attempt);
-                        continue;
-                    }
-                    break;
-                }
+        // Embeddings from different providers live in incompatible vector spaces/dimensions,
+        // so only retry the first EmbeddingProviderInterface instead of silently mixing vector spaces.
+        $primaryEmbedder = null;
+        foreach ($this->providers as $provider) {
+            if ($provider instanceof EmbeddingProviderInterface) {
+                $primaryEmbedder = $provider;
+                break;
             }
         }
 
-        throw new AiException('All configured AI providers failed for embeddings: ' . implode(' | ', $errors));
+        if (null === $primaryEmbedder) {
+            throw new AiException('No configured AI provider supports embeddings.');
+        }
+
+        $attempts = 1 + max(0, $this->maxRetriesPerProvider);
+        for ($attempt = 1; $attempt <= $attempts; ++$attempt) {
+            try {
+                return $primaryEmbedder->embed($texts, $model);
+            } catch (AiException $e) {
+                $errors[] = sprintf('%s (attempt %d): %s', $primaryEmbedder->name(), $attempt, SecretScrubber::scrub($e->getMessage()));
+                if ($attempt < $attempts && self::isTransient($e)) {
+                    $this->sleepBackoff($attempt);
+                    continue;
+                }
+                break;
+            }
+        }
+
+        throw new AiException('Configured primary embedding provider failed (cross-provider embedding fallback is disabled to avoid mixing vector spaces): ' . implode(' | ', $errors));
     }
 
     public static function isTransient(AiException $e): bool

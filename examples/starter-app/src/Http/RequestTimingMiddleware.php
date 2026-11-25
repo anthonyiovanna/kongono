@@ -24,16 +24,18 @@ final readonly class RequestTimingMiddleware implements MiddlewareInterface
         $spans = $tracer->spans();
         $elapsedMs = $spans[0]['duration_ms'] ?? 0.0;
 
+        $rawMethod = strtoupper($request->getMethod());
+        $method = in_array($rawMethod, ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], true) ? $rawMethod : 'OTHER';
+
         $this->metrics?->increment('kongono_http_requests_total', [
-            'method' => $request->getMethod(),
+            'method' => $method,
             'status' => (string) $response->getStatusCode(),
         ]);
         $this->metrics?->observe('kongono_http_request_duration_ms', $elapsedMs, [
-            'method' => $request->getMethod(),
+            'method' => $method,
         ]);
 
         return $response
-            ->withHeader('X-Powered-By', 'Kongono/1.0 (PHP ' . PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION . ')')
             ->withHeader('X-Response-Time-Ms', sprintf('%.2f', $elapsedMs))
             ->withHeader('Server-Timing', $tracer->toServerTimingHeader());
     }

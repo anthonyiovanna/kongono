@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Storage;
 
 use Closure;
+use Kongono\Core\Capabilities\ExecutionCapabilities;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use SensitiveParameter;
 
@@ -38,14 +39,25 @@ final readonly class S3Storage implements StorageInterface
         $this->signer = new SigV4Signer($accessKeyId, $secretAccessKey, $region);
         $resolvedEndpoint = $endpoint ?? sprintf('https://s3.%s.amazonaws.com', $region);
         $parts = parse_url($resolvedEndpoint);
-        if (false === $parts || !isset($parts['scheme'], $parts['host'])) {
+        if (
+            false === $parts
+            || !isset($parts['scheme'], $parts['host'])
+            || isset($parts['user'])
+            || isset($parts['pass'])
+            || isset($parts['query'])
+            || isset($parts['fragment'])
+            || (isset($parts['path']) && '' !== $parts['path'] && '/' !== $parts['path'])
+        ) {
             throw new StorageException(sprintf('Invalid S3 endpoint "%s".', $resolvedEndpoint));
         }
         $this->scheme = strtolower($parts['scheme']);
         if ('https' !== $this->scheme && 'http' !== $this->scheme) {
             throw new StorageException(sprintf('Unsupported S3 endpoint scheme "%s" (expected https or http).', $this->scheme));
         }
-        if ('' === trim($bucket) || false !== strpbrk($bucket, "\r\n\0/\\")) {
+        if (
+            1 !== preg_match('/\A[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]\z/', $bucket)
+            || str_contains($bucket, '..')
+        ) {
             throw new StorageException('Invalid S3 bucket name.');
         }
         $this->host = strtolower($parts['host']) . (isset($parts['port']) ? ':' . $parts['port'] : '');
@@ -144,6 +156,7 @@ final readonly class S3Storage implements StorageInterface
         $canonicalUri = $this->objectUri($clean);
         $signedHeaders = $this->signer->signHeaders('PUT', $this->host, $canonicalUri, [], $headers, $payloadHash);
         $url = sprintf('%s://%s%s', $this->scheme, $this->host, $canonicalUri);
+        ExecutionCapabilities::current()?->assertOutboundHttpAllowed($url);
 
         try {
             $res = $this->sendCurlPutStream($url, $signedHeaders, $uploadStream, $size);
@@ -217,6 +230,7 @@ final readonly class S3Storage implements StorageInterface
         $emptyHash = hash('sha256', '');
         $signedHeaders = $this->signer->signHeaders('GET', $this->host, $canonicalUri, [], [], $emptyHash);
         $url = sprintf('%s://%s%s', $this->scheme, $this->host, $canonicalUri);
+        ExecutionCapabilities::current()?->assertOutboundHttpAllowed($url);
 
         $temp = fopen('php://temp/maxmemory:2097152', 'r+b');
         if (false === $temp) {
@@ -258,6 +272,13 @@ final readonly class S3Storage implements StorageInterface
 
         $etag = trim($res['headers']['etag'] ?? '', '"');
         $size = is_numeric($res['headers']['content-length'] ?? null) ? (int) $res['headers']['content-length'] : 0;
+        /** @var array<string, string> $customMeta */
+        $customMeta = [];
+        foreach ($res['headers'] as $hName => $hVal) {
+            if (str_starts_with($hName, 'x-amz-meta-') && strlen($hName) > 11) {
+                $customMeta[substr($hName, 11)] = $hVal;
+            }
+        }
 
         return new ObjectMeta(
             key: $clean,
@@ -266,6 +287,7 @@ final readonly class S3Storage implements StorageInterface
             version: $etag,
             contentType: $res['headers']['content-type'] ?? 'application/octet-stream',
             updatedAt: $res['headers']['last-modified'] ?? gmdate(DATE_ATOM),
+            metadata: $customMeta,
         );
     }
 
@@ -294,9 +316,14 @@ final readonly class S3Storage implements StorageInterface
         }
 
         $etag = trim($res['headers']['etag'] ?? '', '"');
-        if ('' === $etag && '' !== trim($res['body'])) {
-            $xml = $this->parseSafeXml($res['body'], 'CopyObjectResult');
-            if (null !== $xml && isset($xml->ETag)) {
+        if ('' !== trim($res['body'])) {
+            // S3 CopyObject can return HTTP 200 with an XML <Error> (including namespaced <Error xmlns="...">);
+            // fail closed unless the parsed XML root is explicitly CopyObjectResult before move() deletes source!
+            $xml = $this->parseSafeXml($res['body'], 'CopyObject');
+            if (null === $xml || 'CopyObjectResult' !== $xml->getName()) {
+                throw new StorageException(sprintf('S3 COPY returned unexpected HTTP 200 XML body: %s', SecretScrubber::scrub(substr($res['body'], 0, 200))));
+            }
+            if ('' === $etag && isset($xml->ETag)) {
                 $etag = trim((string) $xml->ETag, '"');
             }
         }
@@ -506,6 +533,8 @@ final readonly class S3Storage implements StorageInterface
             $url .= '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
         }
 
+        ExecutionCapabilities::current()?->assertOutboundHttpAllowed($url);
+
         if (null !== $this->httpSender) {
             return ($this->httpSender)($method, $url, $signedHeaders, $body);
         }
@@ -543,6 +572,7 @@ final readonly class S3Storage implements StorageInterface
             CURLOPT_NOBODY => 'HEAD' === $upper,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT => 30,
             CURLOPT_HEADERFUNCTION => static function (mixed $_ch, string $line) use (&$respHeaders): int {
                 $parts = explode(':', $line, 2);
@@ -566,6 +596,19 @@ final readonly class S3Storage implements StorageInterface
 
         if ('' !== $body) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+        } elseif ('PUT' === $upper || 'POST' === $upper) {
+            // S3/R2/MinIO reject empty PUT/CopyObject requests without explicit Content-Length: 0 (HTTP 411)
+            $hasLen = false;
+            foreach ($headerLines as $hl) {
+                if (str_starts_with(strtolower($hl), 'content-length:')) {
+                    $hasLen = true;
+                    break;
+                }
+            }
+            if (!$hasLen) {
+                $headerLines[] = 'Content-Length: 0';
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $headerLines);
+            }
         }
 
         $ok = curl_exec($ch);
@@ -600,7 +643,7 @@ final readonly class S3Storage implements StorageInterface
         curl_setopt_array($ch, [
             CURLOPT_UPLOAD => true,
             CURLOPT_INFILE => $stream,
-            CURLOPT_INFILESIZE => $size,
+            CURLOPT_INFILESIZE_LARGE => $size,
             CURLOPT_HTTPHEADER => $headerLines,
             CURLOPT_RETURNTRANSFER => false,
             CURLOPT_FOLLOWLOCATION => false,
@@ -609,6 +652,7 @@ final readonly class S3Storage implements StorageInterface
             CURLOPT_REDIR_PROTOCOLS_STR => $this->scheme,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT => 300,
             CURLOPT_HEADERFUNCTION => static function (mixed $_ch, string $line) use (&$respHeaders): int {
                 $parts = explode(':', $line, 2);
@@ -650,6 +694,8 @@ final readonly class S3Storage implements StorageInterface
         }
 
         $headerLines = $this->formatHeaderLines($headers);
+        $downloaded = 0;
+        $overflowed = false;
         curl_setopt_array($ch, [
             CURLOPT_HTTPGET => true,
             CURLOPT_HTTPHEADER => $headerLines,
@@ -660,11 +706,22 @@ final readonly class S3Storage implements StorageInterface
             CURLOPT_REDIR_PROTOCOLS_STR => $this->scheme,
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT => 300,
-            CURLOPT_WRITEFUNCTION => static function (mixed $_ch, string $chunk) use ($destStream): int {
-                $written = fwrite($destStream, $chunk);
+            CURLOPT_WRITEFUNCTION => static function (mixed $_ch, string $chunk) use ($destStream, &$downloaded, &$overflowed): int {
+                $len = strlen($chunk);
+                if ($downloaded + $len > self::MAX_RESPONSE_BYTES) {
+                    $overflowed = true;
 
-                return false === $written ? 0 : $written;
+                    return 0;
+                }
+                $written = fwrite($destStream, $chunk);
+                if (false === $written) {
+                    return 0;
+                }
+                $downloaded += $written;
+
+                return $written;
             },
         ]);
 
@@ -672,6 +729,9 @@ final readonly class S3Storage implements StorageInterface
         $status = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $err = curl_error($ch);
 
+        if ($overflowed) {
+            throw new StorageException(sprintf('S3 stream download exceeded maximum bound of %d bytes.', self::MAX_RESPONSE_BYTES));
+        }
         if (false === $ok) {
             throw new StorageException('S3 stream download failed: ' . SecretScrubber::scrub($err));
         }

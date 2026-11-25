@@ -52,7 +52,7 @@ final class AppScaffolder
                 'type' => 'project',
                 'require' => [
                     'php' => '>=8.5.13',
-                    'kongono/framework' => '^1.18',
+                    'kongono/framework' => '^1.19',
                 ],
                 'autoload' => [
                     'psr-4' => ['App\\' => 'src/'],
@@ -94,7 +94,7 @@ if (function_exists('frankenphp_handle_request')) {
 
 PHP,
             'Caddyfile' => "{\n    frankenphp {\n        worker ./public/worker.php\n    }\n}\n\n:8080 {\n    root * ./public\n    encode zstd br gzip\n    php_server\n}\n",
-            'Dockerfile' => "FROM dunglas/frankenphp:php8.5\nRUN useradd -r -u 10001 -s /usr/sbin/nologin kongono && mkdir -p /app/var /data /config && chown -R kongono:kongono /app /data /config && printf \"expose_php=Off\\nsession.upload_progress.enabled=Off\\nzend.exception_ignore_args=On\\nallow_url_include=Off\\ndisplay_errors=Off\\nlog_errors=On\\n\" > /usr/local/etc/php/conf.d/99-kongono-security.ini\nENV APP_ENV=production APP_DEBUG=false SESSION_SECURE=true TRUSTED_PROXIES=\"\"\nWORKDIR /app\nCOPY --chown=kongono:kongono . /app\nUSER kongono\nEXPOSE 8080\nCMD [\"frankenphp\", \"run\", \"--config\", \"/app/Caddyfile\"]\n",
+            'Dockerfile' => "FROM dunglas/frankenphp:php8.5\nRUN useradd -r -u 10001 -s /usr/sbin/nologin kongono && mkdir -p /app/var /data /config && chown -R kongono:kongono /app /data /config && printf 'expose_php=Off\\nsession.upload_progress.enabled=Off\\nzend.exception_ignore_args=On\\nallow_url_include=Off\\ndisplay_errors=Off\\nlog_errors=On\\n' > /usr/local/etc/php/conf.d/99-kongono-security.ini\nENV APP_ENV=production APP_DEBUG=false SESSION_SECURE=true TRUSTED_PROXIES=\"\"\nWORKDIR /app\nCOPY composer.json composer.lock* ./\nRUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress\nCOPY --chown=kongono:kongono . /app\nUSER kongono\nEXPOSE 8080\nCMD [\"frankenphp\", \"run\", \"--config\", \"/app/Caddyfile\"]\n",
             '.dockerignore' => ".git\n.env\n.env.*\n!.env.example\n/var\n/tests\n/vendor\nAGENTS.md\nCLAUDE.md\n.mcp.json\n.agents\n.claude\n",
             'src/Http/HomeController.php' => <<<PHP
 <?php
@@ -109,6 +109,7 @@ use Kongono\Http\OpenApi\ApiDocsRenderer;
 use Kongono\Http\OpenApi\OpenApiGenerator;
 use Kongono\Http\Response;
 use Kongono\Http\Routing\Get;
+use Kongono\Security\Attributes\ReadOnlyDb;
 use Kongono\View\ViewEngine;
 
 final readonly class HomeController
@@ -120,6 +121,7 @@ final readonly class HomeController
     ) {}
 
     #[Get('/', name: 'home')]
+    #[ReadOnlyDb]
     public function index(): Response
     {
         return Response::html(\$this->views->render('home', [
@@ -129,6 +131,7 @@ final readonly class HomeController
     }
 
     #[Get('/health', name: 'health')]
+    #[ReadOnlyDb]
     public function health(): Response
     {
         \$report = \$this->health->run();
@@ -151,10 +154,39 @@ final readonly class HomeController
 
 PHP,
             'views/home.kgn.html' => $homeView,
-            '.gitignore' => "/vendor/\n/var/\n.env\n",
+            'app/invariants.php' => <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+use Kongono\Cli\Policy\Invariant;
+
+/**
+ * Executable Architecture & Security Invariants verified by `php vendor/bin/kongo policy:check` & `kongo prove`.
+ *
+ * @return list<Invariant>
+ */
+return [
+    Invariant::routesMatching('/admin/*', 'KGN-POLICY-ADMIN-AUTH')
+        ->except('/admin/login', '/admin/logout')
+        ->mustRequireAuth()
+        ->describe('All `/admin/*` endpoints must require authentication.'),
+];
+
+PHP,
+            '.gitignore' => "/vendor/\n/var/\n/storage/incidents/\n/storage/dev/\n.env\n",
             '.mcp.json' => json_encode([
                 'mcpServers' => [
                     'kongono' => [
+                        'command' => 'php',
+                        'args' => ['vendor/bin/kongo', 'mcp'],
+                    ],
+                ],
+            ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
+            '.vscode/mcp.json' => json_encode([
+                'servers' => [
+                    'kongono' => [
+                        'type' => 'stdio',
                         'command' => 'php',
                         'args' => ['vendor/bin/kongo', 'mcp'],
                     ],
@@ -218,6 +250,7 @@ EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
 
 \$app = App::create(\$baseDir, name: {$exportedName})
     ->config(['app' => ['debug' => \$debug]])
+    ->recordIncidents()
     ->views(autoReload: \$debug)
     ->instance(HealthCheck::class, \$health)
     ->instance(DevInspector::class, \$inspector)
@@ -286,6 +319,7 @@ EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
 
 \$app = App::create(\$baseDir, name: {$exportedName})
     ->config(['app' => ['debug' => \$debug]])
+    ->recordIncidents()
     ->views(autoReload: \$debug)
     ->instance(CacheInterface::class, \$cache)
     ->instance(AtomicCacheInterface::class, \$cache)
@@ -368,11 +402,15 @@ use Psr\Http\Message\ServerRequestInterface;
 \$baseDir = dirname(__DIR__);
 EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
 
+\$appEnv = strtolower(Config::env('APP_ENV') ?? 'local');
 \$debug = filter_var(Config::env('APP_DEBUG') ?? 'false', FILTER_VALIDATE_BOOL);
-\$secureCookies = filter_var(Config::env('SESSION_SECURE') ?? 'false', FILTER_VALIDATE_BOOL);
+\$secureCookies = filter_var(Config::env('SESSION_SECURE') ?? ('production' === \$appEnv ? 'true' : 'false'), FILTER_VALIDATE_BOOL);
 \$appKey = Config::env('APP_KEY');
-\$signingKey = (is_string(\$appKey) && strlen(\$appKey) >= 32 && !str_starts_with(\$appKey, 'REPLACE_WITH_'))
-    ? \$appKey
+if ('production' === \$appEnv && (!is_string(\$appKey) || strlen(trim(\$appKey)) < 32 || str_starts_with(trim(\$appKey), 'REPLACE_WITH_'))) {
+    throw new \RuntimeException('APP_KEY must be set to a cryptographically random >= 32-char secret in production (run `php vendor/bin/kongo key:generate`).');
+}
+\$signingKey = (is_string(\$appKey) && strlen(trim(\$appKey)) >= 32 && !str_starts_with(trim(\$appKey), 'REPLACE_WITH_'))
+    ? trim(\$appKey)
     : bin2hex(random_bytes(32));
 
 \$cache = new MemoryCache();
@@ -393,6 +431,7 @@ EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
 
 \$app = App::create(\$baseDir, name: {$exportedName})
     ->config(['app' => ['debug' => \$debug]])
+    ->recordIncidents()
     ->views(autoReload: \$debug)
     ->instance(CacheInterface::class, \$cache)
     ->instance(AtomicCacheInterface::class, \$cache)
@@ -507,7 +546,7 @@ Full LLM reference: `https://anthonyiovanna.github.io/kongono/llms.txt`
 
 ## Exact Kongono Idioms
 
-- **Routing & Auth:** Register controllers via `\$app->controller(MyController::class)` using `#[Prefix]`, `#[Get]`, `#[Post]`, `#[Put]`, `#[Patch]`, `#[Delete]`, `#[Middleware(...)]`, `#[Authenticated]`, `#[Can('ability')]`, `#[CacheControl]`, `#[Idempotent]`, `#[Feature]`.
+- **Routing, Auth & Least-Privilege Capabilities:** Register controllers via `\$app->controller(MyController::class)` using `#[Prefix]`, `#[Get]`, `#[Post]`, `#[Put]`, `#[Patch]`, `#[Delete]`, `#[Middleware(...)]`, `#[Authenticated]`, `#[Can('ability')]`, `#[VerifyWebhook]`, `#[ReadOnlyDb]`, `#[NoOutboundHttp]`, `#[MaxQueries(N)]`, `#[MaxAiCost(usd)]`, `#[CacheControl]`, `#[Idempotent]`, `#[Feature]`.
 - **DTO Validation:** Type-hint a `final readonly class` in a controller method with `#[Required]`, `#[Min]`, `#[Max]`, `#[Email]`, `#[Uuid]`, `#[Date]`, `#[Ip]`, `#[In]`, `#[NotIn]`, `#[RequiredIf]`, `#[Confirmed]`, `#[ArrayOf]`, `RuleInterface`, or `ValidatableDtoInterface`.
 - **Database & Relations:** Use `PdoConnection` + `QueryBuilder` (`withoutTrashed()`, `onlyTrashed()`, `softDelete()`, `restore()`, `paginate()`, `getAs(Dto::class)`), `BatchLoader::hasMany()` / `BatchLoader::belongsTo()` (zero N+1), `Factory::for()`, and `Schema::create()` / `Schema::table()`.
 - **Views, Live 2.5 & Bridge:** Templates live in `views/*.kgn.html` (`{{ \$escaped }}`, `@safeHtml(\$html)`, `@old('field')`, `@error('field')`, `@liveScript`, `@island('Widget', \$props)`). Return `Response::html()`, `Response::json()`, `Response::fragment()`, `Response::page()`, or `Response::adaptive()`.
@@ -515,14 +554,17 @@ Full LLM reference: `https://anthonyiovanna.github.io/kongono/llms.txt`
 - **Queues, Storage & AI:** Use `Queue` / `Worker` (`uniqueKey`, `JobBatch`, `Workflow`), `LocalStorage` / `S3Storage` (`putStream`/`getStream`), and `AiClient::fromEnv()` (OpenAI, Anthropic, Gemini, Groq, Ollama).
 - **Testing (Zero Global State):** Use `(new TestClient(\$app))->actingAs(\$principal)->withStatefulCookies()`, `TestUpload::fakePng()`, `DatabaseTestHelper::inRollbackTransaction()`, `SafeHttpClient::fake()`, and `FrozenClock::at(...)`.
 
-## Inspect & Verify with CLI / MCP
+## Inspect, Prove & Verify with CLI / MCP / LSP
 
-Connect to `.mcp.json` (`php vendor/bin/kongo mcp`) for live read-only inspection (`kongono_graph`, `kongono_routes`, `kongono_openapi`, `kongono_audit`, `kongono_eval`, `kongono_migrate_lint`, `kongono_test_route`), install bundled workflow skills with `php vendor/bin/kongo skills:install --target=both`, or run:
+Connect to `.mcp.json` / `.vscode/mcp.json` (`php vendor/bin/kongo mcp`) for live read-only inspection & proofs (`kongono_prove_all`, `kongono_diagnose`, `kongono_policy_check`, `kongono_prove_isolation`, `kongono_perf_probe`, `kongono_incident_replay`, `kongono_impact`, `kongono_shadow_diff`, `kongono_graph`, `kongono_routes`, `kongono_openapi`, `kongono_audit`), launch the built-in LSP server (`php vendor/bin/kongo lsp`), or run:
 
 ```bash
-php vendor/bin/kongo routes --json
-php vendor/bin/kongo migrate --pretend
-php vendor/bin/kongo migrate:lint
+php vendor/bin/kongo prove                # Readiness Certificate (A+..F) across all 5 proof engines
+php vendor/bin/kongo diagnose --fix       # 17-rule Full-Stack Contract Prover + safe autofix
+php vendor/bin/kongo policy:check         # Verify app/invariants.php & security defaults
+php vendor/bin/kongo perf                 # Prove 0 persistent-worker leaks & 0 SQL N+1 loops
+php vendor/bin/kongo watch                # Continuous live diagnose + policy + test runner on save
+php vendor/bin/kongo incident:list        # Inspect & replay recorded KGN-* production incidents
 php vendor/bin/kongo audit --attack --strict
 php vendor/bin/kongo test
 ```

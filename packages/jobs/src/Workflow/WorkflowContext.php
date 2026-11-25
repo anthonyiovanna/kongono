@@ -46,6 +46,9 @@ final class WorkflowContext
      */
     public function step(string $name, Closure $fn): mixed
     {
+        if ('' === trim($name) || str_starts_with($name, '__')) {
+            throw new JobException(sprintf('Invalid workflow step name "%s": cannot be empty or start with reserved "__" prefix.', $name));
+        }
         if (array_key_exists($name, $this->steps)) {
             /** @var T $cached */
             $cached = $this->steps[$name];
@@ -65,6 +68,9 @@ final class WorkflowContext
      */
     public function sleep(int $seconds, ?string $stepName = null): void
     {
+        if (null !== $stepName && ('' === trim($stepName) || str_starts_with($stepName, '__'))) {
+            throw new JobException(sprintf('Invalid workflow sleep step name "%s": cannot be empty or start with reserved "__" prefix.', $stepName));
+        }
         ++$this->sleepCounter;
         $key = $stepName ?? '__sleep_' . $this->sleepCounter;
 

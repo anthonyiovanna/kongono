@@ -150,9 +150,9 @@ HTML;
         type="button"
         role="tab"
         class="kui-tab"
-        k-class:is-active="activeTab === '{{ $key }}'"
-        k-attr:aria-selected="activeTab === '{{ $key }}'"
-        k-on:click="set(activeTab, '{{ $key }}')"
+        k-class:is-active="activeTab === '{{ preg_replace('/[^a-zA-Z0-9_-]/', '', (string) $key) }}'"
+        k-attr:aria-selected="activeTab === '{{ preg_replace('/[^a-zA-Z0-9_-]/', '', (string) $key) }}'"
+        k-on:click="set(activeTab, '{{ preg_replace('/[^a-zA-Z0-9_-]/', '', (string) $key) }}')"
       >{{ $label }}</button>
     @endforeach
   </div>

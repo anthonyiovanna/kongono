@@ -469,6 +469,13 @@ final class SdkGenerator
         ];
 
         foreach ($schemas as $name => $schema) {
+            if ([] === $schema['properties']) {
+                $lines[] = sprintf('class %s {', $name);
+                $lines[] = '    fun toJson(): String = "{}"';
+                $lines[] = '}';
+                $lines[] = '';
+                continue;
+            }
             $props = [];
             foreach ($schema['properties'] as $propName => $prop) {
                 $ktType = $this->kotlinType($prop['type']) . ($prop['required'] ? '' : '? = null');
@@ -482,10 +489,15 @@ final class SdkGenerator
             $lines[] = '    fun toJson(): String {';
             $pairs = [];
             foreach ($schema['properties'] as $propName => $prop) {
+                $escapedKey = str_replace(['\\', '"', '$'], ['\\\\', '\\"', '\\$'], $propName);
                 $encoded = match ($prop['type']) {
-                    'integer', 'number', 'boolean' => sprintf('"%s":%s', $propName, '$' . $propName),
-                    'array' => sprintf('"%s":[%s]', $propName, '${(' . $propName . ' ?: emptyList()).joinToString(",") { "\"${escapeJsonString(it)}\"" }}'),
-                    default => sprintf('"%s":"%s"', $propName, '${escapeJsonString(' . $propName . '?.toString() ?: "")}'),
+                    'integer', 'number', 'boolean' => sprintf('\"%s\":%s', $escapedKey, '${' . $propName . '?.toString() ?: "null"}'),
+                    'array' => $prop['required']
+                        ? sprintf('\"%s\":[%s]', $escapedKey, '${' . $propName . '.joinToString(",") { "\"${escapeJsonString(it)}\"" }}')
+                        : sprintf('\"%s\":%s', $escapedKey, '${if (' . $propName . ' == null) "null" else "[" + ' . $propName . '.joinToString(",") { "\"${escapeJsonString(it)}\"" } + "]"}'),
+                    default => $prop['required']
+                        ? sprintf('\"%s\":\"%s\"', $escapedKey, '${escapeJsonString(' . $propName . ')}')
+                        : sprintf('\"%s\":%s', $escapedKey, '${if (' . $propName . ' == null) "null" else "\"${escapeJsonString(' . $propName . ')}\""}'),
                 };
                 $pairs[] = $encoded;
             }
@@ -529,7 +541,7 @@ final class SdkGenerator
 
         $lines[] = '';
         $lines[] = '    private fun encodePart(value: String): String =';
-        $lines[] = '        URLEncoder.encode(value, StandardCharsets.UTF_8.name())';
+        $lines[] = '        URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20")';
         $lines[] = '';
         $lines[] = '    private fun request(method: String, path: String, jsonBody: String?, idempotencyKey: String?): String {';
         $lines[] = '        val conn = URI("$normalizedBaseUrl$path").toURL().openConnection() as HttpURLConnection';

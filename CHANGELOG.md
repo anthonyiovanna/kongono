@@ -4,6 +4,33 @@ All notable changes to the **Kongono Framework** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.0] - 2026-11-25
+
+### Added
+
+- **Self-Verifying Application Stack & Master Proof Command Center (`kongono/core`, `kongono/http`, `kongono/security`, `kongono/database`, `kongono/cli`):**
+  - **Unified Readiness Certificate (`kongo prove` / MCP `kongono_prove_all` / `/_kongono` Proof Center):** Executes all 5 proof engines in one shot (`A+`..`F`): 17-rule `diagnose`, executable `app/invariants.php` policy checks, multi-tenant BOLA/IDOR isolation, persistent-worker leak & N+1 proofs, and PHP 8.5 codemod hygiene.
+  - **Plain-English 5W1H Dev X-Ray vs. Zero-Leak Production (`ErrorExplainer`, `ErrorReference`, `RequestTrace`):** Interactive What/Where/Why/Who/How-to-Fix cards in debug mode; strictly vague `KGN-*` Reference ID responses in production (`APP_DEBUG=false`) with full secret-scrubbed server logs.
+  - **17-Rule Self-Inspector, Full-Stack Contract Prover & Auto-Fixer (`kongo diagnose --fix [--dry-run]`):** Validates routes, controllers, middleware order, CSRF/Live contracts, DTOs, and `.kgn.html` links/forms/partials with deterministic auto-repairs.
+  - **Least-Privilege Route Capabilities (`#[ReadOnlyDb]`, `#[NoOutboundHttp]`, `#[MaxQueries]`, `#[MaxAiCost]`, `CapabilityMiddleware`):** Enforced pre-execution at `PdoConnection` (`QueryGuardableInterface`) and `SafeHttpClient` (`EgressGuardableInterface`).
+  - **Production Incident Time-Machine (`$app->recordIncidents()`, `kongo incident:list|show|replay|test`):** Captures scrubbed 5xx production incidents into `storage/incidents/*.json`, replays them offline in-process, and emits permanent PHPUnit 13 regression tests.
+  - **Executable Policies, Leak Prover, Multi-Tenant Isolation, Blast-Radius, Shadow Diff & Self-Upgrades:** Added `kongo policy:check` (`Invariant::routesMatching()`), `kongo perf`, `kongo prove:isolation`, `kongo snapshot` / `kongo impact --against=...`, `kongo shadow:record` / `kongo shadow:diff --against=...`, and syntax-verified `kongo upgrade --plan|--apply --verify`.
+  - **Zero-Dependency LSP 3.17 (`kongo lsp`) & VS Code / Cursor Extension (`editors/vscode-kongono/`):** Live diagnostics on save, quick-fix code actions, controller/view go-to-definition, and `.kgn.html` completions with zero npm runtime dependencies.
+- **Day-1 Developer Joy Upgrades (`kongono/core`, `kongono/http`, `kongono/mail`, `kongono/cli`):**
+  - **Zero-Build Live Hot Reload (`DevHotReloadWatcher`):** Separates CSS hot-swap (`css_hash`) from `.kgn.html`/`.php` reload (`code_hash`) with automatic debug-only `<script defer>` injection (fail-closed `404` in production).
+  - **Built-In Dev Mailbox & Live Schema Explorer in `/_kongono`:** Added `DevMailboxInterface`, `FileDevMailbox` (with `SecretScrubber`), and `DevMailboxTransport`, plus split-pane sandboxed HTML email preview (with attachment chips) and read-only SQLite/PostgreSQL/MySQL schema inspector tabs.
+  - **Upgraded `kongo new` & Continuous `kongo watch`:** Every scaffolded app now ships Day-1 with `recordIncidents()`, `#[ReadOnlyDb]`, `app/invariants.php`, `.vscode/mcp.json`, and full `/_kongono` Dev Studio; `kongo watch [--once]` re-runs `diagnose`, `policy:check`, and PHPUnit on save.
+- **Version-Matched Offline Framework RAG, 26-Tool MCP (with Zokeibi UI) & Coding-Agent Benchmark (`kongono/cli`, `skills/`, `site/`):**
+  - Added `KongonoKnowledgeIndex` (BM25 + exact-symbol retriever over `site/llms-full.txt` and all 6 bundled `SKILL.md` skills) wired into Oshie (including offline fallback), Chie, `CompanionTools` (`search_kongono_docs`), and MCP tool `kongono_search_docs`.
+  - Added 26th read-only MCP tool `kongono_zokeibi_registry` for **Zokeibi UI** (`kongono/zokeibi`, https://zokeibi.com) plus missing-component diagnostics and 5W1H explanations (`KGN-ERR-ZOKEIBI-COMPONENT-MISSING`).
+  - Added 6th bundled workflow skill `kongono-self-verifying-proofs`, 13th offline Oshie lesson (`proofs`), and `kongo eval --agent-bench [--live] [--export-jsonl=...]` (`AgentCodingBenchmark`) grading 6 real Kongono tasks with PHP 8.5 `TOKEN_PARSE`, `TemplateCompiler`, `PolicyVerifier`, and anti-hallucination rules.
+  - Added Cloudflare Workers Static Assets deployment config (`cloudflare.config.ts`, `site/_headers`, `site/.assetsignore`) for `https://kongono.com`.
+
+### Fixed
+
+- **Linear-Time Self-Closing Component Compilation (`kongono/view`):** Updated `TemplateCompiler` to compile self-closing `<x-… />` tags before paired `<x-…>…</x-…>` tags with possessive quantifiers, preventing PCRE backtracking limits on large component-dense views.
+- **Round-2 Security Audit Hardening:** Added comprehensive security regression suites (`SecurityAuditRegressionTest`, `Round2SecurityAuditRegressionTest`, `WebhookNotificationChannelTest`) covering egress guards, secret scrubbing, and webhook signing.
+
 ## [1.19.0] - 2026-11-22
 
 ### Added

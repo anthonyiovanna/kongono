@@ -79,14 +79,16 @@ final readonly class LiveMiddleware implements MiddlewareInterface
 
     public static function scriptSource(): string
     {
-        return <<<'JS'
+        $script = <<<'JS'
 (() => {
   "use strict";
   if (window.KongonoLive) return;
 
   const METHODS = ["get", "post", "put", "patch", "delete"];
   const BLOCKED_KEYS = new Set(["__proto__", "prototype", "constructor", "window", "document", "globalThis", "Function"]);
-  const URL_ATTRS = new Set(["href", "src", "action", "formaction"]);
+  const URL_ATTRS = new Set(["href", "src", "action", "formaction", "poster", "data", "cite", "ping"]);
+  const BLOCKED_ATTRS = new Set(["srcdoc", "style", "srcset", "is", "xmlns", "codebase", "archive", "classid", "xlink:href"]);
+  const SENSITIVE_QUEUE_RE = /password|passwd|passphrase|secret|token|_csrf|csrf|cvv|cvc|ssn|otp|totp|card/i;
   const MAX_AST_CACHE = 512;
   const MAX_TOKENS = 128;
   const MAX_DEPTH = 24;
@@ -198,6 +200,7 @@ final readonly class LiveMiddleware implements MiddlewareInterface
       if (!p || BLOCKED_KEYS.has(p) || cur == null) return undefined;
       if (p === "length" && (Array.isArray(cur) || typeof cur === "string")) return cur.length;
       if (typeof cur !== "object") return undefined;
+      if (!Object.prototype.hasOwnProperty.call(cur, p)) return undefined;
       cur = cur[p];
     }
     return cur;
@@ -425,13 +428,15 @@ final readonly class LiveMiddleware implements MiddlewareInterface
         if (node.op === "||") { const l = evalAst(node.l, state); return l ? l : evalAst(node.r, state); }
         if (node.op === "??") {
           const l = evalAst(node.l, state);
-          return (l !== null && l !== undefined && l !== "") ? l : evalAst(node.r, state);
+          return (l !== null && l !== undefined) ? l : evalAst(node.r, state);
         }
         const l = evalAst(node.l, state);
         const r = evalAst(node.r, state);
         switch (node.op) {
-          case "===": case "==": return l === r || String(l) === String(r);
-          case "!==": case "!=": return !(l === r || String(l) === String(r));
+          case "===": return l === r;
+          case "!==": return l !== r;
+          case "==": return l === r || String(l) === String(r);
+          case "!=": return !(l === r || String(l) === String(r));
           case ">=": return Number(l) >= Number(r);
           case "<=": return Number(l) <= Number(r);
           case ">": return Number(l) > Number(r);
@@ -529,7 +534,14 @@ final readonly class LiveMiddleware implements MiddlewareInterface
           if (cls) node.classList.toggle(cls, Boolean(evalExpr(attr.value, state)));
         } else if (attr.name.startsWith("k-attr:")) {
           const targetAttr = attr.name.slice(7).toLowerCase();
-          if (!targetAttr || targetAttr.startsWith("on") || targetAttr === "srcdoc" || targetAttr === "style") continue;
+          if (
+            !targetAttr
+            || targetAttr.includes(":")
+            || targetAttr.startsWith("on")
+            || targetAttr.startsWith("k-")
+            || targetAttr.startsWith("kgn-")
+            || BLOCKED_ATTRS.has(targetAttr)
+          ) continue;
           const v = evalExpr(attr.value, state);
           if (v === false || v === null || v === undefined) {
             node.removeAttribute(targetAttr);
@@ -585,7 +597,7 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     return island;
   }
 
-  function splitTopLevelArgs(raw) {
+  function splitDelimited(raw, delimiter) {
     const out = [];
     let cur = "";
     let depth = 0;
@@ -601,15 +613,23 @@ final readonly class LiveMiddleware implements MiddlewareInterface
       if (ch === "'" || ch === '"') { quote = ch; cur += ch; continue; }
       if (ch === "(") { depth++; cur += ch; continue; }
       if (ch === ")") { depth = Math.max(0, depth - 1); cur += ch; continue; }
-      if (ch === "," && depth === 0) { out.push(cur.trim()); cur = ""; continue; }
+      if (ch === delimiter && depth === 0) {
+        if (cur.trim() !== "") out.push(cur.trim());
+        cur = "";
+        continue;
+      }
       cur += ch;
     }
     if (cur.trim() !== "") out.push(cur.trim());
     return out;
   }
 
+  function splitTopLevelArgs(raw) {
+    return splitDelimited(raw, ",");
+  }
+
   function runActionList(rawActions, island, el, ev) {
-    const statements = String(rawActions || "").split(";").map((s) => s.trim()).filter(Boolean);
+    const statements = splitDelimited(String(rawActions || ""), ";");
     let dirty = false;
     for (const stmt of statements) {
       const m = /^([a-zA-Z_][a-zA-Z0-9_]*)\s*\((.*)\)$/.exec(stmt);
@@ -827,16 +847,20 @@ final readonly class LiveMiddleware implements MiddlewareInterface
       hydrate(target.parentNode || document);
       return;
     }
-    const html = Array.from(tplContent.childNodes).map((n) => (n.nodeType === 1 ? n.outerHTML : n.textContent)).join("");
+    // Insert the already-parsed DocumentFragment directly instead of re-serializing Text nodes
+    // via .textContent (which would double-decode HTML entities into executable DOM XSS).
     if (mode === "outerHTML") {
       const parent = target.parentNode;
-      target.outerHTML = html;
+      target.replaceWith(tplContent);
       hydrate(parent || document);
-    } else if (mode === "beforeend" || mode === "afterbegin") {
-      target.insertAdjacentHTML(mode, html);
+    } else if (mode === "beforeend") {
+      target.append(tplContent);
+      hydrate(target);
+    } else if (mode === "afterbegin") {
+      target.prepend(tplContent);
       hydrate(target);
     } else {
-      target.innerHTML = html;
+      target.replaceChildren(tplContent);
       hydrate(target);
     }
   }
@@ -973,6 +997,13 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     window.dispatchEvent(new CustomEvent("kongono:offline-queued", { detail: { pending: queue.length, item } }));
   }
 
+  function newIdempotencyKey() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return "kgn-" + crypto.randomUUID();
+    }
+    return "kgn-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+  }
+
   async function flushOfflineQueue() {
     if (flushingQueue || (typeof navigator !== "undefined" && navigator.onLine === false)) return 0;
     const queue = readOfflineQueue();
@@ -985,21 +1016,28 @@ final readonly class LiveMiddleware implements MiddlewareInterface
         const job = queue[i];
         const parsed = isSameOriginUrl(job.url || "");
         if (!parsed) continue;
+        const method = String(job.method || "POST").toUpperCase();
         const headers = {
           "X-Kongono-Live": "true",
           "Accept": "text/html",
-          "Idempotency-Key": job.idempotencyKey || ("kgn-" + Date.now() + "-" + i)
+          "Idempotency-Key": job.idempotencyKey || newIdempotencyKey()
         };
         const csrf = getCsrf(null);
-        if (csrf) headers["X-CSRF-Token"] = csrf;
-        const init = { method: job.method || "POST", headers, credentials: "same-origin" };
-        if (Array.isArray(job.bodyEntries) && job.bodyEntries.length > 0 && init.method !== "GET") {
+        if (csrf && method !== "GET" && method !== "HEAD") headers["X-CSRF-Token"] = csrf;
+        const init = { method, headers, credentials: "same-origin" };
+        if (Array.isArray(job.bodyEntries) && job.bodyEntries.length > 0 && method !== "GET" && method !== "HEAD") {
           const fd = new FormData();
           for (const [k, v] of job.bodyEntries) fd.append(k, v);
           init.body = fd;
         }
         try {
           const res = await fetch(parsed.href, init);
+          if (res.status >= 500) {
+            remaining.push(...queue.slice(i));
+            break;
+          }
+          const finalUrl = isSameOriginUrl(res.url || parsed.href);
+          if (!finalUrl) continue;
           const ct = (res.headers.get("Content-Type") || "").toLowerCase();
           const text = await res.text();
           if (ct.startsWith("text/html") && (res.ok || text.length > 0)) {
@@ -1063,14 +1101,18 @@ final readonly class LiveMiddleware implements MiddlewareInterface
 
     const headers = { "X-Kongono-Live": "true", "Accept": "text/html" };
     const csrf = getCsrf(form || el);
-    if (csrf) headers["X-CSRF-Token"] = csrf;
+    if (csrf && live.method !== "GET" && live.method !== "HEAD") headers["X-CSRF-Token"] = csrf;
 
     const init = { method: live.method, headers, credentials: "same-origin" };
     let serializedEntries = [];
-    if (form && live.method !== "GET") {
+    if (form && live.method !== "GET" && live.method !== "HEAD") {
       const fd = new FormData(form);
       init.body = fd;
-      fd.forEach((v, k) => { if (typeof v === "string") serializedEntries.push([k, v]); });
+      fd.forEach((v, k) => {
+        if (typeof v === "string" && !SENSITIVE_QUEUE_RE.test(k)) {
+          serializedEntries.push([k, v]);
+        }
+      });
     }
 
     // Optimistic UI with automatic rollback on failure (preserved when queued offline)
@@ -1094,7 +1136,7 @@ final readonly class LiveMiddleware implements MiddlewareInterface
         targetSel: targetSel || "",
         swap: defaultSwap,
         useTransition,
-        idempotencyKey: "kgn-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8)
+        idempotencyKey: newIdempotencyKey()
       });
       return;
     }
@@ -1109,14 +1151,12 @@ final readonly class LiveMiddleware implements MiddlewareInterface
       succeeded = res.ok;
 
       const redirect = res.headers.get("X-Kongono-Redirect");
-      if (redirect && !/[\u0000-\u001F\u007F]/.test(redirect)) {
-        try {
-          const parsed = new URL(redirect, window.location.origin);
-          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-            window.location.assign(parsed.href);
-            return;
-          }
-        } catch (_e) {}
+      if (redirect) {
+        const safeRedirect = isSameOriginUrl(redirect);
+        if (safeRedirect) {
+          window.location.assign(safeRedirect.href);
+          return;
+        }
       }
       const pushUrl = res.headers.get("X-Kongono-Push-Url");
       if (pushUrl && pushUrl.startsWith("/") && !pushUrl.startsWith("//") && !pushUrl.startsWith("/\\") && window.history && window.history.pushState) {
@@ -1144,7 +1184,7 @@ final readonly class LiveMiddleware implements MiddlewareInterface
           targetSel: targetSel || "",
           swap: defaultSwap,
           useTransition,
-          idempotencyKey: "kgn-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8)
+          idempotencyKey: newIdempotencyKey()
         });
       }
     } finally {
@@ -1389,7 +1429,7 @@ final readonly class LiveMiddleware implements MiddlewareInterface
   }
 
   window.KongonoLive = {
-    version: "2.5.0",
+    version: "__RUNTIME_VERSION__",
     connectStreams,
     hydrate,
     prefetch: prefetchUrl,
@@ -1406,5 +1446,7 @@ final readonly class LiveMiddleware implements MiddlewareInterface
   };
 })();
 JS;
+
+        return str_replace('__RUNTIME_VERSION__', self::RUNTIME_VERSION, $script);
     }
 }

@@ -18,6 +18,9 @@ final class BatchLoader
     /** @var array<TKey, TVal> */
     private array $cache = [];
 
+    /** @var array<TKey, true> Tracks keys already queried (including negative cache misses) */
+    private array $loaded = [];
+
     /**
      * Pre-populate a known key/value pair into the request-scoped cache.
      *
@@ -28,6 +31,7 @@ final class BatchLoader
     public function prime(int|string $key, mixed $value): self
     {
         $this->cache[$key] = $value;
+        $this->loaded[$key] = true;
 
         return $this;
     }
@@ -47,7 +51,7 @@ final class BatchLoader
         $seenMissing = [];
 
         foreach ($keys as $key) {
-            if (!array_key_exists($key, $this->cache) && !isset($seenMissing[$key])) {
+            if (!isset($this->loaded[$key]) && !isset($seenMissing[$key])) {
                 $missing[] = $key;
                 $seenMissing[$key] = true;
             }
@@ -55,8 +59,12 @@ final class BatchLoader
 
         if ([] !== $missing) {
             $fetched = $batchFetcher($missing);
+            foreach ($missing as $k) {
+                $this->loaded[$k] = true;
+            }
             foreach ($fetched as $k => $v) {
                 $this->cache[$k] = $v;
+                $this->loaded[$k] = true;
             }
         }
 
@@ -72,6 +80,7 @@ final class BatchLoader
     public function clear(): void
     {
         $this->cache = [];
+        $this->loaded = [];
     }
 
     /**
@@ -93,6 +102,8 @@ final class BatchLoader
         ?string $softDeleteColumn = null,
         ?string $orderBy = null,
         string $direction = 'ASC',
+        TenantContext|int|string|null $tenant = null,
+        string $tenantColumn = 'workspace_id',
     ): array {
         $parentIds = self::extractKeys($parents, $localKey);
         $grouped = [];
@@ -104,6 +115,9 @@ final class BatchLoader
         }
 
         $query = $db->table($childTable)->whereIn($foreignKey, $parentIds);
+        if (null !== $tenant) {
+            $query->forTenant($tenant, $tenantColumn);
+        }
         if (null !== $softDeleteColumn && '' !== trim($softDeleteColumn)) {
             $query->withoutTrashed($softDeleteColumn);
         }
@@ -142,6 +156,8 @@ final class BatchLoader
         string $ownerKey = 'id',
         ?Closure $mapper = null,
         ?string $softDeleteColumn = null,
+        TenantContext|int|string|null $tenant = null,
+        string $tenantColumn = 'workspace_id',
     ): array {
         $fkValues = self::extractKeys($children, $foreignKey);
         if ([] === $fkValues) {
@@ -149,6 +165,9 @@ final class BatchLoader
         }
 
         $query = $db->table($parentTable)->whereIn($ownerKey, $fkValues);
+        if (null !== $tenant) {
+            $query->forTenant($tenant, $tenantColumn);
+        }
         if (null !== $softDeleteColumn && '' !== trim($softDeleteColumn)) {
             $query->withoutTrashed($softDeleteColumn);
         }

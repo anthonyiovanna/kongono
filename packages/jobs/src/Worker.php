@@ -43,6 +43,8 @@ final class Worker
 
     private bool $daemonStopRequested = false;
 
+    private ?Kernel $defaultKernel = null;
+
     public function __construct(
         private readonly QueueDriverInterface $driver,
         private readonly ?Kernel $kernel = null,
@@ -122,7 +124,7 @@ final class Worker
         ?int $now = null,
     ): WorkerReport {
         $queues = self::normalizeQueues($queue);
-        $kernel = $this->kernel ?? new Kernel();
+        $kernel = $this->kernel ?? ($this->defaultKernel ??= new Kernel());
         if (KernelState::Unbooted === $kernel->state()) {
             $kernel->boot();
         }
@@ -134,7 +136,7 @@ final class Worker
         $uncertain = 0;
         $stale = 0;
 
-        while ($processed < $maxJobs) {
+        while ($processed < $maxJobs && !$this->daemonStopRequested) {
             $job = null;
             foreach ($queues as $q) {
                 $job = $this->driver->reserve($q, $leaseSeconds, $now);
@@ -184,6 +186,7 @@ final class Worker
                 } catch (Throwable $e) {
                     return [JobOutcome::Retry, SecretScrubber::scrub($e->getMessage())];
                 } finally {
+                    $this->resetStickyConnections();
                     $this->container?->resetScope();
                 }
             }, 'job-' . $job->id);
@@ -193,7 +196,7 @@ final class Worker
             if (JobOutcome::Completed === $resultOutcome) {
                 if ($this->driver->acknowledge($job)) {
                     ++$completed;
-                    $this->recordBatchCompletion($job);
+                    $this->recordBatchCompletion($kernel, $job);
                 } else {
                     ++$stale;
                 }
@@ -201,7 +204,7 @@ final class Worker
                 // Never blindly retry uncertain mutations; record terminal Failed with clear reason.
                 if ($this->driver->markFailed($job, JobStatus::Failed, $error ?? 'Uncertain job outcome; manual inspection required.')) {
                     ++$uncertain;
-                    $this->recordBatchFailure($job);
+                    $this->recordBatchFailure($kernel, $job);
                 } else {
                     ++$stale;
                 }
@@ -217,7 +220,7 @@ final class Worker
                 $terminal = $job->attempt >= $job->maxAttempts ? JobStatus::Dead : JobStatus::Failed;
                 if ($this->driver->markFailed($job, $terminal, $error ?? 'Job failed permanently.')) {
                     ++$failed;
-                    $this->recordBatchFailure($job);
+                    $this->recordBatchFailure($kernel, $job);
                 } else {
                     ++$stale;
                 }
@@ -249,16 +252,28 @@ final class Worker
     ): WorkerReport {
         $queues = self::normalizeQueues($queue);
         $this->daemonStopRequested = false;
+        /** @var array<int, callable|int> $previousSignalHandlers */
+        $previousSignalHandlers = [];
         if (function_exists('pcntl_async_signals') && function_exists('pcntl_signal')) {
             pcntl_async_signals(true);
             $onSignal = function (): void {
                 $this->daemonStopRequested = true;
             };
+            /** @var list<int> $signals */
+            $signals = [];
             if (defined('SIGTERM')) {
-                pcntl_signal(SIGTERM, $onSignal);
+                $signals[] = SIGTERM;
             }
             if (defined('SIGINT')) {
-                pcntl_signal(SIGINT, $onSignal);
+                $signals[] = SIGINT;
+            }
+            foreach ($signals as $sigNo) {
+                if (function_exists('pcntl_signal_get_handler')) {
+                    $previousSignalHandlers[$sigNo] = pcntl_signal_get_handler($sigNo);
+                } elseif (defined('SIG_DFL')) {
+                    $previousSignalHandlers[$sigNo] = SIG_DFL;
+                }
+                pcntl_signal($sigNo, $onSignal);
             }
         }
 
@@ -276,51 +291,96 @@ final class Worker
         $stale = 0;
         $iterations = 0;
 
-        while (!$this->daemonStopRequested) {
-            if (null !== $shouldStop && $shouldStop()) {
-                break;
-            }
-            if (null !== $maxIterations && $iterations >= $maxIterations) {
-                break;
-            }
-            if (null !== $maxRuntimeSeconds && (time() - $startedAt) >= $maxRuntimeSeconds) {
-                break;
-            }
-
-            ++$iterations;
-            $batch = $this->run($queues, max(1, $batchSize), $leaseSeconds, $baseBackoffSeconds);
-            $processed += $batch->processed;
-            $completed += $batch->completed;
-            $retried += $batch->retried;
-            $failed += $batch->failed;
-            $uncertain += $batch->uncertain;
-            $stale += $batch->stale;
-
-            $now = time();
-            if ($pruneIntervalSeconds > 0 && ($now - $lastPrunedAt) >= $pruneIntervalSeconds) {
-                foreach ($queues as $q) {
-                    $this->driver->prune($q, $now - max(0, $pruneAfterSeconds));
+        try {
+            while (!$this->daemonStopRequested) {
+                if (null !== $shouldStop && $shouldStop()) {
+                    break;
                 }
-                $lastPrunedAt = $now;
-            }
+                if (null !== $maxIterations && $iterations >= $maxIterations) {
+                    break;
+                }
+                if (null !== $maxRuntimeSeconds && (time() - $startedAt) >= $maxRuntimeSeconds) {
+                    break;
+                }
 
-            if ($batch->processed > 0) {
-                // Drain immediately when work is flowing
-                $sleepMs = $safeMinSleep;
-                continue;
-            }
+                ++$iterations;
+                try {
+                    $batch = $this->run($queues, max(1, $batchSize), $leaseSeconds, $baseBackoffSeconds);
+                } catch (Throwable) {
+                    // Survive transient Redis/DB transport interruptions with bounded exponential backoff
+                    usleep($sleepMs * 1000);
+                    $sleepMs = min($safeMaxSleep, $sleepMs * 2);
+                    continue;
+                }
+                $processed += $batch->processed;
+                $completed += $batch->completed;
+                $retried += $batch->retried;
+                $failed += $batch->failed;
+                $uncertain += $batch->uncertain;
+                $stale += $batch->stale;
 
-            if (null !== $maxIterations && $iterations >= $maxIterations) {
-                break;
+                $now = time();
+                if ($pruneIntervalSeconds > 0 && ($now - $lastPrunedAt) >= $pruneIntervalSeconds) {
+                    foreach ($queues as $q) {
+                        try {
+                            $this->driver->prune($q, $now - max(0, $pruneAfterSeconds));
+                        } catch (Throwable) {
+                            // Non-fatal prune hiccup; retry on next prune interval
+                        }
+                    }
+                    $lastPrunedAt = $now;
+                }
+
+                if ($batch->processed > 0) {
+                    // Drain immediately when work is flowing
+                    $sleepMs = $safeMinSleep;
+                    continue;
+                }
+
+                if (null !== $maxIterations && $iterations >= $maxIterations) {
+                    break;
+                }
+                if (null !== $shouldStop && $shouldStop()) {
+                    break;
+                }
+                usleep($sleepMs * 1000);
+                $sleepMs = min($safeMaxSleep, $sleepMs * 2);
             }
-            if (null !== $shouldStop && $shouldStop()) {
-                break;
+        } finally {
+            // Restore prior signal handlers so pcntl does not pin $this indefinitely or clobber host handlers
+            if ([] !== $previousSignalHandlers && function_exists('pcntl_signal')) {
+                foreach ($previousSignalHandlers as $sigNo => $prevHandler) {
+                    pcntl_signal($sigNo, $prevHandler);
+                }
             }
-            usleep($sleepMs * 1000);
-            $sleepMs = min($safeMaxSleep, $sleepMs * 2);
         }
 
         return new WorkerReport($processed, $completed, $retried, $failed, $uncertain, $stale);
+    }
+
+    /** Reset sticky-after-write primary pinning between background jobs when ReadWriteConnection/ConnectionManager is bound. */
+    private function resetStickyConnections(): void
+    {
+        if (null === $this->container) {
+            return;
+        }
+        foreach ([
+            'Kongono\\Database\\ConnectionManager',
+            'Kongono\\Database\\ReadWriteConnection',
+            'Kongono\\Database\\ConnectionInterface',
+        ] as $id) {
+            if (!$this->container->hasBinding($id)) {
+                continue;
+            }
+            try {
+                $svc = $this->container->get($id);
+                if (is_object($svc) && method_exists($svc, 'resetSticky')) {
+                    $svc->resetSticky();
+                }
+            } catch (Throwable) {
+                // Ignore unbound/failing optional DB service
+            }
+        }
     }
 
     /**
@@ -344,7 +404,7 @@ final class Worker
         return [] !== $normalized ? $normalized : ['default'];
     }
 
-    private function recordBatchCompletion(Job $job): void
+    private function recordBatchCompletion(Kernel $kernel, Job $job): void
     {
         $batchId = $job->batchId();
         if (null === $batchId || null === $this->batchStore) {
@@ -356,17 +416,27 @@ final class Worker
             return;
         }
 
-        if ($updated->succeeded()) {
-            foreach ($this->batchCompleteHooks as $hook) {
-                $hook($updated);
+        $this->runBatchHooks($kernel, $job->id . '-complete', function () use ($updated): void {
+            if ($updated->succeeded()) {
+                foreach ($this->batchCompleteHooks as $hook) {
+                    try {
+                        $hook($updated);
+                    } catch (Throwable) {
+                        // Isolate batch callback failure from worker loop
+                    }
+                }
             }
-        }
-        foreach ($this->batchFinallyHooks as $hook) {
-            $hook($updated);
-        }
+            foreach ($this->batchFinallyHooks as $hook) {
+                try {
+                    $hook($updated);
+                } catch (Throwable) {
+                    // Isolate batch callback failure from worker loop
+                }
+            }
+        });
     }
 
-    private function recordBatchFailure(Job $job): void
+    private function recordBatchFailure(Kernel $kernel, Job $job): void
     {
         $batchId = $job->batchId();
         if (null === $batchId || null === $this->batchStore) {
@@ -381,13 +451,36 @@ final class Worker
             return;
         }
 
-        foreach ($this->batchFailureHooks as $hook) {
-            $hook($updated, $job);
-        }
-        if (!$wasFinished && $updated->finished()) {
-            foreach ($this->batchFinallyHooks as $hook) {
-                $hook($updated);
+        $this->runBatchHooks($kernel, $job->id . '-failure', function () use ($updated, $job, $wasFinished): void {
+            foreach ($this->batchFailureHooks as $hook) {
+                try {
+                    $hook($updated, $job);
+                } catch (Throwable) {
+                    // Isolate batch callback failure from worker loop
+                }
             }
-        }
+            if (!$wasFinished && $updated->finished()) {
+                foreach ($this->batchFinallyHooks as $hook) {
+                    try {
+                        $hook($updated);
+                    } catch (Throwable) {
+                        // Isolate batch callback failure from worker loop
+                    }
+                }
+            }
+        });
+    }
+
+    /** @param Closure(): void $fn */
+    private function runBatchHooks(Kernel $kernel, string $opSuffix, Closure $fn): void
+    {
+        $kernel->runOperation(function () use ($fn): void {
+            try {
+                $fn();
+            } finally {
+                $this->resetStickyConnections();
+                $this->container?->resetScope();
+            }
+        }, 'batch-hook-' . $opSuffix);
     }
 }

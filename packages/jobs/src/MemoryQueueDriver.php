@@ -240,6 +240,18 @@ final class MemoryQueueDriver implements QueueDriverInterface
         $ts = $now ?? time();
         $requeued = 0;
 
+        /** @var array<string, true> $activeUniqueKeys */
+        $activeUniqueKeys = [];
+        foreach ($this->jobs as $existing) {
+            if (
+                $existing->queue === $queue
+                && null !== $existing->uniqueKey
+                && (JobStatus::Pending === $existing->status || JobStatus::Reserved === $existing->status)
+            ) {
+                $activeUniqueKeys[$existing->uniqueKey] = true;
+            }
+        }
+
         foreach ($this->jobs as $id => $job) {
             if ($job->queue !== $queue) {
                 continue;
@@ -248,6 +260,9 @@ final class MemoryQueueDriver implements QueueDriverInterface
                 continue;
             }
             if (null !== $jobId && $job->id !== $jobId) {
+                continue;
+            }
+            if (null !== $job->uniqueKey && isset($activeUniqueKeys[$job->uniqueKey])) {
                 continue;
             }
 
@@ -267,6 +282,9 @@ final class MemoryQueueDriver implements QueueDriverInterface
                 uniqueKey: $job->uniqueKey,
             );
             $this->updatedAt[$id] = $ts;
+            if (null !== $job->uniqueKey) {
+                $activeUniqueKeys[$job->uniqueKey] = true;
+            }
             ++$requeued;
         }
 

@@ -23,7 +23,7 @@ Choose the lightest rendering mode that fits the page — never add an npm build
 ## Step 2: Author Safe `.kgn.html` Templates (`Kongono\View`)
 
 - Escaping: `{{ $value }}` auto-escapes contextually against XSS.
-- Rich user HTML: always pass through `@safeHtml($html)` (`Kongono\Security\HtmlSanitizer`) — never emit raw unescaped user HTML.
+- Rich user HTML: always pass through `@safeHtml($html)` (`Kongono\View\HtmlSanitizer`) — never emit raw unescaped user HTML.
 - Forms with PRG flash: pair session flash with `@old('field')` and `@error('field') ... @enderror` (sensitive fields like passwords/tokens are stripped automatically before flashing).
 - Layouts & components: `@extends('layouts/app')`, `@section('content')...@endsection`, `@yield('content')`, `<x-card :title="$title">...</x-card>`, `@json($data)`, `@t('key')`.
 - Production workers: wire `$app->views(autoReload: $debug)` so FrankenPHP caches compiled closures in memory.

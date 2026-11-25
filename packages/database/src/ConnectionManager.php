@@ -20,7 +20,13 @@ final class ConnectionManager
 
     public function __construct(
         private string $defaultName = 'default',
-    ) {}
+    ) {
+        $clean = trim($this->defaultName);
+        if ('' === $clean) {
+            throw new DatabaseException('Default database connection name cannot be empty.');
+        }
+        $this->defaultName = $clean;
+    }
 
     /** @param ConnectionInterface|(Closure(): ConnectionInterface) $connection */
     public function register(string $name, ConnectionInterface|Closure $connection): self
@@ -59,7 +65,9 @@ final class ConnectionManager
 
     public function has(string $name): bool
     {
-        return isset($this->resolved[$name]) || isset($this->factories[$name]);
+        $clean = trim($name);
+
+        return isset($this->resolved[$clean]) || isset($this->factories[$clean]);
     }
 
     /** @return list<string> */
@@ -73,7 +81,7 @@ final class ConnectionManager
 
     public function connection(?string $name = null): ConnectionInterface
     {
-        $target = $name ?? $this->defaultName;
+        $target = null !== $name ? trim($name) : $this->defaultName;
 
         if (isset($this->resolved[$target])) {
             return $this->resolved[$target];

@@ -48,55 +48,7 @@ final readonly class GeminiProvider implements EmbeddingProviderInterface, Strea
     public function chat(ChatRequest $request): ChatResponse
     {
         $model = $request->model ?? $this->model;
-        $systemParts = [];
-        $contents = [];
-
-        foreach ($request->messages as $msg) {
-            if (Role::System === $msg->role) {
-                $systemParts[] = $msg->content;
-                continue;
-            }
-            $role = Role::Assistant === $msg->role ? 'model' : 'user';
-            $contents[] = [
-                'role' => $role,
-                'parts' => [['text' => $msg->content]],
-            ];
-        }
-
-        $payload = ['contents' => $contents];
-
-        if ([] !== $systemParts) {
-            $payload['systemInstruction'] = [
-                'parts' => [['text' => implode("\n\n", $systemParts)]],
-            ];
-        }
-
-        $genConfig = [];
-        if (null !== $request->temperature) {
-            $genConfig['temperature'] = $request->temperature;
-        }
-        if (null !== $request->maxTokens) {
-            $genConfig['maxOutputTokens'] = $request->maxTokens;
-        }
-        if ($request->jsonMode) {
-            $genConfig['responseMimeType'] = 'application/json';
-        }
-        if ([] !== $genConfig) {
-            $payload['generationConfig'] = $genConfig;
-        }
-
-        if ([] !== $request->tools) {
-            $payload['tools'] = [[
-                'functionDeclarations' => array_map(
-                    static fn(ToolDefinition $tool): array => [
-                        'name' => $tool->name,
-                        'description' => $tool->description,
-                        'parameters' => $tool->parametersSchema,
-                    ],
-                    $request->tools,
-                ),
-            ]];
-        }
+        $payload = $this->buildPayload($request);
 
         $url = sprintf('%s/models/%s:generateContent', rtrim($this->baseUrl, '/'), rawurlencode($model));
         $http = $this->transport->postJson(
@@ -170,30 +122,20 @@ final readonly class GeminiProvider implements EmbeddingProviderInterface, Strea
         }
 
         $model = $request->model ?? $this->model;
-        $systemParts = [];
-        $contents = [];
-        foreach ($request->messages as $msg) {
-            if (Role::System === $msg->role) {
-                $systemParts[] = $msg->content;
-            } else {
-                $contents[] = ['role' => Role::Assistant === $msg->role ? 'model' : 'user', 'parts' => [['text' => $msg->content]]];
-            }
-        }
-        $payload = ['contents' => $contents];
-        if ([] !== $systemParts) {
-            $payload['systemInstruction'] = ['parts' => [['text' => implode("\n\n", $systemParts)]]];
-        }
+        $payload = $this->buildPayload($request);
 
         $url = sprintf('%s/models/%s:streamGenerateContent?alt=sse', rtrim($this->baseUrl, '/'), rawurlencode($model));
         $buffer = '';
         $fullText = '';
         $finishReason = null;
+        $inputTokens = 0;
+        $outputTokens = 0;
 
         $status = $this->transport->postJsonStream(
             $url,
             ['x-goog-api-key' => $this->apiKey],
             json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
-            static function (string $chunk) use (&$buffer, &$fullText, &$finishReason, $onDelta): void {
+            static function (string $chunk) use (&$buffer, &$fullText, &$finishReason, &$inputTokens, &$outputTokens, $onDelta): void {
                 $buffer .= str_replace("\r\n", "\n", $chunk);
                 if (strlen($buffer) > 1_048_576) {
                     throw new AiException('Gemini streaming line buffer exceeded maximum bound.');
@@ -205,7 +147,18 @@ final readonly class GeminiProvider implements EmbeddingProviderInterface, Strea
                         continue;
                     }
                     $frame = json_decode(trim(substr($line, 5)), true);
-                    if (!is_array($frame) || !isset($frame['candidates']) || !is_array($frame['candidates']) || !isset($frame['candidates'][0]) || !is_array($frame['candidates'][0])) {
+                    if (!is_array($frame)) {
+                        continue;
+                    }
+                    if (is_array($frame['usageMetadata'] ?? null)) {
+                        if (is_int($frame['usageMetadata']['promptTokenCount'] ?? null)) {
+                            $inputTokens = $frame['usageMetadata']['promptTokenCount'];
+                        }
+                        if (is_int($frame['usageMetadata']['candidatesTokenCount'] ?? null)) {
+                            $outputTokens = $frame['usageMetadata']['candidatesTokenCount'];
+                        }
+                    }
+                    if (!isset($frame['candidates']) || !is_array($frame['candidates']) || !isset($frame['candidates'][0]) || !is_array($frame['candidates'][0])) {
                         continue;
                     }
                     $cand = $frame['candidates'][0];
@@ -231,7 +184,105 @@ final readonly class GeminiProvider implements EmbeddingProviderInterface, Strea
             throw new AiException(sprintf('Gemini streaming API returned HTTP %d.', $status));
         }
 
-        return new ChatResponse($fullText, $model, $this->name(), finishReason: $finishReason);
+        return new ChatResponse(
+            text: $fullText,
+            model: $model,
+            provider: $this->name(),
+            usage: new TokenUsage($inputTokens, $outputTokens),
+            finishReason: $finishReason,
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function buildPayload(ChatRequest $request): array
+    {
+        $systemParts = [];
+        /** @var list<array{role: string, parts: list<array<string, mixed>>}> $contents */
+        $contents = [];
+        /** @var array<string, string> $toolNameById */
+        $toolNameById = [];
+
+        foreach ($request->messages as $msg) {
+            if (Role::System === $msg->role) {
+                $systemParts[] = $msg->content;
+                continue;
+            }
+            if (Role::Assistant === $msg->role && [] !== $msg->toolCalls) {
+                $parts = [];
+                if ('' !== $msg->content) {
+                    $parts[] = ['text' => $msg->content];
+                }
+                foreach ($msg->toolCalls as $call) {
+                    $toolNameById[$call->id] = $call->name;
+                    $parts[] = [
+                        'functionCall' => [
+                            'name' => $call->name,
+                            'args' => [] === $call->arguments ? (object) [] : $call->arguments,
+                        ],
+                    ];
+                }
+                $contents[] = ['role' => 'model', 'parts' => $parts];
+                continue;
+            }
+            if (Role::Tool === $msg->role) {
+                $fnName = null !== $msg->toolCallId ? ($toolNameById[$msg->toolCallId] ?? $msg->toolCallId) : 'tool';
+                $part = [
+                    'functionResponse' => [
+                        'name' => $fnName,
+                        'response' => ['result' => $msg->content],
+                    ],
+                ];
+                $lastIdx = count($contents) - 1;
+                if ($lastIdx >= 0 && 'user' === $contents[$lastIdx]['role'] && isset($contents[$lastIdx]['parts'][0]['functionResponse'])) {
+                    $contents[$lastIdx]['parts'][] = $part;
+                } else {
+                    $contents[] = ['role' => 'user', 'parts' => [$part]];
+                }
+                continue;
+            }
+
+            $contents[] = [
+                'role' => Role::Assistant === $msg->role ? 'model' : 'user',
+                'parts' => [['text' => $msg->content]],
+            ];
+        }
+
+        $payload = ['contents' => $contents];
+
+        if ([] !== $systemParts) {
+            $payload['systemInstruction'] = [
+                'parts' => [['text' => implode("\n\n", $systemParts)]],
+            ];
+        }
+
+        $genConfig = [];
+        if (null !== $request->temperature) {
+            $genConfig['temperature'] = $request->temperature;
+        }
+        if (null !== $request->maxTokens) {
+            $genConfig['maxOutputTokens'] = $request->maxTokens;
+        }
+        if ($request->jsonMode) {
+            $genConfig['responseMimeType'] = 'application/json';
+        }
+        if ([] !== $genConfig) {
+            $payload['generationConfig'] = $genConfig;
+        }
+
+        if ([] !== $request->tools) {
+            $payload['tools'] = [[
+                'functionDeclarations' => array_map(
+                    static fn(ToolDefinition $tool): array => [
+                        'name' => $tool->name,
+                        'description' => $tool->description,
+                        'parameters' => $tool->parametersSchema,
+                    ],
+                    $request->tools,
+                ),
+            ]];
+        }
+
+        return $payload;
     }
 
     public function embed(array $texts, ?string $model = null): array
@@ -260,7 +311,11 @@ final readonly class GeminiProvider implements EmbeddingProviderInterface, Strea
             ));
         }
 
-        $decoded = json_decode($http->body, true, 64, JSON_THROW_ON_ERROR);
+        try {
+            $decoded = json_decode($http->body, true, 64, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new AiException('Invalid JSON returned by Gemini Embeddings API.', previous: $e);
+        }
         if (!is_array($decoded) || !isset($decoded['embeddings']) || !is_array($decoded['embeddings'])) {
             throw new AiException('Unexpected Gemini embeddings response: missing embeddings.');
         }

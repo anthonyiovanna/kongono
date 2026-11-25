@@ -436,6 +436,50 @@ final readonly class ProjectContext
     }
 
     /**
+     * Read raw (unscrubbed) contents of an existing writable project file strictly contained inside the project root,
+     * returning null if it does not yet exist. Rejects symlinks on any segment, traversal, and protected/secret paths.
+     */
+    public function readRawWritableFileIfExists(string $relativePath): ?string
+    {
+        $fullPath = $this->resolveContainedPath($relativePath, mustExist: false);
+        $canonicalRelative = str_replace('\\', '/', substr($fullPath, strlen($this->rootPath) + 1));
+        $this->assertWritablePath($canonicalRelative);
+        $this->assertReadablePath($canonicalRelative);
+
+        if (!file_exists($fullPath) || is_link($fullPath) || !is_file($fullPath)) {
+            return null;
+        }
+        $real = realpath($fullPath);
+        $prefix = rtrim($this->rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (false === $real || !str_starts_with($real, $prefix)) {
+            throw new CoreException(sprintf('File "%s" escapes project root.', $relativePath));
+        }
+
+        $raw = file_get_contents($real);
+
+        return false !== $raw ? $raw : null;
+    }
+
+    /** Safely delete an existing writable file strictly contained inside the project root (never follows symlinks). */
+    public function deleteFileContained(string $relativePath): void
+    {
+        $fullPath = $this->resolveContainedPath($relativePath, mustExist: false);
+        $canonicalRelative = str_replace('\\', '/', substr($fullPath, strlen($this->rootPath) + 1));
+        $this->assertWritablePath($canonicalRelative);
+
+        if (!file_exists($fullPath) || is_link($fullPath) || !is_file($fullPath)) {
+            return;
+        }
+        $real = realpath($fullPath);
+        $prefix = rtrim($this->rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (false === $real || !str_starts_with($real, $prefix)) {
+            throw new CoreException(sprintf('Refusing to delete "%s": path escapes project root.', $relativePath));
+        }
+
+        @unlink($real);
+    }
+
+    /**
      * Load optional project-specific AI engineering guidelines from `AGENTS.md`, `.kongono/companions.md`,
      * or `CLAUDE.md` (bounded and secret-scrubbed; intended to be wrapped in PromptGuard UntrustedInput).
      *
@@ -485,14 +529,25 @@ final readonly class ProjectContext
     private function resolveContainedPath(string $relativePath, bool $mustExist): string
     {
         $normalized = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
-        if ('' === $normalized || str_contains($normalized, '..') || str_contains($normalized, "\0")) {
+        if (
+            '' === $normalized
+            || str_contains($normalized, '..')
+            || str_contains($normalized, ':')
+            || 1 === preg_match('/[\x00-\x1f\x7f]/', $normalized)
+        ) {
             throw new CoreException(sprintf('Path "%s" is invalid or attempts directory traversal.', $relativePath));
         }
 
-        // Reject symlinks on EVERY intermediate segment AND on the target leaf itself (blocks both read & write escapes)
+        // Reject symlinks, Windows trailing dots/spaces, and reserved device names on EVERY segment
         $walk = $this->rootPath;
         foreach (explode('/', $normalized) as $segment) {
-            if ('' === $segment || '.' === $segment) {
+            if (
+                '' === $segment
+                || '.' === $segment
+                || str_ends_with($segment, '.')
+                || str_ends_with($segment, ' ')
+                || 1 === preg_match('/\A(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|\z)/i', $segment)
+            ) {
                 throw new CoreException(sprintf('Path "%s" contains invalid segment.', $relativePath));
             }
             $walk .= DIRECTORY_SEPARATOR . $segment;
@@ -542,6 +597,8 @@ final readonly class ProjectContext
             || str_contains($lower, '/.aws/credentials')
             || str_starts_with($lower, 'var/cache/')
             || str_starts_with($lower, 'var/storage/')
+            || str_starts_with($lower, 'storage/dev/')
+            || str_starts_with($lower, 'storage/incidents/')
             || '.docker/config.json' === $lower
             || str_contains($lower, '/.docker/config.json');
 
@@ -561,11 +618,42 @@ final readonly class ProjectContext
             || str_contains($lower, '/.git/')
             || str_starts_with($lower, '.github/')
             || str_contains($lower, '/.github/')
+            || str_starts_with($lower, '.kongono/')
+            || str_contains($lower, '/.kongono/')
             || str_starts_with($lower, '.vscode/')
+            || str_contains($lower, '/.vscode/')
+            || str_starts_with($lower, '.idea/')
+            || str_contains($lower, '/.idea/')
+            || str_starts_with($lower, '.zed/')
+            || str_contains($lower, '/.zed/')
+            || str_starts_with($lower, '.windsurf/')
+            || str_contains($lower, '/.windsurf/')
+            || str_starts_with($lower, '.claude/')
+            || str_contains($lower, '/.claude/')
+            || str_starts_with($lower, '.agents/')
+            || str_contains($lower, '/.agents/')
+            || str_starts_with($lower, '.cursor/')
+            || str_contains($lower, '/.cursor/')
             || str_starts_with($lower, 'vendor/')
             || str_starts_with($lower, 'deploy/')
             || str_starts_with($lower, 'bin/')
-            || in_array($lower, ['composer.json', 'composer.lock', '.gitlab-ci.yml', 'dockerfile', 'caddyfile', '.htaccess'], true)
+            || in_array($base, [
+                'agents.md',
+                'claude.md',
+                'composer.json',
+                'composer.lock',
+                'package.json',
+                'package-lock.json',
+                'makefile',
+                '.mcp.json',
+                '.gitlab-ci.yml',
+                'dockerfile',
+                'compose.yml',
+                'compose.yaml',
+                'caddyfile',
+                '.htaccess',
+            ], true)
+            || str_starts_with($base, 'dockerfile.')
             || str_starts_with($base, 'docker-compose')
             || str_starts_with($base, '.php-cs-fixer')
             || str_starts_with($base, 'phpunit.xml')

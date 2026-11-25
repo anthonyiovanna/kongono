@@ -58,8 +58,9 @@ final readonly class PostgresFullTextSearch implements SearchEngineInterface
     public function installSchema(): void
     {
         $t = $this->db->dialect()->quoteIdentifier($this->table);
-        $tsvIdx = $this->db->dialect()->quoteIdentifier('idx_' . $this->table . '_tsv');
-        $metaIdx = $this->db->dialect()->quoteIdentifier('idx_' . $this->table . '_meta');
+        $safeTableName = str_replace('.', '_', $this->table);
+        $tsvIdx = $this->db->dialect()->quoteIdentifier('idx_' . $safeTableName . '_tsv');
+        $metaIdx = $this->db->dialect()->quoteIdentifier('idx_' . $safeTableName . '_meta');
 
         $this->db->execute(sprintf(
             'CREATE TABLE IF NOT EXISTS %s ('
@@ -114,7 +115,7 @@ final readonly class PostgresFullTextSearch implements SearchEngineInterface
         }
 
         $t = $this->db->dialect()->quoteIdentifier($this->table);
-        $safeLimit = max(1, $limit);
+        $safeLimit = min(1000, max(1, $limit));
         $bindings = [$cleanQuery];
         $whereFilter = '';
 

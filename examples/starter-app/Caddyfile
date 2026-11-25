@@ -9,6 +9,7 @@
 
 :8080 {
 	root * /app/examples/starter-app/public
-	encode zstd br gzip
+	@static path /assets/*
+	encode @static zstd br gzip
 	php_server
 }

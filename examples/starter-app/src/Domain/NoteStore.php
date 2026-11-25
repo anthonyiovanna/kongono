@@ -31,11 +31,11 @@ final class NoteStore
         return $this->loadState()['notes'][$id] ?? null;
     }
 
-    public function create(string $title, string $body): Note
+    public function create(string $title, string $body, ?string $ownerId = null): Note
     {
         $state = $this->loadState();
         $id = $state['next_id']++;
-        $note = new Note($id, $title, $body, gmdate(DATE_ATOM));
+        $note = new Note($id, $title, $body, gmdate(DATE_ATOM), $ownerId);
         $state['notes'][$id] = $note;
         $this->saveState($state);
 
@@ -93,7 +93,8 @@ final class NoteStore
                     && is_string($item['body'] ?? null)
                     && is_string($item['created_at'] ?? null)
                 ) {
-                    $notes[$item['id']] = new Note($item['id'], $item['title'], $item['body'], $item['created_at']);
+                    $ownerId = is_string($item['owner_id'] ?? null) ? $item['owner_id'] : null;
+                    $notes[$item['id']] = new Note($item['id'], $item['title'], $item['body'], $item['created_at'], $ownerId);
                 }
             }
         }

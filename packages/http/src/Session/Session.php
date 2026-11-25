@@ -15,6 +15,7 @@ final class Session
         'password',
         'passwd',
         'passphrase',
+        'passcode',
         'secret',
         'token',
         'csrf',
@@ -27,6 +28,10 @@ final class Session
         'credit_card',
         'ssn',
         'authorization',
+        'totp',
+        'recovery_code',
+        'backup_code',
+        'pin_code',
     ];
 
     private bool $dirty = false;
@@ -273,12 +278,16 @@ final class Session
         $clean = [];
         foreach ($input as $key => $value) {
             $keyStr = (string) $key;
-            $lower = strtolower($keyStr);
-            $sensitive = false;
-            foreach (self::SENSITIVE_INPUT_FRAGMENTS as $fragment) {
-                if (str_contains($lower, $fragment)) {
-                    $sensitive = true;
-                    break;
+            $snake = (string) preg_replace('/([A-Z]+)([A-Z][a-z])/', '$1_$2', trim($keyStr));
+            $snake = (string) preg_replace('/([a-z0-9])([A-Z])/', '$1_$2', $snake);
+            $lower = strtolower(str_replace(['-', '.', ' '], '_', $snake));
+            $sensitive = 1 === preg_match('/(?:^|[_.-])(?:otp|mfa|pin)(?:$|[_.-])/', $lower);
+            if (!$sensitive) {
+                foreach (self::SENSITIVE_INPUT_FRAGMENTS as $fragment) {
+                    if (str_contains($lower, $fragment)) {
+                        $sensitive = true;
+                        break;
+                    }
                 }
             }
             if ($sensitive) {

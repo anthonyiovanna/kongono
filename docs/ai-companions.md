@@ -21,7 +21,7 @@ Optional overrides:
 
 ## 1. Oshie (教え) — Learn Kongono
 
-Oshie ships with **12 built-in lessons**, **6 deterministically graded hands-on exercises** (`--exercises` / `--exercise <id>`), live token streaming (`--stream` and `/_kongono/api/oshie/stream`), `PromptGuard` isolation, automatic `AGENTS.md` project grounding, persistent local progress tracking (`--progress` under gitignored `var/kongono/companions/`), and automatic awareness of recent `/_kongono` `DevInspector` slow-request and N+1 SQL traces:
+Oshie ships with **13 built-in lessons** (including `proofs` covering `kongo prove`, route capabilities, and Incident Time-Machine), **6 deterministically graded hands-on exercises** (`--exercises` / `--exercise <id>`), offline v1.20 RAG retrieval (`KongonoKnowledgeIndex` — works even with zero AI API key!), live token streaming (`--stream` and `/_kongono/api/oshie/stream`), `PromptGuard` isolation, automatic `AGENTS.md` project grounding, persistent local progress tracking (`--progress` under gitignored `var/kongono/companions/`), and automatic awareness of recent `/_kongono` `DevInspector` slow-request and N+1 SQL traces:
 
 ```bash
 php bin/kongo oshie --lessons
@@ -35,7 +35,7 @@ php bin/kongo oshie "Why is /api/notes slow?" --stream --max-cost=0.10
 
 ## 2. Chie (知恵) — Build with Kongono
 
-Chie runs under a governed `AgentPrincipal` with 5 read-only inspection tools (`list_files`, `read_file` with line ranges, `search_code`, `inspect_graph`, and live `inspect_schema` metadata), automatically reads your project's `AGENTS.md` conventions, supports surgical search-and-replace patches (`action: "patch"`) alongside new files, previews every change as a unified diff, runs `php -l` syntax checks before writing, and supports **multi-gate self-verifying repair loops** (`--apply --verify` running syntax → PHPStan → PHPUnit → `MigrationLinter` → `SecurityAuditor`), **per-file interactive diff approval** (`--interactive`), and **iterative session continuation** (`--continue`):
+Chie runs under a governed `AgentPrincipal` with 6 read-only inspection tools (`list_files`, `read_file` with line ranges, `search_code`, `inspect_graph`, live `inspect_schema` metadata, and `search_kongono_docs` v1.20 RAG lookup), automatically reads your project's `AGENTS.md` conventions, supports surgical search-and-replace patches (`action: "patch"`) alongside new files, previews every change as a unified diff, runs `php -l` syntax checks before writing, and supports **multi-gate self-verifying repair loops** (`--apply --verify` running syntax → PHPStan → PHPUnit → `MigrationLinter` → `SecurityAuditor`), **per-file interactive diff approval** (`--interactive`), and **iterative session continuation** (`--continue`):
 
 ```bash
 php bin/kongo chie "Add a /api/stats endpoint returning note count and queue stats"
@@ -86,16 +86,17 @@ $hybrid = new HybridSearch(
 $hits = $hybrid->search(queryText: 'FrankenPHP resetScope', queryVector: $queryVector, limit: 5);
 ```
 
-Run built-in AI red-team and companion zero-hallucination benchmarks in CI:
+Run built-in AI red-team, companion safety, and 6-task coding-agent RAG benchmarks in CI:
 
 ```bash
 php bin/kongo eval --redteam --app=examples/starter-app
 php bin/kongo eval --companions --app=examples/starter-app
+php bin/kongo eval --agent-bench --app=examples/starter-app
 ```
 
-## Model Context Protocol (MCP) Server for AI IDEs
+## Model Context Protocol (MCP) Server for AI IDEs (26 Tools)
 
-Connect Antigravity, Cursor, Claude Code, or Codex directly to any Kongono app over stdio or HTTP (`POST /mcp`):
+Connect Antigravity, Cursor, Claude Code, or Codex directly to any Kongono app over stdio or HTTP (`POST /mcp` — pre-wired in `.vscode/mcp.json` on `kongo new`):
 
 ```bash
 php bin/kongo mcp --app=examples/starter-app
@@ -115,18 +116,6 @@ Example MCP client config:
 ```
 
 Exposed read-only, `AgentPrincipal`-governed tools (all output scrubbed by `SecretScrubber`, `.env` reads explicitly blocked):
-- `kongono_graph` — Live `ApplicationGraph` JSON
-- `kongono_openapi` — Live OpenAPI 3.1.0 specification
-- `kongono_sdk_generate` — Generate typed TypeScript, Swift 6, Kotlin, or Dart client SDKs
-- `kongono_routes` — Full HTTP route table
-- `kongono_inspect_schema` — Live SQLite/PostgreSQL/MySQL schema metadata (zero row data)
-- `kongono_audit` — Graph-driven security audit & red-team diagnostics
-- `kongono_eval` — AI red-team & structured DTO eval runner
-- `kongono_migrate_lint` — Zero-downtime database migration linter
-- `kongono_test_route` — In-process route smoke test runner
-- `kongono_deploy_preview` — Non-root FrankenPHP/Caddy deployment blueprint preview
-- `kongono_list_files` — Contained project file listing
-- `kongono_read_file` — Secret-scrubbed source file reader
-- `kongono_oshie_lesson` — Built-in Kongono Oshie guides
-- `kongono_hantei_diagnose` — Tool-assisted Hantei root-cause error diagnosis
-- `kongono_chie_preview` — Strictly read-only Chie unified diff preview
+- **Self-Verifying Proofs & Diagnostics:** `kongono_prove_all`, `kongono_diagnose`, `kongono_policy_check`, `kongono_incident_replay`, `kongono_perf_probe`, `kongono_prove_isolation`, `kongono_impact`, `kongono_shadow_diff`, `kongono_upgrade_plan`, `kongono_audit`, `kongono_eval`, `kongono_migrate_lint`
+- **Live App, Schema, UI & Docs Introspection:** `kongono_graph`, `kongono_openapi`, `kongono_sdk_generate`, `kongono_routes`, `kongono_inspect_schema`, `kongono_search_docs`, `kongono_zokeibi_registry`, `kongono_test_route`, `kongono_deploy_preview`, `kongono_list_files`, `kongono_read_file`
+- **AI Companions:** `kongono_oshie_lesson`, `kongono_hantei_diagnose`, `kongono_chie_preview`

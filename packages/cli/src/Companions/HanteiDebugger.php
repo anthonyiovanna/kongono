@@ -32,23 +32,23 @@ use Kongono\Jobs\Job;
 final readonly class HanteiDebugger
 {
     private const string DEBUG_SYSTEM_PROMPT = <<<'PROMPT'
-You are Hantei (判定), the built-in AI debugger and testing specialist for Kongono v1.18+ (PHP 8.5.13+, zero Symfony, zero magic facades, PHPUnit 13, PHPStan level 9 strict).
+You are Hantei (判定), the built-in AI debugger and testing specialist for Kongono v1.20+ (PHP 8.5.13+, zero Symfony, zero magic facades, PHPUnit 13, PHPStan level 9 strict, self-verifying proofs).
 
-Given a failure log, stack trace, or Kongono diagnostic along with the project's live ApplicationGraph:
-1. Identify the exact root cause concisely.
-2. Point to the specific file/class/line involved.
-3. Provide a minimal, strict PHP 8.5 fix (no Laravel/Symfony APIs).
+Given a failure log, stack trace, `KGN-*` incident reference, or Kongono 5W1H diagnostic along with the project's live ApplicationGraph:
+1. Identify the exact root cause concisely (What, Where, Why).
+2. Point to the specific file/class/line involved and note any violated route capability (`#[ReadOnlyDb]`, `#[NoOutboundHttp]`, `#[MaxQueries]`, `#[MaxAiCost]`) or policy invariant (`app/invariants.php`).
+3. Provide a minimal, strict PHP 8.5 fix (no Laravel/Symfony APIs) and mention `kongo diagnose --fix` / `kongo prove` / `kongo incident:replay` when applicable.
 4. Suggest one regression test using `TestClient` / `DatabaseTestHelper` / `FrozenClock` / `SafeHttpClient::fake()`.
 PROMPT;
 
     private const string TESTGEN_SYSTEM_PROMPT = <<<'PROMPT'
-You are Hantei (判定), the built-in AI test generator for Kongono v1.18+ (PHP 8.5.13+, PHPUnit 13).
+You are Hantei (判定), the built-in AI test generator for Kongono v1.20+ (PHP 8.5.13+, PHPUnit 13).
 
 Given a Kongono PHP source file and project context, output ONLY a complete, valid, runnable PHPUnit 13 test class (no markdown fences or extra commentary).
 Requirements:
 - Start with `<?php` and `declare(strict_types=1);`
 - Extend `PHPUnit\Framework\TestCase`
-- Test happy paths, validation/edge errors, auth/capability boundaries, and persistent-runtime isolation where relevant.
+- Test happy paths, validation/edge errors, auth/capability boundaries (`#[ReadOnlyDb]`, `#[NoOutboundHttp]`, `#[MaxQueries]`, `#[Authenticated]`, `#[Can]`), production nondisclosure (`APP_DEBUG=false`), and persistent-runtime isolation where relevant.
 - Prefer Kongono's global-free testing helpers: `Kongono\Http\Testing\TestClient` (`actingAs`, `withStatefulCookies`, `withBearerToken`, `postMultipart`, `withLive`, `withBridge`), `TestUpload`, `Kongono\Database\Testing\DatabaseTestHelper::inRollbackTransaction()`, `Kongono\Security\Egress\SafeHttpClient::fake()`, and `Kongono\Core\Clock\FrozenClock`.
 PROMPT;
 
@@ -80,13 +80,41 @@ PROMPT;
         }
 
         fclose($pipes[0]);
-        $stdout = stream_get_contents($pipes[1]);
-        $stderr = stream_get_contents($pipes[2]);
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+        $stdout = '';
+        $stderr = '';
+        $open = [1 => $pipes[1], 2 => $pipes[2]];
+        while ([] !== $open) {
+            $read = array_values($open);
+            $write = null;
+            $except = null;
+            $ready = @stream_select($read, $write, $except, 1);
+            if (false === $ready) {
+                break;
+            }
+            foreach ($read as $stream) {
+                $chunk = fread($stream, 65536);
+                if (false === $chunk || ('' === $chunk && feof($stream))) {
+                    foreach ($open as $k => $s) {
+                        if ($s === $stream) {
+                            unset($open[$k]);
+                        }
+                    }
+                    continue;
+                }
+                if ($stream === $pipes[1]) {
+                    $stdout .= $chunk;
+                } else {
+                    $stderr .= $chunk;
+                }
+            }
+        }
         fclose($pipes[1]);
         fclose($pipes[2]);
         $exitCode = proc_close($process);
 
-        $combined = SecretScrubber::scrub(trim((false === $stdout ? '' : $stdout) . "\n" . (false === $stderr ? '' : $stderr)));
+        $combined = SecretScrubber::scrub(trim($stdout . "\n" . $stderr));
         $diagnosis = null;
 
         if (0 !== $exitCode && $diagnoseWithAi && null !== $this->ai) {
@@ -136,6 +164,7 @@ PROMPT;
             $guard->wrapUntrusted(new UntrustedInput(substr($safeFailure, 0, 8000), source: 'failure_log')),
         );
 
+        $cap = $maxCostUsd ?? CompanionTelemetry::maxCostFromEnv();
         $principal = new AgentPrincipal(
             id: 'hantei-debugger',
             role: 'Kongono AI Debugger',
@@ -143,19 +172,26 @@ PROMPT;
             maxSteps: 5,
             maxToolCalls: 8,
             maxTokens: 1_000_000,
-            maxCostUsd: 0.0,
+            maxCostUsd: max(0.0, $cap),
         );
         $runner = new AgentRunner($this->ai, $principal);
 
         $start = hrtime(true);
-        $receipt = $runner->run(
-            [
-                Message::system($protectedSystem['prompt']),
-                Message::user($prompt),
-            ],
-            CompanionTools::definitions(),
-            static fn(ToolCall $call): string => CompanionTools::execute($call, $context),
-        );
+        try {
+            $receipt = $runner->run(
+                [
+                    Message::system($protectedSystem['prompt']),
+                    Message::user($prompt),
+                ],
+                CompanionTools::definitions(),
+                static fn(ToolCall $call): string => CompanionTools::execute($call, $context),
+            );
+        } catch (\Kongono\Ai\AiException $e) {
+            if (str_contains($e->getMessage(), 'cost budget')) {
+                throw new CoreException(sprintf('Hantei exceeded configured cost budget: %s', $e->getMessage()), previous: $e);
+            }
+            throw $e;
+        }
         $durationMs = (hrtime(true) - $start) / 1_000_000;
 
         $inspected = $guard->inspectOutput($receipt->finalText, $protectedSystem['canary']);
@@ -208,13 +244,15 @@ PROMPT;
             $guard->wrapUntrusted(new UntrustedInput(substr($safeFailure, 0, 8000), source: 'failure_log')),
         );
 
+        $streamFilter = $guard->createStreamingFilter($protectedSystem['canary'], $onDelta);
+
         $start = hrtime(true);
         $response = $this->ai->chatStream(
             new ChatRequest([
                 Message::system($protectedSystem['prompt']),
                 Message::user($prompt),
             ], temperature: 0.2),
-            $onDelta,
+            $streamFilter['push'],
         );
         $durationMs = (hrtime(true) - $start) / 1_000_000;
 
@@ -222,6 +260,7 @@ PROMPT;
         if (!$inspected['safe']) {
             throw new CoreException('Hantei output blocked by PromptGuard due to suspected prompt injection or canary exfiltration.');
         }
+        $streamFilter['flush']();
 
         $telemetry = CompanionTelemetry::fromUsage($response->provider, $response->model, $response->usage, $durationMs, $maxCostUsd);
         $telemetry->assertWithinBudget('Hantei');
@@ -359,10 +398,11 @@ PROMPT;
             ? max(0.0, $cap - $diagTelemetry->estimatedCostUsd)
             : $cap;
 
+        $guard = new PromptGuard();
         $fixInstruction = sprintf(
-            "Fix the following verified failure using minimal, surgical PHP 8.5 Kongono changes (do not break unrelated code).\n\nFailure output:\n%s\n\nHantei root-cause diagnosis:\n%s",
-            substr($safeFailure, 0, 4000),
-            substr(SecretScrubber::scrub($diag['diagnosis']), 0, 3000),
+            "Fix the following verified failure using minimal, surgical PHP 8.5 Kongono changes (do not break unrelated code).\n\nFailure output (untrusted):\n%s\n\nHantei root-cause diagnosis (untrusted):\n%s",
+            $guard->wrapUntrusted(new UntrustedInput(substr($safeFailure, 0, 4000), source: 'failure_log')),
+            $guard->wrapUntrusted(new UntrustedInput(substr(SecretScrubber::scrub($diag['diagnosis']), 0, 3000), source: 'hantei_diagnosis')),
         );
 
         if ($verify && $apply && [] !== $verifyCommand) {
@@ -621,7 +661,7 @@ PROMPT;
                 'tool' => [
                     'driver' => [
                         'name' => 'Kongono Hantei',
-                        'version' => '1.19.0',
+                        'version' => '1.20.0',
                         'informationUri' => 'https://github.com/anthonyiovanna/kongono',
                     ],
                 ],

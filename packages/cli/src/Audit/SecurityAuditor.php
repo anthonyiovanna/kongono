@@ -184,13 +184,16 @@ final readonly class SecurityAuditor
         }
 
         $appKey = $env['APP_KEY'] ?? '';
-        $keyBody = str_starts_with(strtolower($appKey), 'base64:') ? substr($appKey, 7) : $appKey;
+        $isBase64 = str_starts_with(strtolower($appKey), 'base64:');
+        $keyBody = $isBase64 ? substr($appKey, 7) : $appKey;
         $isPlaceholder = 1 === preg_match('/\A(?:replace_with|change_me|your[_-]|changeme|example)/i', $keyBody);
-        if (($isProd && '' === $appKey) || ('' !== $appKey && (strlen($keyBody) < 16 || $isPlaceholder))) {
+        $decodedBytes = $isBase64 ? base64_decode($keyBody, true) : $keyBody;
+        $insufficientEntropy = false === $decodedBytes || strlen($decodedBytes) < 32;
+        if (($isProd && '' === $appKey) || ('' !== $appKey && ($insufficientEntropy || $isPlaceholder))) {
             $findings[] = [
                 'severity' => 'critical',
                 'code' => 'KGN-AUDIT-WEAK-KEY',
-                'message' => 'APP_KEY is missing, a placeholder, or shorter than 16 bytes. Run `kongo key:generate` to create a 256-bit key.',
+                'message' => 'APP_KEY is missing, a placeholder, malformed base64, or shorter than 32 raw bytes. Run `kongo key:generate` to create a 256-bit key.',
                 'location' => '.env',
             ];
         }
@@ -250,6 +253,14 @@ final readonly class SecurityAuditor
             return 0;
         }
 
+        $hasGlobalRateLimit = false;
+        foreach ($app->graph()->middleware as $globalMw) {
+            if (RateLimitMiddleware::class === $globalMw || str_ends_with($globalMw, '\\RateLimitMiddleware')) {
+                $hasGlobalRateLimit = true;
+                break;
+            }
+        }
+
         $routes = $app->router()->routes();
         foreach ($routes as $route) {
             $path = strtolower($route->path);
@@ -259,7 +270,7 @@ final readonly class SecurityAuditor
                 continue;
             }
 
-            $hasRateLimit = false;
+            $hasRateLimit = $hasGlobalRateLimit;
             $hasIdempotent = false;
 
             foreach ($route->routeMiddleware() as $mw) {

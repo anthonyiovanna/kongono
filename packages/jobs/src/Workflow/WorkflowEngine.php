@@ -29,9 +29,7 @@ final readonly class WorkflowEngine
      */
     public function run(string $runId, string $workflowName, Closure $definition, ?int $now = null): WorkflowState
     {
-        if ('' === trim($runId) || strlen($runId) > 128 || 1 === preg_match('/[\x00-\x1f\x7f]/', $runId)) {
-            throw new JobException('Invalid workflow runId.');
-        }
+        self::assertValidRunId($runId);
 
         $timestamp = $now ?? time();
         $existing = $this->store->load($runId);
@@ -47,6 +45,26 @@ final readonly class WorkflowEngine
         }
 
         if (null !== $existing && WorkflowStatus::Completed === $existing->status) {
+            return $existing;
+        }
+        if (null !== $existing && WorkflowStatus::Running === $existing->status) {
+            throw new JobException(sprintf('Workflow run "%s" is already running.', $runId));
+        }
+        if (
+            null !== $existing
+            && WorkflowStatus::Sleeping === $existing->status
+            && null !== $existing->wakeAt
+            && $timestamp < $existing->wakeAt
+        ) {
+            return $existing;
+        }
+        if (
+            null !== $existing
+            && WorkflowStatus::WaitingForEvent === $existing->status
+            && null !== $existing->waitingEvent
+            && !array_key_exists($existing->waitingEvent, $existing->events)
+            && (null === $existing->wakeAt || $timestamp < $existing->wakeAt)
+        ) {
             return $existing;
         }
 
@@ -140,6 +158,7 @@ final readonly class WorkflowEngine
      */
     public function signal(string $runId, string $eventName, mixed $payload = true, ?int $now = null): WorkflowState
     {
+        self::assertValidRunId($runId);
         $ts = $now ?? time();
         $state = $this->store->load($runId);
         if (null === $state) {
@@ -185,6 +204,7 @@ final readonly class WorkflowEngine
      */
     public function resume(string $runId, Closure $definition, ?int $now = null): WorkflowState
     {
+        self::assertValidRunId($runId);
         $state = $this->store->load($runId);
         if (null === $state) {
             throw new JobException(sprintf('Workflow run "%s" not found.', $runId));
@@ -195,6 +215,15 @@ final readonly class WorkflowEngine
 
     public function state(string $runId): ?WorkflowState
     {
+        self::assertValidRunId($runId);
+
         return $this->store->load($runId);
+    }
+
+    private static function assertValidRunId(string $runId): void
+    {
+        if ('' === trim($runId) || strlen($runId) > 128 || 1 === preg_match('/[\x00-\x1f\x7f]/', $runId)) {
+            throw new JobException('Invalid workflow runId.');
+        }
     }
 }

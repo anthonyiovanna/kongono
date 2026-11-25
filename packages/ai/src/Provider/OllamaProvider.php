@@ -29,7 +29,8 @@ final readonly class OllamaProvider implements EmbeddingProviderInterface, Strea
         private string $host = 'http://127.0.0.1:11434',
         ?HttpTransportInterface $transport = null,
     ) {
-        $this->transport = $transport ?? new CurlTransport(allowPlainHttp: true, allowPrivateNetworks: true);
+        // Default to loopback-only transport (127.0.0.0/8, ::1, localhost) to prevent OLLAMA_HOST SSRF to IMDS/RFC1918
+        $this->transport = $transport ?? new CurlTransport(allowPlainHttp: true, allowPrivateNetworks: false, allowLoopbackOnly: true);
     }
 
     public function name(): string
@@ -45,44 +46,7 @@ final readonly class OllamaProvider implements EmbeddingProviderInterface, Strea
     public function chat(ChatRequest $request): ChatResponse
     {
         $model = $request->model ?? $this->model;
-        $payload = [
-            'model' => $model,
-            'stream' => false,
-            'messages' => array_map(
-                static fn(Message $m): array => [
-                    'role' => $m->role->value,
-                    'content' => $m->content,
-                ],
-                $request->messages,
-            ),
-        ];
-
-        if ($request->jsonMode) {
-            $payload['format'] = 'json';
-        }
-        if (null !== $request->temperature || null !== $request->maxTokens) {
-            $options = [];
-            if (null !== $request->temperature) {
-                $options['temperature'] = $request->temperature;
-            }
-            if (null !== $request->maxTokens) {
-                $options['num_predict'] = $request->maxTokens;
-            }
-            $payload['options'] = $options;
-        }
-        if ([] !== $request->tools) {
-            $payload['tools'] = array_map(
-                static fn(ToolDefinition $tool): array => [
-                    'type' => 'function',
-                    'function' => [
-                        'name' => $tool->name,
-                        'description' => $tool->description,
-                        'parameters' => $tool->parametersSchema,
-                    ],
-                ],
-                $request->tools,
-            );
-        }
+        $payload = $this->buildPayload($request, $model, stream: false);
 
         $url = rtrim($this->host, '/') . '/api/chat';
         $http = $this->transport->postJson($url, [], json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES), timeoutSeconds: 120);
@@ -146,26 +110,21 @@ final readonly class OllamaProvider implements EmbeddingProviderInterface, Strea
         }
 
         $model = $request->model ?? $this->model;
-        $payload = [
-            'model' => $model,
-            'stream' => true,
-            'messages' => array_map(
-                static fn(Message $m): array => ['role' => $m->role->value, 'content' => $m->content],
-                $request->messages,
-            ),
-        ];
+        $payload = $this->buildPayload($request, $model, stream: true);
 
         $url = rtrim($this->host, '/') . '/api/chat';
         $buffer = '';
         $fullText = '';
         $resolvedModel = $model;
         $finishReason = 'stop';
+        $inputTokens = 0;
+        $outputTokens = 0;
 
         $status = $this->transport->postJsonStream(
             $url,
             [],
             json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
-            static function (string $chunk) use (&$buffer, &$fullText, &$resolvedModel, &$finishReason, $onDelta): void {
+            static function (string $chunk) use (&$buffer, &$fullText, &$resolvedModel, &$finishReason, &$inputTokens, &$outputTokens, $onDelta): void {
                 $buffer .= str_replace("\r\n", "\n", $chunk);
                 if (strlen($buffer) > 1_048_576) {
                     throw new AiException('Ollama streaming line buffer exceeded maximum bound.');
@@ -186,6 +145,12 @@ final readonly class OllamaProvider implements EmbeddingProviderInterface, Strea
                     if (is_string($frame['done_reason'] ?? null)) {
                         $finishReason = $frame['done_reason'];
                     }
+                    if (is_int($frame['prompt_eval_count'] ?? null)) {
+                        $inputTokens = $frame['prompt_eval_count'];
+                    }
+                    if (is_int($frame['eval_count'] ?? null)) {
+                        $outputTokens = $frame['eval_count'];
+                    }
                     $msg = is_array($frame['message'] ?? null) ? $frame['message'] : [];
                     if (is_string($msg['content'] ?? null) && '' !== $msg['content']) {
                         if (strlen($fullText) + strlen($msg['content']) > 4_194_304) {
@@ -202,7 +167,58 @@ final readonly class OllamaProvider implements EmbeddingProviderInterface, Strea
             throw new AiException(sprintf('Ollama streaming API returned HTTP %d.', $status));
         }
 
-        return new ChatResponse($fullText, $resolvedModel, $this->name(), finishReason: $finishReason);
+        return new ChatResponse(
+            text: $fullText,
+            model: $resolvedModel,
+            provider: $this->name(),
+            usage: new TokenUsage($inputTokens, $outputTokens),
+            finishReason: $finishReason,
+        );
+    }
+
+    /** @return array<string, mixed> */
+    private function buildPayload(ChatRequest $request, string $model, bool $stream): array
+    {
+        $payload = [
+            'model' => $model,
+            'stream' => $stream,
+            'messages' => array_map(
+                static fn(Message $m): array => [
+                    'role' => $m->role->value,
+                    'content' => $m->content,
+                ],
+                $request->messages,
+            ),
+        ];
+
+        if ($request->jsonMode) {
+            $payload['format'] = 'json';
+        }
+        if (null !== $request->temperature || null !== $request->maxTokens) {
+            $options = [];
+            if (null !== $request->temperature) {
+                $options['temperature'] = $request->temperature;
+            }
+            if (null !== $request->maxTokens) {
+                $options['num_predict'] = $request->maxTokens;
+            }
+            $payload['options'] = $options;
+        }
+        if ([] !== $request->tools) {
+            $payload['tools'] = array_map(
+                static fn(ToolDefinition $tool): array => [
+                    'type' => 'function',
+                    'function' => [
+                        'name' => $tool->name,
+                        'description' => $tool->description,
+                        'parameters' => $tool->parametersSchema,
+                    ],
+                ],
+                $request->tools,
+            );
+        }
+
+        return $payload;
     }
 
     public function embed(array $texts, ?string $model = null): array
@@ -223,7 +239,11 @@ final readonly class OllamaProvider implements EmbeddingProviderInterface, Strea
             ));
         }
 
-        $decoded = json_decode($http->body, true, 64, JSON_THROW_ON_ERROR);
+        try {
+            $decoded = json_decode($http->body, true, 64, JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new AiException('Invalid JSON returned by Ollama Embeddings API.', previous: $e);
+        }
         if (!is_array($decoded) || !isset($decoded['embeddings']) || !is_array($decoded['embeddings'])) {
             throw new AiException('Unexpected Ollama embeddings response: missing embeddings.');
         }

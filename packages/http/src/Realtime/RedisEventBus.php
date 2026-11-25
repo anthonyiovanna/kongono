@@ -105,8 +105,9 @@ LUA;
 
     public function since(string $channel, ?string $lastEventId = null): array
     {
-        $minScore = (null !== $lastEventId && '' !== trim($lastEventId) && is_numeric(trim($lastEventId)))
-            ? '(' . ((int) trim($lastEventId))
+        $trimmedId = null !== $lastEventId ? trim($lastEventId) : '';
+        $minScore = ('' !== $trimmedId && 1 === preg_match('/\A-?\d+\z/', $trimmedId))
+            ? '(' . ((int) $trimmedId)
             : '-inf';
 
         $rawEntries = $this->redis->zRangeByScore($this->prefix . 'hist:' . $channel, $minScore, '+inf');

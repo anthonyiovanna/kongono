@@ -22,10 +22,10 @@ final readonly class Cookie
         if (1 !== preg_match('/\A[a-zA-Z0-9!#$%&\'*+.^_`|~-]+\z/', $name)) {
             throw new InvalidArgumentException(sprintf('Invalid cookie name "%s".', $name));
         }
-        if (false !== strpbrk($path, "\r\n;\0")) {
+        if (1 === preg_match('/[\x00-\x1f\x7f;]/', $path)) {
             throw new InvalidArgumentException('Cookie path contains forbidden control or delimiter characters.');
         }
-        if (null !== $domain && false !== strpbrk($domain, "\r\n;\0 ")) {
+        if (null !== $domain && 1 === preg_match('/[\x00-\x20\x7f;]/', $domain)) {
             throw new InvalidArgumentException('Cookie domain contains forbidden characters.');
         }
         if ('' !== $sameSite && !in_array($sameSite, ['Strict', 'Lax', 'None'], true)) {
@@ -33,6 +33,12 @@ final readonly class Cookie
         }
         if ('None' === $sameSite && !$secure) {
             throw new InvalidArgumentException('Cookies with SameSite=None must also set secure: true.');
+        }
+        if (str_starts_with($name, '__Secure-') && !$secure) {
+            throw new InvalidArgumentException('Cookies prefixed with "__Secure-" must set secure: true.');
+        }
+        if (str_starts_with($name, '__Host-') && (!$secure || '/' !== $path || (null !== $domain && '' !== $domain))) {
+            throw new InvalidArgumentException('Cookies prefixed with "__Host-" must set secure: true, path: "/", and omit domain.');
         }
     }
 

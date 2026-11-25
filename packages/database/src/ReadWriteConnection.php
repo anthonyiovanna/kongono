@@ -5,16 +5,24 @@ declare(strict_types=1);
 namespace Kongono\Database;
 
 use Closure;
+use Kongono\Core\Capabilities\ExecutionCapabilities;
+use Kongono\Core\Capabilities\QueryGuardableInterface;
 
 /**
  * Primary/read-replica database connection router with fail-safe primary fallback,
- * round-robin replica selection, and persistent-runtime-safe sticky-after-write semantics.
+ * round-robin replica selection, scoped SQL capability guard propagation, and
+ * persistent-runtime-safe sticky-after-write semantics.
  */
-final class ReadWriteConnection implements ConnectionInterface
+final class ReadWriteConnection implements ConnectionInterface, QueryGuardableInterface
 {
     private int $replicaIndex = 0;
     private bool $hasWritten = false;
     private int $transactionDepth = 0;
+
+    /** @var array<int, Closure(string): void> */
+    private array $localGuards = [];
+
+    private int $nextGuardId = 0;
 
     /**
      * @param list<ConnectionInterface> $readReplicas
@@ -25,14 +33,46 @@ final class ReadWriteConnection implements ConnectionInterface
         private readonly bool $stickyAfterWrite = true,
     ) {}
 
+    public function guardBeforeQuery(Closure $guard): Closure
+    {
+        $id = ++$this->nextGuardId;
+        $this->localGuards[$id] = $guard;
+
+        /** @var list<Closure(): void> $childCleanups */
+        $childCleanups = [];
+        $all = [$this->write, ...$this->readReplicas];
+        /** @var list<object> $seen */
+        $seen = [];
+        foreach ($all as $conn) {
+            if ($conn instanceof QueryGuardableInterface && !in_array($conn, $seen, true)) {
+                $seen[] = $conn;
+                $childCleanups[] = $conn->guardBeforeQuery($guard);
+            }
+        }
+
+        return function () use ($id, $childCleanups): void {
+            unset($this->localGuards[$id]);
+            for ($i = count($childCleanups) - 1; $i >= 0; --$i) {
+                ($childCleanups[$i])();
+            }
+        };
+    }
+
     public function dialect(): Dialect
     {
         return $this->write->dialect();
     }
 
+    public function inTransaction(): bool
+    {
+        return $this->transactionDepth > 0
+            || ($this->write instanceof PdoConnection && $this->write->inTransaction());
+    }
+
     public function query(string $sql, array $bindings = []): array
     {
         if (self::requiresPrimary($sql)) {
+            $this->assertLocalGuardsIfNeeded($this->write, $sql);
             if (self::isMutatingSql($sql)) {
                 $this->hasWritten = true;
             }
@@ -40,21 +80,45 @@ final class ReadWriteConnection implements ConnectionInterface
             return $this->write->query($sql, $bindings);
         }
 
-        return $this->selectReadConnection()->query($sql, $bindings);
+        $conn = $this->selectReadConnection();
+        $this->assertLocalGuardsIfNeeded($conn, $sql);
+
+        return $conn->query($sql, $bindings);
     }
 
     public function first(string $sql, array $bindings = []): ?array
     {
-        $rows = $this->query($sql, $bindings);
+        if (self::requiresPrimary($sql)) {
+            $this->assertLocalGuardsIfNeeded($this->write, $sql);
+            if (self::isMutatingSql($sql)) {
+                $this->hasWritten = true;
+            }
 
-        return $rows[0] ?? null;
+            return $this->write->first($sql, $bindings);
+        }
+
+        $conn = $this->selectReadConnection();
+        $this->assertLocalGuardsIfNeeded($conn, $sql);
+
+        return $conn->first($sql, $bindings);
     }
 
     public function execute(string $sql, array $bindings = []): int
     {
+        $this->assertLocalGuardsIfNeeded($this->write, $sql);
         $this->hasWritten = true;
 
         return $this->write->execute($sql, $bindings);
+    }
+
+    private function assertLocalGuardsIfNeeded(ConnectionInterface $target, string $sql): void
+    {
+        if ($target instanceof QueryGuardableInterface || [] === $this->localGuards) {
+            return;
+        }
+        foreach ($this->localGuards as $guard) {
+            $guard($sql);
+        }
     }
 
     public function table(string $table, ?string $alias = null): QueryBuilder
@@ -68,10 +132,75 @@ final class ReadWriteConnection implements ConnectionInterface
         ++$this->transactionDepth;
 
         try {
-            return $this->write->transaction(static fn(ConnectionInterface $tx): mixed => $callback($tx));
+            return $this->write->transaction(function (ConnectionInterface $tx) use ($callback): mixed {
+                if ($tx instanceof QueryGuardableInterface || [] === $this->localGuards) {
+                    return $callback($tx);
+                }
+
+                $guarded = $this->wrapGuardedTransactionConnection($tx);
+
+                return $callback($guarded);
+            });
         } finally {
             --$this->transactionDepth;
         }
+    }
+
+    private function wrapGuardedTransactionConnection(ConnectionInterface $tx): ConnectionInterface
+    {
+        $check = function (string $sql): void {
+            foreach ($this->localGuards as $guard) {
+                $guard($sql);
+            }
+        };
+
+        return new readonly class ($tx, $check) implements ConnectionInterface {
+            /** @param Closure(string): void $check */
+            public function __construct(
+                private ConnectionInterface $inner,
+                private Closure $check,
+            ) {}
+
+            public function dialect(): Dialect
+            {
+                return $this->inner->dialect();
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                ($this->check)($sql);
+
+                return $this->inner->query($sql, $bindings);
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                ($this->check)($sql);
+
+                return $this->inner->first($sql, $bindings);
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                ($this->check)($sql);
+
+                return $this->inner->execute($sql, $bindings);
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, $this->inner->dialect(), $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                $check = $this->check;
+
+                return $this->inner->transaction(static function (ConnectionInterface $nested) use ($callback, $check): mixed {
+                    return $callback(new self($nested, $check));
+                });
+            }
+        };
     }
 
     /** Reset sticky-after-write state at the end of a persistent-worker request scope. */
@@ -100,7 +229,7 @@ final class ReadWriteConnection implements ConnectionInterface
     {
         if (
             [] === $this->readReplicas
-            || $this->transactionDepth > 0
+            || $this->inTransaction()
             || ($this->stickyAfterWrite && $this->hasWritten)
         ) {
             return $this->write;
@@ -144,10 +273,10 @@ final class ReadWriteConnection implements ConnectionInterface
         }
 
         // Ignore row-locking clauses (`FOR UPDATE`, `FOR NO KEY UPDATE`) which require primary without mutating state
-        $withoutLocks = preg_replace('/\bFOR\s+(?:NO\s+KEY\s+)?UPDATE\b/i', '', $clean);
+        $withoutLocks = preg_replace('/\bFOR\s+(?:NO\s+KEY\s+)?(?:UPDATE|SHARE)\b/i', '', $clean);
         $subject = is_string($withoutLocks) ? $withoutLocks : $clean;
 
-        return 1 === preg_match('/\b(?:INSERT|UPDATE|DELETE|MERGE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE|LOCK\s+TABLE)\b/i', $subject);
+        return ExecutionCapabilities::isWriteSql($subject);
     }
 
     private static function requiresPrimary(string $sql): bool
@@ -157,16 +286,15 @@ final class ReadWriteConnection implements ConnectionInterface
             return true;
         }
 
-        // Only pure SELECT / read-only WITH queries without row locks may use read replicas
+        // Only pure SELECT / read-only WITH queries without row locks or session/sequence/lock functions may use read replicas
         if (1 !== preg_match('/\A(?:SELECT|WITH)\b/i', $clean)) {
             return true;
         }
 
-        if (self::isMutatingSql($clean)) {
+        if (ExecutionCapabilities::isWriteSql($clean)) {
             return true;
         }
 
-        return 1 === preg_match('/\bFOR\s+(?:UPDATE|SHARE|NO\s+KEY\s+UPDATE|KEY\s+SHARE)\b/i', $clean)
-            || 1 === preg_match('/\bSET\s+LOCAL\b/i', $clean);
+        return 1 === preg_match('/\b(?:LAST_INSERT_ID|FOUND_ROWS|ROW_COUNT)\s*\(/i', $clean);
     }
 }

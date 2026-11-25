@@ -151,9 +151,10 @@ final class MemoryStorage implements StorageInterface
 
     public function list(string $prefix = ''): array
     {
+        $cleanPrefix = ltrim(str_replace('\\', '/', trim($prefix)), '/');
         $results = [];
         foreach ($this->objects as $key => $entry) {
-            if ('' === $prefix || str_starts_with($key, $prefix)) {
+            if ('' === $cleanPrefix || str_starts_with($key, $cleanPrefix)) {
                 $results[] = $entry['meta'];
             }
         }

@@ -98,7 +98,10 @@ final readonly class PagePayload
      */
     public static function normalizeValue(mixed $value, int $depth = 0): mixed
     {
-        if ($depth > 16 || null === $value || is_scalar($value)) {
+        if ($depth > 16) {
+            return null;
+        }
+        if (null === $value || is_scalar($value)) {
             return $value;
         }
         if ($value instanceof BackedEnum) {

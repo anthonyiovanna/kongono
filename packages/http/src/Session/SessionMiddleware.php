@@ -31,6 +31,7 @@ final readonly class SessionMiddleware implements MiddlewareInterface
         $incomingId = is_string($cookies[$this->cookieName] ?? null) ? $cookies[$this->cookieName] : '';
         $isNew = false;
         $now = time();
+        $originalCreatedAt = null;
 
         if ('' !== $incomingId && 1 === preg_match('/\A[a-f0-9]{32,128}\z/', $incomingId)) {
             $data = $this->store->read($incomingId);
@@ -41,6 +42,7 @@ final readonly class SessionMiddleware implements MiddlewareInterface
                     $session = new Session(bin2hex(random_bytes(24)), persisted: false);
                     $isNew = true;
                 } else {
+                    $originalCreatedAt = $createdAt;
                     $session = new Session($incomingId, $data, persisted: true);
                 }
             } else {
@@ -77,23 +79,30 @@ final readonly class SessionMiddleware implements MiddlewareInterface
 
         // Lazy persistence: only store & emit Set-Cookie when the session was written, rotated, or its ID was accessed (e.g. CSRF)
         $shouldPersist = $session->isDirty() || $session->wasRegenerated() || ($isNew && $session->wasIdAccessed());
+        $persisted = false;
+        $effectiveTtl = max(1, $this->ttlSeconds);
         if ($shouldPersist) {
             // Prevent concurrent-request resurrection of a session destroyed/rotated while this request was in flight
             $canPersist = $isNew || $session->wasRegenerated() || null !== $this->store->read($session->id());
             if ($canPersist) {
                 $payload = $session->exportPayload();
-                if ($this->absoluteMaxLifetimeSeconds > 0 && !is_int($payload['_created_at'] ?? null)) {
-                    $payload['_created_at'] = $now;
+                if ($this->absoluteMaxLifetimeSeconds > 0) {
+                    // Keep _created_at immutable across an existing session's lifetime so app code cannot bypass absolute expiry
+                    $anchor = ($isNew || null === $originalCreatedAt) ? $now : $originalCreatedAt;
+                    $payload['_created_at'] = $anchor;
+                    $remainingAbsolute = $this->absoluteMaxLifetimeSeconds - max(0, $now - $anchor);
+                    $effectiveTtl = max(1, min($effectiveTtl, max(1, $remainingAbsolute)));
                 }
-                $this->store->write($session->id(), $payload, $this->ttlSeconds);
+                $this->store->write($session->id(), $payload, $effectiveTtl);
+                $persisted = true;
             }
         }
 
-        if (($isNew && $shouldPersist) || $session->wasRegenerated()) {
+        if (($persisted && ($isNew || $session->isDirty())) || $session->wasRegenerated()) {
             $cookie = new Cookie(
                 name: $this->cookieName,
                 value: $session->id(),
-                maxAge: $this->ttlSeconds,
+                maxAge: $effectiveTtl,
                 path: '/',
                 secure: $this->secure || $isHttps,
                 httpOnly: true,

@@ -12,6 +12,7 @@ final readonly class Migrator
     public function __construct(
         private ConnectionInterface $db,
         private string $table = 'kongono_migrations',
+        private bool $useAdvisoryLock = true,
     ) {}
 
     public function ensureTable(): void
@@ -35,33 +36,35 @@ final readonly class Migrator
      */
     public function migrate(array $migrations): array
     {
-        $this->ensureTable();
-        $applied = $this->appliedIds();
-        $ran = [];
+        return $this->withMigrationLock(function () use ($migrations): array {
+            $this->ensureTable();
+            $applied = $this->appliedIds();
+            $ran = [];
 
-        foreach ($migrations as $migration) {
-            if (in_array($migration->id(), $applied, true)) {
-                continue;
-            }
-            if ($migration instanceof NonTransactionalMigrationInterface) {
-                $migration->up($this->db);
-                $this->db->table($this->table)->insert([
-                    'id' => $migration->id(),
-                    'applied_at' => gmdate(DATE_ATOM),
-                ]);
-            } else {
-                $this->db->transaction(function (ConnectionInterface $tx) use ($migration): void {
-                    $migration->up($tx);
-                    $tx->table($this->table)->insert([
+            foreach ($migrations as $migration) {
+                if (in_array($migration->id(), $applied, true)) {
+                    continue;
+                }
+                if ($migration instanceof NonTransactionalMigrationInterface) {
+                    $migration->up($this->db);
+                    $this->db->table($this->table)->insert([
                         'id' => $migration->id(),
                         'applied_at' => gmdate(DATE_ATOM),
                     ]);
-                });
+                } else {
+                    $this->db->transaction(function (ConnectionInterface $tx) use ($migration): void {
+                        $migration->up($tx);
+                        $tx->table($this->table)->insert([
+                            'id' => $migration->id(),
+                            'applied_at' => gmdate(DATE_ATOM),
+                        ]);
+                    });
+                }
+                $ran[] = $migration->id();
             }
-            $ran[] = $migration->id();
-        }
 
-        return $ran;
+            return $ran;
+        });
     }
 
     /**
@@ -169,43 +172,102 @@ final readonly class Migrator
      * Roll back the last $steps applied migrations in reverse order inside strict transactions.
      *
      * @param list<MigrationInterface> $migrations
-     * @param positive-int             $steps
      * @return list<string> Rolled-back migration IDs
      */
     public function rollback(array $migrations, int $steps = 1): array
     {
-        $this->ensureTable();
-        $applied = $this->appliedIds();
-        if ([] === $applied) {
-            return [];
+        if ($steps < 1) {
+            throw new DatabaseException(sprintf('Rollback steps must be at least 1 (got %d).', $steps));
         }
 
-        $byId = [];
-        foreach ($migrations as $migration) {
-            $byId[$migration->id()] = $migration;
-        }
-
-        $targets = array_slice(array_reverse($applied), 0, $steps);
-        $rolledBack = [];
-
-        foreach ($targets as $id) {
-            if (!isset($byId[$id])) {
-                continue;
+        return $this->withMigrationLock(function () use ($migrations, $steps): array {
+            $this->ensureTable();
+            $applied = $this->appliedIds();
+            if ([] === $applied) {
+                return [];
             }
-            $migration = $byId[$id];
-            if ($migration instanceof NonTransactionalMigrationInterface) {
-                $migration->down($this->db);
-                $this->db->table($this->table)->where('id', '=', $id)->delete();
-            } else {
-                $this->db->transaction(function (ConnectionInterface $tx) use ($migration, $id): void {
-                    $migration->down($tx);
-                    $tx->table($this->table)->where('id', '=', $id)->delete();
-                });
+
+            $byId = [];
+            foreach ($migrations as $migration) {
+                $byId[$migration->id()] = $migration;
             }
-            $rolledBack[] = $id;
+
+            $targets = array_slice(array_reverse($applied), 0, $steps);
+            $rolledBack = [];
+
+            foreach ($targets as $id) {
+                if (!isset($byId[$id])) {
+                    continue;
+                }
+                $migration = $byId[$id];
+                if ($migration instanceof NonTransactionalMigrationInterface) {
+                    $migration->down($this->db);
+                    $this->db->table($this->table)->where('id', '=', $id)->delete();
+                } else {
+                    $this->db->transaction(function (ConnectionInterface $tx) use ($migration, $id): void {
+                        $migration->down($tx);
+                        $tx->table($this->table)->where('id', '=', $id)->delete();
+                    });
+                }
+                $rolledBack[] = $id;
+            }
+
+            return $rolledBack;
+        });
+    }
+
+    /**
+     * Serialize concurrent migration runs across multi-pod deploys using native DB advisory locks on PDO connections.
+     *
+     * @template T
+     * @param \Closure(): T $callback
+     * @return T
+     */
+    private function withMigrationLock(\Closure $callback): mixed
+    {
+        if (!$this->useAdvisoryLock) {
+            return $callback();
         }
 
-        return $rolledBack;
+        $target = $this->db instanceof ReadWriteConnection ? $this->db->writeConnection() : $this->db;
+        if (!$target instanceof PdoConnection) {
+            return $callback();
+        }
+
+        $lockKey = 'kongono_migrations:' . $this->table;
+        $dialect = $target->dialect();
+
+        if (Dialect::Postgres === $dialect) {
+            $target->first('SELECT pg_advisory_lock(hashtext(?))', [$lockKey]);
+            try {
+                return $callback();
+            } finally {
+                try {
+                    $target->first('SELECT pg_advisory_unlock(hashtext(?))', [$lockKey]);
+                } catch (Throwable) {
+                    // Best-effort unlock; session teardown also releases PostgreSQL advisory locks
+                }
+            }
+        }
+
+        if (Dialect::Mysql === $dialect) {
+            $row = $target->first('SELECT GET_LOCK(?, 30) AS acquired', [$lockKey]);
+            $acquired = is_array($row) && is_numeric($row['acquired'] ?? null) ? (int) $row['acquired'] : 0;
+            if (1 !== $acquired) {
+                throw new DatabaseException('Unable to acquire MySQL migration advisory lock within 30 seconds.');
+            }
+            try {
+                return $callback();
+            } finally {
+                try {
+                    $target->first('SELECT RELEASE_LOCK(?)', [$lockKey]);
+                } catch (Throwable) {
+                    // Best-effort unlock
+                }
+            }
+        }
+
+        return $callback();
     }
 
     /**

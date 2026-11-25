@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Kongono\Http;
 
 use Kongono\Core\CoreException;
+use Kongono\Core\Diagnostics\ErrorExplainer;
+use Kongono\Core\Diagnostics\ErrorExplanation;
+use Kongono\Core\Diagnostics\RequestTrace;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Http\Brand\KongonoBrand;
 use PhpToken;
@@ -103,12 +106,18 @@ final class DevErrorRenderer
         'static' => true,
     ];
 
+    /**
+     * @param list<string> $availableRoutes
+     */
     public function render(
         Request $request,
         Throwable $exception,
         ?string $basePath = null,
         string $appName = 'Kongono',
         string $devStudioPrefix = '/_kongono',
+        array $availableRoutes = [],
+        ?RequestTrace $trace = null,
+        ?ErrorExplanation $explanation = null,
     ): string {
         $class = $this->esc($exception::class);
         $shortClass = $this->esc($this->shortClassName($exception::class));
@@ -127,9 +136,18 @@ final class DevErrorRenderer
             ? 'php vendor/bin/kongo'
             : 'php bin/kongo';
 
-        $frames = $this->collectFrames($exception, $basePath);
-        $quickFix = $this->suggestQuickFix($exception, $safeMessage, $kongoBin);
-        $llmPrompt = $this->buildLlmPrompt($request, $exception, $basePath);
+        $explainer = new ErrorExplainer();
+        $resolvedExplanation = $explanation ?? $explainer->explainThrowable(
+            exception: $exception,
+            method: $request->method(),
+            path: $request->path(),
+            basePath: $basePath,
+            kongoBin: $kongoBin,
+            availableRoutes: $availableRoutes,
+        );
+
+        $frames = $this->collectFrames($exception, $basePath, $explainer);
+        $llmPrompt = $this->buildLlmPrompt($request, $exception, $basePath, $resolvedExplanation, $trace);
 
         $hanteiSummary = $this->shellSafeSummary(sprintf(
             '%s: %s at %s:%d (%s %s)',
@@ -147,8 +165,10 @@ final class DevErrorRenderer
         $escapedHanteiFix = $this->esc($hanteiFixCmd);
         $escapedLlm = $this->esc($llmPrompt);
 
+        $ideHref = $this->ideUri($frames[0]['file'] ?? $file, $frames[0]['line'] ?? $line);
         $previousHtml = $this->renderPreviousChain($exception, $basePath);
-        $quickFixHtml = $this->renderQuickFix($quickFix);
+        $quickFixHtml = $this->renderExplanationCard($resolvedExplanation, $trace, $ideHref);
+        $traceHtml = null !== $trace ? $this->renderTraceCard($trace) : '';
         $diagnosticData = $this->extractSafeDiagnostic($exception);
         $diagnosticHtml = $this->renderDiagnosticTable($diagnosticData);
         $framesHtml = $this->renderInteractiveFrames($frames);
@@ -389,55 +409,194 @@ final class DevErrorRenderer
       margin-right: 0.35rem;
     }
 
-    /* Inline Monochrome Suggested Quick Fix Strip */
-    .quickfix {
-      margin-top: 0.35rem;
-      padding: 0.68rem 0.9rem;
+    /* 5W1H Plain-English Diagnosis Card (Who · What · Why · Where · When · How to Fix) */
+    .w5-card {
+      margin-top: 0.45rem;
+      padding: 0.95rem 1.1rem;
+      border-radius: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      display: grid;
+      gap: 0.72rem;
+    }
+    .w5-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      padding-bottom: 0.55rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .w5-head-left {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .w5-code-tag {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 0.12rem 0.48rem;
+      border-radius: 5px;
+    }
+    .w5-grid {
+      display: grid;
+      gap: 0.4rem;
+    }
+    .w5-row {
+      display: grid;
+      grid-template-columns: 98px minmax(0, 1fr);
+      gap: 0.7rem;
+      align-items: baseline;
+      font-size: 0.83rem;
+    }
+    .w5-k {
+      font-family: var(--mono);
+      font-size: 0.69rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .w5-v { color: var(--text-2); word-break: break-word; }
+    .w5-what { color: var(--text); font-weight: 560; }
+    .w5-dym {
+      display: inline-flex;
+      gap: 0.35rem;
+      flex-wrap: wrap;
+    }
+    .w5-pill {
+      font-family: var(--mono);
+      font-size: 0.76rem;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border-strong);
+      padding: 0.1rem 0.48rem;
+      border-radius: 5px;
+    }
+    .w5-fix {
+      padding-top: 0.62rem;
+      border-top: 1px solid var(--border);
+      display: grid;
+      gap: 0.5rem;
+    }
+    .w5-fix-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      font-family: var(--mono);
+      font-size: 0.69rem;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .w5-steps {
+      margin: 0;
+      padding-left: 1.25rem;
+      display: grid;
+      gap: 0.3rem;
+      font-size: 0.83rem;
+      color: var(--text);
+    }
+    .w5-snippet {
+      margin: 0;
+      padding: 0.62rem 0.85rem;
+      border-radius: 7px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      line-height: 1.55;
+      color: var(--text);
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .w5-inline {
+      font-family: var(--mono);
+      font-size: 0.77rem;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 0.04rem 0.36rem;
+      border-radius: 5px;
+    }
+    .w5-head-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.38rem;
+      flex-wrap: wrap;
+    }
+    .w5-code-wrap {
+      display: grid;
+      gap: 0.35rem;
+    }
+    .w5-code-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      color: var(--muted);
+    }
+    .w5-trace {
+      padding: 0.78rem 1rem;
       border-radius: 9px;
       background: var(--surface);
       border: 1px solid var(--border);
       display: grid;
-      gap: 0.45rem;
+      gap: 0.5rem;
     }
-    .quickfix-row {
+    .w5-trace-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.85rem;
+      gap: 0.65rem;
       flex-wrap: wrap;
-    }
-    .quickfix-main {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.55rem;
-      flex-wrap: wrap;
-      font-size: 0.82rem;
-      min-width: 0;
-    }
-    .quickfix-label {
-      color: var(--text-2);
-      font-weight: 500;
-    }
-    .quickfix-title {
-      color: var(--text);
-      font-weight: 500;
-    }
-    .quickfix-cmd {
       font-family: var(--mono);
-      font-size: 0.8rem;
-      color: var(--text);
+      font-size: 0.69rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .w5-pipe {
+      display: flex;
+      align-items: center;
+      gap: 0.32rem;
+      flex-wrap: wrap;
+      font-family: var(--mono);
+      font-size: 0.74rem;
+    }
+    .w5-pipe-node {
+      padding: 0.14rem 0.5rem;
+      border-radius: 5px;
       background: var(--bg);
       border: 1px solid var(--border);
-      padding: 0.22rem 0.55rem;
-      border-radius: 6px;
-      overflow-x: auto;
-      max-width: 100%;
+      color: var(--text-2);
     }
-    .quickfix-desc {
-      margin: 0;
-      font-size: 0.8rem;
-      color: var(--muted);
-      line-height: 1.5;
+    .w5-pipe-node.is-handler {
+      border-color: var(--border-strong);
+      color: var(--text);
+      font-weight: 560;
+    }
+    .w5-pipe-arrow { color: var(--muted); }
+    .w5-trace-meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      font-family: var(--mono);
+      font-size: 0.73rem;
+      color: var(--text-2);
+    }
+    @media (max-width: 640px) {
+      .w5-row { grid-template-columns: 1fr; gap: 0.15rem; }
     }
 
     /* Borderless Stack Rail | Spacious Hairline Code Canvas */
@@ -797,6 +956,7 @@ final class DevErrorRenderer
       <h1>{$escapedMsg}</h1>
       {$previousHtml}
       {$quickFixHtml}
+      {$traceHtml}
     </section>
 
     <section class="workbench">
@@ -822,21 +982,52 @@ HTML;
      * Build a compact, secret-scrubbed Markdown Context Packet ready to paste into Claude, Antigravity,
      * Codex, or `php bin/kongo hantei debug`.
      */
-    public function buildLlmPrompt(Request $request, Throwable $exception, ?string $basePath = null): string
-    {
+    public function buildLlmPrompt(
+        Request $request,
+        Throwable $exception,
+        ?string $basePath = null,
+        ?ErrorExplanation $explanation = null,
+        ?RequestTrace $trace = null,
+    ): string {
         $safeMessage = SecretScrubber::scrub($exception->getMessage());
         $relFile = $this->relativePath($exception->getFile(), $basePath);
         $line = $exception->getLine();
 
+        $resolved = $explanation ?? (new ErrorExplainer())->explainThrowable(
+            exception: $exception,
+            method: $request->method(),
+            path: $request->path(),
+            basePath: $basePath,
+        );
+
+        $aiPayload = $resolved->toArray();
+        if (null !== $trace) {
+            $aiPayload['execution_trace'] = $trace->toArray();
+        }
+
         $lines = [
             '# Kongono Exception Report',
             '',
-            sprintf('- **Exception:** `%s`', $exception::class),
-            sprintf('- **Message:** %s', $safeMessage),
-            sprintf('- **Location:** `%s:%d`', $relFile, $line),
-            sprintf('- **Request:** `%s %s`', $request->method(), SecretScrubber::scrub($request->path())),
-            sprintf('- **Runtime:** PHP %s (%s)', PHP_VERSION, PHP_SAPI),
+            $resolved->toMarkdown(),
         ];
+
+        if (null !== $trace) {
+            $lines[] = '';
+            $lines[] = $trace->toMarkdown();
+        }
+
+        $lines[] = '';
+        $lines[] = '## Structured AI Diagnostic JSON';
+        $lines[] = '```json';
+        $lines[] = json_encode($aiPayload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $lines[] = '```';
+        $lines[] = '';
+        $lines[] = '## Raw Exception Context';
+        $lines[] = sprintf('- **Exception:** `%s`', $exception::class);
+        $lines[] = sprintf('- **Message:** %s', $safeMessage);
+        $lines[] = sprintf('- **Location:** `%s:%d`', $relFile, $line);
+        $lines[] = sprintf('- **Request:** `%s %s`', $request->method(), SecretScrubber::scrub($request->path()));
+        $lines[] = sprintf('- **Runtime:** PHP %s (%s)', PHP_VERSION, PHP_SAPI);
 
         $prev = $exception->getPrevious();
         $depth = 0;
@@ -901,111 +1092,147 @@ HTML;
         return $this->scrubRequestSecrets($request, SecretScrubber::scrub(implode("\n", $lines)));
     }
 
-    /**
-     * Suggest a deterministic offline Quick Fix based on Kongono diagnostics or well-known PHP/SQL/DI errors.
-     *
-     * @return array{title: string, explanation: string, command: ?string}|null
-     */
-    public function suggestQuickFix(Throwable $exception, string $safeMessage, string $kongoBin = 'php vendor/bin/kongo'): ?array
-    {
-        if ($exception instanceof CoreException && null !== $exception->diagnostic) {
-            $safe = $exception->diagnostic->toSafeArray();
-            if ('' !== trim($safe['remediation'])) {
-                $extractedCmd = null;
-                if (1 === preg_match('/`((?:php\s+[^\s`]*kongo|composer)\s+[^`]+)`/i', $safe['remediation'], $cmdMatch)) {
-                    $extractedCmd = trim($cmdMatch[1]);
-                } elseif (null !== $exception->getPrevious()) {
-                    $prevFix = $this->suggestQuickFix(
-                        $exception->getPrevious(),
-                        SecretScrubber::scrub($exception->getPrevious()->getMessage()),
-                        $kongoBin,
-                    );
-                    $extractedCmd = $prevFix['command'] ?? null;
-                }
+    private function renderExplanationCard(
+        ErrorExplanation $explanation,
+        ?RequestTrace $trace = null,
+        ?string $ideHref = null,
+    ): string {
+        $exp = $explanation->toArray();
 
-                return [
-                    'title' => sprintf('Kongono Diagnostic %s — %s', $safe['id'], $safe['title']),
-                    'explanation' => $safe['remediation'],
-                    'command' => $extractedCmd,
-                ];
-            }
+        $dymRow = '';
+        if ([] !== $exp['did_you_mean']) {
+            $pills = array_map(
+                fn(string $item): string => sprintf('<span class="w5-pill">%s</span>', $this->esc($item)),
+                $exp['did_you_mean'],
+            );
+            $dymRow = sprintf(
+                '<div class="w5-row"><span class="w5-k">Did you mean</span><span class="w5-v w5-dym">%s</span></div>',
+                implode('', $pills),
+            );
         }
 
-        $lower = strtolower($safeMessage);
-
-        if (str_contains($lower, 'no such table') || (str_contains($lower, 'does not exist') && str_contains($lower, 'relation')) || str_contains($lower, 'sqlstate[42p01]') || str_contains($lower, 'sqlstate[42s02]')) {
-            return [
-                'title' => 'Missing Database Table — Run Pending Migrations',
-                'explanation' => 'The database query referenced a table that has not been created yet. Apply pending migrations and retry.',
-                'command' => $kongoBin . ' migrate',
-            ];
-        }
-
-        if (str_contains($lower, 'app_key') || str_contains($lower, 'encryption key') || str_contains($lower, '32 bytes')) {
-            return [
-                'title' => 'Missing or Invalid APP_KEY',
-                'explanation' => 'Generate a fresh 256-bit base64 APP_KEY and add it to your local .env file.',
-                'command' => $kongoBin . ' key:generate',
-            ];
-        }
-
-        if (str_contains($lower, 'no ai provider configured')) {
-            return [
-                'title' => 'Configure an AI Provider in .env',
-                'explanation' => 'Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or local OLLAMA_HOST=http://127.0.0.1:11434 in .env, then run doctor to verify.',
-                'command' => $kongoBin . ' doctor',
-            ];
-        }
-
-        if (str_contains($lower, 'template') && str_contains($lower, 'not found')) {
-            return [
-                'title' => 'View Template Not Found',
-                'explanation' => 'Verify the `.kgn.html` file exists under `views/` matching the logical name passed to `$views->render()`, and clear stale compiled view caches.',
-                'command' => $kongoBin . ' cache:clear',
-            ];
-        }
-
-        if (str_contains($lower, 'not bound') || str_contains($lower, 'cannot resolve') || str_contains($lower, 'unresolvable')) {
-            return [
-                'title' => 'Unbound Container Service Dependency',
-                'explanation' => 'Register this interface or service explicitly in `app/bootstrap.php` via `$app->singleton(MyInterface::class, fn() => new MyImpl(...))`.',
-                'command' => $kongoBin . ' graph',
-            ];
-        }
-
-        if ($exception instanceof \TypeError) {
-            return [
-                'title' => 'PHP 8.5 Strict Type Mismatch',
-                'explanation' => 'Kongono enforces `declare(strict_types=1)` across routes, DTOs, and services. Inspect the highlighted line below or run PHPStan Level 9.',
-                'command' => $kongoBin . ' check',
-            ];
-        }
-
-        return null;
-    }
-
-    /** @param array{title: string, explanation: string, command: ?string}|null $quickFix */
-    private function renderQuickFix(?array $quickFix): string
-    {
-        if (null === $quickFix) {
-            return '';
-        }
+        $stepsItems = array_map(
+            fn(string $step): string => sprintf('<li>%s</li>', $this->formatInlineCode($step)),
+            $exp['how_to_fix'],
+        );
+        $stepsHtml = [] !== $stepsItems ? '<ol class="w5-steps">' . implode('', $stepsItems) . '</ol>' : '';
 
         $cmdHtml = '';
-        $copyBtn = '';
-        if (null !== $quickFix['command'] && '' !== $quickFix['command']) {
-            $escapedCmd = $this->esc($quickFix['command']);
-            $cmdHtml = sprintf('<code class="quickfix-cmd">$ %s</code>', $escapedCmd);
-            $copyBtn = sprintf('<button class="btn" type="button" data-copy-text="%s">Copy command</button>', $escapedCmd);
+        if (null !== $exp['command'] && '' !== $exp['command']) {
+            $escCmd = $this->esc($exp['command']);
+            $cmdHtml = sprintf(
+                '<div class="cmd-row"><code>$ %s</code><button class="btn" type="button" data-copy-text="%s">Copy command</button></div>',
+                $escCmd,
+                $escCmd,
+            );
+        }
+
+        $codeHtml = '';
+        if (null !== $exp['code_fix'] && '' !== $exp['code_fix']) {
+            $escCode = $this->esc($exp['code_fix']);
+            $codeHtml = sprintf(
+                '<div class="w5-code-wrap"><div class="w5-code-bar"><span>Suggested Code Change</span><button class="btn" type="button" data-copy-text="%s">Copy code fix</button></div><pre class="w5-snippet">%s</pre></div>',
+                $escCode,
+                $escCode,
+            );
+        }
+
+        $aiPayload = $exp;
+        if (null !== $trace) {
+            $aiPayload['execution_trace'] = $trace->toArray();
+        }
+        $aiJson = $this->esc(json_encode($aiPayload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+        $ideBtn = null !== $ideHref
+            ? sprintf('<a class="btn" href="%s">Open in VS Code</a>', $this->esc($ideHref))
+            : '';
+
+        return sprintf(
+            '<div class="w5-card">'
+            . '<div class="w5-head">'
+            . '<span class="w5-head-left"><span class="dot dot-ok"></span>Plain-English Diagnosis <span class="w5-code-tag">%s</span></span>'
+            . '<span class="w5-head-actions">%s<button class="btn" type="button" data-copy-text="%s">Copy AI JSON</button></span>'
+            . '</div>'
+            . '<div class="w5-grid">'
+            . '<div class="w5-row"><span class="w5-k">What</span><span class="w5-v w5-what">%s</span></div>'
+            . '<div class="w5-row"><span class="w5-k">Why</span><span class="w5-v">%s</span></div>'
+            . '<div class="w5-row"><span class="w5-k">Who</span><span class="w5-v">%s</span></div>'
+            . '<div class="w5-row"><span class="w5-k">Where</span><span class="w5-v mono">%s</span></div>'
+            . '<div class="w5-row"><span class="w5-k">When</span><span class="w5-v mono">%s</span></div>'
+            . '%s'
+            . '</div>'
+            . '<div class="w5-fix">'
+            . '<div class="w5-fix-head"><span>How to fix</span><span>Human + AI Ready · APP_DEBUG=true</span></div>'
+            . '%s%s%s'
+            . '</div>'
+            . '</div>',
+            $this->esc($exp['code']),
+            $ideBtn,
+            $aiJson,
+            $this->formatInlineCode($exp['what']),
+            $this->formatInlineCode($exp['why']),
+            $this->formatInlineCode($exp['who']),
+            $this->esc($exp['where']),
+            $this->esc($exp['when']),
+            $dymRow,
+            $stepsHtml,
+            $cmdHtml,
+            $codeHtml,
+        );
+    }
+
+    private function renderTraceCard(RequestTrace $trace): string
+    {
+        $t = $trace->toArray();
+        $nodes = [];
+        foreach ($t['middleware'] as $mw) {
+            $nodes[] = sprintf('<span class="w5-pipe-node">%s</span>', $this->esc($mw));
+        }
+        $handlerLabel = $t['matched_handler'] ?? ($t['matched_route'] ?? 'No route matched');
+        $nodes[] = sprintf('<span class="w5-pipe-node is-handler">%s</span>', $this->esc($handlerLabel));
+        $pipelineHtml = implode('<span class="w5-pipe-arrow">→</span>', $nodes);
+
+        $meta = [
+            sprintf('<span>Ref: <strong>%s</strong></span>', $this->esc($t['reference_id'])),
+            sprintf('<span>Route: <strong>%s</strong></span>', $this->esc($t['matched_route'] ?? 'unmatched')),
+            sprintf('<span>Elapsed: <strong>%.2f ms</strong></span>', $t['elapsed_ms']),
+        ];
+        if ([] !== $t['query_keys']) {
+            $meta[] = sprintf('<span>Query keys: <strong>%s</strong></span>', $this->esc(implode(', ', $t['query_keys'])));
+        }
+        if ([] !== $t['input_keys']) {
+            $meta[] = sprintf('<span>Input keys: <strong>%s</strong></span>', $this->esc(implode(', ', $t['input_keys'])));
         }
 
         return sprintf(
-            '<div class="quickfix"><div class="quickfix-row"><div class="quickfix-main"><span class="dot dot-ok"></span><span class="quickfix-label">Suggested Quick Fix</span><span class="quickfix-title">%s</span>%s</div>%s</div><p class="quickfix-desc">%s</p></div>',
-            $this->esc($quickFix['title']),
-            $cmdHtml,
-            $copyBtn,
-            $this->esc($quickFix['explanation']),
+            '<div class="w5-trace">'
+            . '<div class="w5-trace-head"><span>Execution Trace · How We Got Here</span><span>Ref %s · %.2f ms</span></div>'
+            . '<div class="w5-pipe">%s</div>'
+            . '<div class="w5-trace-meta">%s</div>'
+            . '</div>',
+            $this->esc($t['reference_id']),
+            $t['elapsed_ms'],
+            $pipelineHtml,
+            implode('', $meta),
         );
+    }
+
+    private function formatInlineCode(string $text): string
+    {
+        $escaped = $this->esc($text);
+
+        return preg_replace('/`([^`]+)`/', '<code class="w5-inline">$1</code>', $escaped) ?? $escaped;
+    }
+
+    private function ideUri(string $file, int $line): ?string
+    {
+        if ('' === $file || '[internal]' === $file || !is_file($file)) {
+            return null;
+        }
+        $norm = str_replace('\\', '/', $file);
+        $prefix = str_starts_with($norm, '/') ? 'vscode://file' : 'vscode://file/';
+
+        return sprintf('%s%s:%d', $prefix, $norm, max(1, $line));
     }
 
     private function renderPreviousChain(Throwable $exception, ?string $basePath): string
@@ -1046,16 +1273,36 @@ HTML;
      *     is_vendor: bool
      * }>
      */
-    private function collectFrames(Throwable $exception, ?string $basePath): array
+    private function collectFrames(Throwable $exception, ?string $basePath, ?ErrorExplainer $explainer = null): array
     {
-        $frames = [[
+        $frames = [];
+
+        // If the crash occurred inside a compiled `.kgn.html` view cache file, prepend the original template as Frame #0
+        if (null !== $explainer && null !== $basePath) {
+            $sourceMap = $explainer->resolveCompiledViewSource($exception->getFile());
+            if (null !== $sourceMap) {
+                $templateAbs = rtrim($basePath, '\\/') . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $sourceMap['template_path']);
+                if (is_file($templateAbs)) {
+                    $frames[] = [
+                        'file' => $templateAbs,
+                        'rel_file' => $sourceMap['template_path'],
+                        'short_file' => $this->shortPath($sourceMap['template_path']),
+                        'line' => 1,
+                        'call' => 'template ' . $sourceMap['template_name'],
+                        'is_vendor' => false,
+                    ];
+                }
+            }
+        }
+
+        $frames[] = [
             'file' => $exception->getFile(),
             'rel_file' => $this->relativePath($exception->getFile(), $basePath),
             'short_file' => $this->shortPath($this->relativePath($exception->getFile(), $basePath)),
             'line' => $exception->getLine(),
             'call' => 'throw ' . $this->shortClassName($exception::class),
             'is_vendor' => $this->isVendorPath($exception->getFile()),
-        ]];
+        ];
 
         foreach (array_slice($exception->getTrace(), 0, 17) as $frame) {
             $file = $frame['file'] ?? '[internal]';
@@ -1252,8 +1499,10 @@ HTML;
             return $plain;
         }
 
+        $scrubbedSource = SecretScrubber::scrub($normalized);
+
         try {
-            $tokens = array_values(PhpToken::tokenize($normalized));
+            $tokens = array_values(PhpToken::tokenize($scrubbedSource));
         } catch (Throwable) {
             $plain = [];
             foreach ($rawLines as $idx => $lineText) {
@@ -1537,7 +1786,7 @@ HTML;
 
     private function shellSafeSummary(string $text): string
     {
-        $clean = preg_replace('/[\x00-\x1F\x7F`$;&|<>\\\\]+/', ' ', $text) ?? $text;
+        $clean = preg_replace('/[\x00-\x1F\x7F`$;&|<>\\\\!%]+/', ' ', $text) ?? $text;
         $clean = preg_replace('/\s+/', ' ', trim($clean)) ?? trim($clean);
 
         return mb_substr($clean, 0, 220);
@@ -1550,20 +1799,34 @@ HTML;
 
     private function scrubRequestSecrets(Request $request, string $output): string
     {
+        /** @var list<string> $secrets */
+        $secrets = [];
+
         foreach ($request->getHeaders() as $name => $values) {
             $isSensitive = in_array(strtolower($name), self::REDACTED_HEADERS, true) || SecretScrubber::isSensitiveKey($name);
             if (!$isSensitive) {
                 continue;
             }
             foreach ($values as $rawVal) {
-                $candidates = [trim($rawVal)];
-                if (1 === preg_match('/\A(?:Bearer|Basic|Token)\s+(.+)\z/i', trim($rawVal), $m)) {
-                    $candidates[] = trim($m[1]);
+                $trimmed = trim($rawVal);
+                $secrets[] = $trimmed;
+                if (1 === preg_match('/\A(?:Bearer|Basic|Token)\s+(.+)\z/i', $trimmed, $m)) {
+                    $secrets[] = trim($m[1]);
                 }
-                foreach ($candidates as $secret) {
-                    if (strlen($secret) >= 8) {
-                        $output = str_replace($secret, '[REDACTED]', $output);
-                    }
+            }
+        }
+
+        // Also redact every individual cookie value (raw and HTML-escaped forms)
+        foreach ($request->getCookieParams() as $cookieVal) {
+            $secrets[] = trim($cookieVal);
+        }
+
+        foreach (array_unique($secrets) as $secret) {
+            if (strlen($secret) >= 8) {
+                $output = str_replace($secret, '[REDACTED]', $output);
+                $escaped = $this->esc($secret);
+                if ($escaped !== $secret) {
+                    $output = str_replace($escaped, '[REDACTED]', $output);
                 }
             }
         }

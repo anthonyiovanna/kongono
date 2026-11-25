@@ -6,6 +6,8 @@
   "require": {
     "php": ">=8.5.0",
     "ext-curl": "*",
+    "kongono/core": "^1.0",
+    "kongono/view": "^1.0",
     "psr/log": "^3.0"
   },
   "autoload": {

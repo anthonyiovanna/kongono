@@ -1,6 +1,6 @@
 # Production Deployment & Scaling Guide
 
-Kongono v1.18 is engineered **persistent-runtime first**, with deterministic per-request lifecycle cleanup (`OperationScope` + `Container::resetScope()`), zero mutable static state, and zero-reflection handler dispatch caching so your application runs identically across PHP-FPM, FrankenPHP persistent workers, and RoadRunner.
+Kongono v1.20 is engineered **persistent-runtime first**, with deterministic per-request lifecycle cleanup (`OperationScope` + `Container::resetScope()`), zero mutable static state, and zero-reflection handler dispatch caching so your application runs identically across PHP-FPM, FrankenPHP persistent workers, and RoadRunner.
 
 ---
 
@@ -61,9 +61,10 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app
    $cache = new RedisCache($redis);
    ```
    Pass `$cache` to `CacheSessionStore`, `CachePersonalAccessTokenStore`, `CacheBatchStore`, `RateLimitMiddleware`, `IdempotencyMiddleware`, and `FeatureManager`, and use `RedisEventBus` for multi-node SSE fan-out.
-6. **Pre-Deploy Security & AI Gates in CI:**
-   - Run `php bin/kongo audit --attack --strict`, `php bin/kongo eval --redteam`, `composer quality`, and `composer fuzz`.
-   - Decorate mutating APIs with `#[Idempotent(ttlSeconds: 86400)]`, sanitize rich HTML with `HtmlSanitizer`/`@safeHtml`, and protect outbound calls with DNS-pinned `SafeHttpClient` + signed `WebhookDispatcher`.
+6. **Pre-Deploy Proof, Security & AI Gates in CI:**
+   - Run `php bin/kongo prove`, `php bin/kongo audit --attack --strict`, `php bin/kongo eval --redteam`, `composer quality`, and `composer fuzz`.
+   - Enable `$app->recordIncidents()` so production 5xx errors return vague `KGN-*` references to users while saving secret-scrubbed replay bundles to `storage/incidents/` for offline `kongo incident:replay` & `kongo incident:test`.
+   - Decorate read-only routes with `#[ReadOnlyDb]` / `#[NoOutboundHttp]` / `#[MaxQueries(N)]`, mutating APIs with `#[Idempotent(ttlSeconds: 86400)]`, sanitize rich HTML with `HtmlSanitizer`/`@safeHtml`, and protect outbound calls with DNS-pinned `SafeHttpClient` + signed `WebhookDispatcher`.
 7. **Observability:**
    - Point Kubernetes/load-balancer readiness probes at `GET /health` (`200` when healthy, `503` when degraded).
    - Scrape Prometheus metrics from `GET /metrics` and monitor `Server-Timing` response headers via `Tracer`.

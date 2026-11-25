@@ -20,8 +20,6 @@ use Kongono\Validation\Attributes\Min;
 use Kongono\Validation\Attributes\Required;
 use Kongono\Validation\Attributes\Url;
 use Kongono\Validation\Attributes\Uuid;
-use Kongono\Validation\RuleInterface;
-use Kongono\Validation\ValidatableDtoInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use ReflectionClass;
 use ReflectionFunction;
@@ -110,7 +108,6 @@ final class OpenApiGenerator
             ? new ReflectionFunction($route->handler)
             : new ReflectionMethod($route->handler[0], $route->handler[1]);
 
-        $registeredBindings = $app->container()->registeredBindings();
         $allowsBody = !in_array(strtoupper($method), ['GET', 'HEAD', 'OPTIONS'], true);
 
         foreach ($reflection->getParameters() as $param) {
@@ -122,7 +119,7 @@ final class OpenApiGenerator
             if (Request::class === $typeName || ServerRequestInterface::class === $typeName || !class_exists($typeName)) {
                 continue;
             }
-            if ($allowsBody && $this->isInputDto($typeName, $registeredBindings)) {
+            if ($allowsBody && $app->isInputDtoClass($typeName)) {
                 $shortName = (new ReflectionClass($typeName))->getShortName();
                 $schemas[$shortName] = $this->buildDtoSchema($typeName, $schemas);
                 $operation['requestBody'] = [
@@ -142,67 +139,6 @@ final class OpenApiGenerator
         }
 
         return $operation;
-    }
-
-    /**
-     * @param class-string          $className
-     * @param array<string, mixed>  $registeredBindings
-     * @param array<class-string, true> $visited
-     */
-    private function isInputDto(string $className, array $registeredBindings, array $visited = [], int $depth = 0): bool
-    {
-        // Exclude internal classes, framework/security classes (Principal, Session, etc.), and container services
-        if ((str_starts_with($className, 'Kongono\\') && !str_contains($className, '\\Tests\\')) || array_key_exists($className, $registeredBindings) || $depth > 16) {
-            return false;
-        }
-        if (isset($visited[$className])) {
-            return true;
-        }
-
-        $ref = new ReflectionClass($className);
-        if (!$ref->isInstantiable() || $ref->isInternal()) {
-            return false;
-        }
-        $ctor = $ref->getConstructor();
-        if (null === $ctor || 0 === $ctor->getNumberOfParameters()) {
-            return false;
-        }
-
-        $visited[$className] = true;
-        $hasRequiredOrValidated = $ref->implementsInterface(ValidatableDtoInterface::class);
-        foreach ($ctor->getParameters() as $p) {
-            $type = $p->getType();
-            if (!$type instanceof ReflectionNamedType) {
-                return false;
-            }
-            $isField = false;
-            if ($type->isBuiltin()) {
-                $isField = true;
-            } else {
-                $pType = $type->getName();
-                if (is_subclass_of($pType, BackedEnum::class)) {
-                    $isField = true;
-                } elseif (class_exists($pType) && $this->isInputDto($pType, $registeredBindings, $visited, $depth + 1)) {
-                    $isField = true;
-                }
-            }
-            if (!$isField) {
-                return false;
-            }
-            if (!$p->isDefaultValueAvailable()) {
-                $hasRequiredOrValidated = true;
-            } else {
-                foreach ($p->getAttributes() as $a) {
-                    $attrName = $a->getName();
-                    if (str_starts_with($attrName, 'Kongono\\Validation\\Attributes\\') || is_subclass_of($attrName, RuleInterface::class)) {
-                        $hasRequiredOrValidated = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        return $hasRequiredOrValidated;
     }
 
     /**

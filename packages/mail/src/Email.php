@@ -109,8 +109,11 @@ final readonly class Email
         $normalized = str_replace('\\', '/', $filename);
         $base = basename($normalized);
         $clean = trim((string) preg_replace('/[\x00-\x1f\x7f"\\\\\/;]/', '', $base));
+        if ('' === $clean || '.' === $clean || '..' === $clean) {
+            return 'attachment.bin';
+        }
 
-        return '' !== $clean ? $clean : 'attachment.bin';
+        return $clean;
     }
 
     private static function sanitizeContentType(string $contentType): string
@@ -143,32 +146,53 @@ final readonly class Email
         if (null !== $this->replyTo) {
             $headers[] = 'Reply-To: ' . $this->replyTo->format();
         }
-        $headers[] = 'Subject: ' . $this->subject;
+        $encodedSubject = 1 === preg_match('/[^\x20-\x7e]/', $this->subject)
+            ? '=?UTF-8?B?' . base64_encode($this->subject) . '?='
+            : $this->subject;
+        $headers[] = 'Subject: ' . $encodedSubject;
         $headers[] = 'Date: ' . gmdate(DATE_RFC2822);
         $headers[] = 'Message-ID: <' . bin2hex(random_bytes(12)) . '@kongono.local>';
         $headers[] = 'MIME-Version: 1.0';
 
         if ([] === $this->attachments && null === $this->htmlBody) {
             $headers[] = 'Content-Type: text/plain; charset=utf-8';
+            $headers[] = 'Content-Transfer-Encoding: quoted-printable';
 
-            return implode("\r\n", $headers) . "\r\n\r\n" . ($this->textBody ?? '');
+            return implode("\r\n", $headers) . "\r\n\r\n" . quoted_printable_encode($this->textBody ?? '');
         }
 
         if ([] === $this->attachments && null === $this->textBody) {
             $headers[] = 'Content-Type: text/html; charset=utf-8';
+            $headers[] = 'Content-Transfer-Encoding: quoted-printable';
 
-            return implode("\r\n", $headers) . "\r\n\r\n" . $this->htmlBody;
+            return implode("\r\n", $headers) . "\r\n\r\n" . quoted_printable_encode($this->htmlBody);
+        }
+
+        if ([] === $this->attachments) {
+            $altBoundary = 'kgn_alt_' . bin2hex(random_bytes(12));
+            $headers[] = sprintf('Content-Type: multipart/alternative; boundary="%s"', $altBoundary);
+            $altParts = [
+                "--{$altBoundary}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n" . quoted_printable_encode($this->textBody),
+                "--{$altBoundary}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n" . quoted_printable_encode($this->htmlBody),
+            ];
+
+            return implode("\r\n", $headers) . "\r\n\r\n" . implode("\r\n", $altParts) . "\r\n--{$altBoundary}--\r\n";
         }
 
         $boundary = 'kgn_' . bin2hex(random_bytes(12));
         $headers[] = sprintf('Content-Type: multipart/mixed; boundary="%s"', $boundary);
         $parts = [];
 
-        if (null !== $this->textBody) {
-            $parts[] = "--{$boundary}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n" . $this->textBody;
-        }
-        if (null !== $this->htmlBody) {
-            $parts[] = "--{$boundary}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n" . $this->htmlBody;
+        if (null !== $this->textBody && null !== $this->htmlBody) {
+            $altBoundary = 'kgn_alt_' . bin2hex(random_bytes(12));
+            $parts[] = "--{$boundary}\r\nContent-Type: multipart/alternative; boundary=\"{$altBoundary}\"\r\n\r\n"
+                . "--{$altBoundary}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n" . quoted_printable_encode($this->textBody)
+                . "\r\n--{$altBoundary}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n" . quoted_printable_encode($this->htmlBody)
+                . "\r\n--{$altBoundary}--";
+        } elseif (null !== $this->textBody) {
+            $parts[] = "--{$boundary}\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n" . quoted_printable_encode($this->textBody);
+        } elseif (null !== $this->htmlBody) {
+            $parts[] = "--{$boundary}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n" . quoted_printable_encode($this->htmlBody);
         }
         foreach ($this->attachments as $att) {
             $encoded = chunk_split(base64_encode($att['bytes']));

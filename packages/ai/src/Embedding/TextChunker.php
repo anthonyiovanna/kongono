@@ -4,17 +4,29 @@ declare(strict_types=1);
 
 namespace Kongono\Ai\Embedding;
 
+use Kongono\Ai\AiException;
+
 /** Word-boundary overlapping text splitter for Retrieval-Augmented Generation (RAG). */
 final readonly class TextChunker
 {
     /**
-     * @param positive-int     $chunkSize Target characters per chunk
-     * @param non-negative-int $overlap   Overlapping trailing characters carried to the next chunk
+     * @param int $chunkSize Target characters per chunk (>= 1)
+     * @param int $overlap   Overlapping trailing characters carried to the next chunk (0 <= overlap < chunkSize)
      */
     public function __construct(
         private int $chunkSize = 800,
         private int $overlap = 120,
-    ) {}
+    ) {
+        if ($chunkSize < 1) {
+            throw new AiException('TextChunker $chunkSize must be at least 1.');
+        }
+        if ($overlap < 0) {
+            throw new AiException('TextChunker $overlap cannot be negative.');
+        }
+        if ($overlap >= $chunkSize) {
+            throw new AiException('TextChunker $overlap must be strictly less than $chunkSize.');
+        }
+    }
 
     /** @return list<string> */
     public function split(string $text): array

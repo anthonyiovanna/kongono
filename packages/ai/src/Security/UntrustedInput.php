@@ -47,9 +47,18 @@ final readonly class UntrustedInput
             : (string) iconv('UTF-8', 'UTF-8//IGNORE', $raw);
         $clean = str_replace("\0", '', $clean);
 
-        // Strip C0 controls (except \t, \n, \r), all Unicode Cf format chars, CGJ, fillers, variation selectors (BMP + Supplement), and Unicode Tag block
+        // Apply Unicode NFKC normalization when ext-intl Normalizer is available (folds Mathematical Alphanumerics & compat forms)
+        if (class_exists(\Normalizer::class)) {
+            $nfkc = \Normalizer::normalize($clean, \Normalizer::FORM_KC);
+            if (is_string($nfkc)) {
+                $clean = $nfkc;
+            }
+        }
+
+        // Strip C0 controls (except \t, \n, \r), combining diacritical marks (\p{Mn}), all Unicode Cf format chars,
+        // CGJ, fillers, variation selectors (BMP + Supplement), and Unicode Tag block
         $stripped = preg_replace(
-            '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\p{Cf}\x{034F}\x{115F}\x{1160}\x{180E}\x{3164}\x{FE00}-\x{FE0F}\x{FFA0}\x{E0000}-\x{E007F}\x{E0100}-\x{E01EF}]/u',
+            '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\p{Cf}\p{Mn}\x{034F}\x{115F}\x{1160}\x{180E}\x{3164}\x{FE00}-\x{FE0F}\x{FFA0}\x{E0000}-\x{E007F}\x{E0100}-\x{E01EF}]/u',
             '',
             $clean,
         );
@@ -73,6 +82,13 @@ final readonly class UntrustedInput
             $clean = $folded;
         }
 
-        return str_replace(['﹤', '﹥', '∕', '⁄', '⟨', '⟩'], ['<', '>', '/', '/', '<', '>'], $clean);
+        // Fold common Cyrillic/Greek visual confusables & alternate angle/slash brackets
+        return strtr($clean, [
+            '﹤' => '<', '﹥' => '>', '∕' => '/', '⁄' => '/', '⟨' => '<', '⟩' => '>',
+            '〈' => '<', '〉' => '>', '《' => '<', '》' => '>', '‹' => '<', '›' => '>',
+            'а' => 'a', 'е' => 'e', 'о' => 'o', 'р' => 'p', 'с' => 'c', 'у' => 'y', 'х' => 'x', 'і' => 'i', 'ј' => 'j', 'ѕ' => 's',
+            'А' => 'A', 'В' => 'B', 'Е' => 'E', 'К' => 'K', 'М' => 'M', 'Н' => 'H', 'О' => 'O', 'Р' => 'P', 'С' => 'C', 'Т' => 'T', 'Х' => 'X',
+            'α' => 'a', 'ε' => 'e', 'ι' => 'i', 'ο' => 'o', 'ρ' => 'p', 'υ' => 'u', 'ν' => 'v', 'χ' => 'x',
+        ]);
     }
 }

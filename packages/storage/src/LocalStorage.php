@@ -143,6 +143,13 @@ final readonly class LocalStorage implements StorageInterface
         if ($cleanFrom === $cleanTo) {
             return new WriteResult(StorageOutcome::Replaced, $srcMeta);
         }
+        if (0 === strcasecmp($cleanFrom, $cleanTo)) {
+            $realFrom = realpath($this->objectPath($cleanFrom));
+            $realTo = realpath($this->objectPath($cleanTo));
+            if (false !== $realFrom && $realFrom === $realTo) {
+                return new WriteResult(StorageOutcome::Replaced, $srcMeta);
+            }
+        }
 
         $srcStream = $this->getStream($cleanFrom);
         if (null === $srcStream) {
@@ -168,6 +175,59 @@ final readonly class LocalStorage implements StorageInterface
             return null !== $existing
                 ? new WriteResult(StorageOutcome::Replaced, $existing)
                 : new WriteResult(StorageOutcome::Absent);
+        }
+
+        // Guard case-only renames on case-insensitive filesystems (Windows/macOS) inside the shared case-folded key lock
+        // so delete($cleanFrom) never destroys the freshly copied destination file.
+        if (0 === strcasecmp($cleanFrom, $cleanTo)) {
+            $caseRenameResult = $this->withKeyLock($cleanFrom, function () use ($cleanFrom, $cleanTo): ?WriteResult {
+                $fromPath = $this->objectPath($cleanFrom);
+                $toPath = $this->objectPath($cleanTo);
+                $this->assertNoSymlinksInPath($fromPath);
+                $this->assertNoSymlinksInPath($toPath);
+                $realFrom = realpath($fromPath);
+                $realTo = realpath($toPath);
+                if (false === $realFrom || $realFrom !== $realTo) {
+                    return null;
+                }
+                $existing = $this->metaUnlocked($cleanFrom);
+                if (null === $existing) {
+                    return new WriteResult(StorageOutcome::Absent);
+                }
+
+                $tmpPath = $fromPath . '.' . bin2hex(random_bytes(8)) . '.tmp';
+                if (!@rename($fromPath, $tmpPath) || !@rename($tmpPath, $toPath)) {
+                    if (is_file($tmpPath) && !is_file($fromPath)) {
+                        @rename($tmpPath, $fromPath);
+                    }
+                    throw new StorageException(sprintf('Failed to atomically rename storage object "%s" to "%s".', $cleanFrom, $cleanTo));
+                }
+
+                $fromMetaPath = $this->metaPath($cleanFrom);
+                $toMetaPath = $this->metaPath($cleanTo);
+                if (is_file($fromMetaPath)) {
+                    $tmpMeta = $fromMetaPath . '.' . bin2hex(random_bytes(8)) . '.tmp';
+                    if (@rename($fromMetaPath, $tmpMeta)) {
+                        @rename($tmpMeta, $toMetaPath);
+                    }
+                }
+                $updated = new ObjectMeta(
+                    key: $cleanTo,
+                    size: $existing->size,
+                    sha256: $existing->sha256,
+                    version: $existing->version,
+                    contentType: $existing->contentType,
+                    updatedAt: gmdate(DATE_ATOM),
+                    metadata: $existing->metadata,
+                );
+                $this->atomicWrite($toMetaPath, json_encode($updated->toArray(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+
+                return new WriteResult(StorageOutcome::Replaced, $updated);
+            });
+
+            if (null !== $caseRenameResult) {
+                return $caseRenameResult;
+            }
         }
 
         $copied = $this->copy($cleanFrom, $cleanTo);
@@ -263,6 +323,7 @@ final readonly class LocalStorage implements StorageInterface
     /** @param array<string, string> $metadata */
     private function putUnlocked(string $cleanKey, string $contents, string $contentType, array $metadata): WriteResult
     {
+        $this->assertSafeMetadata($contentType, $metadata);
         $path = $this->objectPath($cleanKey);
         $this->assertNoSymlinksInPath($path);
         $existed = is_file($path);
@@ -289,6 +350,7 @@ final readonly class LocalStorage implements StorageInterface
      */
     private function putStreamUnlocked(string $cleanKey, mixed $stream, string $contentType, array $metadata): WriteResult
     {
+        $this->assertSafeMetadata($contentType, $metadata);
         $path = $this->objectPath($cleanKey);
         $this->assertNoSymlinksInPath($path);
         $existed = is_file($path);
@@ -344,12 +406,16 @@ final readonly class LocalStorage implements StorageInterface
         }
 
         if (!@rename($tmp, $path)) {
-            @unlink($path);
-            if (!@rename($tmp, $path)) {
-                @unlink($tmp);
-                throw new StorageException('Failed to atomically publish storage file.');
+            if ('\\' === DIRECTORY_SEPARATOR && is_file($path)) {
+                @unlink($path);
+                if (@rename($tmp, $path)) {
+                    goto published;
+                }
             }
+            @unlink($tmp);
+            throw new StorageException('Failed to atomically publish storage file.');
         }
+        published:
 
         $meta = new ObjectMeta(
             key: $cleanKey,
@@ -539,10 +605,26 @@ final readonly class LocalStorage implements StorageInterface
         }
 
         if (!@rename($tmp, $targetPath)) {
-            @unlink($targetPath);
-            if (!@rename($tmp, $targetPath)) {
-                @unlink($tmp);
-                throw new StorageException('Failed to atomically publish storage file.');
+            if ('\\' === DIRECTORY_SEPARATOR && is_file($targetPath)) {
+                @unlink($targetPath);
+                if (@rename($tmp, $targetPath)) {
+                    return;
+                }
+            }
+            @unlink($tmp);
+            throw new StorageException('Failed to atomically publish storage file.');
+        }
+    }
+
+    /** @param array<string, string> $metadata */
+    private function assertSafeMetadata(string $contentType, array $metadata): void
+    {
+        if ('' === trim($contentType) || false !== strpbrk($contentType, "\r\n\0")) {
+            throw new StorageException('Invalid storage content type.');
+        }
+        foreach ($metadata as $k => $v) {
+            if (false !== strpbrk($k, "\r\n\0") || false !== strpbrk($v, "\r\n\0")) {
+                throw new StorageException('Storage metadata cannot contain CR, LF, or NUL bytes.');
             }
         }
     }
@@ -550,6 +632,7 @@ final readonly class LocalStorage implements StorageInterface
     /**
      * Fixed 256-shard flock pool prevents unbounded lock-file inode exhaustion
      * even under high-cardinality writes or deletes of non-existent keys.
+     * Case-folds the shard key so case-insensitive filesystems (Windows/macOS) serialize `foo.txt` and `FOO.TXT`.
      *
      * @template T
      * @param \Closure(): T $fn
@@ -565,7 +648,7 @@ final readonly class LocalStorage implements StorageInterface
             throw new StorageException('Unable to create storage lock directory.');
         }
 
-        $lockFile = $lockDir . DIRECTORY_SEPARATOR . 'bucket-' . substr(hash('sha256', $cleanKey), 0, 2) . '.lock';
+        $lockFile = $lockDir . DIRECTORY_SEPARATOR . 'bucket-' . substr(hash('sha256', strtolower($cleanKey)), 0, 2) . '.lock';
         if (is_link($lockFile)) {
             throw new StorageException('Storage lock file cannot be a symlink.');
         }

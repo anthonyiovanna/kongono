@@ -144,8 +144,10 @@ final class JobsTest extends TestCase
 
         self::assertNotEmpty($job->id);
         self::assertStringContainsString('CREATE TABLE IF NOT EXISTS "kongono_jobs"', $executedSql[0]);
-        self::assertStringContainsString('INSERT INTO "kongono_jobs"', $executedSql[1]);
-        self::assertStringContainsString('FOR UPDATE SKIP LOCKED', $executedSql[2]);
+        self::assertStringContainsString('CREATE INDEX IF NOT EXISTS "idx_kongono_jobs_poll"', $executedSql[1]);
+        self::assertStringContainsString('CREATE UNIQUE INDEX IF NOT EXISTS "idx_kongono_jobs_unique_active"', $executedSql[2]);
+        self::assertStringContainsString('INSERT INTO "kongono_jobs"', $executedSql[3]);
+        self::assertStringContainsString('FOR UPDATE SKIP LOCKED', $executedSql[4]);
     }
 
     public function testCronExpressionAndSchedulerExecuteDueTasksAndQueueJobs(): void
@@ -196,11 +198,10 @@ final class JobsTest extends TestCase
             'last_error' => null,
         ], JSON_THROW_ON_ERROR);
 
-        // Preload deterministic RESP responses for push (HSET, ZADD) + atomic Lua reserve (EVAL)
+        // Preload deterministic RESP responses for atomic Lua push (EVAL) + atomic Lua reserve (EVAL)
         fwrite(
             $serverSock,
             ":1\r\n"
-            . ":1\r\n"
             . '$' . strlen($reservedJobJson) . "\r\n" . $reservedJobJson . "\r\n",
         );
 

@@ -3,8 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Kongono Framework v1.19.0 — Zero-Legacy PHP 8.5+ Framework with Built-In AI</title>
-  <meta name="description" content="A modern, zero-legacy PHP 8.5+ application framework built from the ground up with zero Symfony packages, Live 2.5 &amp; Bridge, persistent-runtime safety, hybrid search, /_ops dashboard, 15-tool MCP, and built-in Oshie, Chie &amp; Hantei AI companions.">
+  <title>Kongono Framework v1.20.0 — Zero-Legacy, Self-Verifying PHP 8.5+ Framework</title>
+  <meta name="description" content="A modern, zero-legacy, self-verifying PHP 8.5+ framework with zero Symfony packages, kongo prove readiness certificates, least-privilege route capabilities, Live 2.5 &amp; Bridge, Zero-Build Hot Reload, /_kongono Dev Studio, /_ops, 26-tool MCP, and built-in Oshie, Chie &amp; Hantei AI companions.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Kongono Framework — Zero-Legacy, Self-Verifying PHP 8.5+">
+  <meta property="og:description" content="Build what comes next. Zero Symfony, 5-pillar kongo prove certificates, #[ReadOnlyDb]/#[MaxQueries] route capabilities, Dev Studio with Hot Reload &amp; Dev Mailbox, Live 2.5, and 26-tool MCP.">
+  <meta property="og:url" content="https://kongono.com/">
+  <meta property="og:image" content="https://kongono.com/assets/og-card.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Kongono Framework — Zero-Legacy, Self-Verifying PHP 8.5+">
+  <meta name="twitter:description" content="Build what comes next. Pure PHP 8.5+, zero Symfony, self-verifying proofs, Live 2.5 &amp; Bridge, built-in Dev Studio, and 26-tool MCP.">
+  <meta name="twitter:image" content="https://kongono.com/assets/og-card.png">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <link rel="stylesheet" href="assets/style.css">
   <link rel="alternate" type="text/markdown" title="Kongono LLM Documentation Index" href="llms.txt">
@@ -23,7 +32,7 @@
           </svg>
         </span>
         <span>Kongono</span>
-        <span class="version-pill">v1.19.0</span>
+        <span class="version-pill">v1.20.0</span>
       </a>
       <nav class="nav-links">
         <a class="active" href="index.html">Home</a>
@@ -31,6 +40,7 @@
         <a href="docs.html#live-bridge">Live 2.5 &amp; Bridge</a>
         <a href="docs.html#ai-companions">AI &amp; MCP</a>
         <a href="docs.html#production">FrankenPHP</a>
+        <a href="https://zokeibi.com" target="_blank" rel="noopener">Zokeibi UI</a>
         <a href="https://packagist.org/packages/kongono/framework" target="_blank" rel="noopener">Packagist</a>
         <a href="https://github.com/anthonyiovanna/kongono" target="_blank" rel="noopener">GitHub</a>
         <button class="theme-btn" type="button" data-theme-toggle>Light Mode</button>
@@ -41,11 +51,11 @@
   <main>
     <section class="hero">
       <div class="container">
-        <div class="hero-kicker">PHP 8.5.13+ Native &middot; 0 Symfony Packages &middot; MIT License</div>
-        <h1>The Zero-Legacy PHP Framework <span class="grad">Built for 2026 &amp; Beyond</span></h1>
+        <div class="hero-kicker">PHP 8.5.13+ Native &middot; 0 Symfony Packages &middot; Self-Verifying &middot; MIT</div>
+        <h1>The Zero-Legacy PHP Framework <span class="grad">Proven on Every Save</span></h1>
         <p class="hero-lead">
           Built from the ground up — zero Symfony packages, zero third-party runtime libraries, zero mutable static state, and zero magic global facades.
-          Persistent-runtime first, with <strong>Live 2.5 &amp; Bridge</strong>, built-in <strong><code>/_ops</code></strong>, <strong>Hybrid RRF Search</strong>, <strong>Oshie / Chie / Hantei</strong> AI companions, and a native <strong>15-tool MCP Server</strong>.
+          Persistent-runtime first, with unified <strong><code>kongo prove</code></strong> certificates, least-privilege <strong><code>#[ReadOnlyDb]</code></strong> route capabilities, <strong>Live 2.5 &amp; Bridge</strong>, built-in <strong><code>/_kongono</code> Dev Studio</strong> &amp; <strong><code>/_ops</code></strong>, optional <strong>Oshie / Chie / Hantei</strong> companions, and a <strong>26-tool MCP Server</strong>.
         </p>
 
         <div class="install-box">
@@ -63,8 +73,8 @@
         <div class="stats-strip">
           <div class="stat-card"><div class="num">0</div><div class="lbl">Symfony Packages</div></div>
           <div class="stat-card"><div class="num">8</div><div class="lbl">Production Packages Total</div></div>
-          <div class="stat-card"><div class="num">11</div><div class="lbl">Cohesive Namespaces</div></div>
-          <div class="stat-card"><div class="num">15</div><div class="lbl">Native MCP Tools</div></div>
+          <div class="stat-card"><div class="num">5 Pillars</div><div class="lbl">Unified kongo prove</div></div>
+          <div class="stat-card"><div class="num">26</div><div class="lbl">Native MCP Tools</div></div>
           <div class="stat-card"><div class="num">Level 9</div><div class="lbl">PHPStan Strict Rules</div></div>
         </div>
       </div>
@@ -79,12 +89,12 @@
 
         <div class="code-tabs-wrap" data-tabs>
           <div class="code-tabs-bar">
-            <button class="tab-btn active" type="button" data-tab-target="routing">Routing &amp; Auth</button>
+            <button class="tab-btn active" type="button" data-tab-target="routing">Routing &amp; Capabilities</button>
+            <button class="tab-btn" type="button" data-tab-target="proofs">Self-Verifying Proofs</button>
             <button class="tab-btn" type="button" data-tab-target="live-bridge">Live 2.5 &amp; Bridge</button>
             <button class="tab-btn" type="button" data-tab-target="validation">DTO Validation</button>
             <button class="tab-btn" type="button" data-tab-target="database">Data &amp; BatchLoader</button>
-            <button class="tab-btn" type="button" data-tab-target="hybrid">Hybrid Search &amp; RAG</button>
-            <button class="tab-btn" type="button" data-tab-target="testing">Testing &amp; Batches</button>
+            <button class="tab-btn" type="button" data-tab-target="testing">Testing &amp; Time-Machine</button>
           </div>
 
           <div class="tab-panel active" data-tab-panel="routing">
@@ -96,7 +106,7 @@ namespace App\Http;
 
 use Kongono\Http\Response;
 use Kongono\Http\Routing\{CacheControl, Feature, Get, Idempotent, Middleware, Post, Prefix};
-use Kongono\Security\Attributes\{Authenticated, Can};
+use Kongono\Security\Attributes\{Authenticated, Can, MaxQueries, NoOutboundHttp, ReadOnlyDb};
 use Kongono\Security\Middleware\BearerAuthMiddleware;
 use Kongono\Security\Principal;
 
@@ -104,8 +114,11 @@ use Kongono\Security\Principal;
 final readonly class NoteController
 {
     #[Get('/', name: 'notes.index')]
+    #[ReadOnlyDb]
+    #[NoOutboundHttp]
+    #[MaxQueries(3)]
     #[CacheControl(maxAge: 60, public: true, staleWhileRevalidate: 30)]
-    public function index(): Response { /* auto ETag &amp; 304 Not Modified */ }
+    public function index(): Response { /* DB writes, egress &amp; N+1 blocked pre-execution */ }
 
     #[Post('/', name: 'notes.create')]
     #[Middleware(BearerAuthMiddleware::class)] // Supports revocable SHA-256 PersonalAccessToken
@@ -121,6 +134,27 @@ final readonly class NoteController
     #[Feature('beta_insights')]
     public function insights(): Response { /* fail-closed 404 unless enabled */ }
 }</code></pre>
+          </div>
+
+          <div class="tab-panel" data-tab-panel="proofs">
+<pre><code>// app/invariants.php — Executable architecture &amp; security policies checked by `kongo prove`
+use Kongono\Cli\Policy\Invariant;
+use Kongono\Security\Attributes\Authenticated;
+
+return [
+    Invariant::routesMatching('/api/admin/*', 'KGN-POLICY-ADMIN')
+        -&gt;mustHaveAttribute(Authenticated::class)
+        -&gt;describe('Admin API endpoints require authentication.'),
+    Invariant::routesMatching('/webhooks/*', 'KGN-POLICY-WEBHOOK')
+        -&gt;mustVerifyWebhookSignature()
+        -&gt;describe('Inbound webhooks must verify cryptographic signatures.'),
+];
+
+// CLI verification loop (zero Node.js, runs in milliseconds):
+// $ php vendor/bin/kongo prove               -&gt; Grade A+ (100/100 PASS across 5 pillars)
+// $ php vendor/bin/kongo diagnose --fix      -&gt; 17-rule static &amp; full-stack contract auto-fixer
+// $ php vendor/bin/kongo watch               -&gt; Continuous save loop (diagnose + policy + PHPUnit)
+// $ php vendor/bin/kongo incident:test REF   -&gt; Turn scrubbed prod 5xx into a PHPUnit 13 test</code></pre>
           </div>
 
           <div class="tab-panel" data-tab-panel="live-bridge">
@@ -149,7 +183,7 @@ return Response::adaptive($request,
 declare(strict_types=1);
 
 use Kongono\Validation\Attributes\{ArrayOf, Between, Confirmed, Date, Email, Ip, Min, NotIn, Required, RequiredIf, Uuid};
-use Kongono\Validation\{ValidatableDtoInterface, ValidationErrors};
+use Kongono\Validation\ValidatableDtoInterface;
 
 enum Plan: string { case Free = 'free'; case Pro = 'pro'; }
 
@@ -169,7 +203,7 @@ final readonly class SignupInput implements ValidatableDtoInterface
         #[Required, Confirmed('password')] public string $passwordConfirmation = '',
     ) {}
 
-    public function validateSelf(ValidationErrors $errors): void { /* cross-field rules */ }
+    public function validate(): array { return []; /* cross-field rules */ }
 }</code></pre>
           </div>
 
@@ -185,8 +219,8 @@ $posts = $db-&gt;table('posts')
     -&gt;paginate(page: 1, perPage: 25);
 
 // Zero-N+1 eager relation loading without ActiveRecord magic
-$commentsByPost = BatchLoader::hasMany($db, 'comments', 'post_id', $postIds);
-$authorsById = BatchLoader::belongsTo($db, 'users', 'id', $authorIds);
+$commentsByPost = BatchLoader::hasMany($db, $posts-&gt;items, 'comments', 'post_id');
+$authorsById = BatchLoader::belongsTo($db, $posts-&gt;items, 'users', 'author_id');
 
 // Soft delete &amp; restore explicitly
 $db-&gt;table('posts')-&gt;where('id', '=', $id)-&gt;softDelete();
@@ -195,25 +229,6 @@ $db-&gt;table('posts')-&gt;where('id', '=', $id)-&gt;restore();
 // Typed immutable test/seed factories
 $factory = Factory::for(UserDto::class, fn(int $n) =&gt; ['email' =&gt; "user{$n}@example.test", 'role' =&gt; 'member']);
 $admins = $factory-&gt;state(['role' =&gt; 'admin'])-&gt;count(3)-&gt;make();</code></pre>
-          </div>
-
-          <div class="tab-panel" data-tab-panel="hybrid">
-<pre><code>use Kongono\Ai\AiClient;
-use Kongono\Ai\Embedding\{HybridSearch, KnowledgeBase, PgVectorStore};
-use Kongono\Ai\Provider\OpenAiProvider;
-use Kongono\Database\Search\PostgresFullTextSearch;
-
-// Fuse PostgreSQL full-text search (tsvector/ts_rank_cd) + pgvector HNSW via Reciprocal Rank Fusion
-$fts = new PostgresFullTextSearch($db, table: 'docs', textColumns: ['title', 'body']);
-$vectors = new PgVectorStore($db);
-$hybrid = new HybridSearch($fts, $vectors, rrfK: 60);
-
-$hits = $hybrid-&gt;search(queryText: 'FrankenPHP worker resetScope', queryVector: $embedding, limit: 5);
-
-// Or use 5-line RAG with secret scrubbing &amp; inline [1] citations
-$kb = new KnowledgeBase(new OpenAiProvider($_ENV['OPENAI_API_KEY']), $vectors);
-$kb-&gt;ingest('handbook-v1', file_get_contents('docs/handbook.md'), ['team' =&gt; 'eng']);
-$result = $kb-&gt;ask('How does Kongono prevent request state leakage?', AiClient::fromEnv());</code></pre>
           </div>
 
           <div class="tab-panel" data-tab-panel="testing">
@@ -242,17 +257,32 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
       <div class="container">
         <div class="section-head">
           <h2>Everything You Need — Zero Legacy Baggage</h2>
-          <p>Three tool-equipped AI companions, a 15-tool MCP server, reactive Live 2.5 &amp; Bridge frontends, capability-gated <code>/_ops</code>, production queues, and adversarial security out of the box.</p>
+          <p>Self-verifying proofs, least-privilege route capabilities, built-in <code>/_kongono</code> Dev Studio &amp; <code>/_ops</code>, reactive Live 2.5 &amp; Bridge frontends, zero-dependency LSP, optional Oshie/Chie/Hantei companions, and a 26-tool MCP server.</p>
         </div>
 
         <div class="grid-3">
+          <div class="card">
+            <span class="tag">Self-Verifying Stack</span>
+            <h3>One-Command Readiness Certificate</h3>
+            <p><code>kongo prove</code> runs 5 proof engines in one shot (17-rule contract <code>diagnose --fix</code>, <code>app/invariants.php</code> policies, <code>prove:isolation</code>, worker leak/N+1 <code>perf</code>, and PHP 8.5 codemod hygiene), plus <code>kongo watch</code> and <code>kongo lsp</code>.</p>
+          </div>
+          <div class="card">
+            <span class="tag">/_kongono &amp; /_ops</span>
+            <h3>Built-In Dev Studio &amp; Operations</h3>
+            <p>Zero-build Hot Reload, Built-In Dev Mailbox (sandboxed HTML preview &amp; secret scrubbing, zero Mailpit/Docker), Read-Only Schema Explorer, Proof Center, 5W1H Dev X-Ray vs. Zero-Leak Prod <code>KGN-*</code> refs, and capability-gated <code>/_ops</code>.</p>
+          </div>
+          <div class="card">
+            <span class="tag">Capabilities &amp; Time-Machine</span>
+            <h3>Least-Privilege Routes &amp; Incident Replay</h3>
+            <p>Enforce <code>#[ReadOnlyDb]</code>, <code>#[NoOutboundHttp]</code>, <code>#[MaxQueries]</code>, and <code>#[MaxAiCost]</code> pre-execution. Capture scrubbed 5xx incidents with <code>$app-&gt;recordIncidents()</code> and turn them into PHPUnit 13 tests via <code>kongo incident:test</code>.</p>
+          </div>
           <div class="card">
             <div class="card-companion">
               <img class="companion-ico" src="assets/companions/oshie.svg" width="30" height="30" alt="Oshie icon">
               <span class="tag">Oshie (教え) &middot; Learn</span>
             </div>
             <h3>Interactive AI Tutor &amp; Grader</h3>
-            <p>12 lessons + 6 verifiable hands-on exercises (<code>kongo oshie --exercise</code>), live CLI &amp; SSE streaming, <code>AGENTS.md</code> grounding, <code>--progress</code> tracking, and live <code>DevInspector</code> trace awareness.</p>
+            <p>13 built-in lessons + 6 verifiable hands-on exercises (<code>kongo oshie --exercise</code>), offline v1.20 RAG retrieval, live CLI &amp; SSE streaming, <code>AGENTS.md</code> grounding, and live <code>DevInspector</code> trace awareness.</p>
           </div>
           <div class="card">
             <div class="card-companion">
@@ -260,7 +290,7 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
               <span class="tag">Chie (知恵) &middot; Build</span>
             </div>
             <h3>Self-Verifying AI Builder</h3>
-            <p>Inspects code &amp; live DB schema via <code>AgentPrincipal</code>, applies surgical patches (<code>action: "patch"</code>), supports <code>--interactive</code> diff approval and <code>--continue</code>, and auto-repairs across PHPStan + PHPUnit + lint + security gates (<code>--apply --verify</code>).</p>
+            <p>Inspects code, live DB schema &amp; v1.20 docs via <code>AgentPrincipal</code>, applies surgical patches (<code>action: "patch"</code>), supports <code>--interactive</code> diff approval and <code>--continue</code>, and auto-repairs across PHPStan + PHPUnit + audit gates.</p>
           </div>
           <div class="card">
             <div class="card-companion">
@@ -271,9 +301,9 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
             <p>Tool-equipped root-cause diagnosis (CLI, <code>/_kongono</code> traces, <code>/_ops</code> DLQ jobs, <code>hantei watch</code>), closed-loop <code>hantei fix</code>, CI SARIF 2.1.0 <code>hantei review</code>, and PHPUnit 13 test generation — all secret-scrubbed.</p>
           </div>
           <div class="card">
-            <span class="tag">MCP &middot; 15 Native Tools</span>
-            <h3>Model Context Protocol Server</h3>
-            <p>Run <code>kongo mcp</code> (stdio) or <code>POST /mcp</code> so Antigravity, Cursor, Claude Code, and Codex inspect routes, OpenAPI 3.1, live DB schemas, audits, AI evals, migration lints, Hantei diagnoses, and read-only Chie diff previews safely.</p>
+            <span class="tag">MCP &middot; 26 Native Tools</span>
+            <h3>Model Context Protocol &amp; Agent Evals</h3>
+            <p>Run <code>kongo mcp</code> (pre-wired in <code>.vscode/mcp.json</code>) so Cursor, Claude Code, Codex, and Antigravity run <code>kongono_prove_all</code>, <code>kongono_search_docs</code>, <code>kongono_zokeibi_registry</code>, <code>kongono_impact</code>, and <code>kongono_shadow_diff</code>, plus <code>kongo eval --agent-bench</code>.</p>
           </div>
           <div class="card">
             <span class="tag">Live 2.5 &amp; Bridge</span>
@@ -281,24 +311,9 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
             <p>Ship strict-CSP keyed DOM morphing, zero-<code>eval()</code> signals, <code>kgn-oob</code>, <code>k-persist</code> offline queues, and <code>kgn-sortable</code> — or drop into React/Vue/Svelte via <code>Response::page()</code> and <code>@island</code>.</p>
           </div>
           <div class="card">
-            <span class="tag">/_ops &amp; /_kongono</span>
-            <h3>Built-In Operations &amp; Dev Studio</h3>
-            <p>Capability-gated Live 2.5 <code>/_ops</code> (queue depths, 1-click DLQ retry/flush, <code>JobBatch</code> progress, health &amp; Prometheus metrics) plus <code>/_kongono</code> Time-Travel Replay and <code>TestExporter</code>.</p>
-          </div>
-          <div class="card">
-            <span class="tag">Zero-Vendor Security</span>
-            <h3>Complete Auth &amp; AI Threat Shield</h3>
-            <p><code>SessionAuth</code>, revocable SHA-256 Personal Access Tokens, Passkeys, Magic Links, PKCE OAuth, TOTP MFA, theft-detecting Remember-Me, HKDF <code>Encryptor</code> v2, <code>HtmlSanitizer</code>, <code>AiThreatShield</code>, and <code>PromptGuard</code>.</p>
-          </div>
-          <div class="card">
-            <span class="tag">Queues, Batches &amp; Workflows</span>
-            <h3>Durable Background Execution</h3>
-            <p>PostgreSQL <code>SKIP LOCKED</code> + Lua-atomic Redis queues with priority draining, dead-letter CLI replay, <code>uniqueKey</code> dedup, job middleware, parallel <code>JobBatch</code>, and multi-day durable <code>Workflow</code>s.</p>
-          </div>
-          <div class="card">
-            <span class="tag">Persistent-Runtime First</span>
-            <h3>FrankenPHP, Hybrid RAG &amp; SDKs</h3>
-            <p>Zero static leaks, Fiber <code>Async</code>, <code>O(1)</code> + chunked PCRE2 AOT Router, streaming S3/Local storage, PostgreSQL FTS + <code>pgvector</code> Hybrid RRF, and typed TypeScript/Swift/Kotlin/Dart SDK generation.</p>
+            <span class="tag">Zero-Vendor Security &amp; Scale</span>
+            <h3>Auth, Queues, Hybrid RAG &amp; SDKs</h3>
+            <p><code>SessionAuth</code>, revocable PATs, Passkeys, TOTP, PostgreSQL <code>SKIP LOCKED</code> + Lua Redis queues, durable <code>Workflow</code>s, streaming S3/Local storage, FTS + <code>pgvector</code> Hybrid RRF, and TS/Swift/Kotlin/Dart SDK generation.</p>
           </div>
         </div>
       </div>
@@ -317,7 +332,7 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
               <tr>
                 <th>Capability</th>
                 <th>Traditional PHP Frameworks</th>
-                <th>Kongono v1.19 (PHP 8.5+)</th>
+                <th>Kongono v1.20 (PHP 8.5+)</th>
               </tr>
             </thead>
             <tbody>
@@ -329,27 +344,27 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
               <tr>
                 <td><strong>Persistent Runtimes</strong></td>
                 <td>Bolt-on resetters (Octane) to patch static/global state</td>
-                <td><strong>0 mutable statics</strong>: explicit <code>OperationScope</code> + <code>Container::resetScope()</code> + zero-reflection dispatch cache</td>
+                <td><strong>0 mutable statics</strong>: explicit <code>OperationScope</code> + <code>Container::resetScope()</code> + <code>kongo perf</code> leak prover</td>
               </tr>
               <tr>
-                <td><strong>Frontend &amp; Reactivity</strong></td>
-                <td>Separate packages (Livewire / Inertia) + JS build toolchains</td>
-                <td><strong>Built-in Live 2.5</strong> (~3 KB, zero-<code>eval()</code> strict CSP) + <strong>Bridge</strong> (React/Vue/Svelte + <code>@island</code>)</td>
+                <td><strong>Verification &amp; Diagnostics</strong></td>
+                <td>Manual code review + noisy stack traces + separate linters</td>
+                <td><strong><code>kongo prove</code></strong> (5 pillars), <code>diagnose --fix</code>, <code>#[ReadOnlyDb]</code>/<code>#[MaxQueries]</code>, <code>kongo lsp</code>, &amp; Incident Time-Machine</td>
               </tr>
               <tr>
-                <td><strong>Data &amp; Search</strong></td>
-                <td>ActiveRecord magic (<code>__get</code>/<code>__set</code>) + external search servers</td>
-                <td>Explicit <code>QueryBuilder</code> (soft deletes, RLS), zero-N+1 <code>BatchLoader</code>, typed <code>Factory</code>, and PostgreSQL FTS + <code>pgvector</code> <strong>Hybrid RRF</strong></td>
+                <td><strong>Frontend &amp; Dev Loop</strong></td>
+                <td>Livewire/Inertia + Vite + Docker Mailpit + separate installs</td>
+                <td><strong>Zero-build Live 2.5</strong> + <strong>Bridge</strong> + built-in <strong>Hot Reload</strong>, <strong>Dev Mailbox</strong>, <strong>Schema Explorer</strong>, &amp; <code>kongo watch</code></td>
               </tr>
               <tr>
-                <td><strong>Ops, Queues &amp; Dev Studio</strong></td>
-                <td>Horizon + Pulse + Telescope + Scramble (separate installs)</td>
-                <td><strong>Built-in zero-npm</strong> <code>/_ops</code> (queue/DLQ/batch/metrics), <code>/_kongono</code> Dev Studio, and OpenAPI 3.1 <code>/docs</code></td>
+                <td><strong>Data, Queues &amp; Ops</strong></td>
+                <td>ActiveRecord magic + Horizon/Pulse/Telescope installs</td>
+                <td>Explicit <code>QueryBuilder</code> (RLS, soft deletes), <code>BatchLoader</code>, <strong>Hybrid RRF</strong>, built-in <code>/_ops</code> &amp; <code>/_kongono</code></td>
               </tr>
               <tr>
-                <td><strong>Auth, Testing &amp; AI Safety</strong></td>
+                <td><strong>Auth, Testing &amp; AI/MCP</strong></td>
                 <td>Sanctum/Fortify + global fakes + ad-hoc AI glue</td>
-                <td>Native <code>SessionAuth</code>, revocable PATs, Passkeys, global-free <code>TestClient</code>/<code>FrozenClock</code>, <code>kongo audit --attack</code>, <code>kongo eval --redteam/--companions</code>, SARIF <code>hantei review</code>, and 15-tool MCP</td>
+                <td>Native <code>SessionAuth</code>, PATs, Passkeys, global-free <code>TestClient</code>/<code>FrozenClock</code>, <code>eval --redteam/--agent-bench</code>, &amp; <strong>26-tool MCP</strong></td>
               </tr>
             </tbody>
           </table>
@@ -360,7 +375,7 @@ DatabaseTestHelper::inRollbackTransaction($db, function () use ($app, $admin): v
 
   <footer>
     <div class="container">
-      <strong>Kongono Framework v1.19.0</strong> &middot; MIT License &middot;
+      <strong>Kongono Framework v1.20.0</strong> &middot; MIT License &middot;
       <a href="docs.html">Documentation</a> &middot;
       <a href="llms.txt">llms.txt</a> &middot;
       <a href="https://github.com/anthonyiovanna/kongono" target="_blank" rel="noopener">Framework Repo</a> &middot;

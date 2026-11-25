@@ -50,9 +50,10 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
             return $response->withHeader('Cache-Control', 'private, no-store');
         }
 
-        $hasAuthHeader = '' !== trim($request->getHeaderLine('Authorization'))
-            || '' !== trim($request->getHeaderLine('Proxy-Authorization'))
-            || '' !== trim($request->getHeaderLine('X-API-Key'));
+        $hasAuthorization = '' !== trim($request->getHeaderLine('Authorization'))
+            || '' !== trim($request->getHeaderLine('Proxy-Authorization'));
+        $hasApiKey = '' !== trim($request->getHeaderLine('X-API-Key'));
+        $hasAuthHeader = $hasAuthorization || $hasApiKey;
         $hasCookies = '' !== trim($request->getHeaderLine('Cookie')) || [] !== $request->getCookieParams();
         $hasPrincipal = null !== $request->getAttribute('Kongono\\Security\\Principal');
 
@@ -62,10 +63,16 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
         if (!$isPrivate && null !== $this->staleWhileRevalidate && $this->staleWhileRevalidate > 0) {
             $directives[] = 'stale-while-revalidate=' . $this->staleWhileRevalidate;
         }
+        if (str_contains($existingCc, 'no-transform')) {
+            $directives[] = 'no-transform';
+        }
         $response = $response->withHeader('Cache-Control', implode(', ', $directives));
 
-        if ($hasAuthHeader) {
+        if ($hasAuthorization) {
             $response = $this->appendVary($response, 'Authorization');
+        }
+        if ($hasApiKey) {
+            $response = $this->appendVary($response, 'X-API-Key');
         }
         if ($hasCookies) {
             $response = $this->appendVary($response, 'Cookie');
@@ -91,9 +98,9 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
         if ('*' === $header) {
             return true;
         }
-        $normalizedTarget = ltrim($etag, 'W/');
+        $normalizedTarget = self::stripWeakPrefix(trim($etag));
         foreach (explode(',', $header) as $candidate) {
-            if (ltrim(trim($candidate), 'W/') === $normalizedTarget) {
+            if (self::stripWeakPrefix(trim($candidate)) === $normalizedTarget) {
                 return true;
             }
         }
@@ -101,11 +108,20 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
         return false;
     }
 
+    private static function stripWeakPrefix(string $etag): string
+    {
+        return str_starts_with($etag, 'W/') ? substr($etag, 2) : $etag;
+    }
+
     private function appendVary(ResponseInterface $response, string $token): ResponseInterface
     {
-        $vary = $response->getHeaderLine('Vary');
-        if (!str_contains(strtolower($vary), strtolower($token))) {
-            return $response->withHeader('Vary', '' === $vary ? $token : $vary . ', ' . $token);
+        $vary = trim($response->getHeaderLine('Vary'));
+        $existing = '' !== $vary ? array_values(array_filter(array_map('trim', explode(',', $vary)), static fn(string $t): bool => '' !== $t)) : [];
+        $lower = array_map('strtolower', $existing);
+        if (!in_array(strtolower($token), $lower, true) && !in_array('*', $lower, true)) {
+            $existing[] = $token;
+
+            return $response->withHeader('Vary', implode(', ', $existing));
         }
 
         return $response;

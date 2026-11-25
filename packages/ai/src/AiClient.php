@@ -15,6 +15,7 @@ use Kongono\Ai\Provider\OllamaProvider;
 use Kongono\Ai\Provider\OpenAiProvider;
 use Kongono\Ai\Provider\StreamingAiProviderInterface;
 use Kongono\Ai\Transport\HttpTransportInterface;
+use Kongono\Core\Capabilities\ExecutionCapabilities;
 use Kongono\Core\Config;
 use Kongono\Validation\Validator;
 use ReflectionClass;
@@ -89,6 +90,14 @@ final readonly class AiClient
         bool $autoDetectFallbacks = false,
     ): self {
         $selected = strtolower(trim($providerOverride ?? ''));
+        $knownProviders = ['openai', 'anthropic', 'gemini', 'groq', 'ollama'];
+        if ('' !== $selected && !in_array($selected, $knownProviders, true)) {
+            throw new AiException(sprintf(
+                'Unknown AI provider "%s". Supported providers: %s.',
+                $selected,
+                implode(', ', $knownProviders),
+            ));
+        }
         $cleanModel = null !== $modelOverride && '' !== trim($modelOverride) ? trim($modelOverride) : null;
 
         $order = [];
@@ -97,18 +106,29 @@ final readonly class AiClient
         }
 
         $fallbackCsv = Config::env('KONGONO_AI_FALLBACK_PROVIDERS');
-        if (null !== $fallbackCsv && '' !== trim($fallbackCsv)) {
+        $hasExplicitFallbacks = null !== $fallbackCsv && '' !== trim($fallbackCsv);
+        if ($hasExplicitFallbacks) {
             foreach (explode(',', $fallbackCsv) as $item) {
                 $name = strtolower(trim($item));
-                if ('' !== $name && !in_array($name, $order, true)) {
+                if ('' === $name) {
+                    continue;
+                }
+                if (!in_array($name, $knownProviders, true)) {
+                    throw new AiException(sprintf(
+                        'Unknown fallback AI provider "%s". Supported providers: %s.',
+                        $name,
+                        implode(', ', $knownProviders),
+                    ));
+                }
+                if (!in_array($name, $order, true)) {
                     $order[] = $name;
                 }
             }
-        }
-
-        foreach (['openai', 'anthropic', 'gemini', 'groq', 'ollama'] as $candidate) {
-            if (!in_array($candidate, $order, true)) {
-                $order[] = $candidate;
+        } elseif ('' === $selected || ($autoDetectFallbacks && 'ollama' !== $selected)) {
+            foreach ($knownProviders as $candidate) {
+                if (!in_array($candidate, $order, true)) {
+                    $order[] = $candidate;
+                }
             }
         }
 
@@ -123,7 +143,7 @@ final readonly class AiClient
             }
             $providers[] = $provider;
 
-            if (!$autoDetectFallbacks && (null === $fallbackCsv || '' === trim($fallbackCsv))) {
+            if (!$autoDetectFallbacks && !$hasExplicitFallbacks) {
                 break;
             }
         }
@@ -209,7 +229,27 @@ final readonly class AiClient
 
     public function chat(ChatRequest $request): ChatResponse
     {
-        return $this->provider->chat($request);
+        $caps = ExecutionCapabilities::current();
+        if (null !== $caps) {
+            if ($caps->noOutboundHttp) {
+                $caps->assertOutboundHttpAllowed('ai://' . $this->provider->name());
+            }
+            if (null !== $caps->maxAiCostUsd) {
+                $caps->recordAiSpend(0.0);
+            }
+        }
+
+        $response = $this->provider->chat($request);
+
+        if (null !== $caps && null !== $caps->maxAiCostUsd) {
+            $caps->recordAiSpend(self::estimateCostUsd(
+                $response->provider,
+                $response->model,
+                self::effectiveUsageForSpend($request, $response),
+            ));
+        }
+
+        return $response;
     }
 
     /**
@@ -219,15 +259,80 @@ final readonly class AiClient
      */
     public function chatStream(ChatRequest $request, Closure $onDelta): ChatResponse
     {
-        if ($this->provider instanceof StreamingAiProviderInterface) {
-            return $this->provider->chatStream($request, $onDelta);
+        $caps = ExecutionCapabilities::current();
+        if (null !== $caps) {
+            if ($caps->noOutboundHttp) {
+                $caps->assertOutboundHttpAllowed('ai://' . $this->provider->name());
+            }
+            if (null !== $caps->maxAiCostUsd) {
+                $caps->recordAiSpend(0.0);
+            }
         }
-        $response = $this->provider->chat($request);
-        if ('' !== $response->text) {
-            $onDelta($response->text);
+
+        if ($this->provider instanceof StreamingAiProviderInterface) {
+            $response = $this->provider->chatStream($request, $onDelta);
+        } else {
+            $response = $this->provider->chat($request);
+            if ('' !== $response->text) {
+                $onDelta($response->text);
+            }
+        }
+
+        if (null !== $caps && null !== $caps->maxAiCostUsd) {
+            $caps->recordAiSpend(self::estimateCostUsd(
+                $response->provider,
+                $response->model,
+                self::effectiveUsageForSpend($request, $response),
+            ));
         }
 
         return $response;
+    }
+
+    /**
+     * Fall back to a conservative byte-based token estimate (~4 bytes/token) when a provider
+     * (especially SSE streaming endpoints) omits usage metadata, preventing #[MaxAiCost] bypasses.
+     */
+    private static function effectiveUsageForSpend(ChatRequest $request, ChatResponse $response): TokenUsage
+    {
+        if ($response->usage->inputTokens > 0 || $response->usage->outputTokens > 0) {
+            return $response->usage;
+        }
+        $inputBytes = 0;
+        foreach ($request->messages as $msg) {
+            $inputBytes += strlen($msg->content);
+        }
+        $outputBytes = strlen($response->text);
+        if (0 === $inputBytes && 0 === $outputBytes) {
+            return $response->usage;
+        }
+
+        return new TokenUsage(
+            inputTokens: $inputBytes > 0 ? max(1, (int) ceil($inputBytes / 4)) : 0,
+            outputTokens: $outputBytes > 0 ? max(1, (int) ceil($outputBytes / 4)) : 0,
+        );
+    }
+
+    /** Conservative model-aware USD cost estimate used for `#[MaxAiCost]` capability enforcement. */
+    public static function estimateCostUsd(string $provider, string $model, TokenUsage $usage): float
+    {
+        if ('ollama' === strtolower($provider)) {
+            return 0.0;
+        }
+        $lower = strtolower($model);
+        [$inPer1k, $outPer1k] = match (true) {
+            str_contains($lower, 'opus') => [0.015, 0.075],
+            str_contains($lower, 'sonnet') => [0.003, 0.015],
+            str_contains($lower, 'haiku') => [0.0008, 0.004],
+            str_contains($lower, 'gpt-4.1-mini'), str_contains($lower, 'gpt-4o-mini') => [0.0004, 0.0016],
+            str_contains($lower, 'gpt-4.1'), str_contains($lower, 'gpt-4o') => [0.0025, 0.010],
+            str_contains($lower, 'gemini-2.5-pro'), str_contains($lower, 'gemini-1.5-pro') => [0.00125, 0.010],
+            str_contains($lower, 'gemini') => [0.0003, 0.0025],
+            'groq' === strtolower($provider) => [0.0006, 0.0008],
+            default => [0.005, 0.015],
+        };
+
+        return (($usage->inputTokens / 1000.0) * $inPer1k) + (($usage->outputTokens / 1000.0) * $outPer1k);
     }
 
     /** Convenience one-shot helper for simple prompts. */

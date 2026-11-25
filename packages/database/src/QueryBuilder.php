@@ -25,6 +25,9 @@ final class QueryBuilder
     /** @var list<array{boolean: 'AND'|'OR', sql: string, bindings: list<mixed>}> */
     private array $wheres = [];
 
+    /** @var list<array{sql: string, bindings: list<mixed>}> */
+    private array $invariantConstraints = [];
+
     /** @var list<string> */
     private array $groups = [];
 
@@ -115,6 +118,24 @@ final class QueryBuilder
             throw new DatabaseException('Tenant ID cannot be empty.');
         }
 
+        $baseNew = strtolower(self::baseTenantColumn($col));
+        if (null !== $this->tenantConstraint && strtolower(self::baseTenantColumn($this->tenantConstraint['column'])) !== $baseNew) {
+            throw new DatabaseException(sprintf(
+                'Conflicting forTenant() columns on "%s": already scoped to "%s", cannot re-scope to "%s".',
+                $this->table,
+                $this->tenantConstraint['column'],
+                $col,
+            ));
+        }
+        if (null !== $this->requiredTenantColumn && strtolower(self::baseTenantColumn($this->requiredTenantColumn)) !== $baseNew) {
+            throw new DatabaseException(sprintf(
+                'Conflicting forTenant("%s") on "%s": query requires tenant column "%s".',
+                $col,
+                $this->table,
+                $this->requiredTenantColumn,
+            ));
+        }
+
         $this->requiredTenantColumn = $col;
         $this->tenantScoped = true;
         $this->tenantConstraint = ['column' => $col, 'value' => $id];
@@ -133,6 +154,13 @@ final class QueryBuilder
         }
         if (null !== $this->requiredTenantColumn && strtolower(self::baseTenantColumn($this->requiredTenantColumn)) !== strtolower(self::baseTenantColumn($column))) {
             $this->tenantScoped = false;
+            if (null !== $this->tenantConstraint) {
+                $this->invariantConstraints[] = [
+                    'sql' => sprintf('%s = ?', $this->dialect->quoteIdentifier($this->tenantConstraint['column'])),
+                    'bindings' => [$this->tenantConstraint['value']],
+                ];
+                $this->tenantConstraint = null;
+            }
         }
         $this->requiredTenantColumn = $column;
 
@@ -184,16 +212,26 @@ final class QueryBuilder
         return $this;
     }
 
-    /** Exclude soft-deleted rows (`WHERE deleted_at IS NULL`). */
+    /** Exclude soft-deleted rows (`WHERE deleted_at IS NULL`), immune to top-level `orWhere()` precedence bypasses. */
     public function withoutTrashed(string $column = 'deleted_at'): self
     {
-        return $this->whereNull($column);
+        $this->invariantConstraints[] = [
+            'sql' => sprintf('%s IS NULL', $this->dialect->quoteIdentifier($column)),
+            'bindings' => [],
+        ];
+
+        return $this;
     }
 
-    /** Include ONLY soft-deleted rows (`WHERE deleted_at IS NOT NULL`). */
+    /** Include ONLY soft-deleted rows (`WHERE deleted_at IS NOT NULL`), immune to top-level `orWhere()` precedence bypasses. */
     public function onlyTrashed(string $column = 'deleted_at'): self
     {
-        return $this->whereNotNull($column);
+        $this->invariantConstraints[] = [
+            'sql' => sprintf('%s IS NOT NULL', $this->dialect->quoteIdentifier($column)),
+            'bindings' => [],
+        ];
+
+        return $this;
     }
 
     /** Soft-delete matching rows by setting `$column` to an ISO-8601 UTC timestamp (enforces active tenant scopes). */
@@ -239,21 +277,19 @@ final class QueryBuilder
 
         $nested = new self($this->table, $this->dialect, $this->connection, $this->alias);
         $callback($nested);
-        if ([] === $nested->wheres) {
+        if (null === $nested->tenantConstraint && [] === $nested->invariantConstraints && [] === $nested->wheres) {
             return $this;
         }
 
-        $clauses = [];
         $bindings = [];
-        foreach ($nested->wheres as $index => $where) {
-            $prefix = 0 === $index ? '' : $where['boolean'] . ' ';
-            $clauses[] = $prefix . $where['sql'];
-            array_push($bindings, ...$where['bindings']);
+        $compiledGroup = $nested->compileWhereClause($bindings);
+        if (null === $compiledGroup || '' === $compiledGroup) {
+            return $this;
         }
 
         $this->wheres[] = [
             'boolean' => $bool,
-            'sql' => '(' . implode(' ', $clauses) . ')',
+            'sql' => '(' . $compiledGroup . ')',
             'bindings' => $bindings,
         ];
 
@@ -383,10 +419,14 @@ final class QueryBuilder
     /**
      * Compile a batch multi-row parameterized INSERT statement.
      *
-     * @param non-empty-list<array<string, mixed>> $rows
+     * @param list<array<string, mixed>> $rows
      */
     public function toInsertManySql(array $rows): Sql
     {
+        if ([] === $rows) {
+            throw new DatabaseException('Cannot compile batch INSERT with empty rows.');
+        }
+
         $scopedRows = [];
         foreach ($rows as $row) {
             $scopedRows[] = $this->applyTenantToWriteRow($row, 'INSERT');
@@ -402,10 +442,22 @@ final class QueryBuilder
         $groups = [];
         $bindings = [];
 
+        $tenantCol = null !== $this->tenantConstraint
+            ? self::baseTenantColumn($this->tenantConstraint['column'])
+            : (null !== $this->requiredTenantColumn ? self::baseTenantColumn($this->requiredTenantColumn) : null);
+
         foreach ($scopedRows as $row) {
             $groups[] = $rowPlaceholder;
             foreach ($columns as $col) {
-                $bindings[] = $row[$col] ?? null;
+                $val = $row[$col] ?? null;
+                if (null !== $tenantCol && strtolower($col) === strtolower($tenantCol) && (null === $val || '' === trim((string) (is_scalar($val) ? $val : '')))) {
+                    throw new DatabaseException(sprintf(
+                        'Refusing cross-tenant INSERT on "%s": row is missing required tenant column "%s".',
+                        $this->table,
+                        $tenantCol,
+                    ));
+                }
+                $bindings[] = $val;
             }
         }
 
@@ -422,12 +474,16 @@ final class QueryBuilder
     /**
      * Compile a multi-row UPSERT (PostgreSQL/SQLite ON CONFLICT or MySQL ON DUPLICATE KEY UPDATE).
      *
-     * @param non-empty-list<array<string, mixed>> $rows
-     * @param non-empty-list<string>               $conflictColumns
-     * @param list<string>                         $updateColumns   Empty = DO NOTHING / INSERT IGNORE
+     * @param list<array<string, mixed>> $rows
+     * @param list<string>               $conflictColumns
+     * @param list<string>               $updateColumns   Empty = DO NOTHING / INSERT IGNORE
      */
     public function toUpsertSql(array $rows, array $conflictColumns, array $updateColumns = []): Sql
     {
+        if ([] === $conflictColumns) {
+            throw new DatabaseException('Cannot compile UPSERT with empty conflict columns.');
+        }
+
         $base = $this->toInsertManySql($rows);
 
         if (null !== $this->requiredTenantColumn && null === $this->tenantConstraint && [] !== $updateColumns) {
@@ -550,7 +606,7 @@ final class QueryBuilder
         if ([] === $values) {
             throw new DatabaseException('Cannot compile UPDATE with empty values.');
         }
-        if ([] === $this->wheres && null === $this->tenantConstraint && !$allowUnscoped) {
+        if ([] === $this->wheres && null === $this->tenantConstraint && [] === $this->invariantConstraints && !$allowUnscoped) {
             throw new DatabaseException('Refusing unscoped UPDATE without WHERE clause. Pass $allowUnscoped = true to override.');
         }
 
@@ -592,7 +648,7 @@ final class QueryBuilder
     public function toDeleteSql(array $returning = [], bool $allowUnscoped = false): Sql
     {
         $this->assertTenantScoped('DELETE');
-        if ([] === $this->wheres && null === $this->tenantConstraint && !$allowUnscoped) {
+        if ([] === $this->wheres && null === $this->tenantConstraint && [] === $this->invariantConstraints && !$allowUnscoped) {
             throw new DatabaseException('Refusing unscoped DELETE without WHERE clause. Pass $allowUnscoped = true to override.');
         }
 
@@ -623,20 +679,30 @@ final class QueryBuilder
     /** @return array<string, mixed>|null */
     public function first(): ?array
     {
-        $sql = $this->limit(1)->toSelectSql();
+        $sql = (clone $this)->limit(1)->toSelectSql();
 
         return $this->requireConnection()->first($sql->query, $sql->bindings);
     }
 
-    /** Count matching rows using a clean COUNT(*) query. */
+    /** Count matching rows using a clean COUNT(*) query (wrapping GROUP BY / DISTINCT as a subquery). */
     public function count(): int
     {
         $clone = clone $this;
-        $clone->columns = ['COUNT(*) AS aggregate_count'];
         $clone->orders = [];
         $clone->limit = null;
         $clone->offset = null;
-        $row = $clone->requireConnection()->first($clone->toSelectSql()->query, $clone->toSelectSql()->bindings);
+
+        if ([] !== $clone->groups || $clone->distinct) {
+            $innerSql = $clone->toSelectSql();
+            $row = $clone->requireConnection()->first(
+                sprintf('SELECT COUNT(*) AS aggregate_count FROM (%s) AS kongono_count_sub', $innerSql->query),
+                $innerSql->bindings,
+            );
+        } else {
+            $clone->columns = ['COUNT(*) AS aggregate_count'];
+            $countSql = $clone->toSelectSql();
+            $row = $clone->requireConnection()->first($countSql->query, $countSql->bindings);
+        }
 
         return is_array($row) && is_numeric($row['aggregate_count'] ?? null)
             ? (int) $row['aggregate_count']
@@ -658,9 +724,19 @@ final class QueryBuilder
     {
         $clone = clone $this;
         $rows = $clone->select($column)->get();
+        $trimmed = trim($column);
+        if (1 === preg_match('/\s+AS\s+([a-zA-Z_][a-zA-Z0-9_]*)\z/i', $trimmed, $m)) {
+            $resultKey = $m[1];
+        } else {
+            $dot = strrpos($trimmed, '.');
+            $resultKey = false === $dot ? $trimmed : substr($trimmed, $dot + 1);
+        }
+
         $values = [];
         foreach ($rows as $row) {
-            if (array_key_exists($column, $row)) {
+            if (array_key_exists($resultKey, $row)) {
+                $values[] = $row[$resultKey];
+            } elseif (array_key_exists($column, $row)) {
                 $values[] = $row[$column];
             }
         }
@@ -671,7 +747,7 @@ final class QueryBuilder
     /**
      * Execute a batch multi-row parameterized INSERT.
      *
-     * @param non-empty-list<array<string, mixed>> $rows
+     * @param list<array<string, mixed>> $rows
      */
     public function insertMany(array $rows): int
     {
@@ -800,13 +876,13 @@ final class QueryBuilder
     }
 
     /**
-     * Compile combined tenant constraint + user WHERE clauses safely.
+     * Compile combined tenant constraint + soft-delete invariants + user WHERE clauses safely.
      *
      * @param list<mixed> $bindings
      */
     private function compileWhereClause(array &$bindings): ?string
     {
-        if (null === $this->tenantConstraint && [] === $this->wheres) {
+        if (null === $this->tenantConstraint && [] === $this->invariantConstraints && [] === $this->wheres) {
             return null;
         }
 
@@ -825,19 +901,27 @@ final class QueryBuilder
             $userSql = implode(' ', $clauses);
         }
 
+        $invariantClauses = [];
         if (null !== $this->tenantConstraint) {
-            $tenantSql = sprintf('%s = ?', $this->dialect->quoteIdentifier($this->tenantConstraint['column']));
+            $invariantClauses[] = sprintf('%s = ?', $this->dialect->quoteIdentifier($this->tenantConstraint['column']));
             $bindings[] = $this->tenantConstraint['value'];
+        }
+        foreach ($this->invariantConstraints as $inv) {
+            $invariantClauses[] = $inv['sql'];
+            array_push($bindings, ...$inv['bindings']);
+        }
 
+        if ([] !== $invariantClauses) {
+            $invariantSql = implode(' AND ', $invariantClauses);
             if ('' === $userSql) {
-                return $tenantSql;
+                return $invariantSql;
             }
 
             array_push($bindings, ...$userBindings);
 
             return $hasTopLevelOr
-                ? sprintf('%s AND (%s)', $tenantSql, $userSql)
-                : sprintf('%s AND %s', $tenantSql, $userSql);
+                ? sprintf('%s AND (%s)', $invariantSql, $userSql)
+                : sprintf('%s AND %s', $invariantSql, $userSql);
         }
 
         array_push($bindings, ...$userBindings);
@@ -876,6 +960,14 @@ final class QueryBuilder
             $matchedKey = null;
             foreach ($row as $k => $v) {
                 if (strtolower(self::baseTenantColumn($k)) === $lowerCol) {
+                    if (null !== $matchedKey) {
+                        throw new DatabaseException(sprintf(
+                            'Refusing ambiguous %s on "%s": duplicate case-variant keys for tenant column "%s".',
+                            $operation,
+                            $this->table,
+                            $col,
+                        ));
+                    }
                     if ($v !== $expected) {
                         throw new DatabaseException(sprintf(
                             'Refusing cross-tenant %s on "%s": row value for "%s" conflicts with active forTenant() scope.',
@@ -889,6 +981,9 @@ final class QueryBuilder
             }
             if (null === $matchedKey) {
                 $row[$col] = $expected;
+            } elseif ($matchedKey !== $col) {
+                unset($row[$matchedKey]);
+                $row[$col] = $expected;
             }
 
             return $row;
@@ -897,20 +992,40 @@ final class QueryBuilder
         if (null !== $this->requiredTenantColumn) {
             $col = self::baseTenantColumn($this->requiredTenantColumn);
             $lowerCol = strtolower($col);
-            $foundValid = false;
+            $foundKey = null;
             foreach ($row as $k => $v) {
-                if (strtolower(self::baseTenantColumn($k)) === $lowerCol && null !== $v && '' !== trim((string) (is_scalar($v) ? $v : ''))) {
-                    $foundValid = true;
-                    break;
+                if (strtolower(self::baseTenantColumn($k)) === $lowerCol) {
+                    if (null !== $foundKey) {
+                        throw new DatabaseException(sprintf(
+                            'Refusing ambiguous %s on "%s": duplicate case-variant keys for tenant column "%s".',
+                            $operation,
+                            $this->table,
+                            $col,
+                        ));
+                    }
+                    if (null === $v || '' === trim((string) (is_scalar($v) ? $v : ''))) {
+                        throw new DatabaseException(sprintf(
+                            'Refusing cross-tenant %s on "%s": tenant column "%s" cannot be empty.',
+                            $operation,
+                            $this->table,
+                            $col,
+                        ));
+                    }
+                    $foundKey = $k;
                 }
             }
-            if (!$foundValid) {
+            if (null === $foundKey) {
                 throw new DatabaseException(sprintf(
                     'Refusing cross-tenant %s on "%s": missing required tenant column "%s".',
                     $operation,
                     $this->table,
                     $col,
                 ));
+            }
+            if ($foundKey !== $col) {
+                $tenantVal = $row[$foundKey];
+                unset($row[$foundKey]);
+                $row[$col] = $tenantVal;
             }
         }
 

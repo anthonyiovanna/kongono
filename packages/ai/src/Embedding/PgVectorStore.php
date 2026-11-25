@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Ai\Embedding;
 
+use Kongono\Ai\AiException;
 use Kongono\Database\ConnectionInterface;
 
 /**
@@ -22,6 +23,7 @@ final readonly class PgVectorStore implements VectorStoreInterface
         $dims = max(1, $dimensions);
         $dialect = $this->db->dialect();
         $quoted = $dialect->quoteIdentifier($this->table);
+        $safeTableIdx = str_replace('.', '_', $this->table);
         $this->db->execute('CREATE EXTENSION IF NOT EXISTS vector');
         $this->db->execute(sprintf(
             'CREATE TABLE IF NOT EXISTS %s ('
@@ -36,7 +38,7 @@ final readonly class PgVectorStore implements VectorStoreInterface
         ));
         // Create HNSW cosine similarity index (pgvector supports HNSW up to 2,000 vector dimensions)
         if ($dims <= 2000) {
-            $hnswIdx = $dialect->quoteIdentifier('idx_' . $this->table . '_embedding_hnsw');
+            $hnswIdx = $dialect->quoteIdentifier('idx_' . $safeTableIdx . '_embedding_hnsw');
             $this->db->execute(sprintf(
                 'CREATE INDEX IF NOT EXISTS %s ON %s USING hnsw (embedding vector_cosine_ops)',
                 $hnswIdx,
@@ -44,7 +46,7 @@ final readonly class PgVectorStore implements VectorStoreInterface
             ));
         }
         // Create GIN index on JSONB metadata for fast hybrid `@>` filtered semantic search
-        $ginIdx = $dialect->quoteIdentifier('idx_' . $this->table . '_metadata_gin');
+        $ginIdx = $dialect->quoteIdentifier('idx_' . $safeTableIdx . '_metadata_gin');
         $this->db->execute(sprintf(
             'CREATE INDEX IF NOT EXISTS %s ON %s USING gin (metadata)',
             $ginIdx,
@@ -74,6 +76,7 @@ final readonly class PgVectorStore implements VectorStoreInterface
     {
         $quoted = $this->db->dialect()->quoteIdentifier($this->table);
         $vectorLiteral = $this->formatVector($queryVector);
+        $safeLimit = min(1000, max(1, $limit));
         $bindings = [$vectorLiteral];
         $whereSql = '';
 
@@ -83,7 +86,7 @@ final readonly class PgVectorStore implements VectorStoreInterface
         }
 
         $bindings[] = $vectorLiteral;
-        $bindings[] = $limit;
+        $bindings[] = $safeLimit;
 
         $rows = $this->db->query(
             sprintf(
@@ -118,10 +121,33 @@ final readonly class PgVectorStore implements VectorStoreInterface
         $this->db->execute(sprintf('DELETE FROM %s WHERE id = ?', $quoted), [$id]);
     }
 
+    /** Delete the base document ID and any `#chunk-*` entries associated with `$documentId`. */
+    public function deleteByDocumentId(string $documentId): void
+    {
+        $quoted = $this->db->dialect()->quoteIdentifier($this->table);
+        $escapedPrefix = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $documentId) . '#chunk-%';
+        $this->db->execute(
+            sprintf("DELETE FROM %s WHERE id = ? OR id LIKE ? ESCAPE '\\'", $quoted),
+            [$documentId, $escapedPrefix],
+        );
+    }
+
     /** @param list<float> $vector */
     private function formatVector(array $vector): string
     {
-        return '[' . implode(',', array_map(static fn(float $v): string => sprintf('%.8F', $v), $vector)) . ']';
+        if ([] === $vector) {
+            throw new AiException('Vector must not be empty.');
+        }
+
+        $formatted = [];
+        foreach ($vector as $v) {
+            if (!is_finite($v)) {
+                throw new AiException('Vector components must be finite numbers (NaN and INF are not allowed).');
+            }
+            $formatted[] = sprintf('%.8F', $v);
+        }
+
+        return '[' . implode(',', $formatted) . ']';
     }
 
     /** @return list<float> */

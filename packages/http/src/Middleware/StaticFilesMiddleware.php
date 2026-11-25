@@ -108,12 +108,13 @@ final readonly class StaticFilesMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $contents = file_get_contents($real);
-        if (false === $contents) {
+        $digest = @hash_file('xxh128', $real);
+        $size = @filesize($real);
+        if (false === $digest || false === $size) {
             return $handler->handle($request);
         }
 
-        $etag = '"' . hash('xxh128', $contents) . '"';
+        $etag = '"' . $digest . '"';
         $headers = [
             'Content-Type' => self::MIME_TYPES[$ext],
             'ETag' => $etag,
@@ -124,12 +125,38 @@ final readonly class StaticFilesMiddleware implements MiddlewareInterface
             $headers['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
         }
 
-        if (trim($request->getHeaderLine('If-None-Match')) === $etag) {
+        $ifNoneMatch = trim($request->getHeaderLine('If-None-Match'));
+        if ('' !== $ifNoneMatch && self::matchesIfNoneMatch($ifNoneMatch, $etag)) {
             return new Response(304, $headers);
         }
 
-        $body = 'HEAD' === $method ? Stream::fromString('') : Stream::fromString($contents);
+        $headers['Content-Length'] = (string) $size;
+        if ('HEAD' === $method) {
+            return new Response(200, $headers, Stream::fromString(''));
+        }
 
-        return new Response(200, $headers, $body);
+        $fp = @fopen($real, 'rb');
+        if (false === $fp) {
+            return $handler->handle($request);
+        }
+
+        return new Response(200, $headers, new Stream($fp));
+    }
+
+    private static function matchesIfNoneMatch(string $header, string $etag): bool
+    {
+        if ('*' === $header) {
+            return true;
+        }
+        $target = str_starts_with($etag, 'W/') ? substr($etag, 2) : $etag;
+        foreach (explode(',', $header) as $candidate) {
+            $trimmed = trim($candidate);
+            $normalized = str_starts_with($trimmed, 'W/') ? substr($trimmed, 2) : $trimmed;
+            if ($normalized === $target) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

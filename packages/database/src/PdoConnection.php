@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kongono\Database;
 
 use Closure;
+use Kongono\Core\Capabilities\ExecutionCapabilities;
+use Kongono\Core\Capabilities\QueryGuardableInterface;
 use PDO;
 use PDOException;
 use PDOStatement;
@@ -15,7 +17,7 @@ use Throwable;
  * bounded LRU prepared-statement reuse, and automatic transparent reconnect on idle transport loss
  * in persistent workers (FrankenPHP / RoadRunner).
  */
-final class PdoConnection implements ConnectionInterface
+final class PdoConnection implements ConnectionInterface, QueryGuardableInterface
 {
     private const int MAX_CACHED_STATEMENTS = 256;
 
@@ -24,10 +26,17 @@ final class PdoConnection implements ConnectionInterface
 
     private int $nextListenerId = 0;
 
+    /** @var array<int, Closure(string): void> */
+    private array $beforeQueryGuards = [];
+
+    private int $nextGuardId = 0;
+
     /** @var array<string, PDOStatement> */
     private array $statementCache = [];
 
     private int $transactionDepth = 0;
+
+    private bool $needsReconnect = false;
 
     private PDO $pdo;
 
@@ -53,6 +62,7 @@ final class PdoConnection implements ConnectionInterface
         }
         $this->statementCache = [];
         $this->transactionDepth = 0;
+        $this->needsReconnect = false;
         $this->pdo = ($this->connector)();
         $this->configurePdo($this->pdo);
     }
@@ -97,6 +107,29 @@ final class PdoConnection implements ConnectionInterface
         $this->queryListeners = [];
     }
 
+    /**
+     * Register a scoped pre-execution SQL guard invoked BEFORE any statement reaches PDO.
+     *
+     * @param Closure(string): void $guard
+     * @return Closure(): void
+     */
+    public function guardBeforeQuery(Closure $guard): Closure
+    {
+        $id = ++$this->nextGuardId;
+        $this->beforeQueryGuards[$id] = $guard;
+
+        return function () use ($id): void {
+            unset($this->beforeQueryGuards[$id]);
+        };
+    }
+
+    private function assertBeforeQuery(string $sql): void
+    {
+        foreach ($this->beforeQueryGuards as $guard) {
+            $guard($sql);
+        }
+    }
+
     public static function pgsql(
         string $host,
         int $port,
@@ -105,6 +138,9 @@ final class PdoConnection implements ConnectionInterface
         #[\SensitiveParameter]
         string $password,
         ?string $sslMode = null,
+        ?string $sslRootCert = null,
+        ?string $sslCert = null,
+        ?string $sslKey = null,
     ): self {
         self::assertSafeDsnPart($host, 'host');
         self::assertSafeDsnPart($database, 'database');
@@ -116,6 +152,12 @@ final class PdoConnection implements ConnectionInterface
                 throw new DatabaseException(sprintf('Unsupported PostgreSQL sslmode "%s".', $sslMode));
             }
             $dsn .= ';sslmode=' . $mode;
+        }
+        foreach (['sslrootcert' => $sslRootCert, 'sslcert' => $sslCert, 'sslkey' => $sslKey] as $optName => $optVal) {
+            if (null !== $optVal && '' !== trim($optVal)) {
+                self::assertSafeDsnPart($optVal, $optName);
+                $dsn .= ';' . $optName . '=' . $optVal;
+            }
         }
 
         $connector = static fn(): PDO => new PDO($dsn, $username, $password);
@@ -137,6 +179,9 @@ final class PdoConnection implements ConnectionInterface
     /** Connect from a standard DATABASE_URL (postgres://, mysql://, or sqlite://) preserving TLS/SSL query options. */
     public static function fromUrl(#[\SensitiveParameter] string $url): self
     {
+        if (str_contains($url, "\0")) {
+            throw new DatabaseException('Unsafe DATABASE_URL containing NUL byte rejected.');
+        }
         $parts = parse_url($url);
         if (false === $parts || !isset($parts['scheme'])) {
             throw new DatabaseException('Invalid DATABASE_URL format.');
@@ -148,6 +193,11 @@ final class PdoConnection implements ConnectionInterface
                 $rawPath = substr($url, strlen('sqlite://'));
                 $qPos = strpos($rawPath, '?');
                 $path = false === $qPos ? $rawPath : substr($rawPath, 0, $qPos);
+                if ('/:memory:' === $path) {
+                    $path = ':memory:';
+                } elseif (1 === preg_match('/\A\/[A-Za-z]:\//', $path)) {
+                    $path = substr($path, 1);
+                }
             } else {
                 $path = ltrim($parts['path'] ?? ':memory:', '/');
             }
@@ -166,8 +216,11 @@ final class PdoConnection implements ConnectionInterface
 
         if ('postgres' === $scheme || 'postgresql' === $scheme || 'pgsql' === $scheme) {
             $sslMode = is_string($query['sslmode'] ?? null) ? $query['sslmode'] : null;
+            $sslRootCert = is_string($query['sslrootcert'] ?? null) ? $query['sslrootcert'] : null;
+            $sslCert = is_string($query['sslcert'] ?? null) ? $query['sslcert'] : null;
+            $sslKey = is_string($query['sslkey'] ?? null) ? $query['sslkey'] : null;
 
-            return self::pgsql($host, $parts['port'] ?? 5432, $dbName, $user, $pass, $sslMode);
+            return self::pgsql($host, $parts['port'] ?? 5432, $dbName, $user, $pass, $sslMode, $sslRootCert, $sslCert, $sslKey);
         }
 
         if ('mysql' === $scheme) {
@@ -179,26 +232,38 @@ final class PdoConnection implements ConnectionInterface
             $options = [];
             $sslModeRaw = is_string($query['ssl-mode'] ?? null) ? $query['ssl-mode'] : (is_string($query['sslmode'] ?? null) ? $query['sslmode'] : null);
             $sslCa = is_string($query['sslca'] ?? null) ? $query['sslca'] : (is_string($query['sslrootcert'] ?? null) ? $query['sslrootcert'] : null);
-            if (null !== $sslCa && '' !== trim($sslCa)) {
+            $sslCaAttr = defined('Pdo\\Mysql::ATTR_SSL_CA')
+                ? \Pdo\Mysql::ATTR_SSL_CA
+                : (defined('PDO::MYSQL_ATTR_SSL_CA') ? constant('PDO::MYSQL_ATTR_SSL_CA') : null);
+            $sslVerifyAttr = defined('Pdo\\Mysql::ATTR_SSL_VERIFY_SERVER_CERT')
+                ? \Pdo\Mysql::ATTR_SSL_VERIFY_SERVER_CERT
+                : (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT') ? constant('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT') : null);
+            $sslCipherAttr = defined('Pdo\\Mysql::ATTR_SSL_CIPHER')
+                ? \Pdo\Mysql::ATTR_SSL_CIPHER
+                : (defined('PDO::MYSQL_ATTR_SSL_CIPHER') ? constant('PDO::MYSQL_ATTR_SSL_CIPHER') : null);
+
+            $mode = null !== $sslModeRaw && '' !== trim($sslModeRaw) ? strtoupper(trim($sslModeRaw)) : null;
+            if (null !== $mode && !in_array($mode, ['DISABLED', 'PREFERRED', 'REQUIRED', 'VERIFY_CA', 'VERIFY_IDENTITY'], true)) {
+                throw new DatabaseException(sprintf('Unsupported MySQL ssl-mode "%s".', $sslModeRaw));
+            }
+            if ('DISABLED' !== $mode && null !== $sslCa && '' !== trim($sslCa)) {
                 if (str_contains($sslCa, "\0")) {
                     throw new DatabaseException('Unsafe MySQL SSL CA path.');
                 }
-                if (defined('PDO::MYSQL_ATTR_SSL_CA')) {
-                    $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+                if (is_int($sslCaAttr)) {
+                    $options[$sslCaAttr] = $sslCa;
                 }
             }
-            if (null !== $sslModeRaw && '' !== trim($sslModeRaw)) {
-                $mode = strtoupper(trim($sslModeRaw));
-                if (!in_array($mode, ['DISABLED', 'PREFERRED', 'REQUIRED', 'VERIFY_CA', 'VERIFY_IDENTITY'], true)) {
-                    throw new DatabaseException(sprintf('Unsupported MySQL ssl-mode "%s".', $sslModeRaw));
+            if (null !== $mode && in_array($mode, ['REQUIRED', 'VERIFY_CA', 'VERIFY_IDENTITY'], true)) {
+                if (is_int($sslVerifyAttr)) {
+                    $options[$sslVerifyAttr] = 'REQUIRED' !== $mode;
                 }
-                if (in_array($mode, ['REQUIRED', 'VERIFY_CA', 'VERIFY_IDENTITY'], true)) {
-                    if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
-                        $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = 'REQUIRED' !== $mode;
-                    }
-                    if (!isset($options[PDO::MYSQL_ATTR_SSL_CA]) && 'REQUIRED' !== $mode) {
-                        throw new DatabaseException(sprintf('MySQL ssl-mode=%s requires sslca/sslrootcert in DATABASE_URL.', $mode));
-                    }
+                // Ensure mysqlnd actually negotiates TLS even when ssl-mode=REQUIRED is used without a custom CA file
+                if ('REQUIRED' === $mode && is_int($sslCipherAttr) && (!is_int($sslCaAttr) || !isset($options[$sslCaAttr]))) {
+                    $options[$sslCipherAttr] = 'DEFAULT';
+                }
+                if ((!is_int($sslCaAttr) || !isset($options[$sslCaAttr])) && 'REQUIRED' !== $mode) {
+                    throw new DatabaseException(sprintf('MySQL ssl-mode=%s requires sslca/sslrootcert in DATABASE_URL.', $mode));
                 }
             }
 
@@ -215,14 +280,24 @@ final class PdoConnection implements ConnectionInterface
         return $this->dialect;
     }
 
+    public function inTransaction(): bool
+    {
+        return $this->transactionDepth > 0 || $this->pdo->inTransaction();
+    }
+
     public function query(string $sql, array $bindings = []): array
     {
+        $this->assertBeforeQuery($sql);
         $start = [] !== $this->queryListeners ? hrtime(true) : 0;
 
         /** @var list<array<string, mixed>> $rows */
-        $rows = $this->runWithReconnect($sql, $bindings, static function (PDOStatement $stmt): array {
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        }, 'Database query failed: ');
+        $rows = $this->runWithReconnect(
+            $sql,
+            $bindings,
+            static fn(PDOStatement $stmt): array => $stmt->fetchAll(PDO::FETCH_ASSOC),
+            'Database query failed: ',
+            allowRetry: !ExecutionCapabilities::isWriteSql($sql),
+        );
         $this->notifyQuery($sql, $start);
 
         return $rows;
@@ -230,11 +305,16 @@ final class PdoConnection implements ConnectionInterface
 
     public function first(string $sql, array $bindings = []): ?array
     {
+        $this->assertBeforeQuery($sql);
         $start = [] !== $this->queryListeners ? hrtime(true) : 0;
 
-        $row = $this->runWithReconnect($sql, $bindings, static function (PDOStatement $stmt): mixed {
-            return $stmt->fetch(PDO::FETCH_ASSOC);
-        }, 'Database query failed: ');
+        $row = $this->runWithReconnect(
+            $sql,
+            $bindings,
+            static fn(PDOStatement $stmt): mixed => $stmt->fetch(PDO::FETCH_ASSOC),
+            'Database query failed: ',
+            allowRetry: !ExecutionCapabilities::isWriteSql($sql),
+        );
         $this->notifyQuery($sql, $start);
         if (!is_array($row)) {
             return null;
@@ -247,11 +327,16 @@ final class PdoConnection implements ConnectionInterface
 
     public function execute(string $sql, array $bindings = []): int
     {
+        $this->assertBeforeQuery($sql);
         $start = [] !== $this->queryListeners ? hrtime(true) : 0;
 
-        $count = $this->runWithReconnect($sql, $bindings, static function (PDOStatement $stmt): int {
-            return $stmt->rowCount();
-        }, 'Database execution failed: ');
+        $count = $this->runWithReconnect(
+            $sql,
+            $bindings,
+            static fn(PDOStatement $stmt): int => $stmt->rowCount(),
+            'Database execution failed: ',
+            allowRetry: false,
+        );
         $this->notifyQuery($sql, $start);
 
         return $count;
@@ -263,14 +348,30 @@ final class PdoConnection implements ConnectionInterface
      * @param Closure(PDOStatement): T    $extractor
      * @return T
      */
-    private function runWithReconnect(string $sql, array $bindings, Closure $extractor, string $errorPrefix): mixed
-    {
-        $canRetry = null !== $this->connector && !$this->pdo->inTransaction();
+    private function runWithReconnect(
+        string $sql,
+        array $bindings,
+        Closure $extractor,
+        string $errorPrefix,
+        bool $allowRetry = false,
+    ): mixed {
+        if ($this->needsReconnect && null !== $this->connector && !$this->inTransaction()) {
+            $this->reconnect();
+        }
 
-        for ($attempt = 1; $attempt <= ($canRetry ? 2 : 1); ++$attempt) {
+        $canRetry = $allowRetry && null !== $this->connector && !$this->inTransaction();
+        $attempt = 0;
+
+        while (true) {
+            ++$attempt;
             try {
                 $stmt = $this->prepareCached($sql);
-                $stmt->execute($bindings);
+                if (PDOStatement::class === $stmt::class) {
+                    self::bindTypedValues($stmt, $bindings);
+                    $stmt->execute();
+                } else {
+                    $stmt->execute($bindings);
+                }
                 $result = $extractor($stmt);
                 if (PDOStatement::class === $stmt::class) {
                     $stmt->closeCursor();
@@ -279,16 +380,43 @@ final class PdoConnection implements ConnectionInterface
                 return $result;
             } catch (PDOException $e) {
                 unset($this->statementCache[$sql]);
-                if ($attempt === 1 && $canRetry && self::isConnectionLost($e)) {
-                    $this->reconnect();
-                    continue;
+                if (self::isConnectionLost($e)) {
+                    if (1 === $attempt && $canRetry) {
+                        $this->reconnect();
+                        continue;
+                    }
+                    // Mark connection dirty so next top-level operation reconnects lazily without replaying failed writes
+                    $this->statementCache = [];
+                    $this->needsReconnect = true;
                 }
 
                 throw new DatabaseException($errorPrefix . $e->getMessage(), previous: $e);
             }
         }
+    }
 
-        throw new DatabaseException($errorPrefix . 'exhausted connection attempts.');
+    /**
+     * Bind positional parameters with native PDO types so native prepared statements (`ATTR_EMULATE_PREPARES => false`)
+     * handle booleans (`false` vs `""`), integers (`LIMIT ?`), and NULLs accurately across Postgres, MySQL, and SQLite.
+     *
+     * @param list<mixed> $bindings
+     */
+    private static function bindTypedValues(PDOStatement $stmt, array $bindings): void
+    {
+        foreach ($bindings as $idx => $value) {
+            $pos = $idx + 1;
+            if (null === $value) {
+                $stmt->bindValue($pos, null, PDO::PARAM_NULL);
+            } elseif (is_bool($value)) {
+                $stmt->bindValue($pos, $value, PDO::PARAM_BOOL);
+            } elseif (is_int($value)) {
+                $stmt->bindValue($pos, $value, PDO::PARAM_INT);
+            } elseif (is_scalar($value)) {
+                $stmt->bindValue($pos, (string) $value, PDO::PARAM_STR);
+            } else {
+                $stmt->bindValue($pos, $value, PDO::PARAM_STR);
+            }
+        }
     }
 
     private function prepareCached(string $sql): PDOStatement
@@ -354,6 +482,9 @@ final class PdoConnection implements ConnectionInterface
     public function transaction(Closure $callback): mixed
     {
         if (0 === $this->transactionDepth && !$this->pdo->inTransaction()) {
+            if ($this->needsReconnect && null !== $this->connector) {
+                $this->reconnect();
+            }
             if (!$this->pdo->beginTransaction()) {
                 throw new DatabaseException('Unable to begin database transaction.');
             }
@@ -367,8 +498,12 @@ final class PdoConnection implements ConnectionInterface
 
                 return $result;
             } catch (Throwable $failure) {
-                if ($this->pdo->inTransaction()) {
-                    $this->pdo->rollBack();
+                try {
+                    if ($this->pdo->inTransaction()) {
+                        $this->pdo->rollBack();
+                    }
+                } catch (Throwable) {
+                    $this->needsReconnect = true;
                 }
                 throw $failure;
             } finally {
@@ -376,9 +511,10 @@ final class PdoConnection implements ConnectionInterface
             }
         }
 
-        ++$this->transactionDepth;
-        $savepoint = 'kongono_sp_' . $this->transactionDepth;
+        $nextDepth = $this->transactionDepth + 1;
+        $savepoint = 'kongono_sp_' . $nextDepth;
         $this->pdo->exec('SAVEPOINT ' . $savepoint);
+        $this->transactionDepth = $nextDepth;
 
         try {
             $result = $callback($this);
@@ -386,8 +522,13 @@ final class PdoConnection implements ConnectionInterface
 
             return $result;
         } catch (Throwable $failure) {
-            if ($this->pdo->inTransaction()) {
-                $this->pdo->exec('ROLLBACK TO SAVEPOINT ' . $savepoint);
+            try {
+                if ($this->pdo->inTransaction()) {
+                    $this->pdo->exec('ROLLBACK TO SAVEPOINT ' . $savepoint);
+                }
+            } catch (Throwable) {
+                // Preserve original $failure even if the connection dropped before SAVEPOINT rollback
+                $this->needsReconnect = true;
             }
             throw $failure;
         } finally {

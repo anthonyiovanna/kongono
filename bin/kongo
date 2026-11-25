@@ -8,12 +8,15 @@ use Kongono\Cli\KongoCli;
 $cwd = getcwd();
 $workingDir = false !== $cwd ? $cwd : dirname(__DIR__);
 
-$autoloadCandidates = array_filter([
-    isset($_composer_autoload_path) && is_string($_composer_autoload_path) ? $_composer_autoload_path : null,
-    dirname(__DIR__, 3) . '/autoload.php',
-    dirname(__DIR__) . '/vendor/autoload.php',
-    $workingDir . '/vendor/autoload.php',
-]);
+$autoloadCandidates = array_values(array_filter(
+    [
+        isset($_composer_autoload_path) && is_string($_composer_autoload_path) ? $_composer_autoload_path : null,
+        dirname(__DIR__, 3) . '/autoload.php',
+        dirname(__DIR__) . '/vendor/autoload.php',
+        $workingDir . '/vendor/autoload.php',
+    ],
+    static fn(?string $path): bool => null !== $path && '' !== $path,
+));
 
 $autoload = null;
 foreach ($autoloadCandidates as $candidate) {

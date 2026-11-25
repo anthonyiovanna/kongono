@@ -47,6 +47,11 @@ final class Stream implements StreamInterface
         return new self($resource);
     }
 
+    public function __destruct()
+    {
+        $this->close();
+    }
+
     public function __toString(): string
     {
         if (null === $this->resource) {

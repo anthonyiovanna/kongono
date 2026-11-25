@@ -4,6 +4,8 @@ includes:
 parameters:
     level: 9
     paths:
+        - bin/kongo
+        - bin/generate-sbom
         - packages/core/src
         - packages/http/src
         - packages/view/src
@@ -15,5 +17,8 @@ parameters:
         - packages/mail/src
         - packages/ai/src
         - packages/cli/src
+        - examples/benchmark.php
+        - examples/starter-app/app
+        - examples/starter-app/public
         - examples/starter-app/src
     tmpDir: .cache/phpstan

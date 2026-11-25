@@ -1677,7 +1677,7 @@ HTML);
         ]);
         $devHtml = $renderer->render($req, $wrapped, dirname(__DIR__, 3), 'Billing App');
 
-        self::assertStringContainsString('Suggested Quick Fix', $devHtml);
+        self::assertStringContainsString('Plain-English Diagnosis', $devHtml);
         self::assertStringContainsString('Missing Database Table', $devHtml);
         self::assertStringContainsString('migrate', $devHtml);
         self::assertStringContainsString('Caused by #1', $devHtml);

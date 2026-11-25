@@ -25,6 +25,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 final readonly class BridgeMiddleware implements MiddlewareInterface
 {
     public const string DEFAULT_SCRIPT_PATH = '/_kongono/bridge.js';
+    public const string RUNTIME_VERSION = '1.10.1';
 
     /**
      * @param string|Closure(): string                                                     $version        Asset bundle version string or lazy resolver (e.g. manifest hash)
@@ -74,13 +75,18 @@ final readonly class BridgeMiddleware implements MiddlewareInterface
             $clientVersion = trim($request->getHeaderLine('X-Kongono-Bridge-Version'));
             if ('' !== $clientVersion && $clientVersion !== $currentVersion) {
                 $target = $path . ('' !== $request->getUri()->getQuery() ? '?' . $request->getUri()->getQuery() : '');
-                if (!str_starts_with($target, '/') || str_starts_with($target, '//')) {
+                if (
+                    !str_starts_with($target, '/')
+                    || str_starts_with($target, '//')
+                    || str_starts_with($target, '/\\')
+                    || 1 === preg_match('/[\x00-\x1f\x7f\\\\]/', $target)
+                ) {
                     $target = '/';
                 }
 
                 return new Response(409, [
                     'X-Kongono-Bridge-Location' => $target,
-                    'Vary' => 'X-Kongono-Bridge',
+                    'Vary' => 'X-Kongono-Bridge, X-Kongono-Bridge-Version',
                 ]);
             }
         }
@@ -109,11 +115,13 @@ final readonly class BridgeMiddleware implements MiddlewareInterface
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT,
         );
 
+        $varyHeader = self::mergeVary($response->getHeaderLine('Vary'), ['X-Kongono-Bridge', 'X-Kongono-Bridge-Version']);
+
         if ($isBridge) {
             return $response
                 ->withHeader('Content-Type', 'application/json; charset=utf-8')
                 ->withHeader('X-Kongono-Bridge', 'true')
-                ->withHeader('Vary', 'X-Kongono-Bridge')
+                ->withHeader('Vary', $varyHeader)
                 ->withBody(Stream::fromString($json));
         }
 
@@ -132,13 +140,30 @@ final readonly class BridgeMiddleware implements MiddlewareInterface
 
         return $response
             ->withHeader('Content-Type', 'text/html; charset=utf-8')
-            ->withHeader('Vary', 'X-Kongono-Bridge')
+            ->withHeader('Vary', $varyHeader)
             ->withBody(Stream::fromString($html));
+    }
+
+    /** @param list<string> $tokens */
+    private static function mergeVary(string $existing, array $tokens): string
+    {
+        $parts = '' !== trim($existing)
+            ? array_values(array_filter(array_map('trim', explode(',', $existing)), static fn(string $v): bool => '' !== $v))
+            : [];
+        $lower = array_map('strtolower', $parts);
+        foreach ($tokens as $token) {
+            if (!in_array(strtolower($token), $lower, true) && !in_array('*', $lower, true)) {
+                $parts[] = $token;
+                $lower[] = strtolower($token);
+            }
+        }
+
+        return implode(', ', $parts);
     }
 
     public static function scriptSource(): string
     {
-        return <<<'JS'
+        $script = <<<'JS'
 (() => {
   "use strict";
   if (window.KongonoBridge) return;
@@ -380,7 +405,7 @@ final readonly class BridgeMiddleware implements MiddlewareInterface
   }
 
   window.KongonoBridge = {
-    version: "1.10.0",
+    version: "__RUNTIME_VERSION__",
     boot,
     mountIslands,
     visit,
@@ -390,5 +415,7 @@ final readonly class BridgeMiddleware implements MiddlewareInterface
   };
 })();
 JS;
+
+        return str_replace('__RUNTIME_VERSION__', self::RUNTIME_VERSION, $script);
     }
 }

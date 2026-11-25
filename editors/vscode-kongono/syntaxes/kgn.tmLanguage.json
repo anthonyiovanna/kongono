@@ -1,0 +1,48 @@
+{
+  "name": "Kongono Template (.kgn.html)",
+  "scopeName": "text.html.kongono",
+  "patterns": [
+    { "include": "#kongono-comment" },
+    { "include": "#kongono-raw-echo" },
+    { "include": "#kongono-echo" },
+    { "include": "#kongono-directive" },
+    { "include": "#kongono-component" },
+    { "include": "#kongono-live-attr" },
+    { "include": "text.html.basic" }
+  ],
+  "repository": {
+    "kongono-comment": {
+      "name": "comment.block.kongono",
+      "begin": "\\{\\{--",
+      "end": "--\\}\\}"
+    },
+    "kongono-raw-echo": {
+      "name": "meta.embedded.expression.raw.kongono",
+      "begin": "\\{!!",
+      "end": "!!\\}",
+      "beginCaptures": { "0": { "name": "punctuation.definition.template-expression.begin.kongono" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.template-expression.end.kongono" } },
+      "patterns": [{ "include": "source.php" }]
+    },
+    "kongono-echo": {
+      "name": "meta.embedded.expression.kongono",
+      "begin": "\\{\\{",
+      "end": "\\}\\}",
+      "beginCaptures": { "0": { "name": "punctuation.definition.template-expression.begin.kongono" } },
+      "endCaptures": { "0": { "name": "punctuation.definition.template-expression.end.kongono" } },
+      "patterns": [{ "include": "source.php" }]
+    },
+    "kongono-directive": {
+      "name": "keyword.control.directive.kongono",
+      "match": "@(?:extends|section|endsection|yield|include|if|elseif|else|endif|unless|endunless|isset|endisset|foreach|endforeach|forelse|empty|endforelse|php|endphp|state|island|liveScript|bridgeScript|safeHtml|json|t|old|error|enderror|vite)\\b"
+    },
+    "kongono-component": {
+      "name": "entity.name.tag.component.kongono",
+      "match": "</?x-[a-zA-Z0-9._-]+\\b"
+    },
+    "kongono-live-attr": {
+      "name": "entity.other.attribute-name.live.kongono",
+      "match": "\\bk-(?:on:[a-zA-Z0-9._-]+|show|model|text|class:[a-zA-Z0-9._-]+|attr:[a-zA-Z0-9._-]+|bind:[a-zA-Z0-9._-]+)\\b"
+    }
+  }
+}

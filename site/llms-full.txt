@@ -1,4 +1,4 @@
-# Kongono Framework — Complete LLM Technical Reference (v1.19.0)
+# Kongono Framework — Complete LLM Technical Reference (v1.20.0)
 
 > Single-file, verified technical reference for AI coding agents (Claude, GPT, Gemini, Groq, Cursor, Codex, Antigravity) building and maintaining Kongono PHP 8.5+ applications.
 > Every namespace, class name, and pattern below is verified against `kongono/framework`.
@@ -51,12 +51,13 @@ $health = (new HealthCheck())->check('runtime', static fn(): bool => true);
 $app = App::create($baseDir, name: 'My App')
     ->config(['app' => ['debug' => $debug]])
     ->views(autoReload: $debug)
+    ->recordIncidents()
     ->instance(HealthCheck::class, $health)
     ->instance(DevInspector::class, $inspector)
     ->controller(HomeController::class);
 
 $app->middleware(
-    new DevDashboardMiddleware($app, $inspector),
+    new DevDashboardMiddleware($app, $inspector, hotReload: true),
     new SecurityHeadersMiddleware(),
 );
 
@@ -64,7 +65,9 @@ return $app;
 ```
 
 - Always create apps via `App::create($baseDir, name: '...')` (constructor is private).
+- Call `->recordIncidents()` to record secret-scrubbed 5xx failures to `storage/incidents/*.json` for offline `kongo incident:replay` and `kongo incident:test` regression test generation.
 - Register singletons via `->instance(InterfaceOrClass::class, $obj)` or container bindings.
+- For zero-SMTP local email capture in `/_kongono`, bind `Kongono\Core\Dev\FileDevMailbox` (`DevMailboxInterface`) and pass `new Kongono\Mail\DevMailboxTransport($devMailbox)` to `Mailer` when `$app->isDebug()` is true.
 - `App::create()` binds `ClockInterface` to `SystemClock` automatically; override with `->instance(ClockInterface::class, FrozenClock::at(...))` in tests.
 
 ---
@@ -81,8 +84,8 @@ namespace App\Http;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Http\Routing\{CacheControl, Delete, Feature, Get, Idempotent, Middleware, Patch, Post, Prefix, Put};
-use Kongono\Security\Attributes\{Authenticated, Can};
-use Kongono\Security\Middleware\BearerAuthMiddleware;
+use Kongono\Security\Attributes\{Authenticated, Can, MaxAiCost, MaxQueries, NoOutboundHttp, ReadOnlyDb};
+use Kongono\Security\Middleware\{BearerAuthMiddleware, CapabilityMiddleware};
 use Kongono\Security\Principal;
 
 #[Prefix('/api/notes')]
@@ -93,6 +96,9 @@ final readonly class NoteController
     ) {}
 
     #[Get('/', name: 'notes.index')]
+    #[ReadOnlyDb]
+    #[NoOutboundHttp]
+    #[MaxQueries(3)]
     #[CacheControl(maxAge: 60, public: true, staleWhileRevalidate: 30)]
     public function index(): Response
     {
@@ -138,7 +144,7 @@ declare(strict_types=1);
 namespace App\Dto;
 
 use Kongono\Validation\Attributes\{ArrayOf, Between, Confirmed, Date, Email, In, Ip, Max, Min, NotIn, Regex, Required, RequiredIf, Url, Uuid};
-use Kongono\Validation\{ValidatableDtoInterface, ValidationErrors};
+use Kongono\Validation\ValidatableDtoInterface;
 
 enum Plan: string
 {
@@ -162,11 +168,14 @@ final readonly class SignupInput implements ValidatableDtoInterface
         #[Required, Confirmed('password')] public string $passwordConfirmation = '',
     ) {}
 
-    public function validateSelf(ValidationErrors $errors): void
+    /** @return array<string, string|list<string>> */
+    public function validate(): array
     {
         if (str_ends_with($this->email, '@blocked.test')) {
-            $errors->add('email', 'Domain is not allowed.');
+            return ['email' => 'Domain is not allowed.'];
         }
+
+        return [];
     }
 }
 ```
@@ -181,7 +190,7 @@ final readonly class SignupInput implements ValidatableDtoInterface
 
 ### Compiled `.kgn.html` Views
 - `{{ $expr }}` — context-aware HTML auto-escaping.
-- `@safeHtml($userHtml)` — sanitized through HTML5 `Kongono\Security\HtmlSanitizer`.
+- `@safeHtml($userHtml)` — sanitized through HTML5 `Kongono\View\HtmlSanitizer`.
 - `@extends('layouts/app')`, `@section('content')...@endsection`, `@yield('content')`, `@include('partials/nav')`.
 - `@if`, `@unless`, `@isset`, `@foreach`, `@forelse ... @empty ... @endforelse`, `<x-card :title="$title">...</x-card>`.
 - `@t('key', ['name' => $name])` i18n, `@json($data)`, `@old('title')`, `@error('title')...@enderror`, `@vite(['resources/js/app.js'])`.
@@ -231,8 +240,8 @@ $db->table('posts')->where('id', '=', $id)->softDelete();
 $db->table('posts')->where('id', '=', $id)->restore();
 
 // Zero-N+1 eager relation loading (1 query per relation)
-$commentsByPost = BatchLoader::hasMany($db, 'comments', 'post_id', $postIds);
-$authorsById = BatchLoader::belongsTo($db, 'users', 'id', $authorIds);
+$commentsByPost = BatchLoader::hasMany($db, $page->items, 'comments', 'post_id');
+$authorsById = BatchLoader::belongsTo($db, $page->items, 'users', 'author_id');
 
 // Typed immutable factories (Kongono\Database\Testing\Factory)
 $factory = Factory::for(UserDto::class, static fn(int $n): array => [
@@ -242,7 +251,7 @@ $factory = Factory::for(UserDto::class, static fn(int $n): array => [
 $admins = $factory->state(['role' => 'admin'])->count(3)->make();
 
 // Schema DDL & evolution
-$createSql = Schema::create('posts', static function (Blueprint $t): void {
+Schema::create($db, 'posts', static function (Blueprint $t): void {
     $t->id();
     $t->uuid('public_id');
     $t->foreignId('user_id', 'users');
@@ -251,14 +260,14 @@ $createSql = Schema::create('posts', static function (Blueprint $t): void {
     $t->decimal('price', 10, 2);
     $t->timestamps();
     $t->softDeletes();
-}, $db->dialect());
+});
 
-$alterStatements = Schema::table('posts', static function (Blueprint $t): void {
+Schema::table($db, 'posts', static function (Blueprint $t): void {
     $t->dropSoftDeletes();
-}, $db->dialect());
+});
 ```
 
-- For `CREATE INDEX CONCURRENTLY`, implement `Kongono\Database\Migration\NonTransactionalMigrationInterface`.
+- For `CREATE INDEX CONCURRENTLY`, implement `Kongono\Database\NonTransactionalMigrationInterface`.
 - PostgreSQL row-level isolation: `Kongono\Database\RowLevelSecurity`.
 - Multi-database & read replicas: `Kongono\Database\ConnectionManager` (named connections + lazy factories + `resetSticky()`) and `Kongono\Database\ReadWriteConnection` (round-robin `SELECT` replica routing, primary routing for DML/`FOR UPDATE`/transactions, persistent-worker-safe sticky-after-write).
 - N+1 detection in dev/tests: `Kongono\Database\QueryGuard`.
@@ -382,21 +391,87 @@ $dto = $ai->structured($ticketText, TicketSummaryDto::class);
 - Prompt injection & canary defense: `Kongono\Ai\Security\PromptGuard` + `UntrustedInput`.
 - Governed agents: `Kongono\Ai\Agent\AgentPrincipal`, `RequiresApproval`, `AgentRunner` (token & USD cost budgets).
 - RAG: `Kongono\Ai\Embedding\KnowledgeBase` + `PgVectorStore` / `MemoryVectorStore` + `HybridSearch`.
-- Evals: `Kongono\Ai\Eval\EvalRunner` + `php vendor/bin/kongo eval --redteam` + `php vendor/bin/kongo eval --companions`.
+- Evals: `Kongono\Ai\Eval\EvalRunner` + `php vendor/bin/kongo eval --redteam` + `php vendor/bin/kongo eval --companions` + `php vendor/bin/kongo eval --agent-bench [--live] [--export-jsonl=dataset.jsonl]`.
 - Resilience & per-companion routing: `FallbackProvider`, `AiClient::fromEnvForCompanion()`, `KONGONO_{OSHIE,CHIE,HANTEI}_{PROVIDER,MODEL}`, `KONGONO_AI_FALLBACK_PROVIDERS`, `KONGONO_AI_MAX_COST_USD`.
-- MCP: `php vendor/bin/kongo mcp` exposes 15 read-only, secret-scrubbed JSON-RPC 2.0 tools (`kongono_graph`, `kongono_openapi`, `kongono_sdk_generate`, `kongono_routes`, `kongono_inspect_schema`, `kongono_audit`, `kongono_eval`, `kongono_migrate_lint`, `kongono_test_route`, `kongono_deploy_preview`, `kongono_list_files`, `kongono_read_file`, `kongono_oshie_lesson`, `kongono_hantei_diagnose`, `kongono_chie_preview`).
+- MCP: `php vendor/bin/kongo mcp` exposes **26** read-only, secret-scrubbed JSON-RPC 2.0 tools:
+  - **Self-Verifying Proofs & Diagnostics:** `kongono_prove_all`, `kongono_diagnose`, `kongono_policy_check`, `kongono_incident_replay`, `kongono_perf_probe`, `kongono_prove_isolation`, `kongono_impact`, `kongono_shadow_diff`, `kongono_upgrade_plan`, `kongono_audit`, `kongono_eval`, `kongono_migrate_lint`
+  - **Live App, Schema, UI & Docs Introspection:** `kongono_graph`, `kongono_routes`, `kongono_openapi`, `kongono_inspect_schema`, `kongono_search_docs`, `kongono_zokeibi_registry`, `kongono_test_route`, `kongono_sdk_generate`, `kongono_deploy_preview`, `kongono_list_files`, `kongono_read_file`
+  - **AI Companions:** `kongono_oshie_lesson`, `kongono_hantei_diagnose`, `kongono_chie_preview`
 
 ---
 
-## 11. Built-In `/_ops` Operations Dashboard (`Kongono\Http\Ops`)
+## 11. Built-In `/_kongono` Dev Studio & `/_ops` Operations (`Kongono\Http\Dev`, `Kongono\Http\Ops`)
 
-Mount `Kongono\Http\Ops\OpsDashboardMiddleware` with a `Gate` defining `ops.view` (read-only + 1-click Hantei DLQ diagnosis via `POST /_ops/queues/diagnose` using `DevStudioCompanions::opsJobDiagnoser()`) and `ops.manage` (dead-letter retry/flush), plus an explicit queue allowlist. Renders a zero-npm, strict-CSP Live 2.5 dashboard with queue depths, 1-click DLQ retry/flush/diagnose, `JobBatch` progress, `HealthCheck`, `Metrics::snapshot()`, and recent traces. Fails closed by default.
+- **`/_kongono` Dev Studio (`DevDashboardMiddleware`, auto-disabled in production when `APP_DEBUG=false`):**
+  - **Proof Center:** Runs `MasterProver` across all 5 verification pillars (`A+`..`F`) + live Incident Time-Machine replay & 1-click PHPUnit 13 regression test export.
+  - **Zero-Build Hot Reload (`hotReload: true`):** `DevHotReloadWatcher` separates CSS fingerprints (`css_hash`, hot-swapped in-place without losing form state) from `.kgn.html`/`.php` code changes (`code_hash`), injecting `/_kongono/assets/hot-reload.js` only on `200 text/html` in debug mode.
+  - **Built-In Dev Mailbox:** `DevMailboxTransport` + `FileDevMailbox` capture local outgoing `kongono/mail` emails with automatic `SecretScrubber` redaction, attachment badges, and sandboxed HTML iframe preview (zero SMTP/Mailpit/Docker).
+  - **Read-Only Schema Explorer:** Inspects live SQLite/PostgreSQL/MySQL tables, columns, primary keys, and indexes without reading row data.
+  - **Plain-English 5W1H Dev X-Ray vs. Zero-Leak Production:** In debug mode, errors render interactive What/Where/Why/Who/How-to-Fix cards; in production (`APP_DEBUG=false`), responses emit strictly vague messages + `KGN-*` Reference ID while full scrubbed 5W1H diagnostics log server-side.
+- **`/_ops` Operations Dashboard (`Kongono\Http\Ops\OpsDashboardMiddleware`):** Mount with a `Gate` defining `ops.view` (read-only + 1-click Hantei DLQ diagnosis via `POST /_ops/queues/diagnose` using `DevStudioCompanions::opsJobDiagnoser()`) and `ops.manage` (dead-letter retry/flush), plus an explicit queue allowlist. Renders a zero-npm, strict-CSP Live 2.5 dashboard with queue depths, 1-click DLQ retry/flush/diagnose, `JobBatch` progress, `HealthCheck`, `Metrics::snapshot()`, and recent traces. Fails closed by default.
 
 ---
 
-## 12. Essential `kongo` CLI Commands
+## 12. Self-Verifying Stack, Capabilities, Policies & Incident Time-Machine (`Kongono\Cli`, `Kongono\Security`)
+
+### Least-Privilege Route Capabilities
+Mount `Kongono\Security\Middleware\CapabilityMiddleware` (enforced pre-execution via `PdoConnection::guardBeforeQuery()` and `SafeHttpClient::guardBeforeRequest()`) and annotate controller actions:
+- `#[ReadOnlyDb]` — blocks `INSERT`/`UPDATE`/`DELETE`/`DDL` statements before execution (throws `CapabilityException`).
+- `#[NoOutboundHttp]` — blocks outbound `SafeHttpClient` calls from that route.
+- `#[MaxQueries(N)]` — caps total SQL queries per request to prevent N+1 regressions.
+- `#[MaxAiCost(maxUsd: 0.05)]` — caps AI spend per request.
+
+### Executable Architecture Invariants (`app/invariants.php`)
+```php
+<?php
+
+declare(strict_types=1);
+
+use Kongono\Cli\Policy\Invariant;
+use Kongono\Security\Attributes\Authenticated;
+
+return [
+    Invariant::routesMatching('/api/admin/*', 'KGN-POLICY-ADMIN')
+        ->mustHaveAttribute(Authenticated::class)
+        ->describe('Admin API endpoints require authentication.'),
+    Invariant::routesMatching('/webhooks/*', 'KGN-POLICY-WEBHOOK')
+        ->mustVerifyWebhookSignature()
+        ->describe('Inbound webhooks must verify cryptographic signatures.'),
+];
+```
+
+### Closed-Loop Agent Verification Commands
+1. **Unified Readiness Certificate:** `php vendor/bin/kongo prove [--json]` — runs 17-rule `diagnose`, `policy:check`, `prove:isolation`, `perf`, and PHP 8.5 codemod hygiene in one `A+`..`F` score.
+2. **17-Rule Self-Inspector & Auto-Fixer:** `php vendor/bin/kongo diagnose [--fix] [--dry-run] [--json]` — checks controller/route/middleware/CSRF/Live/DTO/`.kgn.html` link/form/partial contracts and auto-repairs deterministic issues.
+3. **Production Incident Time-Machine:** Enable `$app->recordIncidents()`, then inspect, replay offline in-process, and generate PHPUnit 13 regression tests via `kongo incident:list`, `kongo incident:show <ref>`, `kongo incident:replay <ref>`, and `kongo incident:test <ref>`.
+4. **Change-Safety & Self-Upgrading Codemods:**
+   - Semantic blast-radius diff: `kongo snapshot --out=baseline.json` then `kongo impact --against=baseline.json` (flags removed routes, dropped security attributes, breaking DTO changes).
+   - Behavioral equivalence proof: `kongo shadow:record --out=golden.json` then `kongo shadow:diff --against=golden.json`.
+   - Verifiable AST codemods: `kongo upgrade --plan` / `kongo upgrade --apply --verify` (auto-validates via `PhpToken::tokenize(..., TOKEN_PARSE)` + `diagnose` + `policy:check`).
+5. **Continuous Watch & Zero-Dependency LSP:** `kongo watch [--once] [--interval=500] [--no-tests]` re-runs `diagnose`, `policy:check`, and PHPUnit on save; `kongo lsp` serves LSP 3.17 live diagnostics, 5W1H hover tooltips, and one-click Quick Fixes for `editors/vscode-kongono/`.
+
+---
+
+## 13. Essential `kongo` CLI Commands
 
 ```bash
+php vendor/bin/kongo prove [--json]
+php vendor/bin/kongo diagnose [--fix] [--dry-run] [--json]
+php vendor/bin/kongo watch [--once] [--interval=500] [--no-tests]
+php vendor/bin/kongo policy:check [--json]
+php vendor/bin/kongo perf [--json]
+php vendor/bin/kongo prove:isolation [--json]
+php vendor/bin/kongo incident:list
+php vendor/bin/kongo incident:show <KGN-REF>
+php vendor/bin/kongo incident:replay <KGN-REF>
+php vendor/bin/kongo incident:test <KGN-REF>
+php vendor/bin/kongo snapshot --out=baseline.json
+php vendor/bin/kongo impact --against=baseline.json
+php vendor/bin/kongo shadow:record --out=golden.json
+php vendor/bin/kongo shadow:diff --against=golden.json
+php vendor/bin/kongo upgrade --plan
+php vendor/bin/kongo upgrade --apply --verify
+php vendor/bin/kongo lsp
 php vendor/bin/kongo doctor
 php vendor/bin/kongo routes --json
 php vendor/bin/kongo graph

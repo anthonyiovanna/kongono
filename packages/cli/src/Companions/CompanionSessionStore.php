@@ -15,6 +15,7 @@ final readonly class CompanionSessionStore
 {
     private const int MAX_HISTORY = 25;
 
+    private string $rootPath;
     private string $dir;
 
     public function __construct(string $projectRoot)
@@ -23,6 +24,7 @@ final readonly class CompanionSessionStore
         if (false === $resolved || !is_dir($resolved)) {
             throw new CoreException(sprintf('Project root directory does not exist: "%s".', $projectRoot));
         }
+        $this->rootPath = $resolved;
         $this->dir = $resolved . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'kongono' . DIRECTORY_SEPARATOR . 'companions';
     }
 
@@ -254,11 +256,20 @@ final readonly class CompanionSessionStore
 
     private function ensureDirectory(): void
     {
-        if (is_link($this->dir)) {
-            throw new CoreException('Companion session directory cannot be a symbolic link.');
+        $walk = $this->rootPath;
+        foreach (['var', 'kongono', 'companions'] as $segment) {
+            $walk .= DIRECTORY_SEPARATOR . $segment;
+            if (is_link($walk)) {
+                throw new CoreException(sprintf('Companion session directory segment "%s" cannot be a symbolic link.', $segment));
+            }
         }
         if (!is_dir($this->dir) && !@mkdir($this->dir, 0o775, true) && !is_dir($this->dir)) {
             throw new CoreException(sprintf('Unable to create companion session directory "%s".', $this->dir));
+        }
+        $realDir = realpath($this->dir);
+        $prefix = rtrim($this->rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (false === $realDir || !str_starts_with($realDir, $prefix)) {
+            throw new CoreException('Companion session directory escapes project root.');
         }
         $gitignore = $this->dir . DIRECTORY_SEPARATOR . '.gitignore';
         if (!is_file($gitignore) && !is_link($gitignore)) {

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kongono\Http;
 
+use Kongono\Core\Diagnostics\ErrorExplanation;
+use Kongono\Core\Diagnostics\RequestTrace;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Http\Brand\KongonoBrand;
 
@@ -28,6 +30,9 @@ final readonly class ErrorPageRenderer
         ?array $safeDiagnostic = null,
         bool $debug = false,
         string $appName = 'Kongono',
+        ?ErrorExplanation $explanation = null,
+        ?string $referenceId = null,
+        ?RequestTrace $trace = null,
     ): string {
         $meta = self::statusMeta($statusCode);
         $title = $meta['title'];
@@ -36,6 +41,11 @@ final readonly class ErrorPageRenderer
         $escapedTitle = self::esc($title);
         $escapedMsg = self::esc($safeMessage);
         $escapedApp = self::esc($appName);
+
+        // Opaque incident reference pill (safe in production — gives support a log key with zero internal leakage)
+        $refHtml = null !== $referenceId && '' !== trim($referenceId)
+            ? sprintf('<div class="ref-line"><span>Reference</span><code>%s</code></div>', self::esc($referenceId))
+            : '';
 
         // Hairline validation list for 422 responses
         $validationHtml = '';
@@ -69,9 +79,67 @@ final readonly class ErrorPageRenderer
             );
         }
 
-        // Optional local-dev helper note (ONLY when APP_DEBUG=true — completely omitted in production!)
+        // Optional local-dev 5W1H plain-English diagnosis (ONLY when APP_DEBUG=true — completely omitted in production!)
         $devHintHtml = '';
-        if ($debug && null !== $request) {
+        if ($debug && null !== $explanation) {
+            $exp = $explanation->toArray();
+            $dymHtml = '';
+            if ([] !== $exp['did_you_mean']) {
+                $pills = array_map(
+                    static fn(string $s): string => sprintf('<code>%s</code>', self::esc($s)),
+                    $exp['did_you_mean'],
+                );
+                $dymHtml = sprintf('<div class="w5-row"><span class="w5-k">Did you mean</span><span class="w5-v">%s</span></div>', implode(' ', $pills));
+            }
+            $stepsHtml = '';
+            if ([] !== $exp['how_to_fix']) {
+                $li = array_map(
+                    static fn(string $step): string => sprintf('<li>%s</li>', self::formatInlineCode($step)),
+                    $exp['how_to_fix'],
+                );
+                $stepsHtml = '<ol class="w5-steps">' . implode('', $li) . '</ol>';
+            }
+            $cmdHtml = null !== $exp['command'] && '' !== $exp['command']
+                ? sprintf('<pre class="w5-code">$ %s</pre>', self::esc($exp['command']))
+                : '';
+            $codeHtml = null !== $exp['code_fix'] && '' !== $exp['code_fix']
+                ? sprintf('<pre class="w5-code">%s</pre>', self::esc($exp['code_fix']))
+                : '';
+            $traceLine = '';
+            if (null !== $trace) {
+                $t = $trace->toArray();
+                $pipe = [] !== $t['middleware'] ? implode(' → ', $t['middleware']) : 'direct';
+                $traceLine = sprintf(
+                    '<div class="w5-row"><span class="w5-k">Pipeline</span><span class="w5-v mono">%s (%.2f ms)</span></div>',
+                    self::esc($pipe),
+                    $t['elapsed_ms'],
+                );
+            }
+
+            $devHintHtml = sprintf(
+                '<div class="dev-hint"><div class="dev-hint-head"><span>Plain-English Diagnosis · %s</span><code>APP_DEBUG=true</code></div>'
+                . '<div class="w5-grid">'
+                . '<div class="w5-row"><span class="w5-k">What</span><span class="w5-v w5-strong">%s</span></div>'
+                . '<div class="w5-row"><span class="w5-k">Why</span><span class="w5-v">%s</span></div>'
+                . '<div class="w5-row"><span class="w5-k">Who</span><span class="w5-v">%s</span></div>'
+                . '<div class="w5-row"><span class="w5-k">Where</span><span class="w5-v mono">%s</span></div>'
+                . '<div class="w5-row"><span class="w5-k">When</span><span class="w5-v mono">%s</span></div>'
+                . '%s%s'
+                . '</div>'
+                . '<div class="w5-fix-label">How to fix</div>%s%s%s</div>',
+                self::esc($exp['code']),
+                self::formatInlineCode($exp['what']),
+                self::formatInlineCode($exp['why']),
+                self::formatInlineCode($exp['who']),
+                self::esc($exp['where']),
+                self::esc($exp['when']),
+                $traceLine,
+                $dymHtml,
+                $stepsHtml,
+                $cmdHtml,
+                $codeHtml,
+            );
+        } elseif ($debug && null !== $request) {
             $hint = match ($statusCode) {
                 404 => 'Inspect registered routes with <code>php vendor/bin/kongo routes</code> or open <a href="/_kongono">/_kongono</a>.',
                 405 => 'Verify the controller attribute method (<code>#[Get]</code>, <code>#[Post]</code>, <code>#[Put]</code>, <code>#[Patch]</code>, <code>#[Delete]</code>) matches this request.',
@@ -88,7 +156,13 @@ final readonly class ErrorPageRenderer
             );
         }
 
-        $reloadHref = null !== $request ? self::esc(SecretScrubber::scrub($request->path())) : '/';
+        $rawReloadPath = null !== $request ? SecretScrubber::scrub($request->path()) : '/';
+        $safeReloadPath = (
+            str_starts_with($rawReloadPath, '/')
+            && !str_starts_with($rawReloadPath, '//')
+            && 1 !== preg_match('/[\x00-\x1F\x7F\\\\]/', $rawReloadPath)
+        ) ? $rawReloadPath : '/';
+        $reloadHref = self::esc($safeReloadPath);
         $footerRight = $debug && null !== $request
             ? sprintf('APP_DEBUG · %s %s', self::esc($request->method()), self::esc(SecretScrubber::scrub($request->path())))
             : sprintf('HTTP %d · Nondisclosing', $statusCode);
@@ -141,7 +215,7 @@ final readonly class ErrorPageRenderer
     }
     .sheet {
       width: 100%;
-      max-width: 560px;
+      max-width: 680px;
       display: grid;
       gap: 1.4rem;
     }
@@ -280,6 +354,17 @@ final readonly class ErrorPageRenderer
       color: var(--text);
     }
     .dev-hint a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+    .w5-grid { display: grid; gap: 0.42rem; margin-top: 0.45rem; }
+    .w5-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 0.65rem; align-items: baseline; font-size: 0.81rem; }
+    .w5-k { font-family: var(--mono); font-size: 0.69rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .w5-v { color: var(--text-2); word-break: break-word; }
+    .w5-strong { color: var(--text); font-weight: 550; }
+    .mono { font-family: var(--mono); font-size: 0.77rem; }
+    .w5-fix-label { margin-top: 0.75rem; padding-top: 0.65rem; border-top: 1px solid var(--border); font-family: var(--mono); font-size: 0.69rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .w5-steps { margin: 0.38rem 0 0; padding-left: 1.2rem; display: grid; gap: 0.28rem; color: var(--text); font-size: 0.81rem; }
+    .w5-code { margin: 0.5rem 0 0; padding: 0.55rem 0.75rem; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); font-family: var(--mono); font-size: 0.76rem; color: var(--text); overflow-x: auto; white-space: pre; }
+    .ref-line { display: inline-flex; align-items: center; gap: 0.5rem; font-family: var(--mono); font-size: 0.74rem; color: var(--muted); }
+    .ref-line code { color: var(--text-2); background: var(--surface); border: 1px solid var(--border); padding: 0.12rem 0.48rem; border-radius: 5px; }
     .foot {
       padding-top: 1rem;
       border-top: 1px solid var(--border);
@@ -311,6 +396,7 @@ final readonly class ErrorPageRenderer
 
     <p class="lead">{$escapedMsg}</p>
 
+    {$refHtml}
     {$validationHtml}
     {$diagHtml}
 
@@ -393,6 +479,13 @@ HTML;
                 'tone' => $statusCode >= 500 ? 'danger' : 'neutral',
             ],
         };
+    }
+
+    private static function formatInlineCode(string $value): string
+    {
+        $escaped = self::esc($value);
+
+        return preg_replace('/`([^`]+)`/', '<code>$1</code>', $escaped) ?? $escaped;
     }
 
     private static function esc(string $value): string

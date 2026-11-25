@@ -20,9 +20,9 @@ Follow this workflow to ship a complete, idiomatic Kongono PHP 8.5 feature witho
 ## Step 2: Evolve the Schema Safely (When Persistence Changes)
 
 1. Scaffold or edit a migration using `Kongono\Database\Schema\Schema` and `Kongono\Database\Schema\Blueprint`:
-   - `Schema::create('table', fn(Blueprint $t) => ...)` or `Schema::table('table', fn(Blueprint $t) => ...)` or `Schema::rename(...)`.
+   - `Schema::create($db, 'table', fn(Blueprint $t) => ...)` or `Schema::table($db, 'table', fn(Blueprint $t) => ...)` or `Schema::rename($db, 'old', 'new')`.
    - Use native helpers: `$t->id()`, `$t->uuid(...)`, `$t->foreignId(...)`, `$t->json(...)`, `$t->decimal(...)`, `$t->timestamps()`, `$t->softDeletes()`.
-   - For PostgreSQL `CREATE INDEX CONCURRENTLY`, implement `Kongono\Database\Migration\NonTransactionalMigrationInterface`.
+   - For PostgreSQL `CREATE INDEX CONCURRENTLY`, implement `Kongono\Database\NonTransactionalMigrationInterface`.
 2. Dry-run and lint before migrating:
    ```bash
    php vendor/bin/kongo migrate --pretend
@@ -34,7 +34,7 @@ Follow this workflow to ship a complete, idiomatic Kongono PHP 8.5 feature witho
 Create a `final readonly class` with `declare(strict_types=1);` using PHP 8.5 validation attributes:
 - Built-in attributes: `#[Required]`, `#[Min]`, `#[Max]`, `#[Between]`, `#[Email]`, `#[Url]`, `#[Uuid]`, `#[Date]`, `#[Ip]`, `#[In]`, `#[NotIn]`, `#[Regex]`, `#[Confirmed]`, `#[RequiredIf]`, `#[ArrayOf]`.
 - Backed enums coerce automatically; nested DTOs validate recursively with dotted keys.
-- Implement `Kongono\Validation\ValidatableDtoInterface` (`validateSelf(ValidationErrors $errors)`) for cross-field rules or `Kongono\Validation\RuleInterface` for custom attributes.
+- Implement `Kongono\Validation\ValidatableDtoInterface` (`validate(): array`) for cross-field rules or `Kongono\Validation\RuleInterface` for custom attributes.
 
 ## Step 4: Write Explicit Data Access (`Kongono\Database`)
 
@@ -45,9 +45,11 @@ Create a `final readonly class` with `declare(strict_types=1);` using PHP 8.5 va
 
 ## Step 5: Write & Register the Controller (`Kongono\Http`)
 
-- Use `final readonly class` with constructor DI and route attributes (`#[Prefix]`, `#[Get]`, `#[Post]`, `#[Put]`, `#[Patch]`, `#[Delete]`, `#[Middleware]`, `#[Authenticated]`, `#[Can]`, `#[CacheControl]`, `#[Idempotent]`, `#[Feature]`).
+- Use `final readonly class` with constructor DI and route attributes (`#[Prefix]`, `#[Get]`, `#[Post]`, `#[Put]`, `#[Patch]`, `#[Delete]`, `#[Middleware]`, `#[Authenticated]`, `#[Can]`, `#[ReadOnlyDb]`, `#[NoOutboundHttp]`, `#[MaxQueries]`, `#[MaxAiCost]`, `#[CacheControl]`, `#[Idempotent]`, `#[Feature]`).
+- Annotate read-only endpoints with `#[ReadOnlyDb]` (and optional `#[MaxQueries(N)]` / `#[NoOutboundHttp]`) so runtime least-privilege boundaries are enforced pre-execution.
 - Type-hint `Request`, `Session`, `Principal`, route params (`int $id`), and the input DTO directly on the handler method.
-- Register `$app->controller(MyController::class)` in `app/bootstrap.php`.
+- Register `$app->controller(MyController::class)` in `app/bootstrap.php` (and call `$app->recordIncidents()` for production 5xx capture).
+- For local dev email previews without SMTP/Docker, bind `FileDevMailbox` + `DevMailboxTransport` in debug mode and inspect emails in `/_kongono` Dev Mailbox.
 - Never store per-request state in static properties or read `$_GET`/`$_POST`/`$_COOKIE`/`$_FILES`/`$_SESSION`.
 
 ## Step 6: Write Global-Free Tests
@@ -58,9 +60,10 @@ Create a `final readonly class` with `declare(strict_types=1);` using PHP 8.5 va
 
 ## Verification Checklist
 
-Run and confirm zero errors before finishing:
+Run and confirm zero errors (and Grade A+ / 100/100 PASS) before finishing:
 ```bash
-php vendor/bin/kongo routes
+php vendor/bin/kongo diagnose --fix
+php vendor/bin/kongo prove
 php vendor/bin/kongo test
 php vendor/bin/kongo check
 php vendor/bin/kongo audit --attack --strict

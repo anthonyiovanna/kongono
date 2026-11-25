@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Database;
 
 use Closure;
+use WeakMap;
 
 /**
  * PostgreSQL Row-Level Security (RLS) policy generator and persistent-runtime-safe
@@ -14,9 +15,12 @@ use Closure;
  * even raw SQL queries cannot read or write another tenant's rows, and unscoped sessions
  * fail closed (`NULLIF(current_setting(..., true), '')` evaluates to NULL => zero rows).
  */
-final readonly class RowLevelSecurity
+final class RowLevelSecurity
 {
     public const string DEFAULT_SETTING = 'app.current_tenant';
+
+    /** @var ?WeakMap<ConnectionInterface, int> */
+    private static ?WeakMap $activeDepth = null;
 
     /**
      * Compile PostgreSQL DDL statements enabling & forcing fail-closed tenant RLS on a table.
@@ -33,7 +37,7 @@ final readonly class RowLevelSecurity
         $quotedTable = $dialect->quoteIdentifier($table);
         $quotedColumn = $dialect->quoteIdentifier($tenantColumn);
         $cleanSetting = self::validateSettingName($settingName);
-        $policy = $dialect->quoteIdentifier($policyName ?? sprintf('kongono_rls_%s_%s', $table, $tenantColumn));
+        $policy = $dialect->quoteIdentifier($policyName ?? sprintf('kongono_rls_%s_%s', str_replace('.', '_', $table), str_replace('.', '_', $tenantColumn)));
 
         $expr = sprintf(
             "%s::text = NULLIF(current_setting('%s', true), '')",
@@ -61,7 +65,7 @@ final readonly class RowLevelSecurity
     ): array {
         $dialect = Dialect::Postgres;
         $quotedTable = $dialect->quoteIdentifier($table);
-        $policy = $dialect->quoteIdentifier($policyName ?? sprintf('kongono_rls_%s_%s', $table, $tenantColumn));
+        $policy = $dialect->quoteIdentifier($policyName ?? sprintf('kongono_rls_%s_%s', str_replace('.', '_', $table), str_replace('.', '_', $tenantColumn)));
 
         return [
             sprintf('DROP POLICY IF EXISTS %s ON %s', $policy, $quotedTable),
@@ -116,11 +120,65 @@ final readonly class RowLevelSecurity
             throw new DatabaseException('RowLevelSecurity tenant ID must be a non-empty string (<= 128 bytes) without control bytes.');
         }
 
-        return $db->transaction(static function (ConnectionInterface $tx) use ($cleanSetting, $tenantId, $callback): mixed {
-            $tx->first('SELECT set_config(?, ?, true)', [$cleanSetting, $tenantId]);
+        if (null === self::$activeDepth) {
+            /** @var WeakMap<ConnectionInterface, int> $map */
+            $map = new WeakMap();
+            self::$activeDepth = $map;
+        }
+        $depth = self::$activeDepth[$db] ?? 0;
+        $alreadyInTransaction = $depth > 0
+            || ($db instanceof PdoConnection && $db->inTransaction())
+            || ($db instanceof ReadWriteConnection && $db->inTransaction());
 
-            return $callback($tx);
-        });
+        self::$activeDepth[$db] = $depth + 1;
+
+        try {
+            return $db->transaction(static function (ConnectionInterface $tx) use ($db, $cleanSetting, $tenantId, $callback, $alreadyInTransaction): mixed {
+                $trackInnerTx = $tx !== $db && null !== self::$activeDepth;
+                $innerPrevDepth = $trackInnerTx ? (self::$activeDepth[$tx] ?? 0) : 0;
+                $nested = $alreadyInTransaction || ($trackInnerTx && $innerPrevDepth > 0);
+                if ($trackInnerTx && null !== self::$activeDepth) {
+                    self::$activeDepth[$tx] = $innerPrevDepth + 1;
+                }
+
+                try {
+                    $prior = '';
+                    if ($nested) {
+                        $priorRow = $tx->first('SELECT current_setting(?, true) AS prior_tenant', [$cleanSetting]);
+                        $prior = is_string($priorRow['prior_tenant'] ?? null) ? $priorRow['prior_tenant'] : '';
+                    }
+
+                    \Kongono\Core\Capabilities\ExecutionCapabilities::withAllowedRlsSetConfig(
+                        static fn(): ?array => $tx->first('SELECT set_config(?, ?, true)', [$cleanSetting, $tenantId]),
+                    );
+                    $result = $callback($tx);
+
+                    // In a nested transaction / savepoint, PostgreSQL merges `set_config(..., true)` into the
+                    // enclosing transaction on `RELEASE SAVEPOINT`; explicitly restore the outer tenant GUC on return.
+                    if ($nested) {
+                        \Kongono\Core\Capabilities\ExecutionCapabilities::withAllowedRlsSetConfig(
+                            static fn(): ?array => $tx->first('SELECT set_config(?, ?, true)', [$cleanSetting, $prior]),
+                        );
+                    }
+
+                    return $result;
+                } finally {
+                    if ($trackInnerTx && null !== self::$activeDepth) {
+                        if (0 === $innerPrevDepth) {
+                            unset(self::$activeDepth[$tx]);
+                        } else {
+                            self::$activeDepth[$tx] = $innerPrevDepth;
+                        }
+                    }
+                }
+            });
+        } finally {
+            if (0 === $depth) {
+                unset(self::$activeDepth[$db]);
+            } else {
+                self::$activeDepth[$db] = $depth;
+            }
+        }
     }
 
     private static function validateSettingName(string $settingName): string

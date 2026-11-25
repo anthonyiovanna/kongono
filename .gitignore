@@ -2,6 +2,7 @@
 /.vscode/
 /vendor/
 /examples/*/var/
+/examples/*/storage/
 .php-cs-fixer.cache
 .phpunit.cache/
 .cache/

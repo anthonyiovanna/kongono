@@ -6,6 +6,7 @@ namespace Kongono\Mail;
 
 use Closure;
 use JsonException;
+use Kongono\Core\Capabilities\ExecutionCapabilities;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use SensitiveParameter;
 
@@ -21,8 +22,8 @@ final readonly class ResendTransport implements MailTransportInterface
         private string $endpoint = 'https://api.resend.com/emails',
         private ?Closure $httpSender = null,
     ) {
-        if (false !== strpbrk($apiKey, "\r\n\0")) {
-            throw new MailException('Invalid Resend API key: contains CR, LF, or NUL.');
+        if ('' === trim($apiKey) || false !== strpbrk($apiKey, "\r\n\0")) {
+            throw new MailException('Invalid Resend API key: must be non-empty and free of CR, LF, or NUL.');
         }
         $parts = parse_url($endpoint);
         $scheme = is_array($parts) && is_string($parts['scheme'] ?? null) ? strtolower($parts['scheme']) : '';
@@ -48,6 +49,8 @@ final readonly class ResendTransport implements MailTransportInterface
             throw new MailException('Email requires at least one To recipient.');
         }
 
+        ExecutionCapabilities::current()?->assertOutboundHttpAllowed($this->endpoint);
+
         $payload = [
             'from' => $email->from->format(),
             'to' => array_map(static fn(Address $a): string => $a->format(), $email->to),
@@ -67,6 +70,16 @@ final readonly class ResendTransport implements MailTransportInterface
         }
         if (null !== $email->textBody) {
             $payload['text'] = $email->textBody;
+        }
+        if ([] !== $email->attachments) {
+            $payload['attachments'] = array_map(
+                static fn(array $att): array => [
+                    'filename' => $att['filename'],
+                    'content' => base64_encode($att['bytes']),
+                    'content_type' => $att['contentType'],
+                ],
+                $email->attachments,
+            );
         }
 
         $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
@@ -126,6 +139,7 @@ final readonly class ResendTransport implements MailTransportInterface
             CURLOPT_REDIR_PROTOCOLS_STR => 'https',
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT => 20,
             CURLOPT_WRITEFUNCTION => static function (mixed $_ch, string $chunk) use (&$body, &$overflowed): int {
                 if (strlen($body) + strlen($chunk) > self::MAX_RESPONSE_BYTES) {

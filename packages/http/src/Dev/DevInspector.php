@@ -214,6 +214,11 @@ final class DevInspector
                     return $reencoded;
                 }
             }
+        } elseif (!str_starts_with($trimmed, '<') && str_contains($body, '=') && !str_contains($body, "\n") && !str_contains($body, "\r")) {
+            parse_str($body, $formFields);
+            if ([] !== $formFields) {
+                return http_build_query(SecretScrubber::scrubArray($formFields), '', '&', PHP_QUERY_RFC3986);
+            }
         }
 
         return SecretScrubber::scrub($body);

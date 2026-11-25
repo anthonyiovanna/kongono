@@ -41,6 +41,23 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
             . ')',
             $t,
         ));
+
+        // Add polling index and partial unique index for atomic uniqueKey deduplication
+        $safeTableName = str_replace('.', '_', $this->table);
+        $pollIdx = $this->db->dialect()->quoteIdentifier('idx_' . $safeTableName . '_poll');
+        $this->db->execute(sprintf(
+            'CREATE INDEX IF NOT EXISTS %s ON %s (queue, status, available_at)',
+            $pollIdx,
+            $t,
+        ));
+        if (\Kongono\Database\Dialect::Mysql !== $this->db->dialect()) {
+            $uniqIdx = $this->db->dialect()->quoteIdentifier('idx_' . $safeTableName . '_unique_active');
+            $this->db->execute(sprintf(
+                "CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (queue, unique_key) WHERE unique_key IS NOT NULL AND status IN ('pending', 'reserved')",
+                $uniqIdx,
+                $t,
+            ));
+        }
     }
 
     public function push(
@@ -90,7 +107,40 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
             $row['unique_key'] = $cleanUnique;
         }
 
-        $this->db->table($this->table)->insert($row);
+        // Use ON CONFLICT ... DO NOTHING on Postgres/SQLite so a concurrent uniqueKey collision never aborts an enclosing PG transaction (SQLSTATE 25P02)
+        if (null !== $cleanUnique && \Kongono\Database\Dialect::Mysql !== $this->db->dialect()) {
+            $insert = $this->db->table($this->table)->toInsertSql($row);
+            $inserted = $this->db->execute(
+                $insert->query . " ON CONFLICT (queue, unique_key) WHERE unique_key IS NOT NULL AND status IN ('pending', 'reserved') DO NOTHING",
+                $insert->bindings,
+            );
+            if (0 === $inserted) {
+                $t = $this->db->dialect()->quoteIdentifier($this->table);
+                $existing = $this->db->first(
+                    sprintf('SELECT * FROM %s WHERE queue = ? AND unique_key = ? AND status IN (?, ?) LIMIT 1', $t),
+                    [$queue, $cleanUnique, JobStatus::Pending->value, JobStatus::Reserved->value],
+                );
+                if (null !== $existing) {
+                    return $this->hydrateRow($existing);
+                }
+            }
+        } else {
+            try {
+                $this->db->table($this->table)->insert($row);
+            } catch (\Throwable $e) {
+                if (null !== $cleanUnique) {
+                    $t = $this->db->dialect()->quoteIdentifier($this->table);
+                    $existing = $this->db->first(
+                        sprintf('SELECT * FROM %s WHERE queue = ? AND unique_key = ? AND status IN (?, ?) LIMIT 1', $t),
+                        [$queue, $cleanUnique, JobStatus::Pending->value, JobStatus::Reserved->value],
+                    );
+                    if (null !== $existing) {
+                        return $this->hydrateRow($existing);
+                    }
+                }
+                throw $e;
+            }
+        }
 
         return new Job($id, $queue, $type, $payload, 0, $attempts, 0, null, $availableAt, null, JobStatus::Pending, null, $cleanUnique);
     }
@@ -288,14 +338,72 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
     {
         $ts = $now ?? time();
         $t = $this->db->dialect()->quoteIdentifier($this->table);
+        $hasPartialUnique = \Kongono\Database\Dialect::Mysql !== $this->db->dialect();
 
         if (null !== $jobId) {
+            if ($hasPartialUnique) {
+                return $this->db->execute(
+                    sprintf(
+                        'UPDATE %s SET status = ?, attempt = 0, generation = generation + 1, lease_token = NULL, lease_until = NULL, available_at = ?, last_error = NULL, updated_at = ? '
+                        . 'WHERE queue = ? AND id = ? AND status IN (?, ?) '
+                        . 'AND (unique_key IS NULL OR NOT EXISTS (SELECT 1 FROM %s active WHERE active.queue = %s.queue AND active.unique_key = %s.unique_key AND active.status IN (?, ?)))',
+                        $t,
+                        $t,
+                        $t,
+                        $t,
+                    ),
+                    [
+                        JobStatus::Pending->value,
+                        $ts,
+                        $ts,
+                        $queue,
+                        $jobId,
+                        JobStatus::Failed->value,
+                        JobStatus::Dead->value,
+                        JobStatus::Pending->value,
+                        JobStatus::Reserved->value,
+                    ],
+                );
+            }
+
             return $this->db->execute(
                 sprintf(
                     'UPDATE %s SET status = ?, attempt = 0, generation = generation + 1, lease_token = NULL, lease_until = NULL, available_at = ?, last_error = NULL, updated_at = ? WHERE queue = ? AND id = ? AND status IN (?, ?)',
                     $t,
                 ),
                 [JobStatus::Pending->value, $ts, $ts, $queue, $jobId, JobStatus::Failed->value, JobStatus::Dead->value],
+            );
+        }
+
+        if ($hasPartialUnique) {
+            return $this->db->execute(
+                sprintf(
+                    'UPDATE %s SET status = ?, attempt = 0, generation = generation + 1, lease_token = NULL, lease_until = NULL, available_at = ?, last_error = NULL, updated_at = ? '
+                    . 'WHERE queue = ? AND status IN (?, ?) '
+                    . 'AND (unique_key IS NULL OR ('
+                    . 'NOT EXISTS (SELECT 1 FROM %s active WHERE active.queue = %s.queue AND active.unique_key = %s.unique_key AND active.status IN (?, ?)) '
+                    . 'AND id = (SELECT f.id FROM %s f WHERE f.queue = %s.queue AND f.unique_key = %s.unique_key AND f.status IN (?, ?) ORDER BY f.updated_at DESC, f.id DESC LIMIT 1)'
+                    . '))',
+                    $t,
+                    $t,
+                    $t,
+                    $t,
+                    $t,
+                    $t,
+                    $t,
+                ),
+                [
+                    JobStatus::Pending->value,
+                    $ts,
+                    $ts,
+                    $queue,
+                    JobStatus::Failed->value,
+                    JobStatus::Dead->value,
+                    JobStatus::Pending->value,
+                    JobStatus::Reserved->value,
+                    JobStatus::Failed->value,
+                    JobStatus::Dead->value,
+                ],
             );
         }
 

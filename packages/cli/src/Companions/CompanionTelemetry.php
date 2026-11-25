@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Cli\Companions;
 
+use Kongono\Ai\AiClient;
 use Kongono\Ai\TokenUsage;
 use Kongono\Core\Config;
 use Kongono\Core\CoreException;
@@ -57,30 +58,14 @@ final readonly class CompanionTelemetry
         );
     }
 
-    /** Estimate USD cost from provider/model pricing per 1M input/output tokens (Ollama = $0.00). */
+    /** Estimate USD cost via canonical AiClient model pricing (Ollama = $0.00). */
     public static function estimateCostUsd(string $provider, string $model, int $inputTokens, int $outputTokens): float
     {
-        $p = strtolower($provider);
-        $m = strtolower($model);
-
-        if ('ollama' === $p) {
-            return 0.0;
-        }
-
-        // [input USD per 1M tokens, output USD per 1M tokens]
-        [$inRate, $outRate] = match (true) {
-            'groq' === $p && str_contains($m, '8b') => [0.05, 0.08],
-            'groq' === $p => [0.59, 0.79],
-            'gemini' === $p && str_contains($m, 'pro') => [1.25, 5.00],
-            'gemini' === $p => [0.15, 0.60],
-            'anthropic' === $p && str_contains($m, 'haiku') => [0.80, 4.00],
-            'anthropic' === $p && str_contains($m, 'opus') => [15.00, 75.00],
-            'anthropic' === $p => [3.00, 15.00],
-            str_contains($m, 'mini') || str_contains($m, 'nano') => [0.40, 1.60],
-            default => [2.00, 8.00],
-        };
-
-        $cost = (($inputTokens / 1_000_000.0) * $inRate) + (($outputTokens / 1_000_000.0) * $outRate);
+        $cost = AiClient::estimateCostUsd(
+            $provider,
+            $model,
+            new TokenUsage(max(0, $inputTokens), max(0, $outputTokens)),
+        );
 
         return round(max(0.0, $cost), 6);
     }

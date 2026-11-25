@@ -10,13 +10,18 @@ use JsonException;
  * Zero-dependency Vite 5/6/7 asset resolver supporting both hot-reload dev servers (`public/hot`)
  * and hashed production manifests (`public/build/manifest.json`) with CSS & modulepreload tags.
  */
-final readonly class ViteManifest
+final class ViteManifest
 {
+    /** @var ?array<string, mixed> */
+    private ?array $cachedManifest = null;
+    private ?string $cachedManifestPath = null;
+    private ?int $cachedManifestMtime = null;
+
     public function __construct(
-        private string $publicPath,
-        private string $buildDirectory = 'build',
-        private string $manifestFilename = 'manifest.json',
-        private string $hotFilename = 'hot',
+        private readonly string $publicPath,
+        private readonly string $buildDirectory = 'build',
+        private readonly string $manifestFilename = 'manifest.json',
+        private readonly string $hotFilename = 'hot',
     ) {}
 
     /**
@@ -180,6 +185,16 @@ final readonly class ViteManifest
             throw new ViewException(sprintf('Vite manifest not found in "%s". Run `npm run build` or start Vite dev server.', $base));
         }
 
+        $mtime = @filemtime($manifestPath);
+        if (
+            null !== $this->cachedManifest
+            && $this->cachedManifestPath === $manifestPath
+            && false !== $mtime
+            && $this->cachedManifestMtime === $mtime
+        ) {
+            return $this->cachedManifest;
+        }
+
         $raw = file_get_contents($manifestPath);
         if (false === $raw) {
             throw new ViewException(sprintf('Unable to read Vite manifest "%s".', $manifestPath));
@@ -197,6 +212,9 @@ final readonly class ViteManifest
 
         /** @var array<string, mixed> $typed */
         $typed = $decoded;
+        $this->cachedManifest = $typed;
+        $this->cachedManifestPath = $manifestPath;
+        $this->cachedManifestMtime = false !== $mtime ? $mtime : null;
 
         return $typed;
     }

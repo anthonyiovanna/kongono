@@ -7,6 +7,7 @@ namespace Kongono\Jobs\Scheduler;
 use Closure;
 use DateTimeImmutable;
 use DateTimeInterface;
+use DateTimeZone;
 use Kongono\Core\Cache\AtomicCacheInterface;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Jobs\JobException;
@@ -37,9 +38,21 @@ final class Scheduler
      *
      * @param array<string, mixed> $payload
      */
-    public function dispatch(Queue $queue, string $jobType, array $payload = [], ?string $queueName = null): ScheduledTask
+    public function dispatch(Queue $queue, string $jobType, array $payload = [], ?string $queueName = null, ?string $name = null): ScheduledTask
     {
-        return $this->call('job:' . $jobType, static function () use ($queue, $jobType, $payload, $queueName): void {
+        $taskName = $name ?? ('job:' . $jobType);
+        if (null === $name) {
+            $existingNames = array_map(static fn(ScheduledTask $t): string => $t->name, $this->tasks);
+            if (in_array($taskName, $existingNames, true)) {
+                $suffix = 2;
+                while (in_array($taskName . '#' . $suffix, $existingNames, true)) {
+                    ++$suffix;
+                }
+                $taskName .= '#' . $suffix;
+            }
+        }
+
+        return $this->call($taskName, static function () use ($queue, $jobType, $payload, $queueName): void {
             $queue->dispatch($jobType, $payload, $queueName);
         });
     }
@@ -70,6 +83,7 @@ final class Scheduler
     public function runDue(?DateTimeInterface $now = null, ?AtomicCacheInterface $lockStore = null): array
     {
         $moment = $now ?? new DateTimeImmutable('now');
+        $utcMinute = DateTimeImmutable::createFromInterface($moment)->setTimezone(new DateTimeZone('UTC'))->format('YmdHi');
         $store = $lockStore ?? $this->lockStore;
         $ran = [];
         $skipped = [];
@@ -98,10 +112,10 @@ final class Scheduler
             }
 
             if ($task->runsOnOneServer() && null !== $store) {
-                $serverKey = 'kongo:schedule:oneserver:' . $moment->format('YmdHi') . ':' . $taskHash;
+                $serverKey = 'kongo:schedule:oneserver:' . $utcMinute . ':' . $taskHash;
                 if (!$store->add($serverKey, $ownerToken, $task->singleServerTtlSeconds())) {
-                    if (null !== $overlapKey && $store->get($overlapKey) === $ownerToken) {
-                        $store->delete($overlapKey);
+                    if (null !== $overlapKey) {
+                        self::releaseOwnedLock($store, $overlapKey, $ownerToken);
                     }
                     $skipped[] = $task->name;
                     continue;
@@ -114,12 +128,28 @@ final class Scheduler
             } catch (Throwable $e) {
                 $failed[$task->name] = SecretScrubber::scrub($e->getMessage());
             } finally {
-                if (null !== $overlapKey && $store->get($overlapKey) === $ownerToken) {
-                    $store->delete($overlapKey);
+                if (null !== $overlapKey) {
+                    try {
+                        self::releaseOwnedLock($store, $overlapKey, $ownerToken);
+                    } catch (Throwable) {
+                        // Best-effort unlock; TTL guarantees lock recovery on transient cache failure
+                    }
                 }
             }
         }
 
         return ['ran' => $ran, 'skipped' => $skipped, 'failed' => $failed];
+    }
+
+    private static function releaseOwnedLock(AtomicCacheInterface $store, string $key, string $ownerToken): void
+    {
+        if ($store instanceof \Kongono\Core\Cache\RedisCache) {
+            $store->compareAndDelete($key, $ownerToken);
+
+            return;
+        }
+        if ($store->get($key) === $ownerToken) {
+            $store->delete($key);
+        }
     }
 }

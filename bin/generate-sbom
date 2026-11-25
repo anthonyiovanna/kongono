@@ -12,7 +12,11 @@ declare(strict_types=1);
 
 $root = dirname(__DIR__);
 $version = $argv[1] ?? 'dev';
-$outPath = $argv[2] ?? ($root . DIRECTORY_SEPARATOR . 'kongono-' . $version . '.cdx.json');
+$safeFileVersion = (string) preg_replace('/[^A-Za-z0-9._-]+/', '-', basename($version));
+if ('' === $safeFileVersion || '.' === $safeFileVersion || '..' === $safeFileVersion) {
+    $safeFileVersion = 'dev';
+}
+$outPath = $argv[2] ?? ($root . DIRECTORY_SEPARATOR . 'kongono-' . $safeFileVersion . '.cdx.json');
 
 $composerPath = $root . DIRECTORY_SEPARATOR . 'composer.json';
 $lockPath = $root . DIRECTORY_SEPARATOR . 'composer.lock';
@@ -64,10 +68,11 @@ $addPackages = static function (array $list, string $scope) use (&$components): 
             }
         }
 
-        if (isset($pkg['dist']['shasum']) && is_string($pkg['dist']['shasum']) && '' !== $pkg['dist']['shasum']) {
+        $dist = $pkg['dist'] ?? null;
+        if (is_array($dist) && is_string($dist['shasum'] ?? null) && '' !== $dist['shasum']) {
             $entry['hashes'] = [[
                 'alg' => 'SHA-1',
-                'content' => $pkg['dist']['shasum'],
+                'content' => $dist['shasum'],
             ]];
         }
 
@@ -87,6 +92,11 @@ $uuid = sprintf(
     bin2hex(random_bytes(6)),
 );
 
+$packageName = is_string($composer['name'] ?? null) && '' !== $composer['name']
+    ? $composer['name']
+    : 'kongono/framework';
+$rootPurl = sprintf('pkg:composer/%s@%s', $packageName, rawurlencode($version));
+
 $sbom = [
     'bomFormat' => 'CycloneDX',
     'specVersion' => '1.5',
@@ -96,15 +106,19 @@ $sbom = [
         'timestamp' => gmdate('Y-m-d\TH:i:s\Z'),
         'component' => [
             'type' => 'framework',
-            'bom-ref' => sprintf('pkg:composer/kongono/framework@%s', rawurlencode($version)),
-            'name' => is_string($composer['name'] ?? null) ? $composer['name'] : 'kongono/framework',
+            'bom-ref' => $rootPurl,
+            'name' => $packageName,
             'version' => $cleanVersion,
             'licenses' => [['license' => ['id' => 'MIT']]],
-            'purl' => sprintf('pkg:composer/kongono/framework@%s', rawurlencode($version)),
+            'purl' => $rootPurl,
         ],
     ],
     'components' => $components,
 ];
 
-file_put_contents($outPath, json_encode($sbom, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
+$written = file_put_contents($outPath, json_encode($sbom, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
+if (false === $written) {
+    fwrite(STDERR, sprintf("Failed to write SBOM to %s\n", $outPath));
+    exit(1);
+}
 echo sprintf("Generated CycloneDX 1.5 SBOM (%d components): %s\n", count($components), $outPath);

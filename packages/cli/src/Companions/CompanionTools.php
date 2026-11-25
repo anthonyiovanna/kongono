@@ -7,10 +7,12 @@ namespace Kongono\Cli\Companions;
 use Kongono\Ai\ToolCall;
 use Kongono\Ai\ToolDefinition;
 use Kongono\Cli\Context\ProjectContext;
+use Kongono\Cli\Knowledge\KongonoKnowledgeIndex;
 
 /**
  * Shared read-only, secret-scrubbed inspection toolset for Chie and Hantei:
- * `list_files`, `read_file` (with optional line ranges), `search_code`, `inspect_graph`, and `inspect_schema`.
+ * `list_files`, `read_file` (with optional line ranges), `search_code`, `inspect_graph`,
+ * `inspect_schema`, and `search_kongono_docs`.
  */
 final readonly class CompanionTools
 {
@@ -21,6 +23,7 @@ final readonly class CompanionTools
         'search_code',
         'inspect_graph',
         'inspect_schema',
+        'search_kongono_docs',
     ];
 
     /** @return list<ToolDefinition> */
@@ -65,6 +68,18 @@ final readonly class CompanionTools
                 'inspect_schema',
                 'Inspect live database schema metadata (tables, columns, types, nullability, indexes — strictly metadata, zero row data).',
             ),
+            new ToolDefinition(
+                'search_kongono_docs',
+                'Search Kongono v1.20 official reference documentation and bundled workflow skills for exact namespaces, PHP 8.5 attributes, and code recipes.',
+                [
+                    'type' => 'object',
+                    'properties' => [
+                        'query' => ['type' => 'string', 'description' => 'Topic, attribute, class name, or workflow query (e.g. "#[ReadOnlyDb]", "QueryBuilder softDelete", "Live 2.5 morph")'],
+                        'limit' => ['type' => 'integer', 'description' => 'Maximum sections to return (1-5, default 3)'],
+                    ],
+                    'required' => ['query'],
+                ],
+            ),
         ];
     }
 
@@ -76,8 +91,21 @@ final readonly class CompanionTools
             'inspect_schema' => json_encode($context->inspectSchema(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
             'read_file' => self::execReadFile($call, $context),
             'search_code' => self::execSearchCode($call, $context),
+            'search_kongono_docs' => self::execSearchDocs($call),
             default => 'Error: unknown tool.',
         };
+    }
+
+    private static function execSearchDocs(ToolCall $call): string
+    {
+        $query = $call->arguments['query'] ?? null;
+        if (!is_string($query) || '' === trim($query)) {
+            return 'Error: missing string "query" argument.';
+        }
+        $limit = is_int($call->arguments['limit'] ?? null) ? max(1, min(5, $call->arguments['limit'])) : 3;
+        $formatted = (new KongonoKnowledgeIndex())->formatContextForPrompt($query, limit: $limit, maxChars: 4200);
+
+        return '' !== $formatted ? $formatted : sprintf('No Kongono reference docs matched "%s".', $query);
     }
 
     private static function execReadFile(ToolCall $call, ProjectContext $context): string
