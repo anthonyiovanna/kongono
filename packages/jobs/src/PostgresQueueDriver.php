@@ -21,7 +21,14 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
 
     public function installSchema(): void
     {
-        $t = $this->db->dialect()->quoteIdentifier($this->table);
+        $dialect = $this->db->dialect();
+        $t = $dialect->quoteIdentifier($this->table);
+        $safeTableName = str_replace('.', '_', $this->table);
+        $pollIdx = $dialect->quoteIdentifier('idx_' . $safeTableName . '_poll');
+        $mysqlIndexClause = \Kongono\Database\Dialect::Mysql === $dialect
+            ? sprintf(', INDEX %s (queue, status, available_at)', $pollIdx)
+            : '';
+
         $this->db->execute(sprintf(
             'CREATE TABLE IF NOT EXISTS %s ('
             . 'id VARCHAR(64) PRIMARY KEY, '
@@ -38,20 +45,19 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
             . 'last_error TEXT, '
             . 'unique_key VARCHAR(192), '
             . 'updated_at BIGINT NOT NULL'
-            . ')',
+            . '%s)',
             $t,
+            $mysqlIndexClause,
         ));
 
-        // Add polling index and partial unique index for atomic uniqueKey deduplication
-        $safeTableName = str_replace('.', '_', $this->table);
-        $pollIdx = $this->db->dialect()->quoteIdentifier('idx_' . $safeTableName . '_poll');
-        $this->db->execute(sprintf(
-            'CREATE INDEX IF NOT EXISTS %s ON %s (queue, status, available_at)',
-            $pollIdx,
-            $t,
-        ));
-        if (\Kongono\Database\Dialect::Mysql !== $this->db->dialect()) {
-            $uniqIdx = $this->db->dialect()->quoteIdentifier('idx_' . $safeTableName . '_unique_active');
+        // Add polling index and partial unique index for atomic uniqueKey deduplication (MySQL declares polling index inline above)
+        if (\Kongono\Database\Dialect::Mysql !== $dialect) {
+            $this->db->execute(sprintf(
+                'CREATE INDEX IF NOT EXISTS %s ON %s (queue, status, available_at)',
+                $pollIdx,
+                $t,
+            ));
+            $uniqIdx = $dialect->quoteIdentifier('idx_' . $safeTableName . '_unique_active');
             $this->db->execute(sprintf(
                 "CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s (queue, unique_key) WHERE unique_key IS NOT NULL AND status IN ('pending', 'reserved')",
                 $uniqIdx,

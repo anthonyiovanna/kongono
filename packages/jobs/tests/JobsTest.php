@@ -148,6 +148,54 @@ final class JobsTest extends TestCase
         self::assertStringContainsString('CREATE UNIQUE INDEX IF NOT EXISTS "idx_kongono_jobs_unique_active"', $executedSql[2]);
         self::assertStringContainsString('INSERT INTO "kongono_jobs"', $executedSql[3]);
         self::assertStringContainsString('FOR UPDATE SKIP LOCKED', $executedSql[4]);
+
+        // MySQL 8.x rejects `CREATE INDEX IF NOT EXISTS` — verify polling index is inlined inside CREATE TABLE
+        $mysqlSql = [];
+        $mysqlDb = new class ($mysqlSql) implements ConnectionInterface {
+            /** @param list<string> $log */
+            public function __construct(public array &$log) {}
+
+            public function dialect(): Dialect
+            {
+                return Dialect::Mysql;
+            }
+
+            public function query(string $sql, array $bindings = []): array
+            {
+                $this->log[] = $sql;
+
+                return [];
+            }
+
+            public function first(string $sql, array $bindings = []): ?array
+            {
+                $this->log[] = $sql;
+
+                return null;
+            }
+
+            public function execute(string $sql, array $bindings = []): int
+            {
+                $this->log[] = $sql;
+
+                return 1;
+            }
+
+            public function table(string $table, ?string $alias = null): QueryBuilder
+            {
+                return new QueryBuilder($table, Dialect::Mysql, $this, $alias);
+            }
+
+            public function transaction(Closure $callback): mixed
+            {
+                return $callback($this);
+            }
+        };
+
+        (new PostgresQueueDriver($mysqlDb, 'kongono_mysql_jobs'))->installSchema();
+        self::assertCount(1, $mysqlSql);
+        self::assertStringContainsString('INDEX `idx_kongono_mysql_jobs_poll` (queue, status, available_at)', $mysqlSql[0]);
+        self::assertStringNotContainsString('CREATE INDEX IF NOT EXISTS', $mysqlSql[0]);
     }
 
     public function testCronExpressionAndSchedulerExecuteDueTasksAndQueueJobs(): void
