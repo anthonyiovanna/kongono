@@ -1171,14 +1171,37 @@ final readonly class KongoCli
      */
     private function cmdTinker(string $appRoot, array $options): array
     {
-        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (!is_file($bootstrap)) {
+        if ('cli' !== PHP_SAPI && 'phpdbg' !== PHP_SAPI) {
+            return [1, "Refusing to run `kongo tinker` outside the PHP CLI SAPI.\n"];
+        }
+
+        $force = isset($options['force']);
+        if (!$force && $this->isProductionEnvironment()) {
+            return [1, "Refusing to run `kongo tinker` in production (APP_ENV=production). Pass --force to override.\n"];
+        }
+
+        $resolvedRoot = realpath($appRoot);
+        if (false === $resolvedRoot || !is_dir($resolvedRoot)) {
+            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+        $appDir = $resolvedRoot . DIRECTORY_SEPARATOR . 'app';
+        $bootstrap = $appDir . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (is_link($appDir) || is_link($bootstrap) || !is_file($bootstrap)) {
+            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+        }
+        $realBootstrap = realpath($bootstrap);
+        $prefix = rtrim($resolvedRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (false === $realBootstrap || !str_starts_with($realBootstrap, $prefix)) {
             return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
         }
 
-        $app = require $bootstrap;
+        $app = require $realBootstrap;
         if (!$app instanceof App) {
             return [1, "app/bootstrap.php did not return a Kongono\\Http\\App instance.\n"];
+        }
+
+        if (!$force && $this->isProductionEnvironment($app)) {
+            return [1, "Refusing to run `kongo tinker` in production (APP_ENV=production). Pass --force to override.\n"];
         }
 
         $container = $app->container();

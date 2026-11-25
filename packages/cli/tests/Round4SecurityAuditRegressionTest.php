@@ -1180,6 +1180,27 @@ final class Round4SecurityAuditRegressionTest extends TestCase
         } finally {
             $this->removeDir($regDir);
         }
+
+        // 8. KongoCli::cmdTinker enforces production --force guard (both pre- and post-bootstrap) and CLI SAPI check
+        $tinkerDir = $this->makeTempDir('tinker_prod');
+        try {
+            mkdir($tinkerDir . '/app', 0o777, true);
+            file_put_contents(
+                $tinkerDir . '/app/bootstrap.php',
+                "<?php\ndeclare(strict_types=1);\nreturn \\Kongono\\Http\\App::create(dirname(__DIR__))->config(['app' => ['env' => 'production']]);\n",
+            );
+            $tinkerCli = new KongoCli($tinkerDir);
+            [$blockedCode, $blockedOut] = $tinkerCli->run(['tinker', '--app=' . $tinkerDir, '--eval=1+1']);
+            self::assertSame(1, $blockedCode);
+            self::assertStringContainsString('production', strtolower($blockedOut));
+            self::assertStringContainsString('--force', $blockedOut);
+
+            [$forcedCode, $forcedOut] = $tinkerCli->run(['tinker', '--app=' . $tinkerDir, '--force', '--eval=1+1']);
+            self::assertSame(0, $forcedCode);
+            self::assertSame("2\n", $forcedOut);
+        } finally {
+            $this->removeDir($tinkerDir);
+        }
     }
 
     /** @param \Closure(ServerRequestInterface): ResponseInterface $fn */
