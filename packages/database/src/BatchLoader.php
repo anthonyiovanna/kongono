@@ -125,8 +125,9 @@ final class BatchLoader
             $query->orderBy($orderBy, $direction);
         }
 
+        $unqualifiedFk = self::unqualifiedColumn($foreignKey);
         foreach ($query->get() as $row) {
-            $fk = $row[$foreignKey] ?? null;
+            $fk = $row[$foreignKey] ?? ($row[$unqualifiedFk] ?? null);
             if (!is_int($fk) && !is_string($fk)) {
                 continue;
             }
@@ -173,8 +174,9 @@ final class BatchLoader
         }
 
         $indexed = [];
+        $unqualifiedOwner = self::unqualifiedColumn($ownerKey);
         foreach ($query->get() as $row) {
-            $pk = $row[$ownerKey] ?? null;
+            $pk = $row[$ownerKey] ?? ($row[$unqualifiedOwner] ?? null);
             if (!is_int($pk) && !is_string($pk)) {
                 continue;
             }
@@ -190,7 +192,8 @@ final class BatchLoader
      */
     private static function extractKeys(array $records, string $key): array
     {
-        $camel = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $key))));
+        $baseKey = self::unqualifiedColumn($key);
+        $camel = lcfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $baseKey))));
         /** @var array<int|string, true> $seen */
         $seen = [];
         /** @var list<int|string> $keys */
@@ -199,11 +202,13 @@ final class BatchLoader
         foreach ($records as $record) {
             $val = null;
             if (is_array($record)) {
-                $val = $record[$key] ?? ($record[$camel] ?? null);
+                $val = $record[$key] ?? ($record[$baseKey] ?? ($record[$camel] ?? null));
             } else {
                 $vars = get_object_vars($record);
                 if (array_key_exists($key, $vars)) {
                     $val = $vars[$key];
+                } elseif (array_key_exists($baseKey, $vars)) {
+                    $val = $vars[$baseKey];
                 } elseif (array_key_exists($camel, $vars)) {
                     $val = $vars[$camel];
                 }
@@ -215,5 +220,12 @@ final class BatchLoader
         }
 
         return $keys;
+    }
+
+    private static function unqualifiedColumn(string $column): string
+    {
+        $dot = strrpos($column, '.');
+
+        return false === $dot ? $column : substr($column, $dot + 1);
     }
 }

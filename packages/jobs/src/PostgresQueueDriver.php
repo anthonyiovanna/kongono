@@ -368,10 +368,24 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
 
             return $this->db->execute(
                 sprintf(
-                    'UPDATE %s SET status = ?, attempt = 0, generation = generation + 1, lease_token = NULL, lease_until = NULL, available_at = ?, last_error = NULL, updated_at = ? WHERE queue = ? AND id = ? AND status IN (?, ?)',
+                    'UPDATE %s SET status = ?, attempt = 0, generation = generation + 1, lease_token = NULL, lease_until = NULL, available_at = ?, last_error = NULL, updated_at = ? '
+                    . 'WHERE queue = ? AND id = ? AND status IN (?, ?) '
+                    . 'AND (unique_key IS NULL OR unique_key NOT IN (SELECT uk FROM (SELECT unique_key AS uk FROM %s WHERE queue = ? AND unique_key IS NOT NULL AND status IN (?, ?)) AS active_keys))',
+                    $t,
                     $t,
                 ),
-                [JobStatus::Pending->value, $ts, $ts, $queue, $jobId, JobStatus::Failed->value, JobStatus::Dead->value],
+                [
+                    JobStatus::Pending->value,
+                    $ts,
+                    $ts,
+                    $queue,
+                    $jobId,
+                    JobStatus::Failed->value,
+                    JobStatus::Dead->value,
+                    $queue,
+                    JobStatus::Pending->value,
+                    JobStatus::Reserved->value,
+                ],
             );
         }
 
@@ -409,10 +423,30 @@ final readonly class PostgresQueueDriver implements QueueDriverInterface
 
         return $this->db->execute(
             sprintf(
-                'UPDATE %s SET status = ?, attempt = 0, generation = generation + 1, lease_token = NULL, lease_until = NULL, available_at = ?, last_error = NULL, updated_at = ? WHERE queue = ? AND status IN (?, ?)',
+                'UPDATE %s SET status = ?, attempt = 0, generation = generation + 1, lease_token = NULL, lease_until = NULL, available_at = ?, last_error = NULL, updated_at = ? '
+                . 'WHERE queue = ? AND status IN (?, ?) '
+                . 'AND (unique_key IS NULL OR ('
+                . 'unique_key NOT IN (SELECT uk FROM (SELECT unique_key AS uk FROM %s WHERE queue = ? AND unique_key IS NOT NULL AND status IN (?, ?)) AS active_keys) '
+                . 'AND id IN (SELECT keep_id FROM (SELECT id AS keep_id FROM (SELECT id, ROW_NUMBER() OVER (PARTITION BY unique_key ORDER BY updated_at DESC, id DESC) AS rn FROM %s WHERE queue = ? AND unique_key IS NOT NULL AND status IN (?, ?)) AS ranked WHERE rn = 1) AS latest_failed)'
+                . '))',
+                $t,
+                $t,
                 $t,
             ),
-            [JobStatus::Pending->value, $ts, $ts, $queue, JobStatus::Failed->value, JobStatus::Dead->value],
+            [
+                JobStatus::Pending->value,
+                $ts,
+                $ts,
+                $queue,
+                JobStatus::Failed->value,
+                JobStatus::Dead->value,
+                $queue,
+                JobStatus::Pending->value,
+                JobStatus::Reserved->value,
+                $queue,
+                JobStatus::Failed->value,
+                JobStatus::Dead->value,
+            ],
         );
     }
 

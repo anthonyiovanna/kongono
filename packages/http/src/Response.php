@@ -119,12 +119,12 @@ final class Response implements ResponseInterface
             $response = $response->withHeader('X-Kongono-Swap', $swap);
         }
         if (null !== $pushUrl && '' !== $pushUrl) {
-            self::assertSafeNavigationUrl($pushUrl, 'pushUrl');
-            $response = $response->withHeader('X-Kongono-Push-Url', $pushUrl);
+            $safePushUrl = self::assertSafeNavigationUrl($pushUrl, 'pushUrl');
+            $response = $response->withHeader('X-Kongono-Push-Url', $safePushUrl);
         }
         if (null !== $redirect && '' !== $redirect) {
-            self::assertSafeNavigationUrl($redirect, 'redirect');
-            $response = $response->withHeader('X-Kongono-Redirect', $redirect);
+            $safeRedirect = self::assertSafeNavigationUrl($redirect, 'redirect');
+            $response = $response->withHeader('X-Kongono-Redirect', $safeRedirect);
         }
 
         return $response;
@@ -297,9 +297,9 @@ final class Response implements ResponseInterface
 
     public static function redirect(string $location, int $status = 302): self
     {
-        self::assertSafeNavigationUrl($location, 'redirect');
+        $safeLocation = self::assertSafeNavigationUrl($location, 'redirect');
 
-        return new self($status, ['Location' => $location]);
+        return new self($status, ['Location' => $safeLocation]);
     }
 
     public static function noContent(): self
@@ -662,7 +662,7 @@ final class Response implements ResponseInterface
      * Strict allowlist navigation URL validator: rejects ALL ASCII control chars (including tabs like `java\tscript:`
      * and C0 prefixes like `\x01javascript:` stripped by WHATWG browsers), permitting only safe relative paths or http(s) URLs.
      */
-    private static function assertSafeNavigationUrl(string $url, string $context): void
+    private static function assertSafeNavigationUrl(string $url, string $context): string
     {
         if ('' === $url || 1 === preg_match('/[\x00-\x1F\x7F]/', $url)) {
             throw new InvalidArgumentException(sprintf('Unsafe %s URL: contains control characters or is empty.', $context));
@@ -674,14 +674,14 @@ final class Response implements ResponseInterface
                 throw new InvalidArgumentException(sprintf('Unsafe %s URL: protocol-relative redirect rejected.', $context));
             }
 
-            return;
+            return $trimmed;
         }
 
         $parts = parse_url($trimmed);
         $scheme = is_array($parts) && is_string($parts['scheme'] ?? null) ? strtolower($parts['scheme']) : '';
         $host = is_array($parts) && is_string($parts['host'] ?? null) ? $parts['host'] : '';
         if (('http' === $scheme || 'https' === $scheme) && '' !== $host) {
-            return;
+            return $trimmed;
         }
 
         throw new InvalidArgumentException(sprintf('Unsafe %s URL scheme rejected.', $context));

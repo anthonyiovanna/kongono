@@ -417,66 +417,55 @@ final readonly class ErrorPageRenderer
 HTML;
     }
 
-    /** @return array{title: string, default_message: string, tone: 'danger'|'warn'|'neutral'} */
+    /** @return array{title: string, default_message: string} */
     public static function statusMeta(int $statusCode): array
     {
         return match ($statusCode) {
             400 => [
                 'title' => 'Bad Request',
                 'default_message' => 'The request could not be understood or contained malformed parameters.',
-                'tone' => 'warn',
             ],
             401 => [
                 'title' => 'Authentication Required',
                 'default_message' => 'Please sign in or provide valid credentials to access this resource.',
-                'tone' => 'warn',
             ],
             403 => [
                 'title' => 'Access Denied',
                 'default_message' => 'You do not have permission to perform this action.',
-                'tone' => 'warn',
             ],
             404 => [
                 'title' => 'Page Not Found',
                 'default_message' => 'The page or resource you requested does not exist or may have moved.',
-                'tone' => 'neutral',
             ],
             405 => [
                 'title' => 'Method Not Allowed',
                 'default_message' => 'This HTTP method is not supported for the requested endpoint.',
-                'tone' => 'warn',
             ],
             413 => [
                 'title' => 'Payload Too Large',
                 'default_message' => 'The request body exceeds the maximum allowed size.',
-                'tone' => 'warn',
             ],
             419 => [
                 'title' => 'Session Expired',
                 'default_message' => 'Your security token has expired. Refresh the page and try again.',
-                'tone' => 'warn',
             ],
             422 => [
                 'title' => 'Validation Failed',
                 'default_message' => 'Please review the highlighted fields and try again.',
-                'tone' => 'warn',
             ],
             429 => [
                 'title' => 'Too Many Requests',
                 'default_message' => 'You have sent too many requests in a short period. Please wait a moment and try again.',
-                'tone' => 'warn',
             ],
             503 => [
                 'title' => 'Service Unavailable',
                 'default_message' => 'The application is temporarily unavailable. Please try again shortly.',
-                'tone' => 'danger',
             ],
             default => [
                 'title' => $statusCode >= 500 ? 'Internal Server Error' : 'Request Error',
                 'default_message' => $statusCode >= 500
                     ? 'An internal server error occurred.'
                     : 'The request could not be completed.',
-                'tone' => $statusCode >= 500 ? 'danger' : 'neutral',
             ],
         };
     }

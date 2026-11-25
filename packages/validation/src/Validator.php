@@ -126,7 +126,10 @@ final class Validator
                 } elseif (null !== $conditionalError) {
                     $fieldErrors[] = $conditionalError;
                 } elseif ($field['hasDefault']) {
-                    $arguments[] = $field['default'];
+                    $defaultVal = $field['default'];
+                    $arguments[] = is_object($defaultVal) && !($defaultVal instanceof \UnitEnum)
+                        ? clone $defaultVal
+                        : $defaultVal;
                     continue;
                 } elseif ($field['allowsNull']) {
                     $arguments[] = null;
@@ -564,7 +567,11 @@ final class Validator
             })();
 
             $candidate = match ($backingName) {
-                'int' => is_int($value) ? $value : (is_string($value) && 1 === preg_match('/\A-?\d+\z/', trim($value)) ? (int) trim($value) : null),
+                'int' => is_int($value)
+                    ? $value
+                    : (is_string($value) && 1 === preg_match('/\A-?\d+\z/', trim($value)) && false !== ($parsedInt = filter_var(trim($value), FILTER_VALIDATE_INT))
+                        ? $parsedInt
+                        : null),
                 default => is_string($value) ? trim($value) : null,
             };
 
@@ -711,17 +718,32 @@ final class Validator
                     $errors[] = $attribute->message ?? sprintf('The %s field must be one of: %s.', $name, implode(', ', array_map('strval', $attribute->allowed)));
                 }
             } elseif ($attribute instanceof Regex) {
-                if (!is_string($value) || 1 !== preg_match($attribute->pattern, $value)) {
+                if (!is_string($value) || 1 !== @preg_match($attribute->pattern, $value) || PREG_NO_ERROR !== preg_last_error()) {
                     $errors[] = $attribute->message ?? sprintf('The %s field format is invalid.', $name);
                 }
             } elseif ($attribute instanceof Confirmed) {
                 $other = $allInput[$attribute->otherField] ?? null;
                 $preserveOther = self::isSensitivePreserveWhitespaceField($attribute->otherField)
                     || self::isSensitivePreserveWhitespaceField($name);
-                $normalizedOther = is_string($other)
-                    ? ($preserveOther ? $other : trim($other))
-                    : $other;
-                if ($value !== $normalizedOther) {
+                $matched = false;
+                if (is_string($value)) {
+                    $normalizedOther = is_string($other)
+                        ? ($preserveOther ? $other : trim($other))
+                        : null;
+                    $matched = null !== $normalizedOther && $value === $normalizedOther;
+                } elseif (is_int($value)) {
+                    [$coercedOther, $otherErr] = $this->coerceInt($other, $attribute->otherField);
+                    $matched = null === $otherErr && $value === $coercedOther;
+                } elseif (is_float($value)) {
+                    [$coercedOther, $otherErr] = $this->coerceFloat($other, $attribute->otherField);
+                    $matched = null === $otherErr && $value === $coercedOther;
+                } elseif (is_bool($value)) {
+                    [$coercedOther, $otherErr] = $this->coerceByTypeName('bool', $other, $attribute->otherField);
+                    $matched = null === $otherErr && $value === $coercedOther;
+                } else {
+                    $matched = $value === $other;
+                }
+                if (!$matched) {
                     $errors[] = $attribute->message ?? sprintf('The %s field must match %s.', $name, $attribute->otherField);
                 }
             }

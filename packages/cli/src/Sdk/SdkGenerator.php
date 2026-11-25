@@ -65,16 +65,6 @@ final class SdkGenerator
         };
     }
 
-    public function defaultExtension(string $language): string
-    {
-        return match ($this->normalizeLanguage($language)) {
-            'ts' => 'ts',
-            'swift' => 'swift',
-            'kotlin' => 'kt',
-            'dart' => 'dart',
-        };
-    }
-
     /**
      * @param array<string, mixed> $spec
      * @return array<string, array{properties: array<string, array{type: string, required: bool, enum: list<string>}>}>

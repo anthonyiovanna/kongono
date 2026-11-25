@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace StarterApp\Domain;
 
+use Closure;
 use JsonException;
 use Kongono\Storage\StorageInterface;
 
-/** Atomic storage-backed note store (persists notes across HTTP requests via Kongono Storage). */
+/** Atomic storage-backed note store (persists notes across HTTP requests via Kongono Storage with flock serialization). */
 final class NoteStore
 {
     private const string STORAGE_KEY = 'data/notes.json';
@@ -15,9 +16,11 @@ final class NoteStore
     public function __construct(
         private readonly StorageInterface $storage,
     ) {
-        if (!$this->storage->exists(self::STORAGE_KEY)) {
-            $this->seed();
-        }
+        $this->withLock(function (): void {
+            if (!$this->storage->exists(self::STORAGE_KEY)) {
+                $this->seed();
+            }
+        });
     }
 
     /** @return list<Note> */
@@ -33,25 +36,51 @@ final class NoteStore
 
     public function create(string $title, string $body, ?string $ownerId = null): Note
     {
-        $state = $this->loadState();
-        $id = $state['next_id']++;
-        $note = new Note($id, $title, $body, gmdate(DATE_ATOM), $ownerId);
-        $state['notes'][$id] = $note;
-        $this->saveState($state);
+        return $this->withLock(function () use ($title, $body, $ownerId): Note {
+            $state = $this->loadState();
+            $id = $state['next_id']++;
+            $note = new Note($id, $title, $body, gmdate(DATE_ATOM), $ownerId);
+            $state['notes'][$id] = $note;
+            $this->saveState($state);
 
-        return $note;
+            return $note;
+        });
     }
 
     public function delete(int $id): bool
     {
-        $state = $this->loadState();
-        if (!isset($state['notes'][$id])) {
-            return false;
-        }
-        unset($state['notes'][$id]);
-        $this->saveState($state);
+        return $this->withLock(function () use ($id): bool {
+            $state = $this->loadState();
+            if (!isset($state['notes'][$id])) {
+                return false;
+            }
+            unset($state['notes'][$id]);
+            $this->saveState($state);
 
-        return true;
+            return true;
+        });
+    }
+
+    /**
+     * @template T
+     * @param Closure(): T $fn
+     * @return T
+     */
+    private function withLock(Closure $fn): mixed
+    {
+        $lockPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-starter-notes-' . hash('sha256', __FILE__) . '.lock';
+        $handle = @fopen($lockPath, 'c+b');
+        if (false === $handle) {
+            return $fn();
+        }
+        try {
+            flock($handle, LOCK_EX);
+
+            return $fn();
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
     }
 
     private function seed(): void

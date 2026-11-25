@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kongono\Cli\Lsp;
 
+use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Diagnostics\AppAutoFixer;
 use Kongono\Cli\Diagnostics\AppFinding;
 use Kongono\Cli\Diagnostics\KongonoAppInspector;
@@ -20,6 +21,8 @@ use Throwable;
 final class KongonoLanguageServer
 {
     private const int MAX_MESSAGE_BYTES = 4_194_304;
+    private const int MAX_HEADER_LINE_BYTES = 8192;
+    private const int MAX_HEADER_COUNT = 32;
     private readonly string $appRoot;
     private ?App $loadedApp;
     private readonly KongonoAppInspector $inspector;
@@ -29,11 +32,12 @@ final class KongonoLanguageServer
     /** @var array<string, array{rel: string, text: string, findings: list<AppFinding>}> */
     private array $documents = [];
 
-    public function __construct(string $appRoot, ?App $loadedApp = null)
+    public function __construct(string $appRoot, ?App $loadedApp = null, ?bool $allowBootstrap = null)
     {
         $real = realpath($appRoot);
         $this->appRoot = rtrim(false !== $real ? $real : $appRoot, '\\/');
-        $this->loadedApp = $loadedApp ?? $this->tryLoadApp($this->appRoot);
+        $bootstrapAllowed = $allowBootstrap ?? !ProjectContext::isSafeModeEnabled();
+        $this->loadedApp = $loadedApp ?? ($bootstrapAllowed ? $this->tryLoadApp($this->appRoot) : null);
         $this->inspector = new KongonoAppInspector();
         $this->fixer = new AppAutoFixer();
     }
@@ -410,14 +414,21 @@ final class KongonoLanguageServer
     private function readMessage($input): ?string
     {
         $contentLength = null;
+        $headerLines = 0;
         while (true) {
-            $line = fgets($input);
+            $line = fgets($input, self::MAX_HEADER_LINE_BYTES);
             if (false === $line) {
+                return null;
+            }
+            if (strlen($line) >= self::MAX_HEADER_LINE_BYTES - 1 && !str_ends_with($line, "\n")) {
                 return null;
             }
             $trimmed = trim($line);
             if ('' === $trimmed) {
                 break;
+            }
+            if (++$headerLines > self::MAX_HEADER_COUNT) {
+                return null;
             }
             if (1 === preg_match('/\AContent-Length:\s*(\d+)\z/i', $trimmed, $m)) {
                 $contentLength = (int) $m[1];
@@ -460,7 +471,10 @@ final class KongonoLanguageServer
         }
         $norm = str_replace('\\', '/', $path);
         $base = rtrim(str_replace('\\', '/', $this->appRoot), '/') . '/';
-        if (str_starts_with(strtolower($norm), strtolower($base))) {
+        $matchesPrefix = '\\' === DIRECTORY_SEPARATOR
+            ? str_starts_with(strtolower($norm), strtolower($base))
+            : str_starts_with($norm, $base);
+        if ($matchesPrefix) {
             return substr($norm, strlen($base));
         }
 
@@ -493,18 +507,45 @@ final class KongonoLanguageServer
         $prefix = rtrim($this->appRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         $normReal = str_replace('\\', '/', $real);
         $normPrefix = str_replace('\\', '/', $prefix);
-        if (!str_starts_with(strtolower($normReal), strtolower($normPrefix))) {
+        $isContained = '\\' === DIRECTORY_SEPARATOR
+            ? str_starts_with(strtolower($normReal), strtolower($normPrefix))
+            : str_starts_with($normReal, $normPrefix);
+        if (!$isContained) {
             return null;
         }
 
-        $rel = strtolower(substr($normReal, strlen($normPrefix)));
+        $relRaw = substr($normReal, strlen($normPrefix));
+        $walk = $this->appRoot;
+        foreach (explode('/', $relRaw) as $seg) {
+            if ('' === $seg) {
+                continue;
+            }
+            $walk .= DIRECTORY_SEPARATOR . $seg;
+            if (is_link($walk)) {
+                return null;
+            }
+        }
+
+        $rel = strtolower($relRaw);
         $base = strtolower(basename($normReal));
         if (
-            (str_starts_with($base, '.env') && '.env.example' !== $base)
-            || 1 === preg_match('/\.(pem|key|p12|pfx|jks|kdbx|ppk|pk8|db|sqlite3?)\z/', $base)
+            ((str_starts_with($base, '.env') || str_ends_with($base, '.env')) && '.env.example' !== $base)
+            || in_array($base, ['id_rsa', 'id_dsa', 'id_ed25519', 'id_ecdsa', 'id_ecdsa_sk', 'id_ed25519_sk', '.netrc', '.npmrc', '.pypirc', '.htpasswd', '.pgpass', 'auth.json', 'credentials.json', 'secrets.json', 'service-account.json'], true)
+            || 1 === preg_match('/\.(pem|key|p12|pfx|jks|kdbx|ppk|pk8|db|sqlite3?(?:-(?:wal|shm))?)\z/', $base)
+            || '.git' === $rel
             || str_starts_with($rel, '.git/')
+            || str_contains($rel, '/.git/')
+            || str_starts_with($rel, '.ssh/')
+            || str_contains($rel, '/.ssh/')
+            || str_starts_with($rel, '.aws/')
+            || str_contains($rel, '/.aws/')
+            || '.docker/config.json' === $rel
+            || str_contains($rel, '/.docker/config.json')
+            || str_starts_with($rel, 'var/cache/')
+            || str_starts_with($rel, 'var/storage/')
             || str_starts_with($rel, 'storage/dev/')
             || str_starts_with($rel, 'storage/incidents/')
+            || 1 === preg_match('#/(?:var/(?:cache|storage)|storage/(?:dev|incidents))/#', '/' . $rel)
         ) {
             return null;
         }
@@ -514,13 +555,19 @@ final class KongonoLanguageServer
 
     private function tryLoadApp(string $appRoot): ?App
     {
-        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (!is_file($bootstrap)) {
+        $appDir = $appRoot . DIRECTORY_SEPARATOR . 'app';
+        $bootstrap = $appDir . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (is_link($appDir) || is_link($bootstrap) || !is_file($bootstrap)) {
+            return null;
+        }
+        $realBootstrap = realpath($bootstrap);
+        $prefix = rtrim($appRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (false === $realBootstrap || !str_starts_with($realBootstrap, $prefix)) {
             return null;
         }
 
         try {
-            $loaded = require $bootstrap;
+            $loaded = require $realBootstrap;
 
             return $loaded instanceof App ? $loaded : null;
         } catch (Throwable) {

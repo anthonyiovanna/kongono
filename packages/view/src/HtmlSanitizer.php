@@ -195,14 +195,14 @@ final readonly class HtmlSanitizer
             }
 
             $attrs = self::sanitizeAttributes($tag, $child);
-            $attrSql = '' !== $attrs ? ' ' . $attrs : '';
+            $attrHtml = '' !== $attrs ? ' ' . $attrs : '';
 
             if (isset(self::VOID_TAGS[$tag])) {
-                $out .= '<' . $tag . $attrSql . '>';
+                $out .= '<' . $tag . $attrHtml . '>';
                 continue;
             }
 
-            $out .= '<' . $tag . $attrSql . '>' . self::serializeChildren($child, $depth + 1) . '</' . $tag . '>';
+            $out .= '<' . $tag . $attrHtml . '>' . self::serializeChildren($child, $depth + 1) . '</' . $tag . '>';
         }
 
         return $out;
@@ -307,12 +307,12 @@ final readonly class HtmlSanitizer
      */
     public static function isSafeUrl(string $url, bool $allowMailto = true, bool $allowFragment = true): bool
     {
-        $trimmed = trim($url);
-        if ('' === $trimmed || strlen($trimmed) > 2048) {
+        // Reject any ASCII control chars (CR, LF, TAB, NUL, DEL) or backslashes before trimming
+        if (1 === preg_match('/[\x00-\x1F\x7F\\\\]/', $url)) {
             return false;
         }
-        // Reject any ASCII control chars (CR, LF, TAB, NUL, DEL) or backslashes
-        if (1 === preg_match('/[\x00-\x1F\x7F\\\\]/', $trimmed)) {
+        $trimmed = trim($url);
+        if ('' === $trimmed || strlen($trimmed) > 2048) {
             return false;
         }
         if (str_starts_with($trimmed, '#')) {
@@ -331,7 +331,12 @@ final readonly class HtmlSanitizer
         if (1 === preg_match('/\A([a-zA-Z][a-zA-Z0-9+.-]*):/', $trimmed, $m)) {
             $scheme = strtolower($m[1]);
             if ('https' === $scheme || 'http' === $scheme) {
-                return str_starts_with(strtolower($trimmed), $scheme . '://');
+                if (!str_starts_with(strtolower($trimmed), $scheme . '://')) {
+                    return false;
+                }
+                $host = parse_url($trimmed, PHP_URL_HOST);
+
+                return is_string($host) && '' !== $host;
             }
             if ($allowMailto && 'mailto' === $scheme) {
                 return '' !== trim(substr($trimmed, 7));

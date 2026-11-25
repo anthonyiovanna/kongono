@@ -93,6 +93,22 @@ final class RenderState
         return HtmlSanitizer::sanitize((string) $value);
     }
 
+    /**
+     * Encode any value as script-safe JSON for `@json(...)`, always preserving XSS-safe hex escapes
+     * (`<`, `>`, `'`, `"`, `&`, U+2028, U+2029) even when callers pass extra flags like `JSON_PRETTY_PRINT`.
+     */
+    public function json(mixed $value, int $flags = 0, int $depth = 512): string
+    {
+        $safeDepth = max(1, min(512, $depth));
+        $encoded = json_encode(
+            $value,
+            $flags | JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT,
+            $safeDepth,
+        );
+
+        return str_replace(["\u{2028}", "\u{2029}"], ['\u2028', '\u2029'], $encoded);
+    }
+
     /** Encode an associative state array/DTO safely into a CSP-strict Kongono Live 2.5 `k-state="..."` attribute. */
     public function stateAttr(mixed $state): string
     {

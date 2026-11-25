@@ -133,7 +133,10 @@ final readonly class S3Storage implements StorageInterface
                     if ('' === $chunk) {
                         break;
                     }
-                    fwrite($temp, $chunk);
+                    $written = fwrite($temp, $chunk);
+                    if (false === $written || $written !== strlen($chunk)) {
+                        throw new StorageException('Failed to spool input stream to temporary buffer.');
+                    }
                     hash_update($hashCtx, $chunk);
                     $size += strlen($chunk);
                 }
@@ -404,6 +407,9 @@ final readonly class S3Storage implements StorageInterface
 
             $xml = $this->parseSafeXml($res['body'], 'ListObjectsV2');
             if (null === $xml) {
+                if ('' !== trim($res['body'])) {
+                    throw new StorageException('S3 ListObjectsV2 returned invalid XML.');
+                }
                 break;
             }
 

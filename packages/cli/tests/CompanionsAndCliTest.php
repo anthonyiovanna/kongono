@@ -240,7 +240,7 @@ final class CompanionsAndCliTest extends TestCase
             // Verify version and single-shot tinker --eval against starter app
             [$vCode, $vOut] = $cli->run(['version']);
             self::assertSame(0, $vCode);
-            self::assertStringContainsString('v1.20.0', $vOut);
+            self::assertStringContainsString('v1.20.1', $vOut);
 
             // Verify kongo audit (both on starter-app with live routes and scaffolded app) & kongo deploy:init
             [$auditCode, $auditOut] = $cli->run(['audit', '--json', '--app=' . $this->starterAppRoot]);
@@ -646,7 +646,7 @@ PHP);
             self::assertTrue($mcpLoop['result']['isError']);
             $mcpPost = json_decode((string) $mcp->handleJson('{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"kongono_test_route","arguments":{"method":"POST","path":"/notes"}}}'), true, 32, JSON_THROW_ON_ERROR);
             self::assertIsArray($mcpPost);
-            self::assertTrue($mcpPost['result']['isError']);
+            self::assertSame(-32602, $mcpPost['error']['code'] ?? null);
 
             // 6. SecurityAuditor catches templates containing 2+ unescaped {!! ... !!} tags & weak APP_KEY
             if (!is_dir($appDir . DIRECTORY_SEPARATOR . 'views')) {

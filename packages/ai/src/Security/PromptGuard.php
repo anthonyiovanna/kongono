@@ -35,9 +35,15 @@ final readonly class PromptGuard
      */
     public function buildProtectedSystemPrompt(string $instructions, ?string $canaryOverride = null): array
     {
-        $canary = null !== $canaryOverride && '' !== trim($canaryOverride)
-            ? trim($canaryOverride)
-            : 'kgn_canary_' . bin2hex(random_bytes(12));
+        if (null !== $canaryOverride && '' !== trim($canaryOverride)) {
+            $canary = trim($canaryOverride);
+            $alnumLen = strlen((string) preg_replace('/[^a-zA-Z0-9]+/', '', $canary));
+            if ($alnumLen < 16) {
+                throw new CoreException('PromptGuard canary override must contain at least 16 alphanumeric characters.');
+            }
+        } else {
+            $canary = 'kgn_canary_' . bin2hex(random_bytes(12));
+        }
 
         $hardened = trim($instructions) . "\n\n"
             . "[KONGONO SECURITY BOUNDARY]\n"
@@ -103,22 +109,41 @@ final readonly class PromptGuard
     public function createStreamingFilter(string $canary, Closure $onSafeDelta): array
     {
         $holdback = max(256, strlen($canary) * 6);
-        $scanWindow = max($holdback * 4, 4096);
+        $alnumCanaryLen = strlen((string) preg_replace('/[^a-zA-Z0-9]+/', '', $canary));
+        $alnumHoldback = max(96, $alnumCanaryLen * 4);
+        $baseScanWindow = max($holdback * 4, 4096);
         $accumulated = '';
         $emittedLen = 0;
 
-        $push = function (string $delta) use ($canary, $holdback, $scanWindow, $onSafeDelta, &$accumulated, &$emittedLen): void {
+        $push = function (string $delta) use ($canary, $holdback, $alnumHoldback, $baseScanWindow, $onSafeDelta, &$accumulated, &$emittedLen): void {
             if ('' === $delta) {
                 return;
             }
             $accumulated .= $delta;
             $len = strlen($accumulated);
-            $window = $len > $scanWindow ? substr($accumulated, -$scanWindow) : $accumulated;
+            $bufferedSpan = max($baseScanWindow, ($len - $emittedLen) + $holdback);
+            $window = $len > $bufferedSpan ? substr($accumulated, -$bufferedSpan) : $accumulated;
             $check = $this->inspectOutput($window, $canary);
             if (!$check['safe']) {
                 throw new CoreException('Streaming output blocked by PromptGuard due to suspected prompt injection or canary exfiltration.');
             }
             $safeEnd = $len - $holdback;
+            if ($safeEnd > $emittedLen) {
+                // Also guarantee at least $alnumHoldback ASCII alphanumeric characters remain unemitted
+                // so whitespace/punctuation padding cannot flush a split canary prefix before its suffix arrives
+                $alnumCount = 0;
+                $alnumSafeEnd = $emittedLen;
+                for ($pos = $len - 1; $pos >= $emittedLen; --$pos) {
+                    if (ctype_alnum($accumulated[$pos])) {
+                        ++$alnumCount;
+                        if ($alnumCount >= $alnumHoldback) {
+                            $alnumSafeEnd = $pos;
+                            break;
+                        }
+                    }
+                }
+                $safeEnd = min($safeEnd, $alnumSafeEnd);
+            }
             while ($safeEnd > $emittedLen && (ord($accumulated[$safeEnd]) & 0xC0) === 0x80) {
                 --$safeEnd;
             }

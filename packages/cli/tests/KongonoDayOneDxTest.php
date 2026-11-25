@@ -245,12 +245,18 @@ final class KongonoDayOneDxTest extends TestCase
         self::assertStringContainsString('/storage/incidents/', $gitignore);
         self::assertStringContainsString('/storage/dev/', $gitignore);
 
-        // Freshly scaffolded app immediately passes KongonoAppInspector and PolicyVerifier at 100/100
-        $diag = (new KongonoAppInspector())->inspect($target);
+        // Freshly scaffolded app boots cleanly and immediately passes KongonoAppInspector and PolicyVerifier at 100/100
+        if (!class_exists('App\\Http\\HomeController', false)) {
+            require_once $target . '/src/Http/HomeController.php';
+        }
+        /** @var App $bootedApp */
+        $bootedApp = require $target . '/app/bootstrap.php';
+
+        $diag = (new KongonoAppInspector())->inspect($target, $bootedApp);
         self::assertTrue($diag['passed'], 'Freshly scaffolded app failed diagnose: ' . json_encode($diag['findings']));
         self::assertSame(100, $diag['score']);
 
-        $policy = (new PolicyVerifier())->verify($target);
+        $policy = (new PolicyVerifier())->verify($target, $bootedApp);
         self::assertTrue($policy['passed'], 'Freshly scaffolded app failed policy:check: ' . json_encode($policy['violations']));
         self::assertSame(100, $policy['score']);
     }

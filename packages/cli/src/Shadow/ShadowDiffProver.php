@@ -21,6 +21,7 @@ use Throwable;
  */
 final readonly class ShadowDiffProver
 {
+    private const int MAX_REPLAY_ROUTES = 100;
     /**
      * Record a golden behavioral corpus across safe GET routes (or explicit `$paths`).
      *
@@ -149,6 +150,21 @@ final readonly class ShadowDiffProver
                     ],
                 );
                 continue;
+            }
+            if (count($paths) >= self::MAX_REPLAY_ROUTES) {
+                ++$regressions;
+                $findings[] = new AppFinding(
+                    code: 'KGN-SHADOW-BASELINE-LIMIT',
+                    severity: 'error',
+                    who: 'Kongono Behavioral Equivalence Prover',
+                    what: sprintf('Shadow baseline exceeds maximum replay bound of %d routes.', self::MAX_REPLAY_ROUTES),
+                    why: 'Replay is capped to prevent unbounded in-process request amplification from untrusted baselines.',
+                    where: 'shadow baseline',
+                    howToFix: [
+                        sprintf('Limit shadow baselines to at most %d safe GET routes.', self::MAX_REPLAY_ROUTES),
+                    ],
+                );
+                break;
             }
             $paths[] = $k;
         }
@@ -349,25 +365,33 @@ final readonly class ShadowDiffProver
         if (
             '' === $path
             || !str_starts_with($path, '/')
+            || str_starts_with($path, '//')
             || str_contains($path, '\\')
             || str_contains($path, '..')
             || 1 === preg_match('/[\x00-\x1f\x7f]/', $path)
         ) {
             return false;
         }
-        $pathOnly = strtolower(explode('?', $path, 2)[0]);
-        $decoded = strtolower(rawurldecode($pathOnly));
-        if (str_contains($decoded, '..') || str_contains($decoded, '\\')) {
+        $pathOnly = explode('#', explode('?', $path, 2)[0], 2)[0];
+        $decoded = strtolower(rawurldecode(rawurldecode($pathOnly)));
+        if (str_contains($decoded, "\0") || str_contains($decoded, '\\') || 1 === preg_match('/[\x00-\x1f\x7f]/', $decoded)) {
             return false;
         }
+        foreach (explode('/', $decoded) as $segment) {
+            if ('.' === $segment || '..' === $segment) {
+                return false;
+            }
+        }
+        $collapsed = (string) preg_replace('#/+#', '/', '/' . ltrim($decoded, '/'));
+        $canonical = '/' === $collapsed ? '/' : rtrim($collapsed, '/');
 
         foreach (['/_dev', '/_kongono', '/_ops', '/mcp'] as $blockedPrefix) {
-            if ($decoded === $blockedPrefix || str_starts_with($decoded, $blockedPrefix . '/')) {
+            if ($canonical === $blockedPrefix || str_starts_with($canonical, $blockedPrefix . '/')) {
                 return false;
             }
         }
 
-        return !str_contains($decoded, 'logout');
+        return !str_contains($canonical, 'logout');
     }
 
     /** @return list<string> */

@@ -17,6 +17,7 @@ use Kongono\Security\Middleware\BearerAuthMiddleware;
 use Kongono\Security\Middleware\RateLimitMiddleware;
 use Kongono\Security\Principal;
 use Kongono\Security\TokenSigner;
+use RuntimeException;
 use StarterApp\Domain\UserStore;
 
 #[Prefix('/api/auth')]
@@ -36,7 +37,11 @@ final readonly class AuthController
             throw new HttpException(409, 'An account with this email already exists.');
         }
 
-        $user = $this->users->register($input->name, $input->email, $input->password);
+        try {
+            $user = $this->users->register($input->name, $input->email, $input->password);
+        } catch (RuntimeException) {
+            throw new HttpException(409, 'An account with this email already exists.');
+        }
         $this->mailer->sendView('emails/welcome', ['name' => $user['name']], static fn(Email $e): Email => $e
             ->to($user['email'], $user['name'])
             ->subject('Welcome to Kongono!'));

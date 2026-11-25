@@ -156,7 +156,7 @@ final readonly class SmtpTransport implements MailTransportInterface
         $total = strlen($data);
         $written = 0;
         while ($written < $total) {
-            $n = @fwrite($socket, substr($data, $written));
+            $n = @fwrite($socket, substr($data, $written, 65536));
             if (false === $n || 0 === $n) {
                 throw new MailException('SMTP stream write failed.');
             }

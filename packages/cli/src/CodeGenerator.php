@@ -293,7 +293,7 @@ final readonly class {$className}
 {
     public function view(Principal \$principal, mixed \$resource = null): bool
     {
-        return \$principal->hasCapability('admin') || null !== \$resource;
+        return \$principal->hasCapability('admin') || (is_array(\$resource) && (\$resource['user_id'] ?? null) === \$principal->id);
     }
 
     public function create(Principal \$principal): bool

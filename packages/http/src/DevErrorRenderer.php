@@ -130,7 +130,10 @@ final class DevErrorRenderer
         $escapedRel = $this->esc($relFile);
         $escapedShortRel = $this->esc($shortRel);
         $escapedApp = $this->esc($appName);
-        $escapedBase = $this->esc('/' . trim($devStudioPrefix, '/'));
+        $normalizedBase = '/' . trim($devStudioPrefix, '/');
+        $assetBase = '/' === $normalizedBase ? '' : $normalizedBase;
+        $escapedBase = $this->esc($normalizedBase);
+        $escapedAssetBase = $this->esc($assetBase);
 
         $kongoBin = null !== $basePath && is_file($basePath . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'kongo')
             ? 'php vendor/bin/kongo'
@@ -197,7 +200,7 @@ final class DevErrorRenderer
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{$shortClass}: {$escapedMsg} — {$escapedApp}</title>
-  <link rel="icon" type="image/svg+xml" href="{$escapedBase}/assets/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="{$escapedAssetBase}/assets/favicon.svg">
   <style>
     :root {
       color-scheme: dark light;
@@ -933,7 +936,7 @@ final class DevErrorRenderer
     }
   </style>
 </head>
-<body data-dev-base="{$escapedBase}">
+<body data-dev-base="{$escapedAssetBase}">
   <header class="topbar">
     <div class="topbar-inner">
       <span class="brand">{$brandSvg}<span>{$escapedApp}</span></span>
@@ -970,7 +973,7 @@ final class DevErrorRenderer
     {$inspectorDockHtml}
   </main>
 
-  <script src="{$escapedBase}/assets/dev-error.js" defer></script>
+  <script src="{$escapedAssetBase}/assets/dev-error.js" defer></script>
 </body>
 </html>
 HTML;
@@ -1019,7 +1022,7 @@ HTML;
         $lines[] = '';
         $lines[] = '## Structured AI Diagnostic JSON';
         $lines[] = '```json';
-        $lines[] = json_encode($aiPayload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $lines[] = json_encode($aiPayload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
         $lines[] = '```';
         $lines[] = '';
         $lines[] = '## Raw Exception Context';
@@ -1141,7 +1144,7 @@ HTML;
         if (null !== $trace) {
             $aiPayload['execution_trace'] = $trace->toArray();
         }
-        $aiJson = $this->esc(json_encode($aiPayload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $aiJson = $this->esc(json_encode($aiPayload, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE));
 
         $ideBtn = null !== $ideHref
             ? sprintf('<a class="btn" href="%s">Open in VS Code</a>', $this->esc($ideHref))
@@ -1594,6 +1597,10 @@ HTML;
         if (!is_file($file) || !is_readable($file)) {
             return '';
         }
+        $fileSize = @filesize($file);
+        if (false === $fileSize || $fileSize > 1_048_576) {
+            return '';
+        }
         $lines = @file($file, FILE_IGNORE_NEW_LINES);
         if (false === $lines) {
             return '';
@@ -1812,6 +1819,21 @@ HTML;
                 $secrets[] = $trimmed;
                 if (1 === preg_match('/\A(?:Bearer|Basic|Token)\s+(.+)\z/i', $trimmed, $m)) {
                     $secrets[] = trim($m[1]);
+                }
+                if ('cookie' === strtolower($name)) {
+                    foreach (explode(';', $rawVal) as $pair) {
+                        $eqPos = strpos($pair, '=');
+                        if (false !== $eqPos) {
+                            $cookiePart = trim(substr($pair, $eqPos + 1));
+                            if ('' !== $cookiePart) {
+                                $secrets[] = $cookiePart;
+                                $decodedCookie = trim(rawurldecode($cookiePart));
+                                if ($decodedCookie !== $cookiePart) {
+                                    $secrets[] = $decodedCookie;
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

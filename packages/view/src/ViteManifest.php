@@ -175,7 +175,7 @@ final class ViteManifest
 
         $manifestPath = null;
         foreach ($candidates as $candidate) {
-            if (is_file($candidate)) {
+            if (!is_link($candidate) && is_file($candidate)) {
                 $manifestPath = $candidate;
                 break;
             }

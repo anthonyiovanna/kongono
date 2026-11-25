@@ -7,7 +7,6 @@ namespace Kongono\Jobs\Batch;
 use Closure;
 use Kongono\Core\Cache\AtomicCacheInterface;
 use Kongono\Core\Cache\CacheInterface;
-use Kongono\Core\Cache\RedisCache;
 use Kongono\Jobs\JobException;
 
 /** Cache-backed batch store (works with MemoryCache, FileCache, or shared RedisCache across workers). */
@@ -169,11 +168,7 @@ final readonly class CacheBatchStore implements BatchStoreInterface
         try {
             return $fn();
         } finally {
-            if ($this->cache instanceof RedisCache) {
-                $this->cache->compareAndDelete($lockKey, $owner);
-            } elseif ($this->cache->get($lockKey) === $owner) {
-                $this->cache->delete($lockKey);
-            }
+            $this->cache->compareAndDelete($lockKey, $owner);
         }
     }
 

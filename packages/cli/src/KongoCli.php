@@ -92,7 +92,7 @@ final readonly class KongoCli
             return [0, $this->helpText()];
         }
         if ('help' === $command && isset($options['version'])) {
-            return [0, 'Kongono Framework v1.20.0 (PHP ' . PHP_VERSION . ")\n"];
+            return [0, 'Kongono Framework v1.20.1 (PHP ' . PHP_VERSION . ")\n"];
         }
 
         $appRoot = $this->resolveAppRoot($options['app'] ?? null);
@@ -100,7 +100,7 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h' => [0, $this->helpText()],
-                'version', '-v' => [0, 'Kongono Framework v1.20.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v' => [0, 'Kongono Framework v1.20.1 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot),
                 'openapi' => $this->cmdOpenApi($appRoot),
@@ -110,8 +110,8 @@ final readonly class KongoCli
                 'ui:add' => $this->cmdUiAdd($appRoot, $rest, $options),
                 'auth:init' => $this->cmdAuthInit($appRoot, $options),
                 'skills:install' => $this->cmdSkillsInstall($appRoot, $options),
-                'mcp' => $this->cmdMcp($appRoot),
-                'lsp' => $this->cmdLsp($appRoot),
+                'mcp' => $this->cmdMcp($appRoot, $options),
+                'lsp' => $this->cmdLsp($appRoot, $options),
                 'audit' => $this->cmdAudit($appRoot, $options),
                 'diagnose' => $this->cmdDiagnose($appRoot, $options),
                 'prove' => $this->cmdProve($appRoot, $options),
@@ -347,19 +347,27 @@ final readonly class KongoCli
         return [0, $code];
     }
 
-    /** @return array{0: int, 1: string} */
-    private function cmdMcp(string $appRoot): array
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdMcp(string $appRoot, array $options = []): array
     {
-        $server = KongonoMcpFactory::forApp($appRoot);
+        $allowBootstrap = isset($options['no-bootstrap']) || isset($options['safe-mode']) ? false : null;
+        $server = KongonoMcpFactory::forApp($appRoot, allowBootstrap: $allowBootstrap);
         $server->serveStdio();
 
         return [0, ''];
     }
 
-    /** @return array{0: int, 1: string} */
-    private function cmdLsp(string $appRoot): array
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdLsp(string $appRoot, array $options = []): array
     {
-        $server = new KongonoLanguageServer($appRoot);
+        $allowBootstrap = isset($options['no-bootstrap']) || isset($options['safe-mode']) ? false : null;
+        $server = new KongonoLanguageServer($appRoot, allowBootstrap: $allowBootstrap);
         $code = $server->serveStreams(STDIN, STDOUT);
 
         return [$code, ''];
@@ -371,8 +379,25 @@ final readonly class KongoCli
      */
     private function cmdServe(string $appRoot, array $options): array
     {
-        $host = is_string($options['host'] ?? null) ? $options['host'] : '127.0.0.1';
-        $port = is_string($options['port'] ?? null) ? $options['port'] : '8000';
+        $rawHost = is_string($options['host'] ?? null) ? trim($options['host']) : '127.0.0.1';
+        $rawPort = is_string($options['port'] ?? null) ? trim($options['port']) : '8000';
+        if ('' === $rawPort || !ctype_digit($rawPort) || (int) $rawPort < 1 || (int) $rawPort > 65535) {
+            return [1, sprintf("Invalid --port \"%s\" (expected 1..65535).\n", $rawPort)];
+        }
+        $port = (string) (int) $rawPort;
+        $unbracketed = str_starts_with($rawHost, '[') && str_ends_with($rawHost, ']')
+            ? substr($rawHost, 1, -1)
+            : $rawHost;
+        if (false !== filter_var($unbracketed, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            $host = '[' . $unbracketed . ']';
+        } elseif (
+            false !== filter_var($rawHost, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)
+            || 1 === preg_match('/\A[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\z/', $rawHost)
+        ) {
+            $host = $rawHost;
+        } else {
+            return [1, sprintf("Invalid --host \"%s\".\n", $rawHost)];
+        }
         $publicDir = $appRoot . DIRECTORY_SEPARATOR . 'public';
         $routerScript = $publicDir . DIRECTORY_SEPARATOR . 'index.php';
 
@@ -1223,6 +1248,7 @@ final readonly class KongoCli
             || str_contains($trimmed, ';');
         $executable = $isStatement ? ($trimmed . ';') : ('return ' . $trimmed . ';');
 
+        $obLevel = ob_get_level();
         ob_start();
         try {
             $value = (static function (
@@ -1235,15 +1261,23 @@ final readonly class KongoCli
                 return eval($__code);
             })($executable, $app, $container, $router, $graph);
 
-            $printed = ob_get_clean();
-            $printedStr = false === $printed ? '' : $printed;
+            $printedParts = [];
+            while (ob_get_level() > $obLevel) {
+                $chunk = ob_get_clean();
+                if (false !== $chunk && '' !== $chunk) {
+                    array_unshift($printedParts, $chunk);
+                }
+            }
+            $printedStr = implode('', $printedParts);
             $formatted = null === $value
                 ? ($printedStr !== '' ? rtrim($printedStr, "\r\n") : 'null')
                 : ($printedStr . $this->formatTinkerValue($value));
 
             return ['ok' => true, 'output' => $formatted];
         } catch (Throwable $e) {
-            ob_end_clean();
+            while (ob_get_level() > $obLevel) {
+                ob_end_clean();
+            }
 
             return ['ok' => false, 'output' => sprintf('%s: %s', $e::class, $e->getMessage())];
         }
@@ -1258,7 +1292,7 @@ final readonly class KongoCli
             return (string) $value;
         }
         if (is_array($value)) {
-            return json_encode($value, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            return json_encode($value, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
         }
 
         return print_r($value, true);
@@ -1922,7 +1956,7 @@ final readonly class KongoCli
                     } catch (Throwable) {
                         $before = null;
                     }
-                    $lines[] = DiffRenderer::render($change['path'], $before, $change['content']);
+                    $lines[] = DiffRenderer::render($change['path'], $before, SecretScrubber::scrub($change['content']));
                 }
             }
             if (!$apply && [] !== $report['changes']) {
@@ -2070,16 +2104,20 @@ final readonly class KongoCli
         $diagnosedCount = 0;
 
         if (null !== $logOpt) {
-            // Validate contained readable path (never allows .env, keys, or traversal)
-            $safeFullText = $context->readFileSafe($logOpt, 131072);
-            $offset = 0;
+            // Validate contained readable path (never allows .env, keys, or traversal) and tail from EOF
+            $initialTail = $context->readFileTailSafe($logOpt, 131072, null);
+            $offset = $initialTail['offset'];
             $cycle = 0;
 
             while (0 === $maxCycles || $cycle < $maxCycles) {
                 ++$cycle;
-                $current = 1 === $cycle ? $safeFullText : $context->readFileSafe($logOpt, 131072);
-                $chunk = $offset < strlen($current) ? substr($current, $offset) : '';
-                $offset = strlen($current);
+                if (1 === $cycle) {
+                    $chunk = $initialTail['content'];
+                } else {
+                    $tail = $context->readFileTailSafe($logOpt, 131072, $offset);
+                    $chunk = $tail['content'];
+                    $offset = $tail['offset'];
+                }
 
                 if ('' !== trim($chunk)) {
                     $errorLines = [];
@@ -2352,7 +2390,7 @@ final readonly class KongoCli
     private function cmdPolicyCheck(string $appRoot, array $options): array
     {
         $app = $this->tryLoadBootstrappedApp($appRoot);
-        $report = (new PolicyVerifier())->verify($appRoot, $app);
+        $report = (new PolicyVerifier())->verify($appRoot, $app, requireApp: true);
 
         if (isset($options['json'])) {
             return [$report['passed'] ? 0 : 1, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
@@ -3220,9 +3258,7 @@ final readonly class KongoCli
             $ai = $useLive ? $this->tryAiClient() : null;
             $exportOpt = is_string($options['export-jsonl'] ?? null) && '' !== trim($options['export-jsonl']) ? trim($options['export-jsonl']) : null;
             $exportPath = null !== $exportOpt
-                ? (str_starts_with($exportOpt, '/') || (strlen($exportOpt) > 1 && ':' === $exportOpt[1])
-                    ? $exportOpt
-                    : $appRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $exportOpt))
+                ? $this->resolveSafeCliOutputPath($appRoot, $exportOpt, allowAbsolute: true)
                 : null;
             $report = (new AgentCodingBenchmark())->run($ai, $exportPath);
             $modeLabel = null !== $ai ? 'Kongono Agent Coding Benchmark (Live LLM + RAG)' : 'Kongono Agent Coding Benchmark (Offline Reference + RAG)';
@@ -3402,12 +3438,12 @@ final readonly class KongoCli
     }
 
     /**
-     * Write a CLI output file safely: rejects symlinks on every segment and enforces project-root
-     * containment on all relative paths (and on absolute paths unless explicitly opted in for `--out`).
+     * Validate and prepare a safe CLI output file path without writing yet: rejects symlinks on every segment
+     * and enforces project-root containment on all relative paths (and on absolute paths unless explicitly opted in).
      */
-    private function writeSafeCliFile(string $appRoot, string $path, string $content, bool $allowAbsolute = false): string
+    private function resolveSafeCliOutputPath(string $appRoot, string $path, bool $allowAbsolute = false): string
     {
-        if (str_contains($path, "\0") || 1 === preg_match('/[\x00-\x1f\x7f]/', $path)) {
+        if ('' === trim($path) || str_contains($path, "\0") || 1 === preg_match('/[\x00-\x1f\x7f]/', $path)) {
             throw new CoreException(sprintf('Refusing to write invalid path "%s".', $path));
         }
 
@@ -3416,19 +3452,27 @@ final readonly class KongoCli
             if (!$allowAbsolute) {
                 throw new CoreException(sprintf('Refusing to write absolute path "%s" outside project root.', $path));
             }
+            $normAbs = str_replace('\\', '/', $path);
+            foreach (explode('/', $normAbs) as $seg) {
+                if ('..' === $seg) {
+                    throw new CoreException(sprintf('Refusing to write path containing traversal segment "%s".', $path));
+                }
+            }
             $dest = str_replace('/', DIRECTORY_SEPARATOR, $path);
-            if (is_link($dest)) {
-                throw new CoreException(sprintf('Refusing to write through symbolic link "%s".', $path));
+            // Walk every existing ancestor segment rejecting symbolic links
+            $probe = $dest;
+            while ($probe !== dirname($probe)) {
+                if (is_link($probe)) {
+                    throw new CoreException(sprintf('Refusing to write through symbolic link "%s".', $probe));
+                }
+                $probe = dirname($probe);
             }
             $parent = dirname($dest);
-            if (is_link($parent)) {
-                throw new CoreException(sprintf('Refusing to write into symbolic link directory "%s".', $parent));
-            }
             if (!is_dir($parent) && !@mkdir($parent, 0o775, true) && !is_dir($parent)) {
                 throw new CoreException(sprintf('Unable to create directory for "%s".', $path));
             }
-            if (false === file_put_contents($dest, $content, LOCK_EX)) {
-                throw new CoreException(sprintf('Unable to write file "%s".', $path));
+            if (is_link($dest)) {
+                throw new CoreException(sprintf('Refusing to write through symbolic link "%s".', $path));
             }
 
             return $dest;
@@ -3472,6 +3516,17 @@ final readonly class KongoCli
         if (is_link($dest)) {
             throw new CoreException(sprintf('Refusing to write through symbolic link "%s".', $path));
         }
+
+        return $dest;
+    }
+
+    /**
+     * Write a CLI output file safely: rejects symlinks on every segment and enforces project-root
+     * containment on all relative paths (and on absolute paths unless explicitly opted in for `--out`).
+     */
+    private function writeSafeCliFile(string $appRoot, string $path, string $content, bool $allowAbsolute = false): string
+    {
+        $dest = $this->resolveSafeCliOutputPath($appRoot, $path, $allowAbsolute);
         if (false === file_put_contents($dest, $content, LOCK_EX)) {
             throw new CoreException(sprintf('Unable to write file "%s".', $path));
         }
@@ -3617,12 +3672,35 @@ final readonly class KongoCli
             return [1, ''];
         }
         fclose($pipes[0]);
-        $out = stream_get_contents($pipes[1]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
+        stream_set_blocking($pipes[1], false);
+        stream_set_blocking($pipes[2], false);
+        $out = '';
+        $open = [1 => $pipes[1], 2 => $pipes[2]];
+        while ([] !== $open) {
+            $read = array_values($open);
+            $write = null;
+            $except = null;
+            $ready = @stream_select($read, $write, $except, 1);
+            if (false === $ready) {
+                break;
+            }
+            foreach ($open as $idx => $stream) {
+                $chunk = fread($stream, 65536);
+                if (is_string($chunk) && '' !== $chunk && 1 === $idx) {
+                    $out .= $chunk;
+                }
+                if (feof($stream)) {
+                    fclose($stream);
+                    unset($open[$idx]);
+                }
+            }
+        }
+        foreach ($open as $stream) {
+            fclose($stream);
+        }
         $code = proc_close($proc);
 
-        return [$code, false === $out ? '' : $out];
+        return [$code, $out];
     }
 
     /** @return array{0: int, 1: string} */

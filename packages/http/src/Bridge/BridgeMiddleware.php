@@ -115,14 +115,23 @@ final readonly class BridgeMiddleware implements MiddlewareInterface
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT,
         );
 
-        $varyHeader = self::mergeVary($response->getHeaderLine('Vary'), ['X-Kongono-Bridge', 'X-Kongono-Bridge-Version']);
+        $varyHeader = self::mergeVary(
+            $response->getHeaderLine('Vary'),
+            ['X-Kongono-Bridge', 'X-Kongono-Bridge-Version', 'X-Kongono-Bridge-Partial-Component', 'X-Kongono-Bridge-Partial-Data'],
+        );
+        $hasCsrf = (null !== $resolved['csrfToken'] && '' !== $resolved['csrfToken'])
+            || (is_string($resolved['props']['csrfToken'] ?? null) && '' !== $resolved['props']['csrfToken'])
+            || (is_string($resolved['props']['csrf'] ?? null) && '' !== $resolved['props']['csrf'])
+            || (is_string($resolved['props']['_csrf'] ?? null) && '' !== $resolved['props']['_csrf']);
 
         if ($isBridge) {
-            return $response
+            $out = $response
                 ->withHeader('Content-Type', 'application/json; charset=utf-8')
                 ->withHeader('X-Kongono-Bridge', 'true')
                 ->withHeader('Vary', $varyHeader)
                 ->withBody(Stream::fromString($json));
+
+            return $hasCsrf ? $out->withHeader('Cache-Control', 'private, no-store') : $out;
         }
 
         $escapedJson = htmlspecialchars($json, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -138,10 +147,12 @@ final readonly class BridgeMiddleware implements MiddlewareInterface
             );
         }
 
-        return $response
+        $out = $response
             ->withHeader('Content-Type', 'text/html; charset=utf-8')
             ->withHeader('Vary', $varyHeader)
             ->withBody(Stream::fromString($html));
+
+        return $hasCsrf ? $out->withHeader('Cache-Control', 'private, no-store') : $out;
     }
 
     /** @param list<string> $tokens */
@@ -261,15 +272,25 @@ final readonly class BridgeMiddleware implements MiddlewareInterface
 
     const nextPage = await res.json();
     if (Array.isArray(options.only) && options.only.length > 0 && currentPage && nextPage.component === currentPage.component) {
-      nextPage.props = Object.assign({}, currentPage.props || {}, nextPage.props || {});
+      const merged = Object.create(null);
+      const safeMerge = (src) => {
+        if (!src || typeof src !== "object") return;
+        for (const k of Object.keys(src)) {
+          if (k !== "__proto__" && k !== "constructor" && k !== "prototype") merged[k] = src[k];
+        }
+      };
+      safeMerge(currentPage.props);
+      safeMerge(nextPage.props);
+      nextPage.props = merged;
     }
 
+    const historyPage = { ...nextPage, csrfToken: null };
     const targetPath = finalUrl.pathname + finalUrl.search + finalUrl.hash;
     if (window.history) {
       if (options.replace) {
-        window.history.replaceState({ kongonoBridge: true, page: nextPage }, "", targetPath);
+        window.history.replaceState({ kongonoBridge: true, page: historyPage }, "", targetPath);
       } else {
-        window.history.pushState({ kongonoBridge: true, page: nextPage }, "", targetPath);
+        window.history.pushState({ kongonoBridge: true, page: historyPage }, "", targetPath);
       }
     }
 

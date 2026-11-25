@@ -45,7 +45,7 @@ final readonly class KongonoAppInspector
     private const array IGNORED_DIRS = ['vendor', 'node_modules', '.git', 'var', 'storage', '.cache'];
 
     /**
-     * Run all 14 Kongono-native checks against an application root and optional live booted App.
+     * Run all 17 Kongono-native checks against an application root and optional live booted App.
      *
      * @return array{
      *     score: int,
@@ -1110,12 +1110,12 @@ final readonly class KongonoAppInspector
             $dirIt = new RecursiveDirectoryIterator($scanDir, FilesystemIterator::SKIP_DOTS);
             $filter = new RecursiveCallbackFilterIterator(
                 $dirIt,
-                static fn(SplFileInfo $cur): bool => !$cur->isDir() || !in_array($cur->getFilename(), self::IGNORED_DIRS, true),
+                static fn(SplFileInfo $cur): bool => !$cur->isLink() && (!$cur->isDir() || !in_array(strtolower($cur->getFilename()), self::IGNORED_DIRS, true)),
             );
             $it = new RecursiveIteratorIterator($filter);
 
             foreach ($it as $file) {
-                if (!$file instanceof SplFileInfo || !$file->isFile() || !str_ends_with($file->getFilename(), '.php')) {
+                if (!$file instanceof SplFileInfo || $file->isLink() || !$file->isFile() || !str_ends_with($file->getFilename(), '.php')) {
                     continue;
                 }
                 $code = file_get_contents($file->getPathname());

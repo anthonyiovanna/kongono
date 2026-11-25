@@ -34,14 +34,17 @@ final readonly class StaticFilesMiddleware implements MiddlewareInterface
     ];
 
     private string $root;
+    private string $urlPrefix;
 
     public function __construct(
         string $publicDirectory,
-        private string $urlPrefix = '/assets/',
+        string $urlPrefix = '/assets/',
         private string $cacheControl = 'public, max-age=3600',
     ) {
         $resolved = realpath($publicDirectory);
         $this->root = false !== $resolved ? $resolved : $publicDirectory;
+        $trimmed = trim($urlPrefix, '/');
+        $this->urlPrefix = '' === $trimmed ? '/' : '/' . $trimmed . '/';
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface

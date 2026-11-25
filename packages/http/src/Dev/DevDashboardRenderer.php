@@ -19,10 +19,10 @@ final class DevDashboardRenderer
     {
         $graph = $app->graph()->toArray();
         $appName = htmlspecialchars(is_string($graph['app'] ?? null) ? $graph['app'] : 'Kongono App', ENT_QUOTES, 'UTF-8');
-        $graphJson = json_encode($graph, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
-        $tracesJson = json_encode($inspector->traces(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+        $graphJson = json_encode($graph, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
+        $tracesJson = json_encode($inspector->traces(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
         $safeBase = htmlspecialchars(rtrim($basePath, '/'), ENT_QUOTES, 'UTF-8');
-        $baseJson = json_encode(rtrim($basePath, '/'), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
+        $baseJson = json_encode(rtrim($basePath, '/'), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
         $phpVersion = htmlspecialchars(PHP_VERSION, ENT_QUOTES, 'UTF-8');
         $brandSvg = KongonoBrand::markSvg(24, 'kgn-dev-gm');
         $oshieSvg = KongonoBrand::oshieSvg(22, 'kgn-dev-oshie');

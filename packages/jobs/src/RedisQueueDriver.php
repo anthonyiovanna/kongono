@@ -228,15 +228,17 @@ local uniqueKeyHash = KEYS[5]
 local failedKey = KEYS[6]
 local targetId = ARGV[1]
 local nowTs = tonumber(ARGV[2])
+local startOffset = tonumber(ARGV[3]) or 0
 
 local ids = {}
 if targetId ~= '' then
     ids = {targetId}
 else
-    ids = redis.call('ZRANGE', failedKey, 0, 499)
+    ids = redis.call('ZRANGE', failedKey, startOffset, startOffset + 499)
 end
 
 local requeued = 0
+local skipped = 0
 for _, id in ipairs(ids) do
     local raw = redis.call('HGET', jobsKey, id)
     if raw then
@@ -276,11 +278,17 @@ for _, id in ipairs(ids) do
                     redis.call('HSET', uniqueKeyHash, job.unique_key, id)
                 end
                 requeued = requeued + 1
+            else
+                skipped = skipped + 1
             end
+        else
+            redis.call('ZREM', failedKey, id)
         end
+    else
+        redis.call('ZREM', failedKey, id)
     end
 end
-return requeued
+return {requeued, #ids, skipped}
 LUA;
 
     private const string LUA_FLUSH_FAILED = <<<'LUA'
@@ -305,12 +313,14 @@ for _, id in ipairs(ids) do
             redis.call('ZREM', failedKey, id)
             redis.call('HDEL', jobsKey, id)
             removed = removed + 1
+        else
+            redis.call('ZREM', failedKey, id)
         end
     else
         redis.call('ZREM', failedKey, id)
     end
 end
-return removed
+return {removed, #ids}
 LUA;
 
     public function __construct(
@@ -538,6 +548,7 @@ LUA;
     {
         $ts = $now ?? time();
         $totalRequeued = 0;
+        $offset = 0;
         do {
             $res = $this->redis->eval(
                 self::LUA_RETRY_FAILED,
@@ -549,11 +560,14 @@ LUA;
                     $this->key($queue, 'unique'),
                     $this->key($queue, 'failed'),
                 ],
-                [$jobId ?? '', (string) $ts],
+                [$jobId ?? '', (string) $ts, (string) $offset],
             );
-            $count = is_int($res) ? $res : 0;
-            $totalRequeued += $count;
-        } while (null === $jobId && $count >= 500);
+            $requeued = is_array($res) && is_int($res[0] ?? null) ? $res[0] : (is_int($res) ? $res : 0);
+            $scanned = is_array($res) && is_int($res[1] ?? null) ? $res[1] : $requeued;
+            $skipped = is_array($res) && is_int($res[2] ?? null) ? $res[2] : 0;
+            $totalRequeued += $requeued;
+            $offset += $skipped;
+        } while (null === $jobId && $scanned >= 500);
 
         return $totalRequeued;
     }
@@ -572,9 +586,10 @@ LUA;
                 ],
                 [],
             );
-            $count = is_int($res) ? $res : 0;
-            $totalRemoved += $count;
-        } while ($count >= 500);
+            $removed = is_array($res) && is_int($res[0] ?? null) ? $res[0] : (is_int($res) ? $res : 0);
+            $scanned = is_array($res) && is_int($res[1] ?? null) ? $res[1] : $removed;
+            $totalRemoved += $removed;
+        } while ($scanned >= 500);
 
         return $totalRemoved;
     }

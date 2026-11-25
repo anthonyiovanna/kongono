@@ -214,6 +214,8 @@ final class DevInspector
                     return $reencoded;
                 }
             }
+        } elseif (1 === preg_match('/Content-Disposition:\s*form-data;/i', $body)) {
+            return '[MULTIPART BODY REDACTED]';
         } elseif (!str_starts_with($trimmed, '<') && str_contains($body, '=') && !str_contains($body, "\n") && !str_contains($body, "\r")) {
             parse_str($body, $formFields);
             if ([] !== $formFields) {

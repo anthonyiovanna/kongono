@@ -104,10 +104,18 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             ]);
         }
 
+        $apiHeaders = [
+            'Cache-Control' => 'no-store',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cross-Origin-Resource-Policy' => 'same-origin',
+        ];
+
         if ($path === $base . '/assets/dev-error.js' && 'GET' === $method) {
             return Response::text(self::devErrorScript(), 200, [
                 'Content-Type' => 'application/javascript; charset=utf-8',
                 'Cache-Control' => 'no-store',
+                'X-Content-Type-Options' => 'nosniff',
+                'Cross-Origin-Resource-Policy' => 'same-origin',
             ]);
         }
 
@@ -115,13 +123,13 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             return Response::text(DevHotReloadWatcher::clientScript($base), 200, [
                 'Content-Type' => 'application/javascript; charset=utf-8',
                 'Cache-Control' => 'no-store',
+                'X-Content-Type-Options' => 'nosniff',
+                'Cross-Origin-Resource-Policy' => 'same-origin',
             ]);
         }
 
         if ($path === $base . '/api/reload-token' && 'GET' === $method) {
-            return Response::json((new DevHotReloadWatcher())->fingerprint($this->app->basePath()), 200, [
-                'Cache-Control' => 'no-store',
-            ]);
+            return Response::json((new DevHotReloadWatcher())->fingerprint($this->app->basePath()), 200, $apiHeaders);
         }
 
         if ($path === $base . '/live-reload' && 'GET' === $method) {
@@ -133,44 +141,45 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             return Response::text($sseBody, 200, [
                 'Content-Type' => 'text/event-stream; charset=utf-8',
                 'Cache-Control' => 'no-store',
+                'X-Content-Type-Options' => 'nosniff',
+                'Cross-Origin-Resource-Policy' => 'same-origin',
             ]);
         }
 
         if ($path === $base . '/api/mailbox' && 'GET' === $method) {
-            return Response::json(['messages' => $this->resolveDevMailbox()->messages()], 200, [
-                'Cache-Control' => 'no-store',
-            ]);
+            return Response::json(['messages' => $this->resolveDevMailbox()->messages()], 200, $apiHeaders);
         }
 
         if ($path === $base . '/api/mailbox/clear' && 'POST' === $method) {
             $this->resolveDevMailbox()->clear();
 
-            return Response::json(['cleared' => true]);
+            return Response::json(['cleared' => true], 200, $apiHeaders);
         }
 
         if ($path === $base . '/api/schema' && 'GET' === $method) {
             if (null === $this->schemaHandler) {
-                return Response::json(['connected' => false, 'dialect' => null, 'tables' => []]);
+                return Response::json(['connected' => false, 'dialect' => null, 'tables' => []], 200, $apiHeaders);
             }
 
-            return Response::json(($this->schemaHandler)());
+            return Response::json(($this->schemaHandler)(), 200, $apiHeaders);
         }
 
         if ($path === $base . '/assets/favicon.svg' && 'GET' === $method) {
             return Response::text(KongonoBrand::faviconSvg(), 200, [
                 'Content-Type' => 'image/svg+xml; charset=utf-8',
                 'Cache-Control' => 'public, max-age=3600',
+                'X-Content-Type-Options' => 'nosniff',
             ]);
         }
 
         if ($path === $base . '/api/traces' && 'GET' === $method) {
-            return Response::json($this->inspector->traces());
+            return Response::json($this->inspector->traces(), 200, $apiHeaders);
         }
 
         if ($path === $base . '/api/clear' && 'POST' === $method) {
             $this->inspector->clear();
 
-            return Response::json(['cleared' => true]);
+            return Response::json(['cleared' => true], 200, $apiHeaders);
         }
 
         if (1 === preg_match('#\A' . preg_quote($base, '#') . '/api/replay/(\d+)\z#', $path, $replayMatch) && 'POST' === $method) {
@@ -180,19 +189,19 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         if (1 === preg_match('#\A' . preg_quote($base, '#') . '/api/export-test/(\d+)\z#', $path, $exportMatch) && 'GET' === $method) {
             $trace = $this->inspector->findTrace((int) $exportMatch[1]);
             if (null === $trace) {
-                return Response::json(['error' => 'Trace not found.'], 404);
+                return Response::json(['error' => 'Trace not found.'], 404, $apiHeaders);
             }
             $code = TestExporter::exportPhpUnitTest($trace);
             if (str_contains(strtolower($request->getHeaderLine('Accept')), 'application/json')) {
-                return Response::json(['trace_id' => $trace['id'], 'code' => $code]);
+                return Response::json(['trace_id' => $trace['id'], 'code' => $code], 200, $apiHeaders);
             }
 
-            return Response::text($code);
+            return Response::text($code, 200, $apiHeaders);
         }
 
         if ($path === $base . '/api/oshie/stream' && 'POST' === $method) {
             if (null === $this->oshieStreamHandler) {
-                return Response::json(['error' => 'Oshie streaming bridge is not configured on DevDashboardMiddleware.'], 501);
+                return Response::json(['error' => 'Oshie streaming bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
             $decoded = json_decode((string) $request->getBody(), true);
             $question = is_array($decoded) && is_string($decoded['question'] ?? null) ? trim($decoded['question']) : '';
@@ -206,18 +215,18 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
 
         if ($path === $base . '/api/oshie' && 'POST' === $method) {
             if (null === $this->oshieHandler) {
-                return Response::json(['reply' => 'Oshie browser bridge is not configured on DevDashboardMiddleware.'], 501);
+                return Response::json(['reply' => 'Oshie browser bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
             $decoded = json_decode((string) $request->getBody(), true);
             $question = is_array($decoded) && is_string($decoded['question'] ?? null) ? trim($decoded['question']) : '';
             $lesson = is_array($decoded) && is_string($decoded['lesson'] ?? null) && '' !== trim($decoded['lesson']) ? trim($decoded['lesson']) : null;
 
-            return Response::json(['reply' => ($this->oshieHandler)($question, $lesson)]);
+            return Response::json(['reply' => ($this->oshieHandler)($question, $lesson)], 200, $apiHeaders);
         }
 
         if ($path === $base . '/api/hantei/stream' && 'POST' === $method) {
             if (null === $this->hanteiStreamHandler) {
-                return Response::json(['error' => 'Hantei streaming bridge is not configured on DevDashboardMiddleware.'], 501);
+                return Response::json(['error' => 'Hantei streaming bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
             $decoded = json_decode((string) $request->getBody(), true);
             $diagnostic = is_array($decoded) && is_string($decoded['diagnostic'] ?? null) ? trim($decoded['diagnostic']) : '';
@@ -230,45 +239,45 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
 
         if (1 === preg_match('#\A' . preg_quote($base, '#') . '/api/hantei/trace/(\d+)\z#', $path, $traceDiagMatch) && 'POST' === $method) {
             if (null === $this->hanteiTraceHandler) {
-                return Response::json(['error' => 'Hantei trace diagnosis bridge is not configured on DevDashboardMiddleware.'], 501);
+                return Response::json(['error' => 'Hantei trace diagnosis bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
             $trace = $this->inspector->findTrace((int) $traceDiagMatch[1]);
             if (null === $trace) {
-                return Response::json(['error' => 'Trace not found.'], 404);
+                return Response::json(['error' => 'Trace not found.'], 404, $apiHeaders);
             }
 
-            return Response::json(($this->hanteiTraceHandler)($trace));
+            return Response::json(($this->hanteiTraceHandler)($trace), 200, $apiHeaders);
         }
 
         if ($path === $base . '/api/hantei' && 'POST' === $method) {
             if (null === $this->hanteiHandler) {
-                return Response::json(['diagnosis' => 'Hantei browser bridge is not configured on DevDashboardMiddleware.'], 501);
+                return Response::json(['diagnosis' => 'Hantei browser bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
             $decoded = json_decode((string) $request->getBody(), true);
             $diagnostic = is_array($decoded) && is_string($decoded['diagnostic'] ?? null) ? trim($decoded['diagnostic']) : '';
 
-            return Response::json(['diagnosis' => ($this->hanteiHandler)($diagnostic)]);
+            return Response::json(['diagnosis' => ($this->hanteiHandler)($diagnostic)], 200, $apiHeaders);
         }
 
         if ($path === $base . '/api/chie' && 'POST' === $method) {
             if (null === $this->chieHandler) {
-                return Response::json(['summary' => 'Chie browser preview bridge is not configured on DevDashboardMiddleware.', 'diffs' => []], 501);
+                return Response::json(['summary' => 'Chie browser preview bridge is not configured on DevDashboardMiddleware.', 'diffs' => []], 501, $apiHeaders);
             }
             $decoded = json_decode((string) $request->getBody(), true);
             $instruction = is_array($decoded) && is_string($decoded['instruction'] ?? null) ? trim($decoded['instruction']) : '';
             if ('' === $instruction) {
-                return Response::json(['error' => 'Provide an "instruction" string for Chie preview.'], 422);
+                return Response::json(['error' => 'Provide an "instruction" string for Chie preview.'], 422, $apiHeaders);
             }
 
-            return Response::json(($this->chieHandler)($instruction));
+            return Response::json(($this->chieHandler)($instruction), 200, $apiHeaders);
         }
 
         if ($path === $base . '/api/proofs' && 'POST' === $method) {
             if (null === $this->proofsHandler) {
-                return Response::json(['error' => 'Proof Command Center bridge is not configured on DevDashboardMiddleware.'], 501);
+                return Response::json(['error' => 'Proof Command Center bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
 
-            return Response::json(($this->proofsHandler)());
+            return Response::json(($this->proofsHandler)(), 200, $apiHeaders);
         }
 
         if ($path === $base . '/api/incidents' && 'GET' === $method) {
@@ -280,23 +289,23 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
                 }
             }
 
-            return Response::json(['incidents' => $records]);
+            return Response::json(['incidents' => $records], 200, $apiHeaders);
         }
 
         if (1 === preg_match('#\A' . preg_quote($base, '#') . '/api/incidents/(KGN-\d{8}-[A-F0-9]{8})/replay\z#', $path, $incReplayMatch) && 'POST' === $method) {
             if (null === $this->incidentReplayHandler) {
-                return Response::json(['error' => 'Incident replay bridge is not configured on DevDashboardMiddleware.'], 501);
+                return Response::json(['error' => 'Incident replay bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
 
-            return Response::json(($this->incidentReplayHandler)($incReplayMatch[1]));
+            return Response::json(($this->incidentReplayHandler)($incReplayMatch[1]), 200, $apiHeaders);
         }
 
         if (1 === preg_match('#\A' . preg_quote($base, '#') . '/api/incidents/(KGN-\d{8}-[A-F0-9]{8})/test\z#', $path, $incTestMatch) && 'GET' === $method) {
             if (null === $this->incidentTestHandler) {
-                return Response::json(['error' => 'Incident test preview bridge is not configured on DevDashboardMiddleware.'], 501);
+                return Response::json(['error' => 'Incident test preview bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
 
-            return Response::json(($this->incidentTestHandler)($incTestMatch[1]));
+            return Response::json(($this->incidentTestHandler)($incTestMatch[1]), 200, $apiHeaders);
         }
 
         $this->inspector->beginRequest();
@@ -368,9 +377,19 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         if (!str_contains($ct, 'text/html')) {
             return $response;
         }
-        $body = (string) $response->getBody();
+        if ('' !== trim($response->getHeaderLine('Content-Encoding'))) {
+            return $response;
+        }
+        $stream = $response->getBody();
+        if (!$stream->isSeekable()) {
+            return $response;
+        }
+        $stream->rewind();
+        $body = $stream->getContents();
         $pos = strripos($body, '</body>');
         if (false === $pos || str_contains($body, '/assets/hot-reload.js')) {
+            $stream->rewind();
+
             return $response;
         }
         $tag = sprintf('<script src="%s/assets/hot-reload.js" defer></script>', htmlspecialchars($base, ENT_QUOTES, 'UTF-8'));
@@ -431,7 +450,7 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
     {
         return <<<'JS'
 (() => {
-  const base = document.body.dataset.devBase || '/_kongono';
+  const base = typeof document.body.dataset.devBase === 'string' ? document.body.dataset.devBase : '/_kongono';
   const root = document.documentElement;
 
   // Theme preference (follows OS by default; 1-click toggle persists locally)
@@ -575,12 +594,17 @@ JS;
 
     private function handleReplay(int $traceId, string $base): Response
     {
+        $apiHeaders = [
+            'Cache-Control' => 'no-store',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cross-Origin-Resource-Policy' => 'same-origin',
+        ];
         $trace = $this->inspector->findTrace($traceId);
         if (null === $trace) {
-            return Response::json(['error' => 'Trace not found.'], 404);
+            return Response::json(['error' => 'Trace not found.'], 404, $apiHeaders);
         }
-        if (str_starts_with($trace['path'], $base)) {
-            return Response::json(['error' => 'Recursive Dev Studio replay is forbidden.'], 400);
+        if ($trace['path'] === $base || str_starts_with($trace['path'], $base . '/')) {
+            return Response::json(['error' => 'Recursive Dev Studio replay is forbidden.'], 400, $apiHeaders);
         }
 
         $replayHeaders = [];
@@ -605,11 +629,12 @@ JS;
             'replay_status' => $res->getStatusCode(),
             'duration_ms' => $durationMs,
             'body' => substr(SecretScrubber::scrub($rawBody), 0, 4000),
-        ]);
+        ], 200, $apiHeaders);
     }
 
     private function isLoopbackClient(ServerRequestInterface $request): bool
     {
+        $loopbackIps = ['127.0.0.1', '::1', 'localhost', '::ffff:127.0.0.1'];
         $server = $request->getServerParams();
         $remote = $server['REMOTE_ADDR'] ?? null;
         if (!is_string($remote) || '' === trim($remote)) {
@@ -617,8 +642,26 @@ JS;
             if ('cli' !== PHP_SAPI) {
                 return false;
             }
-        } elseif (!in_array(strtolower(trim($remote)), ['127.0.0.1', '::1', 'localhost', '::ffff:127.0.0.1'], true)) {
+        } elseif (!in_array(strtolower(trim($remote)), $loopbackIps, true)) {
             return false;
+        }
+
+        // Reject forwarded non-loopback clients when behind a local loopback reverse proxy
+        $xff = trim($request->getHeaderLine('X-Forwarded-For'));
+        if ('' !== $xff) {
+            foreach (explode(',', $xff) as $hop) {
+                if (!in_array(strtolower(trim($hop)), $loopbackIps, true)) {
+                    return false;
+                }
+            }
+        }
+        $forwarded = trim($request->getHeaderLine('Forwarded'));
+        if ('' !== $forwarded && 1 === preg_match_all('/for="?\[?([^";,\s\]]+)/i', $forwarded, $fm)) {
+            foreach ($fm[1] as $hop) {
+                if (!in_array(strtolower(trim($hop)), $loopbackIps, true)) {
+                    return false;
+                }
+            }
         }
 
         // Defend against DNS rebinding: reject any non-loopback Host header or URI host
@@ -629,12 +672,8 @@ JS;
         }
 
         $hostHeader = trim($request->getHeaderLine('Host'));
-        if ('' !== $hostHeader) {
-            $parsedHost = parse_url('http://' . $hostHeader, PHP_URL_HOST);
-            $normalizedHost = is_string($parsedHost) ? strtolower($parsedHost) : '';
-            if ('' === $normalizedHost || !in_array($normalizedHost, $loopbackHosts, true)) {
-                return false;
-            }
+        if ('' !== $hostHeader && 1 !== preg_match('/\A(?:\[::1\]|127\.0\.0\.1|localhost)(?::\d{1,5})?\z/i', $hostHeader)) {
+            return false;
         }
 
         return true;
@@ -650,12 +689,38 @@ JS;
         $origin = trim($request->getHeaderLine('Origin'));
         if ('' !== $origin) {
             $parsed = parse_url($origin);
+            $originScheme = is_array($parsed) && is_string($parsed['scheme'] ?? null) ? strtolower($parsed['scheme']) : '';
             $originHost = is_array($parsed) && is_string($parsed['host'] ?? null) ? strtolower($parsed['host']) : '';
+            $originPort = is_array($parsed) && is_int($parsed['port'] ?? null) ? $parsed['port'] : null;
+            if (('http' === $originScheme && 80 === $originPort) || ('https' === $originScheme && 443 === $originPort)) {
+                $originPort = null;
+            }
+            $reqScheme = strtolower($request->getUri()->getScheme());
             $reqHost = strtolower($request->getUri()->getHost());
+            $reqPort = $request->getUri()->getPort();
+            if ('' === $reqHost) {
+                $hostHeader = trim($request->getHeaderLine('Host'));
+                if ('' !== $hostHeader) {
+                    $parsedHost = parse_url('http://' . $hostHeader);
+                    if (is_array($parsedHost) && is_string($parsedHost['host'] ?? null)) {
+                        $reqHost = strtolower($parsedHost['host']);
+                        $reqPort = is_int($parsedHost['port'] ?? null) ? $parsedHost['port'] : $reqPort;
+                    }
+                }
+            }
+            if (('http' === $reqScheme && 80 === $reqPort) || ('https' === $reqScheme && 443 === $reqPort)) {
+                $reqPort = null;
+            }
             $allowedHosts = $this->loopbackOnly
                 ? ['127.0.0.1', 'localhost', '[::1]', '::1']
-                : array_unique(array_filter([$reqHost, '127.0.0.1', 'localhost', '[::1]', '::1'], static fn(string $h): bool => '' !== $h));
+                : ('' !== $reqHost ? [$reqHost] : []);
             if ('' === $originHost || !in_array($originHost, $allowedHosts, true)) {
+                return false;
+            }
+            if ('' !== $reqScheme && '' !== $originScheme && $originScheme !== $reqScheme) {
+                return false;
+            }
+            if (null !== $reqPort && $originPort !== $reqPort) {
                 return false;
             }
         }

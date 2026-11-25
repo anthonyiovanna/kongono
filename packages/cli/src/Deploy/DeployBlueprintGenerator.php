@@ -62,7 +62,7 @@ final readonly class DeployBlueprintGenerator
         if (
             '' === $clean
             || false !== strpbrk($clean, "\r\n\0\"'`$;|&<>()\\")
-            || 1 !== preg_match('/\A(?:https?:\/\/[a-zA-Z0-9._:@\/-]+|git@[a-zA-Z0-9._-]+:[a-zA-Z0-9._\/-]+)\z/', $clean)
+            || 1 !== preg_match('/\A(?:https?:\/\/[a-zA-Z0-9._-]+(?::\d{1,5})?\/[a-zA-Z0-9._\/-]+|git@[a-zA-Z0-9._-]+:[a-zA-Z0-9._\/-]+)\z/', $clean)
         ) {
             throw new InvalidArgumentException(sprintf('Unsafe Git repository URL "%s" rejected.', $repo));
         }
@@ -106,8 +106,8 @@ COPY composer.json composer.lock ./
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress
 
 COPY --chown=kongono:kongono . .
-RUN mkdir -p /app/var/cache /app/var/storage /data /config \\
-    && chown -R kongono:kongono /app/var /data /config
+RUN mkdir -p /app/var/cache /app/var/storage /app/storage /data /config \\
+    && chown -R kongono:kongono /app/var /app/storage /data /config
 
 ENV APP_ENV=production \\
     APP_DEBUG=false \\
@@ -196,6 +196,7 @@ services:
       - caddy_config:/config
       - app_storage:/app/var/storage
       - app_cache:/app/var/cache
+      - app_runtime_storage:/app/storage
     networks:
       - kongono_edge
 
@@ -219,6 +220,7 @@ YAML;
     volumes:
       - app_storage:/app/var/storage
       - app_cache:/app/var/cache
+      - app_runtime_storage:/app/storage
     networks:
       - kongono_edge
 
@@ -265,7 +267,7 @@ YAML;
 YAML;
         }
 
-        $yaml .= "volumes:\n  caddy_data:\n  caddy_config:\n  app_storage:\n  app_cache:\n";
+        $yaml .= "volumes:\n  caddy_data:\n  caddy_config:\n  app_storage:\n  app_cache:\n  app_runtime_storage:\n";
         if ($pg) {
             $yaml .= "  pg_data:\n";
         }
@@ -309,22 +311,68 @@ SH;
         return <<<SH
 #!/usr/bin/env bash
 # Zero-downtime FrankenPHP deploy script for {$slug} ({$domain}) on {$ip}
+# Usage:
+#   DEPLOY_REF=<40-hex-commit-sha-or-release-tag> ./deploy.sh
+#   ./deploy.sh <40-hex-commit-sha-or-release-tag>
+#   VERIFY_SIGNATURES=1 ./deploy.sh v1.2.3
+#   ALLOW_MUTABLE_BRANCH=1 ./deploy.sh {$branch}
 set -euo pipefail
+
+DEPLOY_REF="\${1:-\${DEPLOY_REF:-}}"
+if [ -z "\${DEPLOY_REF}" ]; then
+  echo "ERROR: Refusing to deploy an unpinned mutable branch tip." >&2
+  echo "Pass an immutable 40-char commit SHA or release tag (e.g. DEPLOY_REF=<sha> ./deploy.sh)," >&2
+  echo "or explicitly opt in with ALLOW_MUTABLE_BRANCH=1 DEPLOY_REF={$branch} ./deploy.sh." >&2
+  exit 2
+fi
+
+if [[ "\${DEPLOY_REF}" == -* ]] || [[ ! "\${DEPLOY_REF}" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+  echo "ERROR: Invalid DEPLOY_REF format." >&2
+  exit 2
+fi
+
+IS_IMMUTABLE_SHA=0
+if [[ "\${DEPLOY_REF}" =~ ^[0-9a-f]{40}$ ]]; then
+  IS_IMMUTABLE_SHA=1
+fi
 
 APP_DIR="/srv/kongono/{$slug}"
 if [ ! -d "\${APP_DIR}/.git" ]; then
-  git clone --branch "{$branch}" -- "{$repo}" "\${APP_DIR}"
+  git clone --no-checkout -- "{$repo}" "\${APP_DIR}"
 fi
 cd "\${APP_DIR}"
-git fetch origin -- "{$branch}" --depth=1
-git reset --hard "origin/{$branch}"
+
+if [ "\${IS_IMMUTABLE_SHA}" -eq 1 ]; then
+  git fetch --depth=1 origin "\${DEPLOY_REF}"
+  RESOLVED_SHA="\$(git rev-parse --verify FETCH_HEAD^{commit})"
+  if [ "\${RESOLVED_SHA}" != "\${DEPLOY_REF}" ]; then
+    echo "ERROR: Fetched commit \${RESOLVED_SHA} does not match expected SHA \${DEPLOY_REF}." >&2
+    exit 1
+  fi
+elif [ "\${ALLOW_MUTABLE_BRANCH:-0}" = "1" ]; then
+  git fetch --depth=1 origin "refs/heads/\${DEPLOY_REF}"
+  RESOLVED_SHA="\$(git rev-parse --verify FETCH_HEAD^{commit})"
+else
+  git fetch --depth=1 origin "refs/tags/\${DEPLOY_REF}:refs/tags/\${DEPLOY_REF}"
+  RESOLVED_SHA="\$(git rev-parse --verify "refs/tags/\${DEPLOY_REF}^{commit}")"
+fi
+
+if [ "\${VERIFY_SIGNATURES:-0}" = "1" ]; then
+  if [ "\${IS_IMMUTABLE_SHA}" -eq 1 ] || [ "\${ALLOW_MUTABLE_BRANCH:-0}" = "1" ]; then
+    git verify-commit "\${RESOLVED_SHA}"
+  else
+    git verify-tag "\${DEPLOY_REF}"
+  fi
+fi
+
+git checkout --detach --force "\${RESOLVED_SHA}"
 
 docker compose -f docker-compose.prod.yml build --pull web
 docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
 for i in 1 2 3 4 5; do
   if curl -fsS "https://{$domain}/health" >/dev/null 2>&1; then
-    echo "Release is LIVE at https://{$domain}"
+    echo "Release \${RESOLVED_SHA} is LIVE at https://{$domain}"
     exit 0
   fi
   sleep 2

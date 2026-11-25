@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Kongono\Http\Session;
 
 use Kongono\Http\Cookie;
+use Kongono\Http\HttpException;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Throwable;
 
 /**
  * Loads, attaches, persists, and emits secure cookies for Kongono Sessions.
@@ -54,16 +56,50 @@ final readonly class SessionMiddleware implements MiddlewareInterface
             $isNew = true;
         }
 
-        $response = $handler->handle($request->withAttribute(Session::class, $session));
         $isHttps = 'https' === strtolower($request->getUri()->getScheme());
 
+        try {
+            $response = $handler->handle($request->withAttribute(Session::class, $session));
+        } catch (Throwable $e) {
+            $cookie = $this->finalizeSession($session, $isNew, $now, $originalCreatedAt, $isHttps, persistMutations: $e instanceof HttpException);
+            if ($e instanceof HttpException && null !== $cookie) {
+                $enriched = $e->withAddedHeader('Set-Cookie', $cookie->toHeaderValue());
+                $cc = strtolower($enriched->headerLine('Cache-Control'));
+                if ('' === $cc || (!str_contains($cc, 'private') && !str_contains($cc, 'no-store'))) {
+                    $enriched = $enriched->withHeader('Cache-Control', 'private, no-cache="Set-Cookie"');
+                }
+
+                throw $enriched;
+            }
+
+            throw $e;
+        }
+
+        $cookie = $this->finalizeSession($session, $isNew, $now, $originalCreatedAt, $isHttps, persistMutations: true);
+        if (null !== $cookie) {
+            $response = $response->withAddedHeader('Set-Cookie', $cookie->toHeaderValue());
+            $response = $this->protectSetCookieCaching($response);
+        }
+
+        return $response;
+    }
+
+    private function finalizeSession(
+        Session $session,
+        bool $isNew,
+        int $now,
+        ?int $originalCreatedAt,
+        bool $isHttps,
+        bool $persistMutations,
+    ): ?Cookie {
         foreach (array_unique($session->previousIds()) as $oldId) {
             $this->store->destroy($oldId);
         }
 
         if ($session->isInvalidated()) {
             $this->store->destroy($session->id());
-            $expiredCookie = new Cookie(
+
+            return new Cookie(
                 name: $this->cookieName,
                 value: '',
                 maxAge: 0,
@@ -72,9 +108,10 @@ final readonly class SessionMiddleware implements MiddlewareInterface
                 httpOnly: true,
                 sameSite: $this->sameSite,
             );
-            $response = $response->withAddedHeader('Set-Cookie', $expiredCookie->toHeaderValue());
+        }
 
-            return $this->protectSetCookieCaching($response);
+        if (!$persistMutations) {
+            return null;
         }
 
         // Lazy persistence: only store & emit Set-Cookie when the session was written, rotated, or its ID was accessed (e.g. CSRF)
@@ -99,7 +136,7 @@ final readonly class SessionMiddleware implements MiddlewareInterface
         }
 
         if (($persisted && ($isNew || $session->isDirty())) || $session->wasRegenerated()) {
-            $cookie = new Cookie(
+            return new Cookie(
                 name: $this->cookieName,
                 value: $session->id(),
                 maxAge: $effectiveTtl,
@@ -108,11 +145,9 @@ final readonly class SessionMiddleware implements MiddlewareInterface
                 httpOnly: true,
                 sameSite: $this->sameSite,
             );
-            $response = $response->withAddedHeader('Set-Cookie', $cookie->toHeaderValue());
-            $response = $this->protectSetCookieCaching($response);
         }
 
-        return $response;
+        return null;
     }
 
     private function protectSetCookieCaching(ResponseInterface $response): ResponseInterface

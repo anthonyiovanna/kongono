@@ -71,8 +71,11 @@ final readonly class RequiredIf
 
         if (is_int($expected) && is_string($actual)) {
             $trimmed = trim($actual);
-            if (1 === preg_match('/\A-?\d+\z/', $trimmed) && (int) $trimmed === $expected) {
-                return true;
+            if (1 === preg_match('/\A-?\d+\z/', $trimmed)) {
+                $parsed = filter_var($trimmed, FILTER_VALIDATE_INT);
+                if (false !== $parsed && $parsed === $expected) {
+                    return true;
+                }
             }
         }
 

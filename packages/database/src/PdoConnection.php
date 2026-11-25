@@ -282,6 +282,10 @@ final class PdoConnection implements ConnectionInterface, QueryGuardableInterfac
 
     public function inTransaction(): bool
     {
+        if ($this->needsReconnect && 0 === $this->transactionDepth) {
+            return false;
+        }
+
         return $this->transactionDepth > 0 || $this->pdo->inTransaction();
     }
 
@@ -481,10 +485,10 @@ final class PdoConnection implements ConnectionInterface, QueryGuardableInterfac
 
     public function transaction(Closure $callback): mixed
     {
+        if (0 === $this->transactionDepth && $this->needsReconnect && null !== $this->connector) {
+            $this->reconnect();
+        }
         if (0 === $this->transactionDepth && !$this->pdo->inTransaction()) {
-            if ($this->needsReconnect && null !== $this->connector) {
-                $this->reconnect();
-            }
             if (!$this->pdo->beginTransaction()) {
                 throw new DatabaseException('Unable to begin database transaction.');
             }

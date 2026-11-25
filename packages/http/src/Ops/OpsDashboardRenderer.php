@@ -108,6 +108,7 @@ final readonly class OpsDashboardRenderer
 <div class="wrap">
 {$panel}
 </div>
+<script src="/_kongono/live.js?v=2.5.0" defer></script>
 </body>
 </html>
 HTML;

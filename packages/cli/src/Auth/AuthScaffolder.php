@@ -431,21 +431,25 @@ use Kongono\Http\Routing\Post;
 use Kongono\Http\Session\Session;
 use Kongono\Security\Attributes\Authenticated;
 use Kongono\Security\Auth\LoginThrottler;
+use Kongono\Security\Auth\RememberMeManager;
 use Kongono\Security\Auth\SessionAuth;
 use Kongono\Security\PasswordHasher;
 use Kongono\Security\Principal;
 use Kongono\Security\TokenSigner;
 use Kongono\View\ViewEngine;
 
-final readonly class WebAuthController
+final class WebAuthController
 {
+    private ?string $dummyHash = null;
+
     public function __construct(
-        private ViewEngine $views,
-        private UserStoreInterface $users,
-        private PasswordHasher $hasher,
-        private SessionAuth $auth,
-        private LoginThrottler $throttler,
-        private TokenSigner $signer,
+        private readonly ViewEngine $views,
+        private readonly UserStoreInterface $users,
+        private readonly PasswordHasher $hasher,
+        private readonly SessionAuth $auth,
+        private readonly LoginThrottler $throttler,
+        private readonly TokenSigner $signer,
+        private readonly ?RememberMeManager $rememberMe = null,
     ) {}
 
     #[Get('/login', name: 'auth.login.form')]
@@ -471,7 +475,16 @@ final readonly class WebAuthController
         }
 
         $user = $this->users->findByEmail($input->email);
-        if (null === $user || !$this->hasher->verify($input->password, $user->passwordHash)) {
+        if (null === $user) {
+            // Constant-time Argon2id dummy verification prevents email enumeration via response timing
+            $this->dummyHash ??= $this->hasher->hash('kongono-auth-dummy-timing-guard');
+            $this->hasher->verify($input->password, $this->dummyHash);
+            $this->throttler->recordFailure($input->email, $ip);
+            $session->flash('auth_error', 'Invalid email or password.');
+
+            return Response::redirect('/login');
+        }
+        if (!$this->hasher->verify($input->password, $user->passwordHash)) {
             $this->throttler->recordFailure($input->email, $ip);
             $session->flash('auth_error', 'Invalid email or password.');
 
@@ -496,8 +509,17 @@ final readonly class WebAuthController
     }
 
     #[Post('/register', name: 'auth.register')]
-    public function register(RegisterInput $input, Session $session): Response
+    public function register(RegisterInput $input, Request $request, Session $session): Response
     {
+        $remote = $request->getServerParams()['REMOTE_ADDR'] ?? null;
+        $ip = is_string($remote) && '' !== $remote ? $remote : '127.0.0.1';
+        if ($this->throttler->isLockedOut('register:' . $ip, $ip)) {
+            $session->flash('auth_error', 'Too many registration attempts. Please wait a moment and try again.');
+
+            return Response::redirect('/register');
+        }
+        $this->throttler->recordFailure('register:' . $ip, $ip);
+
         if (null !== $this->users->findByEmail($input->email)) {
             $session->flash('auth_error', 'An account with that email already exists.');
 
@@ -515,11 +537,19 @@ final readonly class WebAuthController
     }
 
     #[Post('/logout', name: 'auth.logout')]
-    public function logout(Session $session): Response
+    public function logout(Request $request, Session $session): Response
     {
         $this->auth->logout($session);
+        $response = Response::redirect('/login');
+        if (null !== $this->rememberMe) {
+            $rawRemember = $request->getCookieParams()[$this->rememberMe->cookieName()] ?? null;
+            if (is_string($rawRemember) && '' !== $rawRemember) {
+                $this->rememberMe->revokeCookie($rawRemember);
+            }
+            $response = $response->withAddedHeader('Set-Cookie', $this->rememberMe->expiredCookie()->toHeaderValue());
+        }
 
-        return Response::redirect('/login');
+        return $response;
     }
 
     #[Get('/dashboard', name: 'auth.dashboard')]
@@ -561,18 +591,27 @@ use Kongono\Security\PasswordHasher;
 use Kongono\Security\Principal;
 
 #[Prefix('/api/auth')]
-final readonly class ApiAuthController
+final class ApiAuthController
 {
+    private ?string $dummyHash = null;
+
     public function __construct(
-        private UserStoreInterface $users,
-        private PasswordHasher $hasher,
-        private LoginThrottler $throttler,
-        private PersonalAccessTokenStoreInterface $tokens,
+        private readonly UserStoreInterface $users,
+        private readonly PasswordHasher $hasher,
+        private readonly LoginThrottler $throttler,
+        private readonly PersonalAccessTokenStoreInterface $tokens,
     ) {}
 
     #[Post('/register', name: 'api.auth.register')]
-    public function register(RegisterInput $input): Response
+    public function register(RegisterInput $input, Request $request): Response
     {
+        $remote = $request->getServerParams()['REMOTE_ADDR'] ?? null;
+        $ip = is_string($remote) && '' !== $remote ? $remote : '127.0.0.1';
+        if ($this->throttler->isLockedOut('register:' . $ip, $ip)) {
+            return Response::json(['error' => 'Too many registration attempts.'], status: 429);
+        }
+        $this->throttler->recordFailure('register:' . $ip, $ip);
+
         if (null !== $this->users->findByEmail($input->email)) {
             return Response::json(['error' => 'An account with that email already exists.'], status: 409);
         }
@@ -601,7 +640,15 @@ final readonly class ApiAuthController
         }
 
         $user = $this->users->findByEmail($input->email);
-        if (null === $user || !$this->hasher->verify($input->password, $user->passwordHash)) {
+        if (null === $user) {
+            // Constant-time Argon2id dummy verification prevents email enumeration via response timing
+            $this->dummyHash ??= $this->hasher->hash('kongono-auth-dummy-timing-guard');
+            $this->hasher->verify($input->password, $this->dummyHash);
+            $this->throttler->recordFailure($input->email, $ip);
+
+            return Response::json(['error' => 'Invalid credentials.'], status: 401);
+        }
+        if (!$this->hasher->verify($input->password, $user->passwordHash)) {
             $this->throttler->recordFailure($input->email, $ip);
 
             return Response::json(['error' => 'Invalid credentials.'], status: 401);

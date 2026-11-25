@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Kongono\Cli\Context;
 
+use FilesystemIterator;
 use Kongono\Core\CoreException;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Core\Graph\ApplicationGraph;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\Dialect;
 use Kongono\Http\App;
+use RecursiveCallbackFilterIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
@@ -24,8 +26,11 @@ final readonly class ProjectContext
     /** @var list<string> */
     private const array FORBIDDEN_SECRET_FILES = [
         'id_rsa',
+        'id_dsa',
         'id_ed25519',
         'id_ecdsa',
+        'id_ecdsa_sk',
+        'id_ed25519_sk',
         '.netrc',
         '.npmrc',
         '.pypirc',
@@ -33,7 +38,18 @@ final readonly class ProjectContext
         '.pgpass',
         'auth.json',
         'credentials.json',
+        'secrets.json',
         'service-account.json',
+    ];
+
+    /** @var list<string> */
+    private const array IGNORED_DIRS = [
+        'vendor',
+        '.git',
+        'var',
+        '.cache',
+        '.phpunit.cache',
+        'node_modules',
     ];
 
     public string $rootPath;
@@ -50,8 +66,27 @@ final readonly class ProjectContext
         $this->rootPath = $resolved;
     }
 
-    /** Load a Kongono app from app/bootstrap.php (if present) and capture its live ApplicationGraph & App instance. */
-    public static function discover(string $rootPath): self
+    /** Returns true when safe/static-only mode is enabled (`KONGONO_SAFE_MODE=1` or `KONGONO_NO_BOOTSTRAP=1`). */
+    public static function isSafeModeEnabled(): bool
+    {
+        foreach (['KONGONO_SAFE_MODE', 'KONGONO_NO_BOOTSTRAP'] as $var) {
+            $val = getenv($var);
+            if (false !== $val && in_array(strtolower(trim($val)), ['1', 'true', 'yes', 'on'], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Load a Kongono app from app/bootstrap.php (if present and bootstrap execution is permitted)
+     * and capture its live ApplicationGraph & App instance.
+     *
+     * Pass `allowBootstrap: false` (or set `KONGONO_SAFE_MODE=1`) when inspecting untrusted repositories
+     * so read-only CLI/MCP tools never execute arbitrary `app/bootstrap.php` code.
+     */
+    public static function discover(string $rootPath, ?bool $allowBootstrap = null): self
     {
         $resolved = realpath($rootPath);
         if (false === $resolved || !is_dir($resolved)) {
@@ -60,18 +95,24 @@ final readonly class ProjectContext
 
         $graph = null;
         $loadedApp = null;
-        $bootstrap = $resolved . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (is_file($bootstrap)) {
-            try {
-                $app = require $bootstrap;
-                if ($app instanceof App) {
-                    $loadedApp = $app;
-                    $graph = $app->graph();
+        $bootstrapAllowed = $allowBootstrap ?? !self::isSafeModeEnabled();
+        $appDir = $resolved . DIRECTORY_SEPARATOR . 'app';
+        $bootstrap = $appDir . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if ($bootstrapAllowed && !is_link($appDir) && !is_link($bootstrap) && is_file($bootstrap)) {
+            $realBootstrap = realpath($bootstrap);
+            $prefix = rtrim($resolved, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+            if (false !== $realBootstrap && str_starts_with($realBootstrap, $prefix)) {
+                try {
+                    $app = require $realBootstrap;
+                    if ($app instanceof App) {
+                        $loadedApp = $app;
+                        $graph = $app->graph();
+                    }
+                } catch (Throwable) {
+                    // Gracefully degrade when inspecting a newly scaffolded or broken app
+                    $loadedApp = null;
+                    $graph = null;
                 }
-            } catch (Throwable) {
-                // Gracefully degrade when inspecting a newly scaffolded or broken app
-                $loadedApp = null;
-                $graph = null;
             }
         }
 
@@ -79,31 +120,66 @@ final readonly class ProjectContext
     }
 
     /**
-     * List relative paths of project source/template/config files (excluding vendor/var/.git).
+     * List relative paths of project source/template/config files (excluding vendor/var/.git, symlinks, and secret files).
      *
      * @return list<string>
      */
-    public function listFiles(int $limit = 100): array
+    public function listFiles(int $limit = 100, ?string $directory = null): array
     {
+        $scanRoot = $this->rootPath;
+        if (null !== $directory && '' !== trim($directory)) {
+            $cleanDir = trim(str_replace('\\', '/', trim($directory)), '/');
+            if ('' !== $cleanDir) {
+                if (str_contains($cleanDir, '..') || str_contains($cleanDir, "\0") || str_contains($cleanDir, ':')) {
+                    throw new CoreException(sprintf('Directory "%s" is invalid or attempts directory traversal.', $directory));
+                }
+                $walk = $this->rootPath;
+                foreach (explode('/', $cleanDir) as $segment) {
+                    if ('' === $segment || '.' === $segment) {
+                        throw new CoreException(sprintf('Directory "%s" contains invalid segment.', $directory));
+                    }
+                    $walk .= DIRECTORY_SEPARATOR . $segment;
+                    if (is_link($walk)) {
+                        throw new CoreException(sprintf('Symlink directory "%s" is not permitted.', $directory));
+                    }
+                }
+                $realScan = realpath($walk);
+                $prefix = rtrim($this->rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+                if (false === $realScan || !is_dir($realScan) || ($realScan !== $this->rootPath && !str_starts_with($realScan . DIRECTORY_SEPARATOR, $prefix))) {
+                    return [];
+                }
+                $scanRoot = $realScan;
+            }
+        }
+
         $files = [];
-        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->rootPath));
+        $dirIt = new RecursiveDirectoryIterator($scanRoot, FilesystemIterator::SKIP_DOTS);
+        $filter = new RecursiveCallbackFilterIterator(
+            $dirIt,
+            static function (SplFileInfo $current): bool {
+                if ($current->isLink()) {
+                    return false;
+                }
+                if ($current->isDir()) {
+                    return !in_array(strtolower($current->getFilename()), self::IGNORED_DIRS, true);
+                }
+
+                return true;
+            },
+        );
+        $iterator = new RecursiveIteratorIterator($filter);
+        $max = max(1, $limit);
 
         foreach ($iterator as $file) {
-            if (!$file instanceof SplFileInfo || !$file->isFile()) {
+            if (!$file instanceof SplFileInfo || $file->isLink() || !$file->isFile()) {
                 continue;
             }
             $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($this->rootPath) + 1));
-            if (
-                str_starts_with($relative, 'vendor/')
-                || str_starts_with($relative, '.git/')
-                || str_starts_with($relative, 'var/')
-                || str_starts_with($relative, '.cache/')
-                || str_starts_with($relative, '.phpunit.cache/')
-            ) {
+            if (!$this->isReadablePath($relative)) {
                 continue;
             }
             $files[] = $relative;
-            if (count($files) >= $limit) {
+            if (count($files) >= $max) {
                 break;
             }
         }
@@ -137,6 +213,61 @@ final readonly class ProjectContext
         }
 
         return SecretScrubber::scrub($raw);
+    }
+
+    /**
+     * Read up to the final `$maxBytes` (or newly appended bytes from `$fromOffset`) of a contained project file,
+     * enforcing the same secret-file blocking and SecretScrubber protection as `readFileSafe()`.
+     *
+     * @param int<1, max> $maxBytes
+     * @return array{content: string, size: int, offset: int}
+     */
+    public function readFileTailSafe(string $relativePath, int $maxBytes = 131072, ?int $fromOffset = null): array
+    {
+        $requestedRelative = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
+        if ('' !== $requestedRelative) {
+            $this->assertReadablePath($requestedRelative);
+        }
+
+        $fullPath = $this->resolveContainedPath($relativePath, mustExist: true);
+        $canonicalRelative = str_replace('\\', '/', substr($fullPath, strlen($this->rootPath) + 1));
+        $this->assertReadablePath($canonicalRelative);
+
+        clearstatcache(true, $fullPath);
+        $size = @filesize($fullPath);
+        if (false === $size) {
+            throw new CoreException(sprintf('Unable to stat "%s".', $relativePath));
+        }
+
+        $start = null !== $fromOffset && $fromOffset >= 0 && $fromOffset <= $size
+            ? max($fromOffset, $size - $maxBytes)
+            : max(0, $size - $maxBytes);
+        $toRead = $size - $start;
+        if ($toRead <= 0) {
+            return ['content' => '', 'size' => $size, 'offset' => $size];
+        }
+
+        $handle = @fopen($fullPath, 'rb');
+        if (false === $handle) {
+            throw new CoreException(sprintf('Unable to read "%s".', $relativePath));
+        }
+        try {
+            if ($start > 0 && 0 !== fseek($handle, $start, SEEK_SET)) {
+                throw new CoreException(sprintf('Unable to seek "%s".', $relativePath));
+            }
+            $raw = fread($handle, min($maxBytes, $toRead));
+            if (false === $raw) {
+                throw new CoreException(sprintf('Unable to read "%s".', $relativePath));
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        return [
+            'content' => SecretScrubber::scrub($raw),
+            'size' => $size,
+            'offset' => $start + strlen($raw),
+        ];
     }
 
     /**
@@ -177,21 +308,17 @@ final readonly class ProjectContext
         }
 
         $limit = max(1, min($maxMatches, 100));
-        $dirPrefix = null;
+        $cleanDir = null;
         if (null !== $directory && '' !== trim($directory)) {
             $cleanDir = trim(str_replace('\\', '/', trim($directory)), '/');
             if (str_contains($cleanDir, '..') || str_contains($cleanDir, "\0")) {
                 throw new CoreException(sprintf('Search directory "%s" is invalid or attempts directory traversal.', $directory));
             }
-            $dirPrefix = $cleanDir . '/';
         }
 
         /** @var list<array{file: string, line: int, text: string}> $matches */
         $matches = [];
-        foreach ($this->listFiles(400) as $relative) {
-            if (null !== $dirPrefix && !str_starts_with($relative, $dirPrefix) && $relative !== rtrim($dirPrefix, '/')) {
-                continue;
-            }
+        foreach ($this->listFiles(400, $cleanDir) as $relative) {
             try {
                 $this->assertReadablePath($relative);
                 $fullPath = $this->resolveContainedPath($relative, mustExist: true);
@@ -581,28 +708,38 @@ final readonly class ProjectContext
         return $candidate;
     }
 
-    private function assertReadablePath(string $canonicalRelative): void
+    private function isReadablePath(string $canonicalRelative): bool
     {
         $lower = strtolower($canonicalRelative);
         $base = strtolower(basename($canonicalRelative));
 
         $forbiddenExt = (bool) preg_match('/\.(pem|key|p12|pfx|jks|kdbx|ppk|pk8|db|sqlite3?(?:-(?:wal|shm))?)\z/', $base);
-        $forbiddenName = (str_starts_with($base, '.env') && '.env.example' !== $base)
+        $forbiddenName = ((str_starts_with($base, '.env') || str_ends_with($base, '.env')) && '.env.example' !== $base)
             || in_array($base, self::FORBIDDEN_SECRET_FILES, true)
+            || '.git' === $lower
+            || str_ends_with($lower, '/.git')
             || str_starts_with($lower, '.git/')
             || str_contains($lower, '/.git/')
             || str_starts_with($lower, '.ssh/')
             || str_contains($lower, '/.ssh/')
             || '.aws/credentials' === $lower
             || str_contains($lower, '/.aws/credentials')
+            || '.aws/config' === $lower
+            || str_contains($lower, '/.aws/config')
             || str_starts_with($lower, 'var/cache/')
             || str_starts_with($lower, 'var/storage/')
             || str_starts_with($lower, 'storage/dev/')
             || str_starts_with($lower, 'storage/incidents/')
+            || 1 === preg_match('#/(?:var/(?:cache|storage)|storage/(?:dev|incidents))/#', '/' . $lower)
             || '.docker/config.json' === $lower
             || str_contains($lower, '/.docker/config.json');
 
-        if ($forbiddenExt || $forbiddenName) {
+        return !$forbiddenExt && !$forbiddenName;
+    }
+
+    private function assertReadablePath(string $canonicalRelative): void
+    {
+        if (!$this->isReadablePath($canonicalRelative)) {
             throw new CoreException(sprintf('Reading sensitive secret/credential file "%s" is forbidden.', $canonicalRelative));
         }
     }

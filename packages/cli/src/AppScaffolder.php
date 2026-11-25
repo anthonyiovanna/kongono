@@ -392,6 +392,7 @@ use Kongono\Security\Auth\SessionAuth;
 use Kongono\Security\Gate;
 use Kongono\Security\Middleware\BearerAuthMiddleware;
 use Kongono\Security\Middleware\CsrfMiddleware;
+use Kongono\Security\Middleware\RateLimitMiddleware;
 use Kongono\Security\Middleware\SecurityHeadersMiddleware;
 use Kongono\Security\Middleware\SessionAuthMiddleware;
 use Kongono\Security\PasswordHasher;
@@ -424,7 +425,7 @@ if ('production' === \$appEnv && (!is_string(\$appKey) || strlen(trim(\$appKey))
 \$tokens = new MemoryPersonalAccessTokenStore();
 \$hasher = new PasswordHasher();
 \$sessionAuth = new SessionAuth();
-\$throttler = new LoginThrottler(\$cache);
+\$throttler = new LoginThrottler(\$cache, maxAttempts: 5, lockoutSeconds: 900, maxAccountAttempts: 0);
 \$gate = (new Gate())
     ->define('ops.view', static fn(Principal \$p): bool => \$p->hasCapability('ops.view'))
     ->define('ops.manage', static fn(Principal \$p): bool => \$p->hasCapability('ops.manage'));
@@ -452,8 +453,12 @@ if ('production' === \$appEnv && (!is_string(\$appKey) || strlen(trim(\$appKey))
 
 \$app->middleware(
     DevStudioCompanions::middleware(\$app, \$inspector, \$baseDir),
+    new RateLimitMiddleware(\$cache, maxRequests: 60, windowSeconds: 60),
     new SessionMiddleware(\$sessionStore, secure: \$secureCookies),
-    new SessionAuthMiddleware(auth: \$sessionAuth),
+    new SessionAuthMiddleware(
+        principalResolver: static fn(Principal \$p): ?Principal => \$users->findById(\$p->id)?->toPrincipal(),
+        auth: \$sessionAuth,
+    ),
     new BearerAuthMiddleware(\$tokens->toBearerResolver(), required: false),
     new CsrfMiddleware(\$signer, exemptPrefixes: ['/api/']),
     new LiveMiddleware(),

@@ -43,6 +43,8 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
         private string $headerName = 'Idempotency-Key',
         private string $cachePrefix = 'kongono:idemp:',
         private ?Closure $scopeResolver = null,
+        private int $maxRequestBytes = 1_048_576,
+        private int $maxCachedResponseBytes = 1_048_576,
     ) {}
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -62,14 +64,35 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
 
         $actorScope = $this->resolveActorScope($request);
         $bodyStream = $request->getBody();
-        if ($bodyStream->isSeekable()) {
+        $declaredReqSize = $bodyStream->getSize();
+        if (null !== $declaredReqSize && $declaredReqSize > $this->maxRequestBytes) {
+            throw new HttpException(413, 'Request body exceeds maximum idempotency fingerprint size.');
+        }
+        $reqSeekable = $bodyStream->isSeekable();
+        if ($reqSeekable) {
             $bodyStream->rewind();
-            $body = $bodyStream->getContents();
+        }
+        $body = '';
+        while (!$bodyStream->eof()) {
+            $chunk = $bodyStream->read(min(65536, ($this->maxRequestBytes - strlen($body)) + 1));
+            if ('' === $chunk) {
+                break;
+            }
+            $body .= $chunk;
+            if (strlen($body) > $this->maxRequestBytes) {
+                if ($reqSeekable) {
+                    $bodyStream->rewind();
+                }
+
+                throw new HttpException(413, 'Request body exceeds maximum idempotency fingerprint size.');
+            }
+        }
+        if ($reqSeekable) {
             $bodyStream->rewind();
         } else {
-            $body = $bodyStream->getContents();
             $request = $request->withBody(Stream::fromString($body));
         }
+
         if ('' === $body) {
             $parsedBody = $request->getParsedBody();
             if (is_array($parsedBody) && [] !== $parsedBody) {
@@ -81,8 +104,14 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
         $reqContentType = strtolower(trim($request->getHeaderLine('Content-Type')));
         $path = self::canonicalizePath($request->getUri()->getPath());
         $query = $request->getUri()->getQuery();
-        $fingerprint = hash('sha256', $method . '|' . $path . '|' . $query . '|' . $reqContentType . '|' . $body . '|' . $filesDigest);
-        $cacheKey = $this->cachePrefix . hash('sha256', $actorScope . '|' . $method . '|' . $path . '|' . $idempotencyKey);
+        $fingerprint = hash('sha256', json_encode(
+            [$method, $path, $query, $reqContentType, hash('sha256', $body), $filesDigest],
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE,
+        ));
+        $cacheKey = $this->cachePrefix . hash('sha256', json_encode(
+            [$actorScope, $method, $path, $idempotencyKey],
+            JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE,
+        ));
         $lockKey = $cacheKey . ':lock';
 
         $existing = $this->cache->get($cacheKey);
@@ -114,16 +143,17 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
             );
         }
 
-        // Atomic in-flight lock prevents concurrent double-spend races
+        // Atomic owner-tagged in-flight lock prevents concurrent double-spend races and stale-holder lock steals
+        $lockToken = bin2hex(random_bytes(16));
         if ($this->cache instanceof AtomicCacheInterface) {
-            if (!$this->cache->add($lockKey, true, 60)) {
+            if (!$this->cache->add($lockKey, $lockToken, 60)) {
                 throw new HttpException(409, 'A request with this Idempotency-Key is currently in progress.');
             }
         } else {
             if ($this->cache->has($lockKey)) {
                 throw new HttpException(409, 'A request with this Idempotency-Key is currently in progress.');
             }
-            $this->cache->set($lockKey, true, 60);
+            $this->cache->set($lockKey, $lockToken, 60);
         }
 
         try {
@@ -138,35 +168,62 @@ final readonly class IdempotencyMiddleware implements MiddlewareInterface
                 && !$response->hasHeader('Set-Cookie')
                 && !str_contains($cc, 'no-store');
             if ($isCacheable) {
-                $contentType = $response->getHeaderLine('Content-Type');
-                $safeHeaders = [];
-                foreach ($response->getHeaders() as $hName => $hVals) {
-                    $lower = strtolower($hName);
-                    if (in_array($lower, self::SAFE_REPLAY_HEADERS, true) || str_starts_with($lower, 'x-kongono-')) {
-                        $safeHeaders[$hName] = implode(', ', $hVals);
+                $respBody = $response->getBody();
+                $respSeekable = $respBody->isSeekable();
+                $declaredRespSize = $respBody->getSize();
+                $canBufferResp = ($respSeekable || null !== $declaredRespSize)
+                    && (null === $declaredRespSize || $declaredRespSize <= $this->maxCachedResponseBytes);
+
+                if ($canBufferResp) {
+                    if ($respSeekable) {
+                        $respBody->rewind();
+                    }
+                    $cachedBody = '';
+                    $oversized = false;
+                    while (!$respBody->eof()) {
+                        $chunk = $respBody->read(min(65536, ($this->maxCachedResponseBytes - strlen($cachedBody)) + 1));
+                        if ('' === $chunk) {
+                            break;
+                        }
+                        $cachedBody .= $chunk;
+                        if (strlen($cachedBody) > $this->maxCachedResponseBytes) {
+                            $oversized = true;
+                            break;
+                        }
+                    }
+                    if ($respSeekable) {
+                        $respBody->rewind();
+                    } elseif (!$oversized) {
+                        $response = $response->withBody(Stream::fromString($cachedBody));
+                    }
+
+                    if (!$oversized) {
+                        $contentType = $response->getHeaderLine('Content-Type');
+                        $safeHeaders = [];
+                        foreach ($response->getHeaders() as $hName => $hVals) {
+                            $lower = strtolower($hName);
+                            if (in_array($lower, self::SAFE_REPLAY_HEADERS, true) || str_starts_with($lower, 'x-kongono-')) {
+                                $safeHeaders[$hName] = implode(', ', $hVals);
+                            }
+                        }
+                        $this->cache->set($cacheKey, [
+                            'fingerprint' => $fingerprint,
+                            'status' => $status,
+                            'content_type' => '' !== $contentType ? $contentType : 'application/json; charset=utf-8',
+                            'headers' => $safeHeaders,
+                            'body' => $cachedBody,
+                        ], $this->ttlSeconds);
                     }
                 }
-                $respBody = $response->getBody();
-                if ($respBody->isSeekable()) {
-                    $respBody->rewind();
-                    $cachedBody = $respBody->getContents();
-                    $respBody->rewind();
-                } else {
-                    $cachedBody = $respBody->getContents();
-                    $response = $response->withBody(Stream::fromString($cachedBody));
-                }
-                $this->cache->set($cacheKey, [
-                    'fingerprint' => $fingerprint,
-                    'status' => $status,
-                    'content_type' => '' !== $contentType ? $contentType : 'application/json; charset=utf-8',
-                    'headers' => $safeHeaders,
-                    'body' => $cachedBody,
-                ], $this->ttlSeconds);
             }
 
             return $response;
         } finally {
-            $this->cache->delete($lockKey);
+            if ($this->cache instanceof AtomicCacheInterface) {
+                $this->cache->compareAndDelete($lockKey, $lockToken);
+            } elseif ($this->cache->get($lockKey) === $lockToken) {
+                $this->cache->delete($lockKey);
+            }
         }
     }
 

@@ -55,6 +55,7 @@ final readonly class OpsDashboardMiddleware implements MiddlewareInterface
         private string $manageCapability = 'ops.manage',
         private ?Closure $csrfTokenProvider = null,
         private ?Closure $diagnoseJobHandler = null,
+        private ?Closure $csrfTokenVerifier = null,
     ) {
         $this->renderer = new OpsDashboardRenderer();
     }
@@ -109,40 +110,69 @@ final readonly class OpsDashboardMiddleware implements MiddlewareInterface
         $origin = trim($request->getHeaderLine('Origin'));
         if ('' !== $origin) {
             $parsedOrigin = parse_url($origin);
+            $originScheme = is_array($parsedOrigin) && is_string($parsedOrigin['scheme'] ?? null) ? strtolower($parsedOrigin['scheme']) : '';
             $originHost = is_array($parsedOrigin) && is_string($parsedOrigin['host'] ?? null) ? strtolower($parsedOrigin['host']) : '';
+            $originPort = is_array($parsedOrigin) && is_int($parsedOrigin['port'] ?? null) ? $parsedOrigin['port'] : null;
+            if (('http' === $originScheme && 80 === $originPort) || ('https' === $originScheme && 443 === $originPort)) {
+                $originPort = null;
+            }
+            $reqScheme = strtolower($request->getUri()->getScheme());
             $reqHost = strtolower($request->getUri()->getHost());
+            $reqPort = $request->getUri()->getPort();
             if ('' === $reqHost) {
                 $hostHeader = trim($request->getHeaderLine('Host'));
-                $parsedHost = '' !== $hostHeader ? parse_url('http://' . $hostHeader, PHP_URL_HOST) : false;
-                $reqHost = is_string($parsedHost) ? strtolower($parsedHost) : '';
+                if ('' !== $hostHeader) {
+                    $parsedHost = parse_url('http://' . $hostHeader);
+                    if (is_array($parsedHost) && is_string($parsedHost['host'] ?? null)) {
+                        $reqHost = strtolower($parsedHost['host']);
+                        $reqPort = is_int($parsedHost['port'] ?? null) ? $parsedHost['port'] : $reqPort;
+                    }
+                }
             }
-            if ('' === $originHost || ('' !== $reqHost && $originHost !== $reqHost)) {
+            if (('http' === $reqScheme && 80 === $reqPort) || ('https' === $reqScheme && 443 === $reqPort)) {
+                $reqPort = null;
+            }
+            if (
+                '' === $originHost
+                || '' === $reqHost
+                || $originHost !== $reqHost
+                || ('' !== $reqScheme && '' !== $originScheme && $originScheme !== $reqScheme)
+                || (null !== $reqPort && $originPort !== $reqPort)
+            ) {
                 throw new HttpException(403, 'Cross-origin Ops Dashboard mutation blocked.');
             }
         }
 
+        $hasCookies = '' !== trim($request->getHeaderLine('Cookie')) || [] !== $request->getCookieParams();
         $auth = trim($request->getHeaderLine('Authorization'));
         $apiKey = trim($request->getHeaderLine('X-API-Key'));
-        $isNonCookieAuth = str_starts_with(strtolower($auth), 'bearer ') || '' !== $apiKey;
+        $hasBearer = str_starts_with(strtolower($auth), 'bearer ') && '' !== trim(substr($auth, 7));
+        $isNonCookieAuth = !$hasCookies && ($hasBearer || '' !== $apiKey);
         if ($isNonCookieAuth) {
+            return;
+        }
+
+        $headerToken = trim($request->getHeaderLine('X-CSRF-Token'));
+        $bodyToken = is_string($input['_csrf'] ?? null) ? trim($input['_csrf']) : '';
+        $submitted = '' !== $headerToken ? $headerToken : $bodyToken;
+
+        if (null !== $this->csrfTokenVerifier) {
+            if ('' === $submitted || true !== ($this->csrfTokenVerifier)($request, $submitted)) {
+                throw new HttpException(419, 'Invalid or missing CSRF token for Ops Dashboard action.');
+            }
+
             return;
         }
 
         if (null !== $this->csrfTokenProvider) {
             $expected = ($this->csrfTokenProvider)($request);
-            if (null !== $expected && '' !== $expected) {
-                $headerToken = trim($request->getHeaderLine('X-CSRF-Token'));
-                $bodyToken = is_string($input['_csrf'] ?? null) ? trim($input['_csrf']) : '';
-                $submitted = '' !== $headerToken ? $headerToken : $bodyToken;
-                if ('' === $submitted || !hash_equals($expected, $submitted)) {
-                    throw new HttpException(419, 'Invalid or missing CSRF token for Ops Dashboard action.');
-                }
-
-                return;
+            if (!is_string($expected) || '' === $expected || '' === $submitted || !hash_equals($expected, $submitted)) {
+                throw new HttpException(419, 'Invalid or missing CSRF token for Ops Dashboard action.');
             }
+
+            return;
         }
 
-        $hasCookies = '' !== trim($request->getHeaderLine('Cookie')) || [] !== $request->getCookieParams();
         if ($hasCookies) {
             $hasCustomHeader = $this->isLiveRequest($request)
                 || '' !== trim($request->getHeaderLine('X-CSRF-Token'))

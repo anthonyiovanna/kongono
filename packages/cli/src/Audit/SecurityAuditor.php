@@ -213,11 +213,14 @@ final readonly class SecurityAuditor
         $realRoot = realpath($appRoot);
         $rootLen = false !== $realRoot ? strlen($realRoot) + 1 : 0;
 
-        $it = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($viewsDir, RecursiveDirectoryIterator::SKIP_DOTS),
+        $dirIt = new RecursiveDirectoryIterator($viewsDir, RecursiveDirectoryIterator::SKIP_DOTS);
+        $filter = new \RecursiveCallbackFilterIterator(
+            $dirIt,
+            static fn(SplFileInfo $cur): bool => !$cur->isLink(),
         );
+        $it = new RecursiveIteratorIterator($filter);
         foreach ($it as $file) {
-            if (!$file instanceof SplFileInfo || !$file->isFile() || !str_ends_with($file->getFilename(), '.kgn.html')) {
+            if (!$file instanceof SplFileInfo || $file->isLink() || !$file->isFile() || !str_ends_with($file->getFilename(), '.kgn.html')) {
                 continue;
             }
             ++$scanned;

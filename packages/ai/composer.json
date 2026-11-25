@@ -7,6 +7,7 @@
     "php": ">=8.5.0",
     "ext-curl": "*",
     "ext-json": "*",
+    "ext-mbstring": "*",
     "kongono/core": "^1.0",
     "kongono/database": "^1.0",
     "kongono/validation": "^1.0"

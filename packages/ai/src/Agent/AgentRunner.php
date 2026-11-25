@@ -36,6 +36,41 @@ final readonly class AgentRunner
     ) {}
 
     /**
+     * Execute the agent loop with per-tool callable handlers so method- and class-level `#[RequiresApproval]`
+     * attributes on individual dispatcher targets are automatically detected and enforced.
+     *
+     * @param list<Message>                      $initialMessages
+     * @param list<ToolDefinition>               $tools
+     * @param array<string, callable(ToolCall): string> $handlers Map of tool name => target callable
+     */
+    public function runWithHandlers(array $initialMessages, array $tools, array $handlers): AgentReceipt
+    {
+        /** @var list<ToolDefinition> $enriched */
+        $enriched = [];
+        foreach ($tools as $tool) {
+            $handler = $handlers[$tool->name] ?? null;
+            $requiresApproval = $tool->requiresApproval
+                || (null !== $handler && ToolDefinition::callableRequiresApproval($handler));
+            $enriched[] = $requiresApproval === $tool->requiresApproval
+                ? $tool
+                : new ToolDefinition($tool->name, $tool->description, $tool->parametersSchema, requiresApproval: true);
+        }
+
+        return $this->run(
+            $initialMessages,
+            $enriched,
+            static function (ToolCall $call) use ($handlers): string {
+                $handler = $handlers[$call->name] ?? null;
+                if (null === $handler) {
+                    return 'Error: no handler registered for tool "' . $call->name . '".';
+                }
+
+                return $handler($call);
+            },
+        );
+    }
+
+    /**
      * @param list<Message>             $initialMessages
      * @param list<ToolDefinition>      $tools
      * @param Closure(ToolCall): string $toolExecutor
@@ -85,14 +120,17 @@ final readonly class AgentRunner
         $audit = [];
         $totalInput = 0;
         $totalOutput = 0;
+        $cumulativeCostUsd = 0.0;
         $lastModel = $this->client->defaultModel();
 
         while ($steps < $this->principal->maxSteps) {
             ++$steps;
-            $response = $this->client->chat(new ChatRequest($messages, tools: $admittedTools));
+            $req = new ChatRequest($messages, tools: $admittedTools);
+            $response = $this->client->chat($req);
             $lastModel = $response->model;
-            $totalInput += $response->usage->inputTokens;
-            $totalOutput += $response->usage->outputTokens;
+            $stepUsage = $this->effectiveStepUsage($req, $response->text, $response->toolCalls, $response->usage);
+            $totalInput += $stepUsage->inputTokens;
+            $totalOutput += $stepUsage->outputTokens;
 
             if ($this->principal->exceedsTokenBudget($totalInput + $totalOutput)) {
                 throw new AiException(sprintf(
@@ -103,15 +141,15 @@ final readonly class AgentRunner
                 ));
             }
 
-            $estimatedCostUsd = (($totalInput / 1000.0) * $this->inputCostPer1kTokens)
-                + (($totalOutput / 1000.0) * $this->outputCostPer1kTokens);
-            $modelCostUsd = AiClient::estimateCostUsd($response->provider, $response->model, new TokenUsage($totalInput, $totalOutput));
-            $effectiveCostUsd = max($estimatedCostUsd, $modelCostUsd);
-            if ($this->principal->exceedsCostBudget($effectiveCostUsd)) {
+            $stepEstimatedCost = (($stepUsage->inputTokens / 1000.0) * $this->inputCostPer1kTokens)
+                + (($stepUsage->outputTokens / 1000.0) * $this->outputCostPer1kTokens);
+            $stepModelCost = AiClient::estimateCostUsd($response->provider, $response->model, $stepUsage);
+            $cumulativeCostUsd += max($stepEstimatedCost, $stepModelCost);
+            if ($this->principal->exceedsCostBudget($cumulativeCostUsd)) {
                 throw new AiException(sprintf(
                     'Agent "%s" exceeded its USD cost budget ($%.4f > $%.4f).',
                     $this->principal->id,
-                    $effectiveCostUsd,
+                    $cumulativeCostUsd,
                     $this->principal->maxCostUsd,
                 ));
             }
@@ -142,6 +180,36 @@ final readonly class AgentRunner
             // Inspect BOTH assistant text and every tool call's arguments BEFORE executing or returning any tool call
             $this->assertNoCanaryExfiltration($guard, $canary, $response->text, $response->toolCalls);
 
+            // Pre-scan all allowed tool calls for approval gates BEFORE executing ANY tool in this turn
+            foreach ($response->toolCalls as $candidateCall) {
+                if (!$this->principal->allowsTool($candidateCall->name) || !isset($toolIndex[$candidateCall->name])) {
+                    continue;
+                }
+                $defRequiresApproval = $toolIndex[$candidateCall->name]->requiresApproval;
+                if ($this->principal->requiresApproval($candidateCall->name) || $defRequiresApproval || $executorRequiresApproval) {
+                    $audit[] = [
+                        'tool' => $candidateCall->name,
+                        'allowed' => false,
+                        'summary' => 'Paused awaiting explicit human approval.',
+                    ];
+                    /** @var array<string, mixed> $scrubbedArgs */
+                    $scrubbedArgs = SecretScrubber::scrubArray($candidateCall->arguments);
+
+                    return new AgentReceipt(
+                        principalId: $this->principal->id,
+                        provider: $response->provider,
+                        model: $lastModel,
+                        finalText: sprintf('Paused: tool "%s" requires human approval before execution.', $candidateCall->name),
+                        steps: $steps,
+                        toolCallsExecuted: $toolCallsExecuted,
+                        toolAudit: $audit,
+                        usage: new TokenUsage($totalInput, $totalOutput),
+                        status: 'awaiting_approval',
+                        pendingApproval: new ToolCall($candidateCall->id, $candidateCall->name, $scrubbedArgs),
+                    );
+                }
+            }
+
             $messages[] = Message::assistant($response->text, $response->toolCalls);
 
             foreach ($response->toolCalls as $call) {
@@ -153,30 +221,6 @@ final readonly class AgentRunner
                     ];
                     $messages[] = Message::tool($call->id, 'Error: capability denied by policy.');
                     continue;
-                }
-
-                $defRequiresApproval = $toolIndex[$call->name]->requiresApproval;
-                if ($this->principal->requiresApproval($call->name) || $defRequiresApproval || $executorRequiresApproval) {
-                    $audit[] = [
-                        'tool' => $call->name,
-                        'allowed' => false,
-                        'summary' => 'Paused awaiting explicit human approval.',
-                    ];
-                    /** @var array<string, mixed> $scrubbedArgs */
-                    $scrubbedArgs = SecretScrubber::scrubArray($call->arguments);
-
-                    return new AgentReceipt(
-                        principalId: $this->principal->id,
-                        provider: $response->provider,
-                        model: $lastModel,
-                        finalText: sprintf('Paused: tool "%s" requires human approval before execution.', $call->name),
-                        steps: $steps,
-                        toolCallsExecuted: $toolCallsExecuted,
-                        toolAudit: $audit,
-                        usage: new TokenUsage($totalInput, $totalOutput),
-                        status: 'awaiting_approval',
-                        pendingApproval: new ToolCall($call->id, $call->name, $scrubbedArgs),
-                    );
                 }
 
                 if ($toolCallsExecuted >= $this->principal->maxToolCalls) {
@@ -208,13 +252,49 @@ final readonly class AgentRunner
     }
 
     /**
-     * Block canary exfiltration via assistant text or tool-call names/arguments before any tool executes or pauses.
+     * Fall back to conservative byte-length token estimation when a provider omits usage telemetry.
+     *
+     * @param list<ToolCall> $toolCalls
+     */
+    private function effectiveStepUsage(ChatRequest $request, string $text, array $toolCalls, TokenUsage $reported): TokenUsage
+    {
+        if ($reported->totalTokens() > 0) {
+            return $reported;
+        }
+        $inputBytes = 0;
+        foreach ($request->messages as $msg) {
+            $inputBytes += strlen($msg->content);
+        }
+        $outputBytes = strlen($text);
+        foreach ($toolCalls as $call) {
+            $outputBytes += strlen($call->name);
+            $enc = json_encode($call->arguments, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+            if (is_string($enc)) {
+                $outputBytes += strlen($enc);
+            }
+        }
+        if (0 === $inputBytes && 0 === $outputBytes) {
+            return $reported;
+        }
+
+        return new TokenUsage(
+            inputTokens: $inputBytes > 0 ? max(1, (int) ceil($inputBytes / 4)) : 0,
+            outputTokens: $outputBytes > 0 ? max(1, (int) ceil($outputBytes / 4)) : 0,
+        );
+    }
+
+    /**
+     * Block canary exfiltration via assistant text or tool-call names/arguments (including across split parallel calls)
+     * before any tool executes or pauses.
      *
      * @param list<ToolCall> $toolCalls
      */
     private function assertNoCanaryExfiltration(PromptGuard $guard, string $canary, string $text, array $toolCalls): void
     {
+        /** @var list<string> $combinedParts */
+        $combinedParts = [];
         if ('' !== $text) {
+            $combinedParts[] = $text;
             $checked = $guard->inspectOutput($text, $canary);
             if (!$checked['safe']) {
                 throw new AiException(sprintf(
@@ -234,7 +314,9 @@ final readonly class AgentRunner
             self::collectLeafStrings($call->arguments, $leaves);
             if ([] !== $leaves) {
                 array_push($blobs, ...$leaves);
-                $blobs[] = implode(' ', $leaves);
+                $joinedLeaves = implode(' ', $leaves);
+                $blobs[] = $joinedLeaves;
+                $combinedParts[] = $joinedLeaves;
             }
 
             foreach ($blobs as $blob) {
@@ -249,6 +331,17 @@ final readonly class AgentRunner
                         $call->name,
                     ));
                 }
+            }
+        }
+
+        // Also inspect combined assistant text + all parallel tool-call leaf arguments to catch split-canary exfiltration
+        if (count($combinedParts) > 1) {
+            $combinedCheck = $guard->inspectOutput(implode('', $combinedParts), $canary);
+            if (!$combinedCheck['safe']) {
+                throw new AiException(sprintf(
+                    'Agent "%s" combined output blocked by PromptGuard due to suspected split canary exfiltration.',
+                    $this->principal->id,
+                ));
             }
         }
     }

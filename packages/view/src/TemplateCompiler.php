@@ -114,7 +114,7 @@ final class TemplateCompiler
         $output = $this->replaceCallback('/(?<![a-zA-Z0-9_])@state\s*\(' . $bal . '\)/', static fn(array $m): string => sprintf('<?php echo $__env->stateAttr(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/(?<![a-zA-Z0-9_])@island\s*\(' . $bal . '\)/', static fn(array $m): string => sprintf('<?php echo $__env->island(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/(?<![a-zA-Z0-9_])@safeHtml\s*\(' . $bal . '\)/', static fn(array $m): string => sprintf('<?php echo $__env->safeHtml(%s); ?>', $m[1]), $output);
-        $output = $this->replaceCallback('/(?<![a-zA-Z0-9_])@json\s*\(' . $bal . '\)/', static fn(array $m): string => sprintf('<?php echo json_encode(%s, JSON_THROW_ON_ERROR | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>', $m[1]), $output);
+        $output = $this->replaceCallback('/(?<![a-zA-Z0-9_])@json\s*\(' . $bal . '\)/', static fn(array $m): string => sprintf('<?php echo $__env->json(%s); ?>', $m[1]), $output);
 
         // 7. Raw echo {!! $expr !!}
         $output = $this->replaceCallback('/\{!!\s*(.+?)\s*!!\}/s', static fn(array $m): string => sprintf('<?php echo (string) (%s); ?>', $m[1]), $output);

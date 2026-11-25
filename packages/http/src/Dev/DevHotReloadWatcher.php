@@ -8,6 +8,7 @@ use FilesystemIterator;
 use RecursiveCallbackFilterIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use RuntimeException;
 use SplFileInfo;
 
 /**
@@ -51,7 +52,7 @@ final readonly class DevHotReloadWatcher
             $it = new RecursiveIteratorIterator($filter);
 
             foreach ($it as $file) {
-                if (!$file instanceof SplFileInfo || !$file->isFile()) {
+                if (!$file instanceof SplFileInfo || $file->isLink() || !$file->isFile()) {
                     continue;
                 }
                 $name = strtolower($file->getFilename());
@@ -61,8 +62,12 @@ final readonly class DevHotReloadWatcher
                     continue;
                 }
 
+                try {
+                    $entry = $file->getPathname() . ':' . (string) $file->getMTime() . ':' . (string) $file->getSize();
+                } catch (RuntimeException) {
+                    continue;
+                }
                 ++$watched;
-                $entry = $file->getPathname() . ':' . (string) $file->getMTime() . ':' . (string) $file->getSize();
                 if ($isCss) {
                     $cssParts[] = $entry;
                 } else {

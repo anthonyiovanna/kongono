@@ -33,6 +33,7 @@ final readonly class TenantIsolationProver
      *     passed: bool,
      *     protected_routes_probed: int,
      *     tenant_probes_executed: int,
+     *     skipped_mutating_probes: int,
      *     leaks_detected: int,
      *     findings: list<array{
      *         code: string,
@@ -51,7 +52,7 @@ final readonly class TenantIsolationProver
      *     }>
      * }
      */
-    public function prove(string $appRoot, App $app, ?array $probes = null): array
+    public function prove(string $appRoot, App $app, ?array $probes = null, bool $readOnly = false): array
     {
         $real = realpath($appRoot);
         $root = rtrim(false !== $real ? $real : $appRoot, '\\/');
@@ -93,7 +94,12 @@ final readonly class TenantIsolationProver
 
         // 2. Adversarial Cross-Tenant BOLA / IDOR proofs (Tenant A owner vs Tenant B attacker vs Unauthenticated)
         $probesExecuted = 0;
+        $skippedMutating = 0;
         foreach ($scenarios as $probe) {
+            if ($readOnly && !in_array(strtoupper(trim($probe->method)), ['GET', 'HEAD', 'OPTIONS'], true)) {
+                ++$skippedMutating;
+                continue;
+            }
             ++$probesExecuted;
 
             // 2a. Unauthenticated attack
@@ -161,6 +167,7 @@ final readonly class TenantIsolationProver
             'passed' => 0 === $leaks,
             'protected_routes_probed' => $protectedCount,
             'tenant_probes_executed' => $probesExecuted,
+            'skipped_mutating_probes' => $skippedMutating,
             'leaks_detected' => $leaks,
             'findings' => array_map(static fn(AppFinding $f): array => $f->toArray(), $findings),
         ];

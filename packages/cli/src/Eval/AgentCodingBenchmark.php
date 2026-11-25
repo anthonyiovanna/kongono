@@ -139,11 +139,30 @@ PROMPT;
         }
 
         if (null !== $exportJsonlPath && [] !== $jsonlLines) {
-            $dir = dirname($exportJsonlPath);
+            if ('' === trim($exportJsonlPath) || str_contains($exportJsonlPath, "\0") || 1 === preg_match('/[\x00-\x1f\x7f]/', $exportJsonlPath)) {
+                throw new \InvalidArgumentException(sprintf('Refusing to export JSONL to invalid path "%s".', $exportJsonlPath));
+            }
+            foreach (explode('/', str_replace('\\', '/', $exportJsonlPath)) as $seg) {
+                if ('..' === $seg) {
+                    throw new \InvalidArgumentException(sprintf('Refusing to export JSONL to path containing traversal segment "%s".', $exportJsonlPath));
+                }
+            }
+            $dest = str_replace('/', DIRECTORY_SEPARATOR, $exportJsonlPath);
+            $probe = $dest;
+            while ($probe !== dirname($probe)) {
+                if ($this->isSymlink($probe)) {
+                    throw new \InvalidArgumentException(sprintf('Refusing to export JSONL through symbolic link "%s".', $probe));
+                }
+                $probe = dirname($probe);
+            }
+            $dir = dirname($dest);
             if (!is_dir($dir)) {
                 @mkdir($dir, 0o775, true);
             }
-            file_put_contents($exportJsonlPath, implode("\n", $jsonlLines) . "\n", LOCK_EX);
+            if ($this->isSymlink($dest) || !is_dir($dir) || $this->isSymlink($dir)) {
+                throw new \InvalidArgumentException(sprintf('Refusing to export JSONL to unsafe destination "%s".', $exportJsonlPath));
+            }
+            file_put_contents($dest, implode("\n", $jsonlLines) . "\n", LOCK_EX);
         }
 
         $total = count($results);
@@ -620,5 +639,12 @@ final class HealthFlowTest extends TestCase
 PHP,
             ],
         ];
+    }
+
+    private function isSymlink(string $path): bool
+    {
+        clearstatcache(true, $path);
+
+        return is_link($path);
     }
 }

@@ -286,7 +286,7 @@ final readonly class UploadedFileStore
                 return $hit;
             }
             if (str_contains($rawWindow, "\0")) {
-                $noNulHit = self::detectActivePayloadInWindow(str_replace("\0", '', $rawWindow), strictHtml: false);
+                $noNulHit = self::detectActivePayloadInWindow(str_replace("\0", '', $rawWindow), $strictHtml);
                 if (null !== $noNulHit) {
                     return $noNulHit;
                 }
@@ -299,16 +299,16 @@ final readonly class UploadedFileStore
 
     private static function detectActivePayloadInWindow(string $window, bool $strictHtml): ?string
     {
-        if (1 === preg_match('/<\?(?:php(?:\s|\/|$)|=[ \t\r\n\$"\'a-zA-Z_])/i', $window)) {
+        if (1 === preg_match('/<\?(?:php(?:\s|\/|$)|=)/i', $window)) {
             return 'application/x-httpd-php';
         }
-        if (1 === preg_match('/<svg(?:\s|\/|>)/i', $window)) {
+        if (1 === preg_match('/<(?:[a-z0-9_-]+:)?svg(?:\s|\/|>)/i', $window)) {
             return 'image/svg+xml';
         }
-        if (1 === preg_match('/<(?:script|iframe|object|embed|math|form|meta|style|link|details|marquee)(?:\s|\/|>)|<!doctype\s+html\b|<html(?:\s|\/|>)|<body(?:\s|\/|>)|<img(?:\s|\/)/i', $window)) {
+        if (1 === preg_match('/<\?xml-stylesheet\b|<(?:[a-z0-9_-]+:)?(?:script|iframe|object|embed|math|form|meta|style|link|details|marquee|frameset|base)(?:\s|\/|>)|<!doctype\s+html\b|<html(?:\s|\/|>)|<body(?:\s|\/|>)|<img(?:\s|\/)/i', $window)) {
             return 'text/html';
         }
-        if ($strictHtml && 1 === preg_match('/<(?:video|audio|input)(?:\s|\/|>)|\bjavascript\s*:/i', $window)) {
+        if ($strictHtml && 1 === preg_match('/<(?:[a-z0-9_-]+:)?(?:video|audio|input|textarea|select|dialog|button)(?:\s|\/|>)|\bjavascript\s*:|\bon[a-z]{2,20}\s*=/i', $window)) {
             return 'text/html';
         }
 
@@ -317,11 +317,13 @@ final readonly class UploadedFileStore
 
     private static function validateExplicitKey(string $key): string
     {
-        $normalized = ltrim(str_replace('\\', '/', $key), '/');
+        if (1 === preg_match('/[\x00-\x1f\x7f]/', $key)) {
+            throw new StorageException(sprintf('Unsafe explicit upload storage key "%s".', $key));
+        }
+        $normalized = ltrim(str_replace('\\', '/', trim($key)), '/');
         if (
             '' === $normalized
             || str_contains($normalized, ':')
-            || 1 === preg_match('/[\x00-\x1f\x7f]/', $normalized)
         ) {
             throw new StorageException(sprintf('Unsafe explicit upload storage key "%s".', $key));
         }

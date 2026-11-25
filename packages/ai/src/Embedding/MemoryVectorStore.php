@@ -28,7 +28,7 @@ final class MemoryVectorStore implements VectorStoreInterface
 
         usort($hits, static fn(SearchHit $a, SearchHit $b): int => $b->score <=> $a->score);
 
-        return array_slice($hits, 0, $limit);
+        return array_slice($hits, 0, max(1, $limit));
     }
 
     public function delete(string $id): void

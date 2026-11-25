@@ -116,6 +116,10 @@ $sbom = [
     'components' => $components,
 ];
 
+if (is_link($outPath)) {
+    fwrite(STDERR, sprintf("Refusing to write SBOM through symbolic link: %s\n", $outPath));
+    exit(1);
+}
 $written = file_put_contents($outPath, json_encode($sbom, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n");
 if (false === $written) {
     fwrite(STDERR, sprintf("Failed to write SBOM to %s\n", $outPath));

@@ -161,16 +161,39 @@ PROMPT;
      */
     public function applyChanges(array $changes, ProjectContext $context, ?array $selectedPaths = null): array
     {
+        /** @var array<string, true>|null $normalizedSelected */
+        $normalizedSelected = null;
+        if (null !== $selectedPaths) {
+            $normalizedSelected = [];
+            foreach ($selectedPaths as $sel) {
+                $normalizedSelected[strtolower(self::canonicalizeRelativePath($sel))] = true;
+            }
+        }
+
+        /** @var array<string, true> $seenCanonical */
+        $seenCanonical = [];
         $filtered = [];
         foreach ($changes as $change) {
-            if (null !== $selectedPaths && !in_array($change['path'], $selectedPaths, true)) {
+            $canonical = self::canonicalizeRelativePath($change['path']);
+            $key = strtolower($canonical);
+            if (isset($seenCanonical[$key])) {
+                throw new CoreException(sprintf('Chie build plan contains duplicate changes targeting "%s". Consolidate edits per file.', $change['path']));
+            }
+            $seenCanonical[$key] = true;
+
+            if (null !== $normalizedSelected && !isset($normalizedSelected[$key])) {
                 continue;
             }
-            self::assertAllowedChieWriteTarget($change['path']);
-            if (str_ends_with(strtolower($change['path']), '.php')) {
-                self::assertValidPhpSyntax($change['path'], $change['content']);
+            self::assertAllowedChieWriteTarget($canonical);
+            if (str_ends_with($key, '.php')) {
+                self::assertValidPhpSyntax($canonical, $change['content']);
             }
-            $filtered[] = $change;
+            $filtered[] = [
+                'path' => $canonical,
+                'action' => $change['action'],
+                'explanation' => $change['explanation'],
+                'content' => $change['content'],
+            ];
         }
 
         $snapshots = self::captureSnapshots($filtered, $context);
@@ -497,12 +520,23 @@ PROMPT;
         $decoded = self::decodeJsonObjectResilient($raw);
 
         $changes = [];
+        /** @var array<string, true> $seenPaths */
+        $seenPaths = [];
         if (isset($decoded['changes']) && is_array($decoded['changes'])) {
             foreach ($decoded['changes'] as $item) {
                 if (!is_array($item) || !is_string($item['path'] ?? null)) {
                     continue;
                 }
-                $path = $item['path'];
+                $path = self::canonicalizeRelativePath($item['path']);
+                $pathKey = strtolower($path);
+                if ('' === $path) {
+                    continue;
+                }
+                if (isset($seenPaths[$pathKey])) {
+                    throw new CoreException(sprintf('Chie build plan contains duplicate changes targeting "%s". Consolidate edits per file.', $item['path']));
+                }
+                $seenPaths[$pathKey] = true;
+
                 $action = is_string($item['action'] ?? null) ? strtolower(trim($item['action'])) : 'create';
                 $explanation = is_string($item['explanation'] ?? null) ? $item['explanation'] : '';
 
@@ -554,6 +588,17 @@ PROMPT;
             'changes' => $changes,
             'next_steps' => $nextSteps,
         ];
+    }
+
+    private static function canonicalizeRelativePath(string $path): string
+    {
+        $normalized = str_replace('\\', '/', trim($path));
+        while (str_starts_with($normalized, './')) {
+            $normalized = substr($normalized, 2);
+        }
+        $normalized = ltrim($normalized, '/');
+
+        return (string) preg_replace('#/+#', '/', $normalized);
     }
 
     private function readRawTargetForPatch(string $relativePath, ProjectContext $context): string

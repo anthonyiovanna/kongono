@@ -128,7 +128,7 @@ final readonly class FullStackContractProver
                     $match = $router->match($method, $path);
                 } catch (HttpException $e) {
                     $similar = $this->suggestClosest($path, $allPaths);
-                    $allow = $e->headers['Allow'] ?? '';
+                    $allow = $e->headerLine('Allow');
                     $findings[] = new AppFinding(
                         code: 'KGN-DIAG-FORM-ROUTE',
                         severity: 'error',

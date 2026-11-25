@@ -93,6 +93,9 @@ final class McpServer
 
         $id = $decoded['id'] ?? null;
         $isNotification = !array_key_exists('id', $decoded);
+        if (!$isNotification && !is_int($id) && !is_string($id) && null !== $id) {
+            return $this->encodeError(null, -32600, 'Invalid JSON-RPC 2.0 request id: expected string, integer, or null.');
+        }
         $method = $decoded['method'];
         $responseId = is_int($id) || is_string($id) ? $id : null;
 
@@ -196,7 +199,11 @@ final class McpServer
             return $this->encodeError($id, -32003, sprintf('MCP tool call budget exceeded (%d max calls).', $this->principal->maxToolCalls));
         }
 
-        if (array_key_exists('arguments', $params) && null !== $params['arguments'] && !is_array($params['arguments'])) {
+        if (
+            array_key_exists('arguments', $params)
+            && null !== $params['arguments']
+            && (!is_array($params['arguments']) || ([] !== $params['arguments'] && array_is_list($params['arguments'])))
+        ) {
             return $this->encodeError($id, -32602, sprintf('Invalid arguments for tool "%s": expected JSON object.', $name));
         }
 
@@ -270,27 +277,30 @@ final class McpServer
                     }
                 }
             }
-            if ([] === $allowedTypes) {
-                continue;
-            }
-            $valid = false;
-            foreach ($allowedTypes as $expectedType) {
-                $matches = match ($expectedType) {
-                    'null' => null === $val,
-                    'string' => is_string($val),
-                    'integer' => is_int($val),
-                    'number' => is_int($val) || is_float($val),
-                    'boolean' => is_bool($val),
-                    'array', 'object' => is_array($val),
-                    default => true,
-                };
-                if ($matches) {
-                    $valid = true;
-                    break;
+            if ([] !== $allowedTypes) {
+                $valid = false;
+                foreach ($allowedTypes as $expectedType) {
+                    $matches = match ($expectedType) {
+                        'null' => null === $val,
+                        'string' => is_string($val),
+                        'integer' => is_int($val),
+                        'number' => is_int($val) || is_float($val),
+                        'boolean' => is_bool($val),
+                        'array' => is_array($val) && array_is_list($val),
+                        'object' => is_array($val) && ([] === $val || !array_is_list($val)),
+                        default => true,
+                    };
+                    if ($matches) {
+                        $valid = true;
+                        break;
+                    }
+                }
+                if (!$valid) {
+                    return sprintf('argument "%s" must be of type %s.', $key, implode('|', $allowedTypes));
                 }
             }
-            if (!$valid) {
-                return sprintf('argument "%s" must be of type %s.', $key, implode('|', $allowedTypes));
+            if (isset($props[$key]['enum']) && is_array($props[$key]['enum']) && !in_array($val, $props[$key]['enum'], true)) {
+                return sprintf('argument "%s" is not in allowed enum values.', $key);
             }
         }
 

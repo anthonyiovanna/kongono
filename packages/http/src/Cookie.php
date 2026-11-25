@@ -34,10 +34,11 @@ final readonly class Cookie
         if ('None' === $sameSite && !$secure) {
             throw new InvalidArgumentException('Cookies with SameSite=None must also set secure: true.');
         }
-        if (str_starts_with($name, '__Secure-') && !$secure) {
+        $lowerName = strtolower($name);
+        if (str_starts_with($lowerName, '__secure-') && !$secure) {
             throw new InvalidArgumentException('Cookies prefixed with "__Secure-" must set secure: true.');
         }
-        if (str_starts_with($name, '__Host-') && (!$secure || '/' !== $path || (null !== $domain && '' !== $domain))) {
+        if (str_starts_with($lowerName, '__host-') && (!$secure || '/' !== $path || (null !== $domain && '' !== $domain))) {
             throw new InvalidArgumentException('Cookies prefixed with "__Host-" must set secure: true, path: "/", and omit domain.');
         }
     }

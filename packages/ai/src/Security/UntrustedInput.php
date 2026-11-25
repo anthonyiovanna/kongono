@@ -44,7 +44,7 @@ final readonly class UntrustedInput
         // Scrub malformed UTF-8 sequences BEFORE running any /u regex so a single \x80 byte cannot bypass stripping
         $clean = function_exists('mb_scrub')
             ? mb_scrub($raw, 'UTF-8')
-            : (string) iconv('UTF-8', 'UTF-8//IGNORE', $raw);
+            : (string) @iconv('UTF-8', 'UTF-8//IGNORE', $raw);
         $clean = str_replace("\0", '', $clean);
 
         // Apply Unicode NFKC normalization when ext-intl Normalizer is available (folds Mathematical Alphanumerics & compat forms)

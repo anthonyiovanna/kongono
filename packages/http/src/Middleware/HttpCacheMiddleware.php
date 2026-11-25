@@ -27,6 +27,7 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
         private bool $public = true,
         private ?int $staleWhileRevalidate = null,
         private bool $etag = true,
+        private int $maxEtagBytes = 2_097_152,
     ) {}
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -59,7 +60,15 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
 
         $isPrivate = !$this->public || $hasAuthHeader || $hasCookies || $hasPrincipal || str_contains($existingCc, 'private');
 
-        $directives = [$isPrivate ? 'private' : 'public', 'max-age=' . max(0, $this->maxAge)];
+        $effectiveMaxAge = max(0, $this->maxAge);
+        if (1 === preg_match('/\bmax-age\s*=\s*(\d+)\b/', $existingCc, $maxAgeMatch)) {
+            $effectiveMaxAge = min($effectiveMaxAge, (int) $maxAgeMatch[1]);
+        }
+
+        $directives = [$isPrivate ? 'private' : 'public', 'max-age=' . $effectiveMaxAge];
+        if (str_contains($existingCc, 'must-revalidate')) {
+            $directives[] = 'must-revalidate';
+        }
         if (!$isPrivate && null !== $this->staleWhileRevalidate && $this->staleWhileRevalidate > 0) {
             $directives[] = 'stale-while-revalidate=' . $this->staleWhileRevalidate;
         }
@@ -79,18 +88,53 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
         }
 
         if ($this->etag) {
-            $etag = '' !== $response->getHeaderLine('ETag')
-                ? $response->getHeaderLine('ETag')
-                : 'W/"' . hash('xxh128', (string) $response->getBody()) . '"';
-            $response = $response->withHeader('ETag', $etag);
+            $etag = $response->getHeaderLine('ETag');
+            if ('' === $etag) {
+                $etag = $this->computeWeakEtag($response);
+                if (null !== $etag) {
+                    $response = $response->withHeader('ETag', $etag);
+                }
+            }
 
             $ifNoneMatch = trim($request->getHeaderLine('If-None-Match'));
-            if ('' !== $ifNoneMatch && $this->matchesEtag($ifNoneMatch, $etag)) {
+            if (null !== $etag && '' !== $etag && '' !== $ifNoneMatch && $this->matchesEtag($ifNoneMatch, $etag)) {
                 return $response->withStatus(304)->withBody(Stream::fromString(''));
             }
         }
 
         return $response;
+    }
+
+    private function computeWeakEtag(ResponseInterface $response): ?string
+    {
+        $stream = $response->getBody();
+        if (!$stream->isSeekable()) {
+            return null;
+        }
+        $size = $stream->getSize();
+        if (null !== $size && $size > $this->maxEtagBytes) {
+            return null;
+        }
+
+        $stream->rewind();
+        $ctx = hash_init('xxh128');
+        $read = 0;
+        while (!$stream->eof()) {
+            $chunk = $stream->read(min(65536, ($this->maxEtagBytes - $read) + 1));
+            if ('' === $chunk) {
+                break;
+            }
+            $read += strlen($chunk);
+            if ($read > $this->maxEtagBytes) {
+                $stream->rewind();
+
+                return null;
+            }
+            hash_update($ctx, $chunk);
+        }
+        $stream->rewind();
+
+        return 'W/"' . hash_final($ctx) . '"';
     }
 
     private function matchesEtag(string $header, string $etag): bool

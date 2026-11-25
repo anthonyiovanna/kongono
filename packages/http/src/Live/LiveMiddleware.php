@@ -171,15 +171,23 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     return val;
   }
 
-  function isSafeAttrUrl(raw) {
-    const v = String(raw == null ? "" : raw).trim();
-    if (!v || /[\u0000-\u001F\u007F\\]/.test(v)) return false;
+  function isSafeAttrUrl(raw, attrName) {
+    const rawStr = String(raw == null ? "" : raw);
+    if (/[\u0000-\u001F\u007F\\]/.test(rawStr)) return false;
+    const v = rawStr.trim();
+    if (!v) return false;
     if (v.startsWith("//")) return false;
     if (v.startsWith("/") || v.startsWith("#")) return true;
     const m = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(v);
     if (!m) return !v.includes(":");
     const scheme = m[1].toLowerCase();
-    return scheme === "https" || scheme === "http" || scheme === "mailto";
+    if (scheme === "https" || scheme === "http") {
+      return v.toLowerCase().startsWith(scheme + "://");
+    }
+    if (scheme === "mailto") {
+      return !attrName || String(attrName).toLowerCase() === "href";
+    }
+    return false;
   }
 
   function isSameOriginUrl(rawUrl) {
@@ -547,7 +555,11 @@ final readonly class LiveMiddleware implements MiddlewareInterface
             node.removeAttribute(targetAttr);
           } else {
             const strVal = v === true ? "true" : String(v);
-            if (URL_ATTRS.has(targetAttr) && !isSafeAttrUrl(strVal)) continue;
+            if (URL_ATTRS.has(targetAttr)) {
+              if (!isSafeAttrUrl(strVal, targetAttr)) continue;
+              node.setAttribute(targetAttr, strVal.trim());
+              continue;
+            }
             node.setAttribute(targetAttr, strVal);
           }
         }
@@ -729,7 +741,13 @@ final readonly class LiveMiddleware implements MiddlewareInterface
   }
 
   function morphNode(fromNode, toNode) {
-    if (fromNode.nodeType === 1 && fromNode.hasAttribute("data-k-island") && toNode.nodeType === 1 && toNode.hasAttribute("data-k-island")) {
+    if (
+      fromNode.nodeType === 1
+      && fromNode.hasAttribute("data-k-island")
+      && toNode.nodeType === 1
+      && toNode.hasAttribute("data-k-island")
+      && fromNode.getAttribute("data-k-island") === toNode.getAttribute("data-k-island")
+    ) {
       const nextPropsRaw = toNode.getAttribute("data-k-props") || "{}";
       if (fromNode.getAttribute("data-k-props") !== nextPropsRaw) {
         fromNode.setAttribute("data-k-props", nextPropsRaw);
@@ -936,6 +954,7 @@ final readonly class LiveMiddleware implements MiddlewareInterface
       credentials: "same-origin"
     }).then(async (res) => {
       if (!res.ok) return;
+      if (!isSameOriginUrl(res.url || href)) return;
       const ct = (res.headers.get("Content-Type") || "").toLowerCase();
       if (!ct.startsWith("text/html")) return;
       const text = await res.text();
@@ -1041,7 +1060,10 @@ final readonly class LiveMiddleware implements MiddlewareInterface
           const ct = (res.headers.get("Content-Type") || "").toLowerCase();
           const text = await res.text();
           if (ct.startsWith("text/html") && (res.ok || text.length > 0)) {
-            const target = job.targetSel ? document.querySelector(job.targetSel) : null;
+            let target = null;
+            if (job.targetSel) {
+              try { target = document.querySelector(job.targetSel); } catch (_selErr) { target = null; }
+            }
             applySwap(target, text, res.headers.get("X-Kongono-Swap") || job.swap || "morph", Boolean(job.useTransition));
           }
           replayed++;
@@ -1073,7 +1095,10 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     if (confirmMsg && !window.confirm(confirmMsg)) return;
 
     const targetSel = el.getAttribute("kgn-target");
-    const target = targetSel ? document.querySelector(targetSel) : el;
+    let target = el;
+    if (targetSel) {
+      try { target = document.querySelector(targetSel); } catch (_selErr) { target = null; }
+    }
     const defaultSwap = el.getAttribute("kgn-swap") || "innerHTML";
     const useTransition = el.getAttribute("kgn-transition") === "true";
 
@@ -1231,12 +1256,15 @@ final readonly class LiveMiddleware implements MiddlewareInterface
 
     try {
       const res = await fetch(targetUrl.href, { method: "POST", headers, body: fd, credentials: "same-origin" });
-      if (!res.ok) throw new Error("reorder_failed");
+      if (!res.ok || !isSameOriginUrl(res.url || targetUrl.href)) throw new Error("reorder_failed");
       const text = await res.text();
       const ct = (res.headers.get("Content-Type") || "").toLowerCase();
       if (ct.startsWith("text/html") && text.trim() !== "") {
         const targetSel = container.getAttribute("kgn-target");
-        const target = targetSel ? document.querySelector(targetSel) : container;
+        let target = container;
+        if (targetSel) {
+          try { target = document.querySelector(targetSel) || container; } catch (_selErr) { target = container; }
+        }
         applySwap(target, text, res.headers.get("X-Kongono-Swap") || container.getAttribute("kgn-swap") || "morph", container.getAttribute("kgn-transition") === "true");
       }
       container.dispatchEvent(new CustomEvent("kongono:reordered", { bubbles: true, detail: { order } }));

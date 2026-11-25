@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Http\Middleware;
 
 use Kongono\Http\Response;
+use Kongono\Http\Session\Session;
 use Kongono\Http\Stream;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -56,7 +57,11 @@ final readonly class CompressionMiddleware implements MiddlewareInterface
         }
 
         if (!$this->compressAuthenticated) {
-            $hasCreds = '' !== trim($request->getHeaderLine('Authorization'))
+            $session = $request->getAttribute(Session::class);
+            $hasActiveSession = $session instanceof Session
+                && ($session->isDirty() || $session->wasIdAccessed() || $session->wasRegenerated() || $session->isPersisted());
+            $hasCreds = $hasActiveSession
+                || '' !== trim($request->getHeaderLine('Authorization'))
                 || '' !== trim($request->getHeaderLine('Proxy-Authorization'))
                 || '' !== trim($request->getHeaderLine('X-API-Key'))
                 || '' !== trim($request->getHeaderLine('Cookie'))
@@ -70,7 +75,8 @@ final readonly class CompressionMiddleware implements MiddlewareInterface
 
         $encoding = $this->negotiateEncoding($request->getHeaderLine('Accept-Encoding'));
         if (null === $encoding) {
-            return $response;
+            // Advertise Accept-Encoding variance on cacheable compressible responses so CDNs never mix encodings
+            return $this->withVaryAcceptEncoding($response);
         }
 
         $stream = $response->getBody();
@@ -128,19 +134,10 @@ final readonly class CompressionMiddleware implements MiddlewareInterface
             return $response->withBody(Stream::fromString($body));
         }
 
-        $existingVary = trim($response->getHeaderLine('Vary'));
-        $varyTokens = '' !== $existingVary ? array_map('trim', explode(',', $existingVary)) : [];
-        $lowerTokens = array_map('strtolower', $varyTokens);
-        if (!in_array('accept-encoding', $lowerTokens, true) && !in_array('*', $lowerTokens, true)) {
-            $varyTokens[] = 'Accept-Encoding';
-        }
-        $vary = implode(', ', array_filter($varyTokens, static fn(string $t): bool => '' !== $t));
-
-        $out = $response
+        $out = $this->withVaryAcceptEncoding($response)
             ->withBody(Stream::fromString($compressed))
             ->withHeader('Content-Encoding', $encoding)
-            ->withHeader('Content-Length', (string) strlen($compressed))
-            ->withHeader('Vary', $vary);
+            ->withHeader('Content-Length', (string) strlen($compressed));
 
         // RFC 9110: weaken strong ETag when applying Content-Encoding so byte representations never collide
         $etag = trim($out->getHeaderLine('ETag'));
@@ -149,6 +146,19 @@ final readonly class CompressionMiddleware implements MiddlewareInterface
         }
 
         return $out;
+    }
+
+    private function withVaryAcceptEncoding(ResponseInterface $response): ResponseInterface
+    {
+        $existingVary = trim($response->getHeaderLine('Vary'));
+        $varyTokens = '' !== $existingVary ? array_map('trim', explode(',', $existingVary)) : [];
+        $lowerTokens = array_map('strtolower', $varyTokens);
+        if (!in_array('accept-encoding', $lowerTokens, true) && !in_array('*', $lowerTokens, true)) {
+            $varyTokens[] = 'Accept-Encoding';
+        }
+        $vary = implode(', ', array_filter($varyTokens, static fn(string $t): bool => '' !== $t));
+
+        return $response->withHeader('Vary', $vary);
     }
 
     private function negotiateEncoding(string $header): ?string

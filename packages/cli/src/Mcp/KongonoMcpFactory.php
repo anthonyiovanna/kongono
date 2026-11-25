@@ -81,11 +81,13 @@ final class KongonoMcpFactory
         ?App $loadedApp = null,
         ?AiClient $aiOverride = null,
         bool $allowMutatingReplay = false,
+        ?bool $allowBootstrap = null,
     ): McpServer {
-        $app = $loadedApp ?? self::tryLoadApp($appRoot);
+        $bootstrapAllowed = $allowBootstrap ?? !ProjectContext::isSafeModeEnabled();
+        $app = $loadedApp ?? ($bootstrapAllowed ? self::tryLoadApp($appRoot) : null);
         $context = null !== $app
             ? new ProjectContext($appRoot, $app->graph(), $app)
-            : ProjectContext::discover($appRoot);
+            : ProjectContext::discover($appRoot, allowBootstrap: $bootstrapAllowed);
 
         $tryAi = static function (string $companion) use ($aiOverride): ?AiClient {
             if (null !== $aiOverride) {
@@ -108,7 +110,7 @@ final class KongonoMcpFactory
 
         $server = new McpServer(
             serverName: 'kongono-framework',
-            serverVersion: '1.20.0',
+            serverVersion: '1.20.1',
             principal: $principal,
         );
 
@@ -281,7 +283,7 @@ final class KongonoMcpFactory
                 ],
             ),
             static function () use ($appRoot, $app): string {
-                $report = (new PolicyVerifier())->verify($appRoot, $app);
+                $report = (new PolicyVerifier())->verify($appRoot, $app, requireApp: true);
 
                 return json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
             },
@@ -368,12 +370,15 @@ final class KongonoMcpFactory
                     'properties' => (object) [],
                 ],
             ),
-            static function () use ($appRoot, $app): string {
+            static function () use ($appRoot, $app, $allowMutatingReplay): string {
                 if (null === $app) {
                     return '{"error":"No runnable Kongono App instance loaded."}';
                 }
 
-                return json_encode((new TenantIsolationProver())->prove($appRoot, $app), JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+                return json_encode(
+                    (new TenantIsolationProver())->prove($appRoot, $app, readOnly: !$allowMutatingReplay),
+                    JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
+                );
             },
         );
 
@@ -501,6 +506,10 @@ final class KongonoMcpFactory
             },
         );
 
+        $testRouteGuard = new class {
+            public bool $inFlight = false;
+        };
+
         $server->registerTool(
             new ToolDefinition(
                 name: 'kongono_test_route',
@@ -521,12 +530,11 @@ final class KongonoMcpFactory
                     ],
                 ],
             ),
-            static function (array $args) use ($app): string {
-                static $inFlight = false;
+            static function (array $args) use ($app, $testRouteGuard): string {
                 if (null === $app) {
                     return '{"error":"No runnable Kongono App instance loaded."}';
                 }
-                if ($inFlight) {
+                if ($testRouteGuard->inFlight) {
                     throw new \InvalidArgumentException('Recursive kongono_test_route invocation is forbidden.');
                 }
                 $method = strtoupper(is_string($args['method'] ?? null) ? trim($args['method']) : 'GET');
@@ -550,12 +558,12 @@ final class KongonoMcpFactory
                     throw new \InvalidArgumentException('Recursive or internal Dev/Ops Studio calls via kongono_test_route are forbidden.');
                 }
 
-                $inFlight = true;
+                $testRouteGuard->inFlight = true;
                 try {
                     $req = Request::create($method, $path);
                     $res = $app->handle($req);
                 } finally {
-                    $inFlight = false;
+                    $testRouteGuard->inFlight = false;
                 }
                 $headers = [];
                 foreach ($res->getHeaders() as $name => $values) {
@@ -926,6 +934,7 @@ final class KongonoMcpFactory
             '' === $trimmed
             || str_contains($trimmed, '..')
             || str_contains($trimmed, "\0")
+            || 1 === preg_match('/[\x00-\x1f\x7f]/', $trimmed)
             || str_starts_with($trimmed, '/')
             || str_starts_with($trimmed, '\\')
             || 1 === preg_match('/\A[a-zA-Z]:/', $trimmed)
@@ -934,19 +943,7 @@ final class KongonoMcpFactory
         }
 
         $normalized = ltrim(str_replace('\\', '/', $trimmed), '/');
-        if (!str_ends_with(strtolower($normalized), '.json')) {
-            return null;
-        }
-
-        // Deny credential/config JSON files even inside the repository
-        $lower = strtolower($normalized);
-        $base = strtolower(basename($normalized));
-        if (
-            in_array($base, ['auth.json', 'credentials.json', 'service-account.json', 'secrets.json', 'config.json'], true)
-            || str_starts_with($lower, '.git/')
-            || str_starts_with($lower, 'storage/dev/')
-            || str_starts_with($lower, 'storage/incidents/')
-        ) {
+        if (!str_ends_with(strtolower($normalized), '.json') || self::isDeniedJsonRelativePath($normalized)) {
             return null;
         }
 
@@ -956,15 +953,33 @@ final class KongonoMcpFactory
         }
         $prefix = rtrim($realRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
-        $candidate = $realRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalized);
-        if (is_link($candidate)) {
-            return null;
+        // Walk every path segment rejecting empty/dot segments, Windows device/trailing-dot tricks, and intermediate/leaf symlinks
+        $walk = $realRoot;
+        foreach (explode('/', $normalized) as $segment) {
+            if (
+                '' === $segment
+                || '.' === $segment
+                || str_ends_with($segment, '.')
+                || str_ends_with($segment, ' ')
+                || 1 === preg_match('/\A(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|\z)/i', $segment)
+            ) {
+                return null;
+            }
+            $walk .= DIRECTORY_SEPARATOR . $segment;
+            if (is_link($walk)) {
+                return null;
+            }
         }
+
+        $candidate = $walk;
         if (!file_exists($candidate)) {
-            // Return contained non-existent path so caller can produce friendly "not found" error
-            $dir = dirname($candidate);
-            $realDir = realpath($dir);
-            if (false !== $realDir && $realDir !== $realRoot && !str_starts_with($realDir . DIRECTORY_SEPARATOR, $prefix)) {
+            // Verify nearest existing ancestor is strictly contained inside appRoot
+            $probeDir = dirname($candidate);
+            while (!file_exists($probeDir) && $probeDir !== dirname($probeDir)) {
+                $probeDir = dirname($probeDir);
+            }
+            $realDir = realpath($probeDir);
+            if (false === $realDir || ($realDir !== $realRoot && !str_starts_with($realDir . DIRECTORY_SEPARATOR, $prefix))) {
                 return null;
             }
 
@@ -976,22 +991,56 @@ final class KongonoMcpFactory
             return null;
         }
 
+        $canonicalRel = str_replace('\\', '/', substr($real, strlen($prefix)));
+        if (!str_ends_with(strtolower($canonicalRel), '.json') || self::isDeniedJsonRelativePath($canonicalRel)) {
+            return null;
+        }
+
         return $real;
+    }
+
+    private static function isDeniedJsonRelativePath(string $relativePath): bool
+    {
+        $lower = strtolower($relativePath);
+        $base = strtolower(basename($relativePath));
+
+        return in_array($base, ['auth.json', 'credentials.json', 'service-account.json', 'secrets.json', 'config.json'], true)
+            || ((str_starts_with($base, '.env') || str_ends_with($base, '.env')) && '.env.example' !== $base)
+            || '.git' === $lower
+            || str_starts_with($lower, '.git/')
+            || str_contains($lower, '/.git/')
+            || str_starts_with($lower, '.ssh/')
+            || str_contains($lower, '/.ssh/')
+            || str_starts_with($lower, '.aws/')
+            || str_contains($lower, '/.aws/')
+            || str_starts_with($lower, '.docker/')
+            || str_contains($lower, '/.docker/')
+            || str_starts_with($lower, 'var/cache/')
+            || str_starts_with($lower, 'var/storage/')
+            || str_starts_with($lower, 'storage/dev/')
+            || str_starts_with($lower, 'storage/incidents/')
+            || 1 === preg_match('#/(?:var/(?:cache|storage)|storage/(?:dev|incidents))/#', '/' . $lower);
     }
 
     private static function tryLoadApp(string $appRoot): ?App
     {
         $resolved = realpath($appRoot);
-        if (false === $resolved) {
+        if (false === $resolved || !is_dir($resolved)) {
             return null;
         }
-        $bootstrap = $resolved . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (!is_file($bootstrap)) {
+        $appDir = $resolved . DIRECTORY_SEPARATOR . 'app';
+        $bootstrap = $appDir . DIRECTORY_SEPARATOR . 'bootstrap.php';
+        if (is_link($appDir) || is_link($bootstrap) || !is_file($bootstrap)) {
+            return null;
+        }
+        $realBootstrap = realpath($bootstrap);
+        $prefix = rtrim($resolved, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (false === $realBootstrap || !str_starts_with($realBootstrap, $prefix)) {
             return null;
         }
 
         try {
-            $app = require $bootstrap;
+            $app = require $realBootstrap;
 
             return $app instanceof App ? $app : null;
         } catch (Throwable) {

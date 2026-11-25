@@ -242,8 +242,11 @@ final readonly class NoteController
         $ownerScope = (string) preg_replace('/[^a-zA-Z0-9_-]/', '_', $principal->id);
         $key = 'uploads/' . $ownerScope . '/' . $safeName;
         $meta = $this->storage->meta($key);
+        if (null === $meta) {
+            throw new HttpException(404, sprintf('File "%s" not found.', $safeName));
+        }
         $stream = $this->storage->getStream($key);
-        if (null === $meta || !is_resource($stream)) {
+        if (!is_resource($stream)) {
             throw new HttpException(404, sprintf('File "%s" not found.', $safeName));
         }
 

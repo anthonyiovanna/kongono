@@ -42,7 +42,7 @@ final readonly class CompanionEvalSuite
         // 1. Oshie zero-hallucination & idiomatic Kongono check
         $results[] = $this->evalOshieIdiomaticKongono($context, $ai, $totalTokens);
 
-        // 2. Oshie offline curriculum completeness check (12 lessons, zero legacy refs)
+        // 2. Oshie offline curriculum completeness check (13 lessons, zero legacy refs)
         $results[] = $this->evalOshieCurriculumInvariants($context);
 
         // 3. Chie write containment & syntax-gate check (blocks .env, traversal, and broken PHP)

@@ -933,6 +933,10 @@ final class App
         }
 
         $reqUri = $request->getUri();
+        $reqScheme = strtolower($reqUri->getScheme());
+        if ('' !== $reqScheme && $scheme !== $reqScheme) {
+            return null;
+        }
         $reqHost = strtolower($reqUri->getHost());
         if ('' === $reqHost) {
             $hostHeader = trim($request->getHeaderLine('Host'));
@@ -948,6 +952,13 @@ final class App
         }
 
         $refPort = is_int($parsed['port'] ?? null) ? $parsed['port'] : null;
+        if (('http' === $scheme && 80 === $refPort) || ('https' === $scheme && 443 === $refPort)) {
+            $refPort = null;
+        }
+        $effectiveReqScheme = '' !== $reqScheme ? $reqScheme : $scheme;
+        if (('http' === $effectiveReqScheme && 80 === $reqPort) || ('https' === $effectiveReqScheme && 443 === $reqPort)) {
+            $reqPort = null;
+        }
         if ($refPort !== $reqPort) {
             return null;
         }
@@ -1185,9 +1196,9 @@ final class App
             $middlewareShort[] = false === $pos ? $fqcn : substr($fqcn, $pos + 1);
         }
 
-        $queryKeys = array_keys($request->getQueryParams());
+        $queryKeys = array_slice(array_keys($request->getQueryParams()), 0, 64);
         $parsedBody = $request->getParsedBody();
-        $inputKeys = is_array($parsedBody) ? array_keys($parsedBody) : [];
+        $inputKeys = is_array($parsedBody) ? array_slice(array_keys($parsedBody), 0, 64) : [];
 
         return new RequestTrace(
             referenceId: $referenceId,
@@ -1250,8 +1261,14 @@ final class App
                 return;
             }
 
+            $rawBodyInput = [];
             try {
-                $rawBodyInput = $request->allInput();
+                $bodySize = $request->getBody()->getSize();
+                if (null === $bodySize || $bodySize <= 131_072) {
+                    $rawBodyInput = $request->allInput();
+                } else {
+                    $rawBodyInput = ['_truncated' => true, '_size_bytes' => $bodySize];
+                }
             } catch (Throwable) {
                 $rawBodyInput = [];
             }

@@ -119,13 +119,22 @@ final class QueryBuilder
         }
 
         $baseNew = strtolower(self::baseTenantColumn($col));
-        if (null !== $this->tenantConstraint && strtolower(self::baseTenantColumn($this->tenantConstraint['column'])) !== $baseNew) {
-            throw new DatabaseException(sprintf(
-                'Conflicting forTenant() columns on "%s": already scoped to "%s", cannot re-scope to "%s".',
-                $this->table,
-                $this->tenantConstraint['column'],
-                $col,
-            ));
+        if (null !== $this->tenantConstraint) {
+            if (strtolower(self::baseTenantColumn($this->tenantConstraint['column'])) !== $baseNew) {
+                throw new DatabaseException(sprintf(
+                    'Conflicting forTenant() columns on "%s": already scoped to "%s", cannot re-scope to "%s".',
+                    $this->table,
+                    $this->tenantConstraint['column'],
+                    $col,
+                ));
+            }
+            if ($this->tenantConstraint['value'] !== $id) {
+                throw new DatabaseException(sprintf(
+                    'Conflicting forTenant() IDs on "%s": query is already locked to a different tenant on "%s".',
+                    $this->table,
+                    $this->tenantConstraint['column'],
+                ));
+            }
         }
         if (null !== $this->requiredTenantColumn && strtolower(self::baseTenantColumn($this->requiredTenantColumn)) !== $baseNew) {
             throw new DatabaseException(sprintf(

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace StarterApp\Domain;
 
+use Closure;
 use JsonException;
 use Kongono\Security\PasswordHasher;
 use Kongono\Storage\StorageInterface;
+use RuntimeException;
 
-/** Atomic storage-backed user store with Argon2id password hashing. */
+/** Atomic storage-backed user store with Argon2id password hashing and exclusive flock serialization. */
 final class UserStore
 {
     private const string STORAGE_KEY = 'data/users.json';
@@ -31,18 +33,47 @@ final class UserStore
     /** @return array{id: string, name: string, email: string} */
     public function register(string $name, string $email, #[\SensitiveParameter] string $password): array
     {
-        $users = $this->load();
         $key = strtolower(trim($email));
-        $id = 'usr_' . bin2hex(random_bytes(8));
-        $users[$key] = [
-            'id' => $id,
-            'name' => $name,
-            'email' => $key,
-            'password_hash' => $this->hasher->hash($password),
-        ];
-        $this->storage->put(self::STORAGE_KEY, json_encode($users, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES), 'application/json');
+        $passwordHash = $this->hasher->hash($password);
 
-        return ['id' => $id, 'name' => $name, 'email' => $key];
+        return $this->withLock(function () use ($name, $key, $passwordHash): array {
+            $users = $this->load();
+            if (isset($users[$key])) {
+                throw new RuntimeException('An account with this email already exists.');
+            }
+            $id = 'usr_' . bin2hex(random_bytes(8));
+            $users[$key] = [
+                'id' => $id,
+                'name' => $name,
+                'email' => $key,
+                'password_hash' => $passwordHash,
+            ];
+            $this->storage->put(self::STORAGE_KEY, json_encode($users, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES), 'application/json');
+
+            return ['id' => $id, 'name' => $name, 'email' => $key];
+        });
+    }
+
+    /**
+     * @template T
+     * @param Closure(): T $fn
+     * @return T
+     */
+    private function withLock(Closure $fn): mixed
+    {
+        $lockPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono-starter-users-' . hash('sha256', __FILE__) . '.lock';
+        $handle = @fopen($lockPath, 'c+b');
+        if (false === $handle) {
+            return $fn();
+        }
+        try {
+            flock($handle, LOCK_EX);
+
+            return $fn();
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
     }
 
     /** @return array{id: string, name: string, email: string}|null */

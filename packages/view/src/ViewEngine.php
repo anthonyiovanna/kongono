@@ -311,8 +311,11 @@ final class ViewEngine
 
     private function normalizeTemplateName(string $template): string
     {
+        if (1 === preg_match('/[\x00-\x1f\x7f]/', $template) || str_contains($template, '?>')) {
+            throw new ViewException(sprintf('Invalid template name "%s".', $template));
+        }
         $normalized = ltrim(str_replace('\\', '/', trim($template)), '/');
-        if ('' === $normalized || str_contains($normalized, '..') || str_contains($normalized, "\0")) {
+        if ('' === $normalized || str_contains($normalized, '..')) {
             throw new ViewException(sprintf('Invalid template name "%s".', $template));
         }
 
@@ -348,6 +351,8 @@ final class ViewEngine
 
         $needsCompile = !is_file($cacheFile);
         if (!$needsCompile && $checkFreshness) {
+            clearstatcache(true, $sourcePath);
+            clearstatcache(true, $cacheFile);
             $sourceMtime = filemtime($sourcePath);
             $cacheMtime = filemtime($cacheFile);
             $needsCompile = false === $cacheMtime || false === $sourceMtime || $cacheMtime < $sourceMtime;
@@ -364,11 +369,13 @@ final class ViewEngine
                 throw new ViewException(sprintf('Failed to read template "%s".', $template));
             }
             $compiled = $this->compiler->compile($source);
+            $safeCommentTemplate = str_replace(["\r", "\n", '?>'], '', $template);
+            $safeCommentExt = str_replace(["\r", "\n", '?>'], '', $this->extension);
             $sourceTag = sprintf(
                 "<?php declare(strict_types=1);\n// @kongono-source: %s (views/%s%s)\n",
-                $template,
-                $template,
-                $this->extension,
+                $safeCommentTemplate,
+                $safeCommentTemplate,
+                $safeCommentExt,
             );
             if (str_starts_with($compiled, "<?php declare(strict_types=1);\n")) {
                 $compiled = $sourceTag . substr($compiled, strlen("<?php declare(strict_types=1);\n"));
@@ -422,14 +429,16 @@ final class ViewEngine
         if (is_link($this->cachePath) || !is_dir($this->cachePath)) {
             throw new ViewException('View cache directory is invalid or a symbolic link.');
         }
-        if (function_exists('posix_geteuid') && '\\' !== DIRECTORY_SEPARATOR) {
-            $owner = @fileowner($this->cachePath);
+        if ('\\' !== DIRECTORY_SEPARATOR) {
             $perms = @fileperms($this->cachePath);
-            if (false === $owner || $owner !== posix_geteuid()) {
-                throw new ViewException('View cache directory is not owned by the current process user.');
-            }
             if (false === $perms || 0 !== ($perms & 0o022)) {
                 throw new ViewException('View cache directory must not be group- or world-writable.');
+            }
+            if (function_exists('posix_geteuid')) {
+                $owner = @fileowner($this->cachePath);
+                if (false === $owner || $owner !== posix_geteuid()) {
+                    throw new ViewException('View cache directory is not owned by the current process user.');
+                }
             }
         }
     }
@@ -439,6 +448,18 @@ final class ViewEngine
     {
         if (is_link($compiledPath)) {
             throw new ViewException(sprintf('Refusing to require symbolic link template cache for "%s".', $template));
+        }
+        if ('\\' !== DIRECTORY_SEPARATOR) {
+            $perms = @fileperms($compiledPath);
+            if (false === $perms || 0 !== ($perms & 0o022)) {
+                throw new ViewException(sprintf('Compiled template cache for "%s" must not be group- or world-writable.', $template));
+            }
+            if (function_exists('posix_geteuid')) {
+                $owner = @fileowner($compiledPath);
+                if (false === $owner || $owner !== posix_geteuid()) {
+                    throw new ViewException(sprintf('Compiled template cache for "%s" is not owned by the current process user.', $template));
+                }
+            }
         }
         $renderer = require $compiledPath;
         if (!$renderer instanceof Closure) {

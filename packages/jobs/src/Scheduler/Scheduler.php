@@ -143,13 +143,6 @@ final class Scheduler
 
     private static function releaseOwnedLock(AtomicCacheInterface $store, string $key, string $ownerToken): void
     {
-        if ($store instanceof \Kongono\Core\Cache\RedisCache) {
-            $store->compareAndDelete($key, $ownerToken);
-
-            return;
-        }
-        if ($store->get($key) === $ownerToken) {
-            $store->delete($key);
-        }
+        $store->compareAndDelete($key, $ownerToken);
     }
 }

@@ -72,14 +72,24 @@ $metrics = new Metrics();
 $queueDriver = new MemoryQueueDriver();
 $queue = new Queue($queueDriver);
 $appEnv = strtolower(Config::env('APP_ENV') ?? 'local');
+$isProdEnv = in_array($appEnv, ['production', 'prod'], true);
 $debug = filter_var(Config::env('APP_DEBUG') ?? 'false', FILTER_VALIDATE_BOOL);
 $configuredKey = Config::env('APP_KEY');
-if ('production' === $appEnv && (null === $configuredKey || strlen(trim($configuredKey)) < 16)) {
-    throw new \RuntimeException('APP_KEY must be configured with at least 16 bytes in production (run `php bin/kongo key:generate`).');
+$trimmedKey = null !== $configuredKey ? trim($configuredKey) : '';
+$decodedKeyBytes = str_starts_with($trimmedKey, 'base64:')
+    ? base64_decode(substr($trimmedKey, 7), true)
+    : $trimmedKey;
+$keyIsPlaceholder = '' === $trimmedKey
+    || str_contains(strtoupper($trimmedKey), 'CHANGE_ME')
+    || str_contains(strtoupper($trimmedKey), 'REPLACE_WITH')
+    || str_contains(strtolower($trimmedKey), 'example');
+if ($isProdEnv && ($keyIsPlaceholder || !is_string($decodedKeyBytes) || strlen($decodedKeyBytes) < 32)) {
+    throw new \RuntimeException('APP_KEY must be configured with at least 32 random bytes in production (run `php bin/kongo key:generate`).');
 }
-$appKey = null !== $configuredKey && strlen(trim($configuredKey)) >= 16
-    ? trim($configuredKey)
+$appKey = !$keyIsPlaceholder && is_string($decodedKeyBytes) && strlen($decodedKeyBytes) >= 16
+    ? $trimmedKey
     : 'ephemeral-' . bin2hex(random_bytes(24));
+$secureCookies = filter_var(Config::env('SESSION_SECURE') ?? ($isProdEnv ? 'true' : 'false'), FILTER_VALIDATE_BOOL);
 $signer = new TokenSigner($appKey);
 $encryptor = new Encryptor($appKey);
 $signedUrl = new SignedUrl($appKey);
@@ -256,7 +266,7 @@ $app->middleware(
     new SecurityHeadersMiddleware(),
     new CorsMiddleware(allowedOrigins: []),
     new RateLimitMiddleware($cache, maxRequests: 120, windowSeconds: 60),
-    new SessionMiddleware(new CacheSessionStore($cache)),
+    new SessionMiddleware(new CacheSessionStore($cache), secure: $secureCookies),
     new CsrfMiddleware($signer, exemptPrefixes: ['/api/', '/_kongono/', '/mcp']),
     new RequestTimingMiddleware($metrics),
 );
