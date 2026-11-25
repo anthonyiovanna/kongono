@@ -7,9 +7,14 @@ namespace Kongono\Tests\Fuzz;
 use Dom\Element;
 use Dom\HTMLDocument;
 use InvalidArgumentException;
+use Kongono\Ai\Mcp\McpServer;
 use Kongono\Ai\Security\PromptGuard;
 use Kongono\Ai\Security\UntrustedInput;
+use Kongono\Ai\ToolDefinition;
+use Kongono\Core\Cache\MemoryCache;
 use Kongono\Core\Cache\RedisClient;
+use Kongono\Core\Capabilities\CapabilityException;
+use Kongono\Core\Capabilities\ExecutionCapabilities;
 use Kongono\Core\CoreException;
 use Kongono\Core\Diagnostics\SecretScrubber;
 use Kongono\Http\HttpException;
@@ -19,6 +24,7 @@ use Kongono\Http\Uri;
 use Kongono\Mail\Email;
 use Kongono\Mail\MailException;
 use Kongono\Mail\SmtpTransport;
+use Kongono\Security\Auth\PasskeyVerifier;
 use Kongono\Security\Encryptor;
 use Kongono\Security\SecurityException;
 use Kongono\Security\SignedUrl;
@@ -385,6 +391,144 @@ final class ParserFuzzTest extends TestCase
                 self::assertStringNotContainsString('</script>', $islandTag);
             } catch (\Kongono\View\ViewException) {
                 // Expected fail-closed rejection on unsafe island component names
+            }
+        }
+    }
+
+    public function testFuzzExecutionCapabilitiesSqlGuardAndRedosBudget(): void
+    {
+        $mutatingVectors = [
+            'DELETE FROM users WHERE id = 1',
+            'UPDATE accounts SET role = \'admin\'',
+            'INSERT INTO audit VALUES (1)',
+            'SELECT 1; DROP TABLE users',
+            "SELECT pg_read_file('/etc/passwd')",
+            "SELECT lo_import('/etc/passwd')",
+            "SELECT dblink('host=evil', 'DELETE FROM x')",
+            "SELECT U&'test' UESCAPE '\\'",
+            'PRAGMA writable_schema = ON',
+            'PRAGMA foreign_keys(0)',
+            'WITH x AS (DELETE FROM users RETURNING *) SELECT * FROM x',
+            'SELECT $$dollar$$',
+            'EXPLAIN ANALYZE DELETE FROM users',
+        ];
+        $commentDecorators = ['/* c */ ', '/*!50000 */ ', "-- line\n", "  \t\n "];
+
+        $cap = new ExecutionCapabilities(readOnlyDb: true);
+        for ($i = 0; $i < $this->iterations; ++$i) {
+            $vec = $mutatingVectors[$i % count($mutatingVectors)];
+            $prefix = $commentDecorators[$this->rng->getInt(0, count($commentDecorators) - 1)];
+            $sql = $prefix . $vec;
+
+            $t0 = hrtime(true);
+            $blocked = false;
+            try {
+                $cap->fresh()->assertDbQueryAllowed($sql);
+            } catch (CapabilityException) {
+                $blocked = true;
+            }
+            $elapsedMs = (hrtime(true) - $t0) / 1_000_000;
+            self::assertTrue($blocked, sprintf('Mutating SQL escaped ReadOnlyDb at seed %d iter %d: %s', $this->seed, $i, $sql));
+            self::assertLessThan(25.0, $elapsedMs, sprintf('SQL guard latency exceeded 25ms ReDoS budget: %.2fms', $elapsedMs));
+        }
+
+        // Large 50 KiB adversarial SQL comment/identifier payload must also stay strictly linear-time
+        $hugeSql = 'SELECT ' . str_repeat('/* nested */ ', 2000) . str_repeat("'abc''def', ", 500) . '1';
+        $t0 = hrtime(true);
+        $cap->fresh()->assertDbQueryAllowed($hugeSql);
+        $hugeMs = (hrtime(true) - $t0) / 1_000_000;
+        self::assertLessThan(50.0, $hugeMs, sprintf('Huge SQL guard scan exceeded 50ms linear budget: %.2fms', $hugeMs));
+    }
+
+    public function testFuzzSecretScrubberJsonPreservationAndRedosBudget(): void
+    {
+        for ($i = 0; $i < $this->iterations; ++$i) {
+            $secretVal = 'tok_' . bin2hex(random_bytes(8));
+            $longKey = str_repeat('org_region_', ($i % 8) + 1) . 'api_key';
+            $payload = [
+                'ok' => true,
+                'empty_token' => null,
+                'flag_secret' => false,
+                'nested_credentials' => ['a', 'b'],
+                $longKey => $secretVal,
+                'totp_code' => 123456 + $i,
+                'note' => $this->mutateString('plain note text'),
+            ];
+            $json = json_encode($payload, JSON_THROW_ON_ERROR | JSON_INVALID_UTF8_SUBSTITUTE);
+
+            $t0 = hrtime(true);
+            $scrubbed = SecretScrubber::scrub($json);
+            $elapsedMs = (hrtime(true) - $t0) / 1_000_000;
+
+            self::assertLessThan(25.0, $elapsedMs, sprintf('SecretScrubber exceeded 25ms budget at iter %d: %.2fms', $i, $elapsedMs));
+            self::assertStringNotContainsString($secretVal, $scrubbed, sprintf('Long-key secret survived scrubbing at iter %d', $i));
+            // Hard JSON invariant: scrubbing valid JSON MUST keep it syntactically valid JSON
+            $redecoded = json_decode($scrubbed, true, 32, JSON_THROW_ON_ERROR);
+            self::assertIsArray($redecoded);
+            self::assertSame('[REDACTED]', $redecoded[$longKey]);
+            self::assertNull($redecoded['empty_token']);
+            self::assertFalse($redecoded['flag_secret']);
+        }
+
+        // 64 KiB adversarial key/backtracking payload must scrub linearly in < 50ms
+        $adversarial = str_repeat('a_', 4000) . 'secret=' . str_repeat('Z', 16000) . ' ' . str_repeat('x', 32000);
+        $t0 = hrtime(true);
+        $scrubbedHuge = SecretScrubber::scrub($adversarial);
+        $hugeMs = (hrtime(true) - $t0) / 1_000_000;
+        self::assertLessThan(50.0, $hugeMs, sprintf('64 KiB SecretScrubber ReDoS budget exceeded: %.2fms', $hugeMs));
+        self::assertStringNotContainsString(str_repeat('Z', 100), $scrubbedHuge);
+    }
+
+    public function testFuzzMcpServerAndPasskeyVerifierNeverCrash(): void
+    {
+        $mcp = new McpServer();
+        $mcp->registerTool(
+            new ToolDefinition('echo', 'Echo', [
+                'type' => 'object',
+                'required' => ['mode'],
+                'properties' => [
+                    'mode' => ['type' => 'string', 'enum' => ['a', 'b']],
+                    'tags' => ['type' => 'array'],
+                    'meta' => ['type' => 'object'],
+                ],
+            ]),
+            static fn(array $args): string => json_encode($args, JSON_THROW_ON_ERROR),
+        );
+
+        $mcpSeeds = [
+            '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"echo","arguments":{"mode":"a"}}}',
+            '{"jsonrpc":"2.0","id":{"bad":true},"method":"tools/list"}',
+            '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":["list"]}}',
+            '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{"mode":"evil"}}}',
+            '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"echo","arguments":{"mode":"a","tags":{"k":"v"}}}}',
+            '{malformed json',
+            str_repeat('[', 100) . str_repeat(']', 100),
+        ];
+
+        $passkey = new PasskeyVerifier(new MemoryCache());
+
+        for ($i = 0; $i < min(250, $this->iterations); ++$i) {
+            $rawRpc = $i < count($mcpSeeds) ? $mcpSeeds[$i] : $this->mutateString($mcpSeeds[$i % count($mcpSeeds)]);
+            $resp = $mcp->handleJson($rawRpc);
+            if (null !== $resp) {
+                $decoded = json_decode($resp, true, 32, JSON_THROW_ON_ERROR);
+                self::assertIsArray($decoded);
+                self::assertSame('2.0', $decoded['jsonrpc'] ?? null);
+            }
+
+            $ch = $passkey->createChallenge('example.test', 'https://example.test', ttlSeconds: 60, now: 1_700_000_000);
+            try {
+                $passkey->verifyAssertion(
+                    $ch['challenge'],
+                    $this->mutateString('eyJ0eXBlIjoid2ViYXV0aG4uZ2V0In0'),
+                    $this->mutateString('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'),
+                    $this->mutateString('AAAA'),
+                    'invalid-key',
+                    now: 1_700_000_001,
+                );
+                self::fail('Mutated PasskeyVerifier assertion unexpectedly succeeded.');
+            } catch (SecurityException) {
+                // Expected fail-closed rejection
             }
         }
     }

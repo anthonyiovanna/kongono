@@ -19,10 +19,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup PHP 8.5
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.5'
           extensions: curl, dom, json, mbstring, openssl, pdo, pdo_pgsql, pdo_sqlite, sodium, zlib
@@ -54,14 +54,16 @@ jobs:
           KONGONO_FUZZ_ITERATIONS: '600'
         run: composer fuzz
 
-      - name: Self-Audit Attack Simulation & AI Evals
+      - name: Self-Audit Attack Simulation, Readiness Proof & AI Evals
         run: |
+          php bin/kongo prove --app=examples/starter-app
           php bin/kongo audit --attack --strict --app=examples/starter-app
           php bin/kongo eval --redteam --app=examples/starter-app
           php bin/kongo eval --companions --app=examples/starter-app
+          php bin/kongo eval --agent-bench --app=examples/starter-app
 
   integration:
-    name: Live PostgreSQL (pgvector + RLS) & Redis Integration
+    name: Live PostgreSQL (pgvector + RLS), MySQL 8 & Redis Integration
     runs-on: ubuntu-latest
 
     services:
@@ -78,6 +80,20 @@ jobs:
           --health-interval=5s
           --health-timeout=5s
           --health-retries=10
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: kongono_ci_root_password
+          MYSQL_DATABASE: kongono_test
+          MYSQL_USER: kongono
+          MYSQL_PASSWORD: kongono_ci_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ukongono -pkongono_ci_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=15
       redis:
         image: redis:7-alpine
         ports:
@@ -89,13 +105,13 @@ jobs:
           --health-retries=10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup PHP 8.5
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.5'
-          extensions: curl, dom, json, mbstring, openssl, pdo, pdo_pgsql, sodium, zlib
+          extensions: curl, dom, json, mbstring, openssl, pdo, pdo_mysql, pdo_pgsql, sodium, zlib
           tools: composer:v2
 
       - name: Install Dependencies
@@ -104,18 +120,19 @@ jobs:
       - name: Run Live Infrastructure Tests
         env:
           KONGONO_TEST_POSTGRES_URL: pgsql://kongono:kongono_ci_password@127.0.0.1:5432/kongono_test
+          KONGONO_TEST_MYSQL_URL: mysql://kongono:kongono_ci_password@127.0.0.1:3306/kongono_test
           KONGONO_TEST_REDIS_URL: redis://127.0.0.1:6379/0
         run: composer test:integration
 
   standalone-smoke:
-    name: Standalone Composer App Smoke Test
+    name: Standalone Composer App Smoke Test (Minimal & SaaS)
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup PHP 8.5
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.5'
           extensions: curl, dom, json, mbstring, openssl, pdo, sodium, zlib
@@ -125,7 +142,7 @@ jobs:
       - name: Install Framework Dependencies
         run: composer install --no-interaction --prefer-dist
 
-      - name: Scaffold & Boot Standalone Consumer App
+      - name: Scaffold & Boot Standalone Minimal Consumer App
         run: |
           php bin/kongo new /tmp/smoke-app --name="Smoke App"
           php -r '
@@ -139,6 +156,7 @@ jobs:
           composer install --no-interaction
           php vendor/bin/kongo doctor
           php vendor/bin/kongo routes --json
+          php vendor/bin/kongo prove
           php vendor/bin/kongo optimize
           APP_DEBUG=true php -S 127.0.0.1:8799 -t public public/index.php &
           SERVER_PID=$!
@@ -147,4 +165,31 @@ jobs:
           curl -fsS http://127.0.0.1:8799/health | grep -q '"status":"ok"'
           curl -fsS http://127.0.0.1:8799/docs | grep -q "OpenAPI 3.1.0"
           curl -fsS http://127.0.0.1:8799/_kongono | grep -q "Kongono Dev Studio"
+          kill $SERVER_PID
+
+      - name: Scaffold & Verify Standalone SaaS Consumer App (Auth + RateLimit + /_ops)
+        run: |
+          php bin/kongo new /tmp/smoke-saas --name="Smoke SaaS" --starter=saas
+          php -r '
+            $f = "/tmp/smoke-saas/composer.json";
+            $j = json_decode(file_get_contents($f), true, 16, JSON_THROW_ON_ERROR);
+            $j["repositories"] = [["type" => "path", "url" => getcwd(), "options" => ["symlink" => false]]];
+            $j["require"]["kongono/framework"] = "*@dev";
+            file_put_contents($f, json_encode($j, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+          '
+          cd /tmp/smoke-saas
+          composer install --no-interaction
+          php vendor/bin/kongo doctor
+          php vendor/bin/kongo prove
+          php vendor/bin/kongo audit --attack --strict
+          APP_DEBUG=false php -S 127.0.0.1:8800 -t public public/index.php &
+          SERVER_PID=$!
+          sleep 1
+          curl -fsS http://127.0.0.1:8800/ | grep -q "Smoke SaaS"
+          curl -fsS http://127.0.0.1:8800/login | grep -q "Sign In"
+          curl -fsS http://127.0.0.1:8800/register | grep -q "Create Account"
+          STATUS_DEV=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8800/_kongono)
+          test "$STATUS_DEV" = "404"
+          STATUS_OPS=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8800/_ops)
+          test "$STATUS_OPS" = "401" -o "$STATUS_OPS" = "403"
           kill $SERVER_PID

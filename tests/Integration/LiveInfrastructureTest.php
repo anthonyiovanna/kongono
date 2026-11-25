@@ -583,4 +583,55 @@ final class LiveInfrastructureTest extends TestCase
         $redisWorker2->close();
         $redis->close();
     }
+
+    public function testLiveMysqlQueueUniqueKeyDeadLetterReplayAndPersonalAccessTokens(): void
+    {
+        $url = getenv('KONGONO_TEST_MYSQL_URL');
+        if (false === $url || '' === $url) {
+            self::markTestSkipped('Set KONGONO_TEST_MYSQL_URL to run live MySQL 8 integration tests.');
+        }
+
+        $db = PdoConnection::fromUrl($url);
+        self::assertSame(\Kongono\Database\Dialect::Mysql, $db->dialect());
+
+        // 1. Live MySQL 8 PostgresQueueDriver schema + unique_key failed-job deduplication (single & bulk retry)
+        $db->execute('DROP TABLE IF EXISTS `kongono_mysql_jobs`');
+        $mysqlQueue = new PostgresQueueDriver($db, 'kongono_mysql_jobs');
+        $mysqlQueue->installSchema();
+        $queue = new Queue($mysqlQueue);
+
+        $failWorker = (new Worker($mysqlQueue))->register('mysql.fail', static fn(): JobOutcome => JobOutcome::Failed);
+
+        // Two failed jobs with the same unique_key (`order-1`): bulk retryFailed() must reactivate ONLY 1 (newest)
+        $j1 = $queue->dispatch('mysql.fail', ['v' => 1], maxAttempts: 1, uniqueKey: 'order-1');
+        self::assertSame(1, $failWorker->run()->failed);
+        $j2 = $queue->dispatch('mysql.fail', ['v' => 2], maxAttempts: 1, uniqueKey: 'order-1');
+        self::assertSame(1, $failWorker->run()->failed);
+        self::assertNotSame($j1->id, $j2->id);
+
+        // One failed job + one currently active pending job sharing unique_key (`order-2`): retryFailed() must NOT reactivate the failed one!
+        $j3 = $queue->dispatch('mysql.fail', ['v' => 3], maxAttempts: 1, uniqueKey: 'order-2');
+        self::assertSame(1, $failWorker->run()->failed);
+        $queue->dispatch('mysql.fail', ['v' => 4], maxAttempts: 1, uniqueKey: 'order-2');
+
+        // Single-job retry on `order-2` must be blocked (0 updated) because an active pending job exists
+        self::assertSame(0, $mysqlQueue->retryFailed('default', $j3->id));
+        // Bulk retry must reactivate strictly 1 job (`order-1` latest) and leave `order-2`'s failed copy alone
+        self::assertSame(1, $mysqlQueue->retryFailed('default'));
+        $stats = $mysqlQueue->stats('default');
+        self::assertSame(2, $stats['pending']); // 1 active `order-2` + 1 reactivated `order-1`
+
+        // 2. Live MySQL 8 PdoPersonalAccessTokenStore inline index schema + issue/authenticate/revokeAll
+        $db->execute('DROP TABLE IF EXISTS `kongono_mysql_pats`');
+        $patStore = new PdoPersonalAccessTokenStore($db, 'kongono_mysql_pats');
+        $patStore->installSchema();
+        $user = new Principal('mysql-user-1', PrincipalKind::Human, ['api.read']);
+        $issued = $patStore->issue($user, 'MySQL CI Token', ttlSeconds: 300);
+        self::assertNotNull($patStore->authenticate($issued->plainTextToken));
+        self::assertSame(1, $patStore->revokeAllForPrincipal('mysql-user-1'));
+        self::assertNull($patStore->authenticate($issued->plainTextToken));
+
+        $db->execute('DROP TABLE IF EXISTS `kongono_mysql_jobs`');
+        $db->execute('DROP TABLE IF EXISTS `kongono_mysql_pats`');
+    }
 }

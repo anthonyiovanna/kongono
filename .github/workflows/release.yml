@@ -16,10 +16,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup PHP 8.5
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # v2
         with:
           php-version: '8.5'
           extensions: curl, dom, json, mbstring, openssl, pdo, pdo_pgsql, sodium, zlib
@@ -35,8 +35,10 @@ jobs:
           composer analyse
           php -d memory_limit=512M vendor/bin/phpunit --configuration phpunit.xml.dist --fail-on-deprecation --fail-on-warning --fail-on-notice
           KONGONO_FUZZ_ITERATIONS=600 composer fuzz
+          php bin/kongo prove --app=examples/starter-app
           php bin/kongo audit --attack --strict --app=examples/starter-app
           php bin/kongo eval --redteam --app=examples/starter-app
+          php bin/kongo eval --companions --app=examples/starter-app
 
       - name: Build Release Archive, CycloneDX 1.5 SBOM & SHA-256 Checksums
         env:
@@ -53,7 +55,7 @@ jobs:
           cat dist/SHA256SUMS.txt
 
       - name: Generate SLSA Build Provenance Attestations
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: |
             dist/kongono-*.tar.gz
