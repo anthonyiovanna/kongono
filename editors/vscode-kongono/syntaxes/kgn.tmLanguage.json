@@ -34,7 +34,7 @@
     },
     "kongono-directive": {
       "name": "keyword.control.directive.kongono",
-      "match": "@(?:extends|section|endsection|yield|include|if|elseif|else|endif|unless|endunless|isset|endisset|foreach|endforeach|forelse|empty|endforelse|php|endphp|state|island|liveScript|bridgeScript|safeHtml|json|t|old|error|enderror|vite)\\b"
+      "match": "@(?:extends|section|endsection|yield|include|includeIf|includeWhen|if|elseif|else|endif|unless|endunless|isset|endisset|switch|case|break|default|endswitch|foreach|endforeach|forelse|empty|endforelse|for|endfor|while|endwhile|continue|php|endphp|csrf|method|auth|endauth|guest|endguest|can|endcan|cannot|endcannot|push|endpush|stack|props|slot|endslot|component|endcomponent|state|island|liveScript|bridgeScript|safeHtml|json|t|old|error|enderror|vite|checked|selected|disabled|readonly|required)\\b"
     },
     "kongono-component": {
       "name": "entity.name.tag.component.kongono",
@@ -42,7 +42,7 @@
     },
     "kongono-live-attr": {
       "name": "entity.other.attribute-name.live.kongono",
-      "match": "\\bk-(?:on:[a-zA-Z0-9._-]+|show|model|text|class:[a-zA-Z0-9._-]+|attr:[a-zA-Z0-9._-]+|bind:[a-zA-Z0-9._-]+)\\b"
+      "match": "\\b(?:k-(?:on:[a-zA-Z0-9._-]+|show|model|text|persist|optimistic|loading|ref|class:[a-zA-Z0-9._-]+|attr:[a-zA-Z0-9._-]+|bind:[a-zA-Z0-9._-]+)|kgn-(?:oob|stream|sortable|prefetch|poll|target|swap|confirm|action))\\b"
     }
   }
 }

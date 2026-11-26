@@ -2,8 +2,32 @@
   "name": "kongono-vscode",
   "displayName": "Kongono Framework",
   "description": "Zero-logic editor bridge powered 100% by Kongono itself (`kongo lsp`): live 17-rule Full-Stack Contract squiggles, 5W1H hover explanations, one-click Quick Fixes, and .kgn.html syntax highlighting.",
-  "version": "1.20.0",
+  "version": "1.20.4",
   "publisher": "kongono",
+  "license": "MIT",
+  "icon": "icon.png",
+  "homepage": "https://kongono.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kongono/framework.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kongono/framework/issues"
+  },
+  "galleryBanner": {
+    "color": "#0d1117",
+    "theme": "dark"
+  },
+  "keywords": [
+    "kongono",
+    "php",
+    "php85",
+    "lsp",
+    "zokeibi",
+    "kgn",
+    "templates",
+    "framework"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
