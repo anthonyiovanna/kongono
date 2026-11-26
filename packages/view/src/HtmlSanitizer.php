@@ -305,7 +305,7 @@ final readonly class HtmlSanitizer
      * Strict URL allowlist check rejecting javascript:, vbscript:, data:, protocol-relative //,
      * backslashes, and control characters (including whitespace-obfuscated schemes).
      */
-    public static function isSafeUrl(string $url, bool $allowMailto = true, bool $allowFragment = true): bool
+    public static function isSafeUrl(string $url, bool $allowMailto = true, bool $allowFragment = true, bool $allowTel = false): bool
     {
         // Reject any ASCII control chars (CR, LF, TAB, NUL, DEL) or backslashes before trimming
         if (1 === preg_match('/[\x00-\x1F\x7F\\\\]/', $url)) {
@@ -340,6 +340,9 @@ final readonly class HtmlSanitizer
             }
             if ($allowMailto && 'mailto' === $scheme) {
                 return '' !== trim(substr($trimmed, 7));
+            }
+            if ($allowTel && 'tel' === $scheme) {
+                return '' !== trim(substr($trimmed, 4));
             }
 
             return false;

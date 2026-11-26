@@ -74,14 +74,14 @@
       const q = searchInput.value.trim().toLowerCase();
       sections.forEach((sec) => {
         const match = !q || sec.textContent.toLowerCase().includes(q);
-        sec.style.display = match ? '' : 'none';
+        sec.hidden = !match;
       });
       navItems.forEach((li) => {
         const link = li.querySelector('a');
         const id = link ? (link.getAttribute('href') || '').replace('#', '') : '';
         const sec = id ? document.getElementById(id) : null;
-        const visible = !q || (sec && sec.style.display !== 'none') || li.textContent.toLowerCase().includes(q);
-        li.style.display = visible ? '' : 'none';
+        const visible = !q || (sec && !sec.hidden) || li.textContent.toLowerCase().includes(q);
+        li.hidden = !visible;
       });
     });
 

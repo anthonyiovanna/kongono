@@ -30,6 +30,7 @@ use Throwable;
 final readonly class DevDashboardMiddleware implements MiddlewareInterface
 {
     private DevDashboardRenderer $renderer;
+    private DevRateLimiter $aiRateLimiter;
 
     /**
      * @param (Closure(string, ?string): string)|null                                       $oshieHandler        Optional callback ($question, $lesson) => reply
@@ -74,8 +75,10 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         private bool $hotReload = false,
         private ?Closure $schemaHandler = null,
         private ?Closure $authorizer = null,
+        private int $aiMaxRequestsPerMinute = 30,
     ) {
         $this->renderer = new DevDashboardRenderer();
+        $this->aiRateLimiter = new DevRateLimiter();
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -205,6 +208,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         }
 
         if ($path === $base . '/api/oshie/stream' && 'POST' === $method) {
+            if (null !== ($limited = $this->enforceAiRateLimit($request, 'oshie', $apiHeaders))) {
+                return $limited;
+            }
             if (null === $this->oshieStreamHandler) {
                 return Response::json(['error' => 'Oshie streaming bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
@@ -219,6 +225,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         }
 
         if ($path === $base . '/api/oshie' && 'POST' === $method) {
+            if (null !== ($limited = $this->enforceAiRateLimit($request, 'oshie', $apiHeaders))) {
+                return $limited;
+            }
             if (null === $this->oshieHandler) {
                 return Response::json(['reply' => 'Oshie browser bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
@@ -230,6 +239,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         }
 
         if ($path === $base . '/api/hantei/stream' && 'POST' === $method) {
+            if (null !== ($limited = $this->enforceAiRateLimit($request, 'hantei', $apiHeaders))) {
+                return $limited;
+            }
             if (null === $this->hanteiStreamHandler) {
                 return Response::json(['error' => 'Hantei streaming bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
@@ -243,6 +255,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         }
 
         if (1 === preg_match('#\A' . preg_quote($base, '#') . '/api/hantei/trace/(\d+)\z#', $path, $traceDiagMatch) && 'POST' === $method) {
+            if (null !== ($limited = $this->enforceAiRateLimit($request, 'hantei', $apiHeaders))) {
+                return $limited;
+            }
             if (null === $this->hanteiTraceHandler) {
                 return Response::json(['error' => 'Hantei trace diagnosis bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
@@ -255,6 +270,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         }
 
         if ($path === $base . '/api/hantei' && 'POST' === $method) {
+            if (null !== ($limited = $this->enforceAiRateLimit($request, 'hantei', $apiHeaders))) {
+                return $limited;
+            }
             if (null === $this->hanteiHandler) {
                 return Response::json(['diagnosis' => 'Hantei browser bridge is not configured on DevDashboardMiddleware.'], 501, $apiHeaders);
             }
@@ -265,6 +283,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         }
 
         if ($path === $base . '/api/chie' && 'POST' === $method) {
+            if (null !== ($limited = $this->enforceAiRateLimit($request, 'chie', $apiHeaders))) {
+                return $limited;
+            }
             if (null === $this->chieHandler) {
                 return Response::json(['summary' => 'Chie browser preview bridge is not configured on DevDashboardMiddleware.', 'diffs' => []], 501, $apiHeaders);
             }
@@ -682,6 +703,26 @@ JS;
         }
 
         return true;
+    }
+
+    /** @param array<string, string> $apiHeaders */
+    private function enforceAiRateLimit(ServerRequestInterface $request, string $companion, array $apiHeaders): ?Response
+    {
+        if ($this->aiMaxRequestsPerMinute <= 0) {
+            return null;
+        }
+        $remote = $request->getServerParams()['REMOTE_ADDR'] ?? 'local';
+        $client = is_string($remote) && '' !== $remote ? $remote : 'local';
+        $retryAfter = $this->aiRateLimiter->attempt('ai:' . $companion . ':' . $client, $this->aiMaxRequestsPerMinute, 60);
+        if ($retryAfter > 0) {
+            return Response::json(
+                ['error' => sprintf('Dev Studio AI rate limit exceeded for %s. Try again in %d second(s).', $companion, $retryAfter)],
+                429,
+                [...$apiHeaders, 'Retry-After' => (string) $retryAfter],
+            );
+        }
+
+        return null;
     }
 
     private function isSameOriginMutatingRequest(ServerRequestInterface $request): bool

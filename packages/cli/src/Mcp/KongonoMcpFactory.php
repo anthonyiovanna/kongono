@@ -1024,18 +1024,8 @@ final class KongonoMcpFactory
 
     private static function tryLoadApp(string $appRoot): ?App
     {
-        $resolved = realpath($appRoot);
-        if (false === $resolved || !is_dir($resolved)) {
-            return null;
-        }
-        $appDir = $resolved . DIRECTORY_SEPARATOR . 'app';
-        $bootstrap = $appDir . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (is_link($appDir) || is_link($bootstrap) || !is_file($bootstrap)) {
-            return null;
-        }
-        $realBootstrap = realpath($bootstrap);
-        $prefix = rtrim($resolved, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-        if (false === $realBootstrap || !str_starts_with($realBootstrap, $prefix)) {
+        $realBootstrap = ProjectContext::resolveSafeExecutableFile($appRoot, 'app/bootstrap.php', allowBootstrap: true);
+        if (null === $realBootstrap) {
             return null;
         }
 

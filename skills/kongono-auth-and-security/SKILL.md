@@ -26,7 +26,7 @@ To scaffold an editable zero-bloat auth starter kit immediately, run `php vendor
   - Native WebAuthn/FIDO2 Passkeys: `PasskeyVerifier` (ES256/Ed25519).
   - Magic links: `MagicLinkAuth`.
   - OAuth/OIDC: `PkceOAuthClient` (S256 over `SafeHttpClient`).
-  - TOTP 2FA: `Kongono\Security\Totp` (RFC 6238 + recovery codes).
+  - TOTP 2FA: `Kongono\Security\Totp` (RFC 6238 + recovery codes) — always wire an `AtomicCacheInterface` via `new Totp(replayCache: $cache)` or call `$totp->verifyOnce($secret, $code, $atomicCache)` so codes cannot be replayed within the drift window.
 
 ## Step 2: Enforce Fail-Closed Authorization (`Gate` & `#[Can]`)
 

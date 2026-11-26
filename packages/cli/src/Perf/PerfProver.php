@@ -7,8 +7,11 @@ namespace Kongono\Cli\Perf;
 use Closure;
 use Kongono\Cli\Diagnostics\AppFinding;
 use Kongono\Cli\Shadow\ShadowDiffProver;
+use Kongono\Core\Capabilities\ExecutionCapabilities;
 use Kongono\Http\App;
 use Kongono\Http\Request;
+use Kongono\Http\Session\SessionMiddleware;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * Built-in Persistent-Worker Leak & SQL N+1 Prover (`kongo perf` & MCP `kongono_perf_probe`).
@@ -99,7 +102,12 @@ final readonly class PerfProver
                 $cookieBefore = $_COOKIE;
 
                 // Warmup request (compiles views, fills router/DI caches — realistic steady state for FrankenPHP/RoadRunner)
-                $app->handle(Request::create('GET', $path));
+                // Enforces read-only DB, no outbound HTTP, and skipped session persistence so probes never mutate app state
+                $probeReq = Request::create('GET', $path)->withAttribute(SessionMiddleware::ATTR_SKIP_PERSISTENCE, true);
+                ExecutionCapabilities::withActive(
+                    new ExecutionCapabilities(readOnlyDb: true, noOutboundHttp: true),
+                    static fn(): ResponseInterface => $app->handle($probeReq),
+                );
                 gc_collect_cycles();
 
                 $memBefore = memory_get_usage(false);
@@ -113,8 +121,12 @@ final readonly class PerfProver
 
                 for ($i = 0; $i < $iters; ++$i) {
                     $recordedQueries = [];
+                    $iterReq = Request::create('GET', $path)->withAttribute(SessionMiddleware::ATTR_SKIP_PERSISTENCE, true);
                     $t0 = hrtime(true);
-                    $resp = $app->handle(Request::create('GET', $path));
+                    $resp = ExecutionCapabilities::withActive(
+                        new ExecutionCapabilities(readOnlyDb: true, noOutboundHttp: true),
+                        static fn(): ResponseInterface => $app->handle($iterReq),
+                    );
                     $latencies[] = (hrtime(true) - $t0) / 1_000_000;
                     $lastStatus = $resp->getStatusCode();
                     $activeOps = max(0, $app->kernel()->activeOperationCount() - $baselineActiveOps);

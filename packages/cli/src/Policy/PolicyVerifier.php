@@ -6,6 +6,7 @@ namespace Kongono\Cli\Policy;
 
 use Closure;
 use FilesystemIterator;
+use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Diagnostics\AppFinding;
 use Kongono\Cli\Diagnostics\FullStackContractProver;
 use Kongono\Http\App;
@@ -89,6 +90,7 @@ final readonly class PolicyVerifier
         ?array $customRules = null,
         bool $includeDefaults = true,
         bool $requireApp = false,
+        ?bool $allowCustomPolicy = null,
     ): array {
         $real = realpath($appRoot);
         $root = rtrim(false !== $real ? $real : $appRoot, '\\/');
@@ -101,8 +103,8 @@ final readonly class PolicyVerifier
             $customLoaded = [] !== $customRules;
             array_push($rules, ...$customRules);
         } else {
-            $policyFile = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'invariants.php';
-            if (is_file($policyFile)) {
+            $policyFile = ProjectContext::resolveSafeExecutableFile($root, 'app/invariants.php', $allowCustomPolicy);
+            if (null !== $policyFile) {
                 $loaded = require $policyFile;
                 if (is_array($loaded)) {
                     $customLoaded = true;
@@ -502,11 +504,11 @@ final readonly class PolicyVerifier
             }
         }
 
-        // A non-nullable `Kongono\Security\Principal` parameter also enforces authentication at dispatch time
+        // A non-nullable `Kongono\Security\Principal` parameter without a default also enforces authentication at dispatch time
         if (null !== $ref) {
             foreach ($ref->getParameters() as $param) {
                 $type = $param->getType();
-                if ($type instanceof \ReflectionNamedType && 'Kongono\\Security\\Principal' === $type->getName() && !$type->allowsNull()) {
+                if ($type instanceof \ReflectionNamedType && 'Kongono\\Security\\Principal' === $type->getName() && !$type->allowsNull() && !$param->isDefaultValueAvailable()) {
                     return true;
                 }
             }
@@ -533,33 +535,10 @@ final readonly class PolicyVerifier
     /** @return list<string> */
     private function collectHandlerAttributes(Route $route): array
     {
+        // Only trust middleware attributes actually attached to the route and enforced at dispatch time.
         $names = [];
         foreach ($route->routeMiddlewareAttributes() as $attrObj) {
             $names[] = $attrObj::class;
-        }
-        if (is_array($route->handler)) {
-            try {
-                $rc = new ReflectionClass($route->handler[0]);
-                foreach ($rc->getAttributes() as $a) {
-                    $names[] = $a->getName();
-                }
-                if ($rc->hasMethod($route->handler[1])) {
-                    foreach ($rc->getMethod($route->handler[1])->getAttributes() as $a) {
-                        $names[] = $a->getName();
-                    }
-                }
-            } catch (Throwable) {
-                // ignore
-            }
-        } elseif ($route->handler instanceof Closure) {
-            try {
-                $rf = new ReflectionFunction($route->handler);
-                foreach ($rf->getAttributes() as $a) {
-                    $names[] = $a->getName();
-                }
-            } catch (Throwable) {
-                // ignore
-            }
         }
 
         return array_values(array_unique($names));

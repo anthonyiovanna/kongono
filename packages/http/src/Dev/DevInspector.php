@@ -214,7 +214,24 @@ final class DevInspector
         }
 
         $trimmed = ltrim($body);
-        if (str_starts_with($trimmed, '{') || str_starts_with($trimmed, '[')) {
+        if (str_starts_with($trimmed, '<')) {
+            $xmlSafe = preg_replace(
+                '/(<(?P<tag>(?:[a-zA-Z0-9_-]+:)?(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|private[_-]?key|ssn|credit[_-]?card|card[_-]?number|cvv))\b[^>]*>)(.*?)(<\/(?P=tag)\s*>)/is',
+                '$1[REDACTED]$4',
+                $body,
+            );
+            if (is_string($xmlSafe)) {
+                $body = $xmlSafe;
+            }
+            $xmlAttrSafe = preg_replace(
+                '/(\b(?:password|passwd|secret|token|api[_-]?key|access[_-]?token|client[_-]?secret|authorization)\s*=\s*)(["\'])[^"\']*\2/i',
+                '$1$2[REDACTED]$2',
+                $body,
+            );
+            if (is_string($xmlAttrSafe)) {
+                $body = $xmlAttrSafe;
+            }
+        } elseif (str_starts_with($trimmed, '{') || str_starts_with($trimmed, '[')) {
             $decoded = json_decode($body, true);
             if (is_array($decoded)) {
                 $scrubbed = SecretScrubber::scrubArray($decoded);
@@ -223,7 +240,7 @@ final class DevInspector
                     return $reencoded;
                 }
             }
-        } elseif (!str_starts_with($trimmed, '<') && str_contains($body, '=') && !str_contains($body, "\n") && !str_contains($body, "\r")) {
+        } elseif (str_contains($body, '=') && !str_contains($body, "\n") && !str_contains($body, "\r")) {
             parse_str($body, $formFields);
             if ([] !== $formFields) {
                 return http_build_query(SecretScrubber::scrubArray($formFields), '', '&', PHP_QUERY_RFC3986);

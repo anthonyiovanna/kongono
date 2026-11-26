@@ -18,6 +18,9 @@ use Throwable;
  */
 final readonly class SessionMiddleware implements MiddlewareInterface
 {
+    /** Internal in-process request attribute set by read-only proof tools to avoid persisting probe sessions. */
+    public const string ATTR_SKIP_PERSISTENCE = 'kongono.session.skip_persistence';
+
     public function __construct(
         private SessionStoreInterface $store,
         private string $cookieName = 'kongono_session',
@@ -57,11 +60,12 @@ final readonly class SessionMiddleware implements MiddlewareInterface
         }
 
         $isHttps = 'https' === strtolower($request->getUri()->getScheme());
+        $skipPersistence = true === $request->getAttribute(self::ATTR_SKIP_PERSISTENCE);
 
         try {
             $response = $handler->handle($request->withAttribute(Session::class, $session));
         } catch (Throwable $e) {
-            $cookie = $this->finalizeSession($session, $isNew, $now, $originalCreatedAt, $isHttps, persistMutations: $e instanceof HttpException);
+            $cookie = $this->finalizeSession($session, $isNew, $now, $originalCreatedAt, $isHttps, persistMutations: !$skipPersistence && $e instanceof HttpException);
             if ($e instanceof HttpException && null !== $cookie) {
                 $enriched = $e->withAddedHeader('Set-Cookie', $cookie->toHeaderValue());
                 $cc = strtolower($enriched->headerLine('Cache-Control'));
@@ -75,7 +79,7 @@ final readonly class SessionMiddleware implements MiddlewareInterface
             throw $e;
         }
 
-        $cookie = $this->finalizeSession($session, $isNew, $now, $originalCreatedAt, $isHttps, persistMutations: true);
+        $cookie = $this->finalizeSession($session, $isNew, $now, $originalCreatedAt, $isHttps, persistMutations: !$skipPersistence);
         if (null !== $cookie) {
             $response = $response->withAddedHeader('Set-Cookie', $cookie->toHeaderValue());
             $response = $this->protectSetCookieCaching($response);

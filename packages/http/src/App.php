@@ -361,7 +361,11 @@ final class App
         } catch (Throwable) {
             $response = Response::json(['error' => ['status' => 400, 'message' => 'Malformed HTTP request.']], 400);
         }
-        $emitter->emit($response);
+        try {
+            $emitter->emit($response);
+        } finally {
+            $this->container->resetScope();
+        }
         $this->shutdown();
     }
 
@@ -386,7 +390,13 @@ final class App
                 } catch (Throwable) {
                     $response = Response::json(['error' => ['status' => 400, 'message' => 'Malformed HTTP request.']], 400);
                 }
-                $emitter->emit($response);
+                try {
+                    $emitter->emit($response);
+                } finally {
+                    // Always reset request-scoped container instances AFTER lazy/streaming emission finishes
+                    // so generators resolving scoped services cannot leak state into the next worker request.
+                    $this->container->resetScope();
+                }
             };
 
             while ($workerLoop($handler)) {
@@ -625,6 +635,15 @@ final class App
             }
 
             if ('security_attr' === $spec['kind']) {
+                if ('Kongono\\Security\\Principal' === $typeName) {
+                    if ($spec['allowsNull'] && (!$spec['hasDefault'] || null === $spec['default'])) {
+                        $args[] = null;
+                        continue;
+                    }
+
+                    // Never silently inject a default Principal object when authentication is missing
+                    throw new HttpException(401, 'Authentication required.');
+                }
                 if ($spec['hasDefault']) {
                     $args[] = is_object($spec['default']) ? clone $spec['default'] : $spec['default'];
                     continue;
@@ -632,9 +651,6 @@ final class App
                 if ($spec['allowsNull']) {
                     $args[] = null;
                     continue;
-                }
-                if ('Kongono\\Security\\Principal' === $typeName) {
-                    throw new HttpException(401, 'Authentication required.');
                 }
 
                 throw new CoreException('Session attribute is missing: mount SessionMiddleware before accessing Session.');

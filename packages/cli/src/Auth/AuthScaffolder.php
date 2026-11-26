@@ -513,12 +513,14 @@ final class WebAuthController
     {
         $remote = $request->getServerParams()['REMOTE_ADDR'] ?? null;
         $ip = is_string($remote) && '' !== $remote ? $remote : '127.0.0.1';
-        if ($this->throttler->isLockedOut('register:' . $ip, $ip)) {
+        $emailThrottleKey = 'register:email:' . strtolower(trim($input->email));
+        if ($this->throttler->isLockedOut('register:' . $ip, $ip) || $this->throttler->isLockedOut($emailThrottleKey, $ip)) {
             $session->flash('auth_error', 'Too many registration attempts. Please wait a moment and try again.');
 
             return Response::redirect('/register');
         }
         $this->throttler->recordFailure('register:' . $ip, $ip);
+        $this->throttler->recordFailure($emailThrottleKey, $ip);
 
         if (null !== $this->users->findByEmail($input->email)) {
             // Match Argon2id timing and avoid explicitly confirming whether an email address is registered
@@ -610,10 +612,12 @@ final class ApiAuthController
     {
         $remote = $request->getServerParams()['REMOTE_ADDR'] ?? null;
         $ip = is_string($remote) && '' !== $remote ? $remote : '127.0.0.1';
-        if ($this->throttler->isLockedOut('register:' . $ip, $ip)) {
+        $emailThrottleKey = 'register:email:' . strtolower(trim($input->email));
+        if ($this->throttler->isLockedOut('register:' . $ip, $ip) || $this->throttler->isLockedOut($emailThrottleKey, $ip)) {
             return Response::json(['error' => 'Too many registration attempts.'], status: 429);
         }
         $this->throttler->recordFailure('register:' . $ip, $ip);
+        $this->throttler->recordFailure($emailThrottleKey, $ip);
 
         if (null !== $this->users->findByEmail($input->email)) {
             // Match Argon2id timing and return a generic non-enumerating error payload

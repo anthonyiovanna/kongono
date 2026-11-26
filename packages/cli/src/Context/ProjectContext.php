@@ -47,6 +47,7 @@ final readonly class ProjectContext
         'vendor',
         '.git',
         'var',
+        'storage',
         '.cache',
         '.phpunit.cache',
         'node_modules',
@@ -80,6 +81,57 @@ final readonly class ProjectContext
     }
 
     /**
+     * Resolve a contained, non-symlink, regular executable PHP file (e.g. `app/bootstrap.php` or `app/invariants.php`)
+     * strictly under `$appRoot` ONLY when bootstrap/code execution is allowed (honoring `KONGONO_SAFE_MODE` /
+     * `KONGONO_NO_BOOTSTRAP` and explicit `$allowBootstrap` overrides).
+     */
+    public static function resolveSafeExecutableFile(
+        string $appRoot,
+        string $relativePath,
+        ?bool $allowBootstrap = null,
+    ): ?string {
+        $bootstrapAllowed = $allowBootstrap ?? !self::isSafeModeEnabled();
+        if (!$bootstrapAllowed) {
+            return null;
+        }
+
+        $resolved = realpath($appRoot);
+        if (false === $resolved || !is_dir($resolved)) {
+            return null;
+        }
+
+        $normalized = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
+        if ('' === $normalized || str_contains($normalized, '..') || str_contains($normalized, "\0") || str_contains($normalized, ':')) {
+            return null;
+        }
+
+        $walk = $resolved;
+        foreach (explode('/', $normalized) as $segment) {
+            if ('' === $segment || '.' === $segment) {
+                return null;
+            }
+            $walk .= DIRECTORY_SEPARATOR . $segment;
+            if (is_link($walk)) {
+                return null;
+            }
+        }
+
+        clearstatcache(true, $walk);
+        $stat = @lstat($walk);
+        if (false === $stat || 0o100000 !== ($stat['mode'] & 0o170000)) {
+            return null;
+        }
+
+        $realTarget = realpath($walk);
+        $prefix = rtrim($resolved, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        if (false === $realTarget || !str_starts_with($realTarget, $prefix)) {
+            return null;
+        }
+
+        return $realTarget;
+    }
+
+    /**
      * Load a Kongono app from app/bootstrap.php (if present and bootstrap execution is permitted)
      * and capture its live ApplicationGraph & App instance.
      *
@@ -95,24 +147,18 @@ final readonly class ProjectContext
 
         $graph = null;
         $loadedApp = null;
-        $bootstrapAllowed = $allowBootstrap ?? !self::isSafeModeEnabled();
-        $appDir = $resolved . DIRECTORY_SEPARATOR . 'app';
-        $bootstrap = $appDir . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if ($bootstrapAllowed && !is_link($appDir) && !is_link($bootstrap) && is_file($bootstrap)) {
-            $realBootstrap = realpath($bootstrap);
-            $prefix = rtrim($resolved, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-            if (false !== $realBootstrap && str_starts_with($realBootstrap, $prefix)) {
-                try {
-                    $app = require $realBootstrap;
-                    if ($app instanceof App) {
-                        $loadedApp = $app;
-                        $graph = $app->graph();
-                    }
-                } catch (Throwable) {
-                    // Gracefully degrade when inspecting a newly scaffolded or broken app
-                    $loadedApp = null;
-                    $graph = null;
+        $realBootstrap = self::resolveSafeExecutableFile($resolved, 'app/bootstrap.php', $allowBootstrap);
+        if (null !== $realBootstrap) {
+            try {
+                $app = require $realBootstrap;
+                if ($app instanceof App) {
+                    $loadedApp = $app;
+                    $graph = $app->graph();
                 }
+            } catch (Throwable) {
+                // Gracefully degrade when inspecting a newly scaffolded or broken app
+                $loadedApp = null;
+                $graph = null;
             }
         }
 
@@ -207,9 +253,12 @@ final readonly class ProjectContext
         $canonicalRelative = str_replace('\\', '/', substr($fullPath, strlen($this->rootPath) + 1));
         $this->assertReadablePath($canonicalRelative);
 
+        // Read a bounded lookahead past $maxBytes so secrets/PEM blocks straddling the boundary are scrubbed
+        // BEFORE truncation rather than leaking an unredacted prefix.
+        $lookaheadBytes = min(max($maxBytes * 2, $maxBytes + 16384), 2_097_152);
         $handle = $this->openVerifiedContainedFile($fullPath, $relativePath);
         try {
-            $raw = fread($handle, $maxBytes);
+            $raw = fread($handle, $lookaheadBytes);
             if (false === $raw) {
                 throw new CoreException(sprintf('Unable to read "%s".', $relativePath));
             }
@@ -217,7 +266,9 @@ final readonly class ProjectContext
             fclose($handle);
         }
 
-        return SecretScrubber::scrub($raw);
+        $scrubbed = self::scrubBoundedChunk($raw);
+
+        return strlen($scrubbed) > $maxBytes ? substr($scrubbed, 0, $maxBytes) : $scrubbed;
     }
 
     /**
@@ -266,10 +317,35 @@ final readonly class ProjectContext
         }
 
         return [
-            'content' => SecretScrubber::scrub($raw),
+            'content' => self::scrubBoundedChunk($raw),
             'size' => $size,
             'offset' => $start + strlen($raw),
         ];
+    }
+
+    /**
+     * Scrub a bounded file slice, including partial/truncated PEM private-key blocks that start or end
+     * outside the read window so boundary slicing can never leak private key body material.
+     */
+    private static function scrubBoundedChunk(string $raw): string
+    {
+        $scrubbed = SecretScrubber::scrub($raw);
+        // Redact any truncated PEM private key whose closing delimiter fell past the read window
+        $scrubbed = (string) preg_replace(
+            '/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*\z/',
+            '[REDACTED_PRIVATE_KEY]',
+            $scrubbed,
+        );
+        // Redact any leading PEM private key fragment whose opening delimiter preceded a tail read window
+        if (1 === preg_match('/-----END [A-Z0-9 ]*PRIVATE KEY-----/', $scrubbed)) {
+            $scrubbed = (string) preg_replace(
+                '/\A(?:[A-Za-z0-9+\/=\r\n]{16,})-----END [A-Z0-9 ]*PRIVATE KEY-----/',
+                '[REDACTED_PRIVATE_KEY]',
+                $scrubbed,
+            );
+        }
+
+        return $scrubbed;
     }
 
     /**
@@ -602,30 +678,95 @@ final readonly class ProjectContext
         return ['dialect' => Dialect::Mysql->value, 'tables' => $tables];
     }
 
-    /** Write a file strictly within the project root (rejects path traversal, symlinks, and sensitive write targets). */
+    /** Write a file strictly within the project root (rejects path traversal, symlinks, TOCTOU races, and sensitive write targets). */
     public function writeFileContained(string $relativePath, string $content): string
     {
         $fullPath = $this->resolveContainedPath($relativePath, mustExist: false);
         $canonicalRelative = str_replace('\\', '/', substr($fullPath, strlen($this->rootPath) + 1));
         $this->assertWritablePath($canonicalRelative);
 
-        $dir = dirname($fullPath);
-        if (!is_dir($dir) && !@mkdir($dir, 0o775, true) && !is_dir($dir)) {
-            throw new CoreException(sprintf('Unable to create directory for "%s".', $relativePath));
-        }
-        if (is_link($fullPath)) {
-            throw new CoreException(sprintf('Refusing to write through symbolic link "%s".', $relativePath));
-        }
-        if (false === file_put_contents($fullPath, $content, LOCK_EX)) {
-            throw new CoreException(sprintf('Unable to write file "%s".', $relativePath));
+        // Walk and create each parent directory segment individually, rejecting symlinks at every step
+        $dirRel = dirname($canonicalRelative);
+        $walk = $this->rootPath;
+        if ('.' !== $dirRel && '' !== $dirRel) {
+            foreach (explode('/', $dirRel) as $segment) {
+                $walk .= DIRECTORY_SEPARATOR . $segment;
+                clearstatcache(true, $walk);
+                if (is_link($walk)) {
+                    throw new CoreException(sprintf('Refusing to write through symbolic link directory "%s".', $relativePath));
+                }
+                if (!file_exists($walk)) {
+                    if (!@mkdir($walk, 0o775) && !is_dir($walk)) {
+                        throw new CoreException(sprintf('Unable to create directory for "%s".', $relativePath));
+                    }
+                    clearstatcache(true, $walk);
+                    $createdStat = @lstat($walk);
+                    if (false === $createdStat || 0o040000 !== ($createdStat['mode'] & 0o170000)) {
+                        throw new CoreException(sprintf('Refusing to write through symbolic link directory "%s".', $relativePath));
+                    }
+                } elseif (!is_dir($walk)) {
+                    throw new CoreException(sprintf('Parent path for "%s" is not a directory.', $relativePath));
+                }
+            }
         }
 
-        return $fullPath;
+        $prefix = rtrim($this->rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $realDir = realpath($walk);
+        if (false === $realDir || ($realDir !== $this->rootPath && !str_starts_with($realDir . DIRECTORY_SEPARATOR, $prefix))) {
+            throw new CoreException(sprintf('Target directory for "%s" escapes project root.', $relativePath));
+        }
+
+        $target = $realDir . DIRECTORY_SEPARATOR . basename($fullPath);
+        clearstatcache(true, $target);
+        if (is_link($target)) {
+            throw new CoreException(sprintf('Refusing to write through symbolic link "%s".', $relativePath));
+        }
+        if (file_exists($target)) {
+            $existingStat = @lstat($target);
+            if (false === $existingStat || 0o100000 !== ($existingStat['mode'] & 0o170000)) {
+                throw new CoreException(sprintf('Refusing to overwrite non-regular file "%s".', $relativePath));
+            }
+        }
+
+        // Write exclusively to a random sibling temp file (O_CREAT|O_EXCL) and atomically rename into place
+        $tmpPath = $realDir . DIRECTORY_SEPARATOR . '.kgn-write-' . bin2hex(random_bytes(8)) . '.tmp';
+        $handle = @fopen($tmpPath, 'xb');
+        if (false === $handle) {
+            throw new CoreException(sprintf('Unable to create temporary file for "%s".', $relativePath));
+        }
+
+        $committed = false;
+        try {
+            if (false === fwrite($handle, $content)) {
+                throw new CoreException(sprintf('Unable to write file "%s".', $relativePath));
+            }
+            fflush($handle);
+            fclose($handle);
+            $handle = null;
+
+            clearstatcache(true, $target);
+            if (is_link($target)) {
+                throw new CoreException(sprintf('Refusing to write through symbolic link "%s".', $relativePath));
+            }
+            if (!@rename($tmpPath, $target)) {
+                throw new CoreException(sprintf('Unable to write file "%s".', $relativePath));
+            }
+            $committed = true;
+        } finally {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
+            if (!$committed && is_file($tmpPath)) {
+                @unlink($tmpPath);
+            }
+        }
+
+        return $target;
     }
 
     /**
      * Read raw (unscrubbed) contents of an existing writable project file strictly contained inside the project root,
-     * returning null if it does not yet exist. Rejects symlinks on any segment, traversal, and protected/secret paths.
+     * returning null if it does not yet exist. Rejects symlinks on any segment, non-regular files, traversal, and protected/secret paths.
      */
     public function readRawWritableFileIfExists(string $relativePath): ?string
     {
@@ -634,7 +775,12 @@ final readonly class ProjectContext
         $this->assertWritablePath($canonicalRelative);
         $this->assertReadablePath($canonicalRelative);
 
-        if (!file_exists($fullPath) || is_link($fullPath) || !is_file($fullPath)) {
+        clearstatcache(true, $fullPath);
+        if (!file_exists($fullPath) || is_link($fullPath)) {
+            return null;
+        }
+        $stat = @lstat($fullPath);
+        if (false === $stat || 0o100000 !== ($stat['mode'] & 0o170000)) {
             return null;
         }
         $real = realpath($fullPath);
@@ -643,7 +789,12 @@ final readonly class ProjectContext
             throw new CoreException(sprintf('File "%s" escapes project root.', $relativePath));
         }
 
-        $raw = file_get_contents($real);
+        $handle = $this->openVerifiedContainedFile($real, $relativePath);
+        try {
+            $raw = stream_get_contents($handle);
+        } finally {
+            fclose($handle);
+        }
 
         return false !== $raw ? $raw : null;
     }
@@ -748,6 +899,11 @@ final readonly class ProjectContext
         $prefix = rtrim($this->rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
         if ($mustExist) {
+            clearstatcache(true, $candidate);
+            $stat = @lstat($candidate);
+            if (false === $stat || 0o100000 !== ($stat['mode'] & 0o170000)) {
+                throw new CoreException(sprintf('File "%s" does not exist or is not a regular file within project root.', $relativePath));
+            }
             $real = realpath($candidate);
             if (false === $real || !is_file($real) || !str_starts_with($real, $prefix)) {
                 throw new CoreException(sprintf('File "%s" does not exist within project root.', $relativePath));
@@ -787,11 +943,12 @@ final readonly class ProjectContext
             || str_contains($lower, '/.aws/credentials')
             || '.aws/config' === $lower
             || str_contains($lower, '/.aws/config')
-            || str_starts_with($lower, 'var/cache/')
-            || str_starts_with($lower, 'var/storage/')
-            || str_starts_with($lower, 'storage/dev/')
-            || str_starts_with($lower, 'storage/incidents/')
-            || 1 === preg_match('#/(?:var/(?:cache|storage)|storage/(?:dev|incidents))/#', '/' . $lower)
+            || 'var' === $lower
+            || str_starts_with($lower, 'var/')
+            || str_contains($lower, '/var/')
+            || 'storage' === $lower
+            || str_starts_with($lower, 'storage/')
+            || str_contains($lower, '/storage/')
             || '.docker/config.json' === $lower
             || str_contains($lower, '/.docker/config.json');
 

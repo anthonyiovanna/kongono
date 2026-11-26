@@ -950,7 +950,9 @@ final class Round4SecurityAuditRegressionTest extends TestCase
             $apiCtrl = (string) file_get_contents($saasDir . '/src/Http/ApiAuthController.php');
             self::assertStringContainsString('RateLimitMiddleware', $bootstrap);
             self::assertStringContainsString('principalResolver:', $bootstrap);
-            self::assertStringContainsString('maxAccountAttempts: 0', $bootstrap);
+            self::assertStringContainsString('maxAccountAttempts: 25', $bootstrap);
+            self::assertStringContainsString('CacheSessionStore($authCache)', $bootstrap);
+            self::assertStringContainsString('LoginThrottler($authCache', $bootstrap);
             self::assertStringContainsString('RememberMeManager', $webCtrl);
             self::assertStringContainsString('revokeCookie', $webCtrl);
             self::assertStringContainsString('expiredCookie', $webCtrl);

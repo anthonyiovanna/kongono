@@ -113,7 +113,12 @@ final class ReadWriteConnection implements ConnectionInterface, QueryGuardableIn
 
     private function assertLocalGuardsIfNeeded(ConnectionInterface $target, string $sql): void
     {
-        if ($target instanceof QueryGuardableInterface || [] === $this->localGuards) {
+        if ($target instanceof QueryGuardableInterface) {
+            return;
+        }
+        if ([] === $this->localGuards) {
+            ExecutionCapabilities::current()?->assertDbQueryAllowed($sql);
+
             return;
         }
         foreach ($this->localGuards as $guard) {

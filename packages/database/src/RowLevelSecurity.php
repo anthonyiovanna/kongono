@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Database;
 
 use Closure;
+use Fiber;
 use WeakMap;
 
 /**
@@ -19,8 +20,8 @@ final class RowLevelSecurity
 {
     public const string DEFAULT_SETTING = 'app.current_tenant';
 
-    /** @var ?WeakMap<ConnectionInterface, int> */
-    private static ?WeakMap $activeDepth = null;
+    /** @var ?WeakMap<ConnectionInterface, array{depth: int, fiber: ?Fiber<mixed, mixed, mixed, mixed>}> */
+    private static ?WeakMap $activeState = null;
 
     /**
      * Compile PostgreSQL DDL statements enabling & forcing fail-closed tenant RLS on a table.
@@ -120,25 +121,39 @@ final class RowLevelSecurity
             throw new DatabaseException('RowLevelSecurity tenant ID must be a non-empty string (<= 128 bytes) without control bytes.');
         }
 
-        if (null === self::$activeDepth) {
-            /** @var WeakMap<ConnectionInterface, int> $map */
+        if (null === self::$activeState) {
+            /** @var WeakMap<ConnectionInterface, array{depth: int, fiber: ?Fiber<mixed, mixed, mixed, mixed>}> $map */
             $map = new WeakMap();
-            self::$activeDepth = $map;
+            self::$activeState = $map;
         }
-        $depth = self::$activeDepth[$db] ?? 0;
+        $currentFiber = Fiber::getCurrent();
+        $prevState = self::$activeState[$db] ?? null;
+        if (null !== $prevState && $prevState['fiber'] !== $currentFiber) {
+            throw new DatabaseException('Concurrent Fiber access to RowLevelSecurity::withTenant() on a shared database connection is forbidden; use a dedicated connection per Fiber.');
+        }
+
+        $depth = null !== $prevState ? $prevState['depth'] : 0;
         $alreadyInTransaction = $depth > 0
             || ($db instanceof PdoConnection && $db->inTransaction())
             || ($db instanceof ReadWriteConnection && $db->inTransaction());
 
-        self::$activeDepth[$db] = $depth + 1;
+        /** @var array{depth: int, fiber: ?Fiber<mixed, mixed, mixed, mixed>} $nextOuter */
+        $nextOuter = ['depth' => $depth + 1, 'fiber' => $currentFiber];
+        self::$activeState[$db] = $nextOuter;
 
         try {
-            return $db->transaction(static function (ConnectionInterface $tx) use ($db, $cleanSetting, $tenantId, $callback, $alreadyInTransaction): mixed {
-                $trackInnerTx = $tx !== $db && null !== self::$activeDepth;
-                $innerPrevDepth = $trackInnerTx ? (self::$activeDepth[$tx] ?? 0) : 0;
+            return $db->transaction(static function (ConnectionInterface $tx) use ($db, $cleanSetting, $tenantId, $callback, $alreadyInTransaction, $currentFiber): mixed {
+                $trackInnerTx = $tx !== $db && null !== self::$activeState;
+                $innerPrevState = $trackInnerTx ? (self::$activeState[$tx] ?? null) : null;
+                if (null !== $innerPrevState && $innerPrevState['fiber'] !== $currentFiber) {
+                    throw new DatabaseException('Concurrent Fiber access to RowLevelSecurity::withTenant() on a shared transaction connection is forbidden.');
+                }
+                $innerPrevDepth = null !== $innerPrevState ? $innerPrevState['depth'] : 0;
                 $nested = $alreadyInTransaction || ($trackInnerTx && $innerPrevDepth > 0);
-                if ($trackInnerTx && null !== self::$activeDepth) {
-                    self::$activeDepth[$tx] = $innerPrevDepth + 1;
+                if ($trackInnerTx && null !== self::$activeState) {
+                    /** @var array{depth: int, fiber: ?Fiber<mixed, mixed, mixed, mixed>} $nextInner */
+                    $nextInner = ['depth' => $innerPrevDepth + 1, 'fiber' => $currentFiber];
+                    self::$activeState[$tx] = $nextInner;
                 }
 
                 try {
@@ -163,20 +178,20 @@ final class RowLevelSecurity
 
                     return $result;
                 } finally {
-                    if ($trackInnerTx && null !== self::$activeDepth) {
-                        if (0 === $innerPrevDepth) {
-                            unset(self::$activeDepth[$tx]);
+                    if ($trackInnerTx && null !== self::$activeState) {
+                        if (null === $innerPrevState) {
+                            unset(self::$activeState[$tx]);
                         } else {
-                            self::$activeDepth[$tx] = $innerPrevDepth;
+                            self::$activeState[$tx] = $innerPrevState;
                         }
                     }
                 }
             });
         } finally {
-            if (0 === $depth) {
-                unset(self::$activeDepth[$db]);
+            if (null === $prevState) {
+                unset(self::$activeState[$db]);
             } else {
-                self::$activeDepth[$db] = $depth;
+                self::$activeState[$db] = $prevState;
             }
         }
     }

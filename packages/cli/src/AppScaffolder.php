@@ -305,6 +305,7 @@ EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
 
 \$debug = filter_var(Config::env('APP_DEBUG') ?? 'false', FILTER_VALIDATE_BOOL);
 \$cache = new MemoryCache();
+\$authCache = new MemoryCache();
 \$queueDriver = new MemoryQueueDriver();
 \$metrics = new Metrics();
 \$inspector = new DevInspector();
@@ -312,7 +313,7 @@ EnvLoader::load(\$baseDir . DIRECTORY_SEPARATOR . '.env');
 \$users = new MemoryUserStore();
 \$tokens = new MemoryPersonalAccessTokenStore();
 \$hasher = new PasswordHasher();
-\$throttler = new LoginThrottler(\$cache);
+\$throttler = new LoginThrottler(\$authCache);
 \$gate = (new Gate())
     ->define('ops.view', static fn(Principal \$p): bool => \$p->hasCapability('ops.view'))
     ->define('ops.manage', static fn(Principal \$p): bool => \$p->hasCapability('ops.manage'));
@@ -415,7 +416,8 @@ if ('production' === \$appEnv && (!is_string(\$appKey) || strlen(trim(\$appKey))
     : bin2hex(random_bytes(32));
 
 \$cache = new MemoryCache();
-\$sessionStore = new CacheSessionStore(\$cache);
+\$authCache = new MemoryCache();
+\$sessionStore = new CacheSessionStore(\$authCache);
 \$queueDriver = new MemoryQueueDriver();
 \$metrics = new Metrics();
 \$inspector = new DevInspector();
@@ -425,7 +427,7 @@ if ('production' === \$appEnv && (!is_string(\$appKey) || strlen(trim(\$appKey))
 \$tokens = new MemoryPersonalAccessTokenStore();
 \$hasher = new PasswordHasher();
 \$sessionAuth = new SessionAuth();
-\$throttler = new LoginThrottler(\$cache, maxAttempts: 5, lockoutSeconds: 900, maxAccountAttempts: 0);
+\$throttler = new LoginThrottler(\$authCache, maxAttempts: 5, lockoutSeconds: 900, maxAccountAttempts: 25);
 \$gate = (new Gate())
     ->define('ops.view', static fn(Principal \$p): bool => \$p->hasCapability('ops.view'))
     ->define('ops.manage', static fn(Principal \$p): bool => \$p->hasCapability('ops.manage'));

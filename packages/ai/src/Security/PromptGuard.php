@@ -58,6 +58,37 @@ final readonly class PromptGuard
     }
 
     /**
+     * Extract ONLY the genuine canary embedded inside Kongono's trailing `[KONGONO SECURITY BOUNDARY]`
+     * block so untrusted repository content inside `<untrusted_data>` can never spoof or replace it.
+     */
+    public function extractBoundaryCanary(string $systemPrompt): ?string
+    {
+        if (1 === preg_match('/\n\[KONGONO SECURITY BOUNDARY\]\n.*?- Internal security canary \([^)]+\): (kgn_canary_[a-f0-9]{12,64})\s*\z/s', $systemPrompt, $m)) {
+            return $m[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract a trusted canary from a system prompt: prefers Kongono's trailing `[KONGONO SECURITY BOUNDARY]`
+     * canary, and only falls back to caller-embedded canaries strictly outside `<untrusted_data>` blocks.
+     */
+    public function extractTrustedCanary(string $systemPrompt): ?string
+    {
+        $boundary = $this->extractBoundaryCanary($systemPrompt);
+        if (null !== $boundary) {
+            return $boundary;
+        }
+        $trustedOnly = preg_replace('#<untrusted_data\b[^>]*>.*?</untrusted_data>#is', '', $systemPrompt);
+        if (is_string($trustedOnly) && 1 === preg_match('/kgn_canary_[a-f0-9]{12,64}/', $trustedOnly, $m)) {
+            return $m[0];
+        }
+
+        return null;
+    }
+
+    /**
      * Wrap external untrusted data in a neutralized boundary frame.
      */
     public function wrapUntrusted(UntrustedInput|string $input, string $source = 'external'): string
@@ -108,10 +139,17 @@ final readonly class PromptGuard
      */
     public function createStreamingFilter(string $canary, Closure $onSafeDelta): array
     {
-        $holdback = max(256, strlen($canary) * 6);
+        $variants = '' !== $canary ? self::buildCanaryVariants($canary) : [];
+        $maxVariantLen = 0;
+        $maxVariantAlnumLen = 0;
+        foreach ($variants as $v) {
+            $maxVariantLen = max($maxVariantLen, strlen($v));
+            $maxVariantAlnumLen = max($maxVariantAlnumLen, strlen((string) preg_replace('/[^a-zA-Z0-9]+/', '', $v)));
+        }
+        $holdback = max(512, strlen($canary) * 8, $maxVariantLen * 4);
         $alnumCanaryLen = strlen((string) preg_replace('/[^a-zA-Z0-9]+/', '', $canary));
-        $alnumHoldback = max(96, $alnumCanaryLen * 4);
-        $baseScanWindow = max($holdback * 4, 4096);
+        $alnumHoldback = max(128, $alnumCanaryLen * 4, $maxVariantAlnumLen * 2);
+        $baseScanWindow = max($holdback * 4, 8192);
         $accumulated = '';
         $emittedLen = 0;
 
@@ -121,7 +159,7 @@ final readonly class PromptGuard
             }
             $accumulated .= $delta;
             $len = strlen($accumulated);
-            $bufferedSpan = max($baseScanWindow, ($len - $emittedLen) + $holdback);
+            $bufferedSpan = max($baseScanWindow, ($len - $emittedLen) + ($holdback * 2));
             $window = $len > $bufferedSpan ? substr($accumulated, -$bufferedSpan) : $accumulated;
             $check = $this->inspectOutput($window, $canary);
             if (!$check['safe']) {

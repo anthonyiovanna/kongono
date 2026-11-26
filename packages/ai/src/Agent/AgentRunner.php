@@ -99,10 +99,11 @@ final readonly class AgentRunner
         $guard = new PromptGuard();
 
         $messages = $initialMessages;
-        // Detect any pre-embedded PromptGuard canary or embed a fresh per-run canary automatically
+        // Detect ONLY a trusted PromptGuard canary (never spoofed inside <untrusted_data>) or embed a fresh canary
         if ([] !== $messages && Role::System === $messages[0]->role) {
-            if (1 === preg_match('/kgn_canary_[a-f0-9]{12,64}/', $messages[0]->content, $m)) {
-                $canary = $m[0];
+            $extractedCanary = $guard->extractTrustedCanary($messages[0]->content);
+            if (null !== $extractedCanary) {
+                $canary = $extractedCanary;
             } else {
                 $protected = $guard->buildProtectedSystemPrompt($messages[0]->content);
                 $canary = $protected['canary'];
@@ -125,7 +126,28 @@ final readonly class AgentRunner
 
         while ($steps < $this->principal->maxSteps) {
             ++$steps;
-            $req = new ChatRequest($messages, tools: $admittedTools);
+            $preFlightInputTokens = $this->estimateInputTokens($messages, $admittedTools);
+            if ($this->principal->exceedsTokenBudget($totalInput + $totalOutput + $preFlightInputTokens)) {
+                throw new AiException(sprintf(
+                    'Agent "%s" exceeded its token budget before dispatch (%d > %d).',
+                    $this->principal->id,
+                    $totalInput + $totalOutput + $preFlightInputTokens,
+                    $this->principal->maxTokens,
+                ));
+            }
+            $preFlightInputCost = ($preFlightInputTokens / 1000.0) * $this->inputCostPer1kTokens;
+            if ($this->principal->exceedsCostBudget($cumulativeCostUsd + $preFlightInputCost)) {
+                throw new AiException(sprintf(
+                    'Agent "%s" exceeded its USD cost budget before dispatch ($%.4f > $%.4f).',
+                    $this->principal->id,
+                    $cumulativeCostUsd + $preFlightInputCost,
+                    $this->principal->maxCostUsd,
+                ));
+            }
+            $remainingTokens = $this->principal->maxTokens > 0
+                ? max(1, $this->principal->maxTokens - ($totalInput + $totalOutput + $preFlightInputTokens))
+                : 2048;
+            $req = new ChatRequest($messages, maxTokens: min(2048, $remainingTokens), tools: $admittedTools);
             $response = $this->client->chat($req);
             $lastModel = $response->model;
             $stepUsage = $this->effectiveStepUsage($req, $response->text, $response->toolCalls, $response->usage);
@@ -249,6 +271,29 @@ final readonly class AgentRunner
             $this->principal->id,
             $this->principal->maxSteps,
         ));
+    }
+
+    /**
+     * Conservative pre-flight input token estimate (messages + tool schemas) enforced before dispatching to an LLM.
+     *
+     * @param list<Message>        $messages
+     * @param list<ToolDefinition> $tools
+     */
+    private function estimateInputTokens(array $messages, array $tools): int
+    {
+        $bytes = 0;
+        foreach ($messages as $msg) {
+            $bytes += strlen($msg->content);
+        }
+        foreach ($tools as $tool) {
+            $bytes += strlen($tool->name) + strlen($tool->description);
+            $schemaJson = json_encode($tool->parametersSchema, JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+            if (is_string($schemaJson)) {
+                $bytes += strlen($schemaJson);
+            }
+        }
+
+        return $bytes > 0 ? max(1, (int) ceil($bytes / 4)) : 0;
     }
 
     /**

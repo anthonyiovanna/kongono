@@ -113,8 +113,8 @@ final readonly class WatchRunner
 
         $app = null;
         $bootError = null;
-        $bootstrap = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (is_file($bootstrap)) {
+        $bootstrap = \Kongono\Cli\Context\ProjectContext::resolveSafeExecutableFile($root, 'app/bootstrap.php');
+        if (null !== $bootstrap) {
             try {
                 $loaded = require $bootstrap;
                 if ($loaded instanceof App) {

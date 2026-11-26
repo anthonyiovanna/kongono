@@ -54,9 +54,33 @@ final readonly class HttpCacheMiddleware implements MiddlewareInterface
         $hasAuthorization = '' !== trim($request->getHeaderLine('Authorization'))
             || '' !== trim($request->getHeaderLine('Proxy-Authorization'));
         $hasApiKey = '' !== trim($request->getHeaderLine('X-API-Key'));
-        $hasAuthHeader = $hasAuthorization || $hasApiKey;
+        $webhookHeaders = [
+            'X-Kongono-Signature',
+            'X-Hub-Signature-256',
+            'X-Hub-Signature',
+            'Stripe-Signature',
+            'X-Signature',
+            'X-Webhook-Signature',
+        ];
+        $presentWebhookHeaders = [];
+        foreach ($webhookHeaders as $whHeader) {
+            if ('' !== trim($request->getHeaderLine($whHeader))) {
+                $presentWebhookHeaders[] = $whHeader;
+            }
+        }
+        $hasAuthHeader = $hasAuthorization || $hasApiKey || [] !== $presentWebhookHeaders;
         $hasCookies = '' !== trim($request->getHeaderLine('Cookie')) || [] !== $request->getCookieParams();
         $hasPrincipal = null !== $request->getAttribute('Kongono\\Security\\Principal');
+
+        // Never allow shared/public caching of webhook-authenticated requests
+        if ([] !== $presentWebhookHeaders) {
+            $response = $response->withHeader('Cache-Control', 'private, no-store');
+            foreach ($presentWebhookHeaders as $whHeader) {
+                $response = $this->appendVary($response, $whHeader);
+            }
+
+            return $response;
+        }
 
         $isPrivate = !$this->public || $hasAuthHeader || $hasCookies || $hasPrincipal || str_contains($existingCc, 'private');
 

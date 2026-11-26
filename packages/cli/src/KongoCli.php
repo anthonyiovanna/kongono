@@ -102,8 +102,8 @@ final readonly class KongoCli
                 'help', '-h' => [0, $this->helpText()],
                 'version', '-v' => [0, 'Kongono Framework v1.20.4 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
-                'graph' => $this->cmdGraph($appRoot),
-                'openapi' => $this->cmdOpenApi($appRoot),
+                'graph' => $this->cmdGraph($appRoot, $options),
+                'openapi' => $this->cmdOpenApi($appRoot, $options),
                 'sdk:generate' => $this->cmdSdkGenerate($appRoot, $options),
                 'bridge:init' => $this->cmdBridgeInit($appRoot, $rest, $options),
                 'bridge:types' => $this->cmdBridgeTypes($appRoot, $options),
@@ -259,9 +259,10 @@ final readonly class KongoCli
      */
     private function cmdRoutes(string $appRoot, array $options = []): array
     {
-        $context = ProjectContext::discover($appRoot);
+        $allowBootstrap = $this->allowBootstrapFromOptions($options);
+        $context = ProjectContext::discover($appRoot, allowBootstrap: $allowBootstrap);
         if (null === $context->graph) {
-            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+            return [1, $this->missingAppMessage($appRoot, $allowBootstrap)];
         }
 
         if (isset($options['json'])) {
@@ -290,27 +291,31 @@ final readonly class KongoCli
         return [0, implode("\n", $lines) . "\n"];
     }
 
-    /** @return array{0: int, 1: string} */
-    private function cmdGraph(string $appRoot): array
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdGraph(string $appRoot, array $options = []): array
     {
-        $context = ProjectContext::discover($appRoot);
+        $allowBootstrap = $this->allowBootstrapFromOptions($options);
+        $context = ProjectContext::discover($appRoot, allowBootstrap: $allowBootstrap);
         if (null === $context->graph) {
-            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+            return [1, $this->missingAppMessage($appRoot, $allowBootstrap)];
         }
 
         return [0, $context->graph->toJson(pretty: true) . "\n"];
     }
 
-    /** @return array{0: int, 1: string} */
-    private function cmdOpenApi(string $appRoot): array
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
+    private function cmdOpenApi(string $appRoot, array $options = []): array
     {
-        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (!is_file($bootstrap)) {
-            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
-        }
-        $app = require $bootstrap;
-        if (!$app instanceof App) {
-            return [1, "app/bootstrap.php did not return a Kongono\\Http\\App instance.\n"];
+        $allowBootstrap = $this->allowBootstrapFromOptions($options);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
+        if (null === $app) {
+            return [1, $this->missingAppMessage($appRoot, $allowBootstrap)];
         }
 
         return [0, (new OpenApiGenerator())->generateJson($app) . "\n"];
@@ -322,13 +327,10 @@ final readonly class KongoCli
      */
     private function cmdSdkGenerate(string $appRoot, array $options): array
     {
-        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (!is_file($bootstrap)) {
-            return [1, sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
-        }
-        $app = require $bootstrap;
-        if (!$app instanceof App) {
-            return [1, "app/bootstrap.php did not return a Kongono\\Http\\App instance.\n"];
+        $allowBootstrap = $this->allowBootstrapFromOptions($options);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
+        if (null === $app) {
+            return [1, $this->missingAppMessage($appRoot, $allowBootstrap)];
         }
 
         $lang = is_string($options['lang'] ?? null) && '' !== trim($options['lang']) ? trim($options['lang']) : 'ts';
@@ -432,10 +434,10 @@ final readonly class KongoCli
     {
         $app = null;
         $bootError = null;
-        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (is_file($bootstrap)) {
+        $realBootstrap = ProjectContext::resolveSafeExecutableFile($appRoot, 'app/bootstrap.php');
+        if (null !== $realBootstrap) {
             try {
-                $loaded = require $bootstrap;
+                $loaded = require $realBootstrap;
                 if ($loaded instanceof App) {
                     $app = $loaded;
                 }
@@ -1508,7 +1510,7 @@ final readonly class KongoCli
      */
     private function cmdOshie(string $appRoot, array $args, array $options): array
     {
-        $context = ProjectContext::discover($appRoot);
+        $context = ProjectContext::discover($appRoot, allowBootstrap: $this->allowBootstrapFromOptions($options));
         $oshie = new OshieTutor($this->tryAiClient('oshie'));
         $sessions = new CompanionSessionStore($context->rootPath);
         $maxCost = $this->parseMaxCost($options);
@@ -1646,7 +1648,7 @@ final readonly class KongoCli
             return [1, "Chie requires an AI provider. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, GROQ_API_KEY, or OLLAMA_HOST.\n"];
         }
 
-        $context = ProjectContext::discover($appRoot);
+        $context = ProjectContext::discover($appRoot, allowBootstrap: $this->allowBootstrapFromOptions($options));
         $sessions = new CompanionSessionStore($context->rootPath);
         $previousContext = null;
         if (isset($options['continue'])) {
@@ -1833,13 +1835,18 @@ final readonly class KongoCli
                 continue;
             }
 
+            $safeAction = self::sanitizeTerminalText($change['action']);
+            $safePath = self::sanitizeTerminalText($change['path']);
+            $safeExplanation = self::sanitizeTerminalText($change['explanation']);
+            $safeDiff = self::sanitizeTerminalText($diff, singleLine: false);
+
             $prompt = sprintf(
                 "\n--- [%s] %s — %s ---\n%s\nApply %s? [y]es / [n]o / [a]ll / [q]uit: ",
-                $change['action'],
-                $change['path'],
-                $change['explanation'],
-                $diff,
-                $change['path'],
+                $safeAction,
+                $safePath,
+                $safeExplanation,
+                $safeDiff,
+                $safePath,
             );
             $answer = $this->readInteractiveLine($prompt);
             $choice = strtolower(trim($answer ?? 'q'));
@@ -1873,13 +1880,19 @@ final readonly class KongoCli
         $appliedSet = array_flip($approvedPaths);
         foreach ($result['changes'] as $change) {
             $status = isset($appliedSet[$change['path']]) ? 'WRITTEN' : 'SKIPPED';
-            $lines[] = sprintf('[%s] (%s) %s — %s', $status, $change['action'], $change['path'], $change['explanation']);
+            $lines[] = sprintf(
+                '[%s] (%s) %s — %s',
+                $status,
+                self::sanitizeTerminalText($change['action']),
+                self::sanitizeTerminalText($change['path']),
+                self::sanitizeTerminalText($change['explanation']),
+            );
         }
         $lines[] = sprintf("\nApplied %d of %d proposed file(s).", count($applied), count($result['changes']));
         if ([] !== $result['next_steps']) {
             $lines[] = "\nNext steps:";
             foreach ($result['next_steps'] as $step) {
-                $lines[] = '  - ' . $step;
+                $lines[] = '  - ' . self::sanitizeTerminalText($step);
             }
         }
         $lines[] = "\n" . $result['telemetry']->formatFooter();
@@ -1896,7 +1909,7 @@ final readonly class KongoCli
     {
         $sub = $args[0] ?? 'check';
         $rest = array_slice($args, 1);
-        $context = ProjectContext::discover($appRoot);
+        $context = ProjectContext::discover($appRoot, allowBootstrap: $this->allowBootstrapFromOptions($options));
         $sessions = new CompanionSessionStore($context->rootPath);
         $hanteiAi = $this->tryAiClient('hantei');
         $hantei = new HanteiDebugger($hanteiAi);
@@ -1917,10 +1930,10 @@ final readonly class KongoCli
                 $lines[] = sprintf(
                     '  %d. [%s] (%s) %s — %s',
                     $idx + 1,
-                    $item['timestamp'],
-                    $item['kind'],
-                    $item['subject'],
-                    str_replace(["\r", "\n"], ' ', substr($item['diagnosis_excerpt'], 0, 120)),
+                    self::sanitizeTerminalText($item['timestamp']),
+                    self::sanitizeTerminalText($item['kind']),
+                    self::sanitizeTerminalText($item['subject']),
+                    self::sanitizeTerminalText(substr($item['diagnosis_excerpt'], 0, 120)),
                 );
             }
 
@@ -2270,10 +2283,10 @@ final readonly class KongoCli
 
         $app = null;
         $bootError = null;
-        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (is_file($bootstrap)) {
+        $realBootstrap = ProjectContext::resolveSafeExecutableFile($appRoot, 'app/bootstrap.php', $this->allowBootstrapFromOptions($options));
+        if (null !== $realBootstrap) {
             try {
-                $loaded = require $bootstrap;
+                $loaded = require $realBootstrap;
                 if ($loaded instanceof App) {
                     $app = $loaded;
                 }
@@ -2373,7 +2386,7 @@ final readonly class KongoCli
      */
     private function cmdProve(string $appRoot, array $options): array
     {
-        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
         $report = (new MasterProver())->proveAll($appRoot, $app);
         $strict = isset($options['strict']);
         $failed = !$report['passed'] || ($strict && $report['total_warnings'] > 0);
@@ -2437,8 +2450,9 @@ final readonly class KongoCli
      */
     private function cmdPolicyCheck(string $appRoot, array $options): array
     {
-        $app = $this->tryLoadBootstrappedApp($appRoot);
-        $report = (new PolicyVerifier())->verify($appRoot, $app, requireApp: true);
+        $allowBootstrap = $this->allowBootstrapFromOptions($options);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
+        $report = (new PolicyVerifier())->verify($appRoot, $app, requireApp: true, allowCustomPolicy: $allowBootstrap);
 
         if (isset($options['json'])) {
             return [$report['passed'] ? 0 : 1, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
@@ -2478,9 +2492,9 @@ final readonly class KongoCli
      */
     private function cmdPerf(string $appRoot, array $options): array
     {
-        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
         if (null === $app) {
-            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+            return [1, $this->missingAppMessage($appRoot, $this->allowBootstrapFromOptions($options))];
         }
 
         $iterations = is_string($options['iterations'] ?? null) && is_numeric($options['iterations'])
@@ -2550,7 +2564,7 @@ final readonly class KongoCli
      */
     private function cmdIncidentList(string $appRoot, array $options): array
     {
-        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
         $store = (new IncidentReplayer())->resolveStore($appRoot, $app);
         $limit = is_string($options['limit'] ?? null) && is_numeric($options['limit']) ? max(1, (int) $options['limit']) : 20;
         $records = $store->recent($limit);
@@ -2589,7 +2603,7 @@ final readonly class KongoCli
             return [1, "Usage: kongo incident:show <KGN-YYYYMMDD-XXXXXXXX> [--app=path] [--json]\n"];
         }
 
-        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
         $store = (new IncidentReplayer())->resolveStore($appRoot, $app);
         $record = $store->find($ref);
         if (null === $record) {
@@ -2636,9 +2650,9 @@ final readonly class KongoCli
             return [1, "Usage: kongo incident:replay <KGN-YYYYMMDD-XXXXXXXX> [--app=path] [--json]\n"];
         }
 
-        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
         if (null === $app) {
-            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+            return [1, $this->missingAppMessage($appRoot, $this->allowBootstrapFromOptions($options))];
         }
 
         $replayer = new IncidentReplayer();
@@ -2689,7 +2703,7 @@ final readonly class KongoCli
             return [1, "Usage: kongo incident:test <KGN-YYYYMMDD-XXXXXXXX> [--app=path] [--apply]\n"];
         }
 
-        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
         $record = (new IncidentReplayer())->resolveStore($appRoot, $app)->find($ref);
         if (null === $record) {
             return [1, sprintf("Incident \"%s\" not found.\n", $ref)];
@@ -2705,15 +2719,36 @@ final readonly class KongoCli
         return [0, sprintf("# Preview: %s (pass --apply to write)\n\n%s", $generated['relative_path'], $generated['content'])];
     }
 
-    private function tryLoadBootstrappedApp(string $appRoot): ?App
+    /** @param array<string, string|true> $options */
+    private function allowBootstrapFromOptions(array $options): ?bool
     {
-        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (!is_file($bootstrap)) {
+        return isset($options['safe-mode']) || isset($options['no-bootstrap']) ? false : null;
+    }
+
+    private function missingAppMessage(string $appRoot, ?bool $allowBootstrap): string
+    {
+        $blockedBySafeMode = false === $allowBootstrap || (null === $allowBootstrap && ProjectContext::isSafeModeEnabled());
+        if ($blockedBySafeMode && is_file($appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php')) {
+            return sprintf("Bootstrap execution disabled by safe mode for %s (unset KONGONO_SAFE_MODE / omit --safe-mode to load app/bootstrap.php).\n", $appRoot);
+        }
+
+        return sprintf("No Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot);
+    }
+
+    /** @param array<string, string|true> $options */
+    private function tryLoadBootstrappedApp(string $appRoot, array $options = []): ?App
+    {
+        $realBootstrap = ProjectContext::resolveSafeExecutableFile(
+            $appRoot,
+            'app/bootstrap.php',
+            $this->allowBootstrapFromOptions($options),
+        );
+        if (null === $realBootstrap) {
             return null;
         }
 
         try {
-            $loaded = require $bootstrap;
+            $loaded = require $realBootstrap;
 
             return $loaded instanceof App ? $loaded : null;
         } catch (Throwable) {
@@ -2727,9 +2762,9 @@ final readonly class KongoCli
      */
     private function cmdProveIsolation(string $appRoot, array $options): array
     {
-        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
         if (null === $app) {
-            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+            return [1, $this->missingAppMessage($appRoot, $this->allowBootstrapFromOptions($options))];
         }
 
         $report = (new TenantIsolationProver())->prove($appRoot, $app);
@@ -2770,9 +2805,9 @@ final readonly class KongoCli
      */
     private function cmdSnapshot(string $appRoot, array $options): array
     {
-        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
         if (null === $app) {
-            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+            return [1, $this->missingAppMessage($appRoot, $this->allowBootstrapFromOptions($options))];
         }
 
         $snapshot = AppSnapshot::capture($appRoot, $app);
@@ -2796,9 +2831,9 @@ final readonly class KongoCli
      */
     private function cmdImpact(string $appRoot, array $options): array
     {
-        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
         if (null === $app) {
-            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+            return [1, $this->missingAppMessage($appRoot, $this->allowBootstrapFromOptions($options))];
         }
 
         $baseOpt = is_string($options['against'] ?? null) && '' !== trim($options['against'])
@@ -2862,9 +2897,9 @@ final readonly class KongoCli
      */
     private function cmdShadowRecord(string $appRoot, array $options): array
     {
-        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
         if (null === $app) {
-            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+            return [1, $this->missingAppMessage($appRoot, $this->allowBootstrapFromOptions($options))];
         }
 
         $corpus = (new ShadowDiffProver())->record($app);
@@ -2887,9 +2922,9 @@ final readonly class KongoCli
      */
     private function cmdShadowDiff(string $appRoot, array $options): array
     {
-        $app = $this->tryLoadBootstrappedApp($appRoot);
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
         if (null === $app) {
-            return [1, sprintf("No runnable Kongono app found at %s (expected app/bootstrap.php).\n", $appRoot)];
+            return [1, $this->missingAppMessage($appRoot, $this->allowBootstrapFromOptions($options))];
         }
 
         $baseOpt = is_string($options['against'] ?? null) && '' !== trim($options['against'])
@@ -2945,7 +2980,7 @@ final readonly class KongoCli
             return [1, "Cannot combine --plan and --apply; pass --plan to preview or --apply to write changes.\n"];
         }
         $verify = isset($options['verify']);
-        $app = $verify ? $this->tryLoadBootstrappedApp($appRoot) : null;
+        $app = $verify ? $this->tryLoadBootstrappedApp($appRoot, $options) : null;
 
         $report = (new UpgradeEngine())->run($appRoot, apply: $apply, app: $app, verify: $verify);
         $failed = null !== $report['verification'] && (!$report['verification']['diagnose_passed'] || !$report['verification']['policy_passed']);
@@ -2969,8 +3004,12 @@ final readonly class KongoCli
         } else {
             foreach ($report['changes'] as $change) {
                 $lines[] = '';
-                $lines[] = sprintf('  %s [%s]', $change['file'], implode(', ', $change['codemods']));
-                $lines[] = $change['diff'];
+                $lines[] = sprintf(
+                    '  %s [%s]',
+                    self::sanitizeTerminalText($change['file']),
+                    self::sanitizeTerminalText(implode(', ', $change['codemods'])),
+                );
+                $lines[] = self::sanitizeTerminalText($change['diff'], singleLine: false);
             }
             if (!$apply) {
                 $lines[] = '';
@@ -3027,18 +3066,7 @@ final readonly class KongoCli
      */
     private function cmdAudit(string $appRoot, array $options): array
     {
-        $app = null;
-        $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
-        if (is_file($bootstrap)) {
-            try {
-                $loaded = require $bootstrap;
-                if ($loaded instanceof App) {
-                    $app = $loaded;
-                }
-            } catch (Throwable) {
-                $app = null;
-            }
-        }
+        $app = $this->tryLoadBootstrappedApp($appRoot, $options);
 
         $attack = isset($options['attack']);
         $report = (new SecurityAuditor())->audit($appRoot, $app, $attack);
@@ -3209,7 +3237,7 @@ final readonly class KongoCli
         $dts = (new TypeScriptPropsGenerator())->generate($classes);
         $outOpt = is_string($options['out'] ?? null) && '' !== trim($options['out']) ? trim($options['out']) : null;
         if (null !== $outOpt) {
-            $context = ProjectContext::discover($appRoot);
+            $context = ProjectContext::discover($appRoot, allowBootstrap: $this->allowBootstrapFromOptions($options));
             $written = $context->writeFileContained($outOpt, $dts);
 
             return [0, sprintf("Generated TypeScript Bridge types (%d PHP type(s)) -> %s\n", count($classes), $written)];
@@ -3312,10 +3340,14 @@ final readonly class KongoCli
             $modeLabel = null !== $ai ? 'Kongono Agent Coding Benchmark (Live LLM + RAG)' : 'Kongono Agent Coding Benchmark (Offline Reference + RAG)';
         } elseif ($evalCompanions) {
             $ai = $useLive ? $this->tryAiClient() : null;
-            $context = ProjectContext::discover($appRoot);
+            $context = ProjectContext::discover($appRoot, allowBootstrap: $this->allowBootstrapFromOptions($options));
             $report = (new CompanionEvalSuite())->run($context, $ai);
             $modeLabel = null !== $ai ? 'AI Companions Benchmark (Live LLM)' : 'AI Companions Benchmark (Offline Invariants)';
         } elseif (!$forceRedTeam && is_file($suitePath)) {
+            $allowSuiteExec = $this->allowBootstrapFromOptions($options) ?? !ProjectContext::isSafeModeEnabled();
+            if (!$allowSuiteExec) {
+                return [1, "Custom PHP eval suite execution is disabled in safe mode.\n"];
+            }
             $loaded = require $suitePath;
             if (!is_array($loaded)) {
                 return [1, sprintf("Eval suite %s must return a list of Kongono\\Ai\\Eval\\EvalCase objects.\n", $suitePath)];
@@ -3433,7 +3465,7 @@ final readonly class KongoCli
         $mode = is_string($modeOpt) ? $modeOpt : 'both';
         $force = isset($options['force']);
 
-        $context = ProjectContext::discover($appRoot);
+        $context = ProjectContext::discover($appRoot, allowBootstrap: $this->allowBootstrapFromOptions($options));
         $result = (new AuthScaffolder())->scaffold($context, $mode, $force);
 
         $lines = [sprintf('Kongono Auth Starter Kit (mode: %s):', $mode)];

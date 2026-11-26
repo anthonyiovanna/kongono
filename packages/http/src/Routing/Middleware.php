@@ -13,7 +13,7 @@ use Psr\Http\Server\MiddlewareInterface;
  * Attaches a PSR-15 middleware class to a controller or specific route method.
  * Resolved through the Kongono Container at dispatch time for full dependency injection.
  */
-#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
+#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::IS_REPEATABLE)]
 final readonly class Middleware implements MiddlewareAttributeInterface
 {
     /** @param class-string<MiddlewareInterface> $middlewareClass */

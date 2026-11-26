@@ -1491,25 +1491,24 @@ HTML;
         }
 
         $normalized = str_replace(["\r\n", "\r"], "\n", $contents);
-        $rawLines = explode("\n", $normalized);
+        $scrubbedSource = self::scrubPreservingLines($normalized);
+        $scrubbedLines = explode("\n", $scrubbedSource);
 
         if (!str_ends_with(strtolower($file), '.php') && !str_starts_with(ltrim($normalized), '<?php')) {
             $plain = [];
-            foreach ($rawLines as $idx => $lineText) {
-                $plain[$idx + 1] = $this->esc(SecretScrubber::scrub($lineText));
+            foreach ($scrubbedLines as $idx => $lineText) {
+                $plain[$idx + 1] = $this->esc($lineText);
             }
 
             return $plain;
         }
 
-        $scrubbedSource = SecretScrubber::scrub($normalized);
-
         try {
             $tokens = array_values(PhpToken::tokenize($scrubbedSource));
         } catch (Throwable) {
             $plain = [];
-            foreach ($rawLines as $idx => $lineText) {
-                $plain[$idx + 1] = $this->esc(SecretScrubber::scrub($lineText));
+            foreach ($scrubbedLines as $idx => $lineText) {
+                $plain[$idx + 1] = $this->esc($lineText);
             }
 
             return $plain;
@@ -1601,20 +1600,38 @@ HTML;
         if (false === $fileSize || $fileSize > 1_048_576) {
             return '';
         }
-        $lines = @file($file, FILE_IGNORE_NEW_LINES);
-        if (false === $lines) {
+        $contents = @file_get_contents($file);
+        if (false === $contents) {
             return '';
         }
+
+        // Scrub the full source file BEFORE slicing lines so multiline PEM private keys are never leaked
+        $scrubbed = self::scrubPreservingLines(str_replace(["\r\n", "\r"], "\n", $contents));
+        $lines = explode("\n", $scrubbed);
 
         $start = max(1, $errorLine - $radius);
         $end = min(count($lines), $errorLine + $radius);
         $out = [];
         for ($i = $start; $i <= $end; ++$i) {
             $marker = $i === $errorLine ? '>' : ' ';
-            $out[] = sprintf('%s %4d | %s', $marker, $i, SecretScrubber::scrub($lines[$i - 1]));
+            $out[] = sprintf('%s %4d | %s', $marker, $i, $lines[$i - 1]);
         }
 
         return implode("\n", $out);
+    }
+
+    /**
+     * Redact multiline PEM private keys while preserving exact 1-to-1 line numbering, then run SecretScrubber.
+     */
+    private static function scrubPreservingLines(string $source): string
+    {
+        $pemSafe = preg_replace_callback(
+            '/-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----/',
+            static fn(array $m): string => implode("\n", array_fill(0, substr_count($m[0], "\n") + 1, '[REDACTED_PRIVATE_KEY]')),
+            $source,
+        );
+
+        return SecretScrubber::scrub(is_string($pemSafe) ? $pemSafe : $source);
     }
 
     /** @return array{id: string, title: string, remediation: string, fields: array<string, string|int|bool>}|null */

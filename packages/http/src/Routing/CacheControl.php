@@ -14,7 +14,7 @@ use Psr\Http\Server\MiddlewareInterface;
  *
  * Example: `#[CacheControl(maxAge: 120, public: true, staleWhileRevalidate: 30)]`
  */
-#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD)]
+#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION)]
 final readonly class CacheControl implements MiddlewareAttributeInterface
 {
     public function __construct(

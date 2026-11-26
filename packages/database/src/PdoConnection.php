@@ -125,6 +125,11 @@ final class PdoConnection implements ConnectionInterface, QueryGuardableInterfac
 
     private function assertBeforeQuery(string $sql): void
     {
+        if ([] === $this->beforeQueryGuards) {
+            ExecutionCapabilities::current()?->assertDbQueryAllowed($sql);
+
+            return;
+        }
         foreach ($this->beforeQueryGuards as $guard) {
             $guard($sql);
         }

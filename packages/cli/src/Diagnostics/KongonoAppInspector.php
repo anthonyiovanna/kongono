@@ -705,8 +705,12 @@ final readonly class KongonoAppInspector
 
         $migrations = [];
         foreach ($files as $file) {
+            $safeMigration = \Kongono\Cli\Context\ProjectContext::resolveSafeExecutableFile($root, 'migrations/' . basename($file));
+            if (null === $safeMigration) {
+                continue;
+            }
             try {
-                $loaded = require $file;
+                $loaded = require $safeMigration;
                 if ($loaded instanceof MigrationInterface) {
                     $migrations[] = $loaded;
                 }

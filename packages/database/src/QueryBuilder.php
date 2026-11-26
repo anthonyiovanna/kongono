@@ -45,6 +45,12 @@ final class QueryBuilder
     /** @var array{column: string, value: int|string}|null */
     private ?array $tenantConstraint = null;
 
+    /** @var list<array{column: string, value: int|string}> */
+    private array $preservedTenantConstraints = [];
+
+    /** @var list<string> */
+    private array $preservedRequiredTenantColumns = [];
+
     public function __construct(
         private readonly string $table,
         private readonly Dialect $dialect = Dialect::Postgres,
@@ -119,6 +125,15 @@ final class QueryBuilder
         }
 
         $baseNew = strtolower(self::baseTenantColumn($col));
+        foreach ($this->preservedTenantConstraints as $preserved) {
+            if (strtolower(self::baseTenantColumn($preserved['column'])) === $baseNew && $preserved['value'] !== $id) {
+                throw new DatabaseException(sprintf(
+                    'Conflicting forTenant() IDs on "%s": query is already locked to a different tenant on "%s".',
+                    $this->table,
+                    $preserved['column'],
+                ));
+            }
+        }
         if (null !== $this->tenantConstraint) {
             if (strtolower(self::baseTenantColumn($this->tenantConstraint['column'])) !== $baseNew) {
                 throw new DatabaseException(sprintf(
@@ -164,11 +179,20 @@ final class QueryBuilder
         if (null !== $this->requiredTenantColumn && strtolower(self::baseTenantColumn($this->requiredTenantColumn)) !== strtolower(self::baseTenantColumn($column))) {
             $this->tenantScoped = false;
             if (null !== $this->tenantConstraint) {
-                $this->invariantConstraints[] = [
-                    'sql' => sprintf('%s = ?', $this->dialect->quoteIdentifier($this->tenantConstraint['column'])),
-                    'bindings' => [$this->tenantConstraint['value']],
-                ];
+                $this->preservedTenantConstraints[] = $this->tenantConstraint;
                 $this->tenantConstraint = null;
+            } else {
+                $prevBase = strtolower(self::baseTenantColumn($this->requiredTenantColumn));
+                $alreadyPreserved = false;
+                foreach ($this->preservedRequiredTenantColumns as $existingReq) {
+                    if (strtolower(self::baseTenantColumn($existingReq)) === $prevBase) {
+                        $alreadyPreserved = true;
+                        break;
+                    }
+                }
+                if (!$alreadyPreserved) {
+                    $this->preservedRequiredTenantColumns[] = $this->requiredTenantColumn;
+                }
             }
         }
         $this->requiredTenantColumn = $column;
@@ -451,19 +475,17 @@ final class QueryBuilder
         $groups = [];
         $bindings = [];
 
-        $tenantCol = null !== $this->tenantConstraint
-            ? self::baseTenantColumn($this->tenantConstraint['column'])
-            : (null !== $this->requiredTenantColumn ? self::baseTenantColumn($this->requiredTenantColumn) : null);
+        $protectedTenantCols = array_map('strtolower', $this->allProtectedTenantColumns());
 
         foreach ($scopedRows as $row) {
             $groups[] = $rowPlaceholder;
             foreach ($columns as $col) {
                 $val = $row[$col] ?? null;
-                if (null !== $tenantCol && strtolower($col) === strtolower($tenantCol) && (null === $val || '' === trim((string) (is_scalar($val) ? $val : '')))) {
+                if (in_array(strtolower($col), $protectedTenantCols, true) && (null === $val || '' === trim((string) (is_scalar($val) ? $val : '')))) {
                     throw new DatabaseException(sprintf(
                         'Refusing cross-tenant INSERT on "%s": row is missing required tenant column "%s".',
                         $this->table,
-                        $tenantCol,
+                        $col,
                     ));
                 }
                 $bindings[] = $val;
@@ -503,24 +525,30 @@ final class QueryBuilder
             ));
         }
 
-        $tenantBase = null !== $this->tenantConstraint ? self::baseTenantColumn($this->tenantConstraint['column']) : null;
-        if (null !== $tenantBase && [] !== $updateColumns) {
-            $lowerTenant = strtolower($tenantBase);
+        $boundConstraints = $this->allBoundTenantConstraints();
+        $protectedCols = $this->allProtectedTenantColumns();
+        if ([] !== $protectedCols && [] !== $updateColumns) {
+            $lowerProtected = array_map('strtolower', $protectedCols);
             foreach ($updateColumns as $uCol) {
-                if (strtolower(self::baseTenantColumn($uCol)) === $lowerTenant) {
-                    throw new DatabaseException(sprintf('Refusing UPSERT on "%s": cannot overwrite tenant column "%s".', $this->table, $tenantBase));
+                $uBase = self::baseTenantColumn($uCol);
+                if (in_array(strtolower($uBase), $lowerProtected, true)) {
+                    throw new DatabaseException(sprintf('Refusing UPSERT on "%s": cannot overwrite tenant column "%s".', $this->table, $uBase));
                 }
             }
             if (Dialect::Mysql === $this->dialect) {
-                $hasTenantConflict = false;
-                foreach ($conflictColumns as $cCol) {
-                    if (strtolower(self::baseTenantColumn($cCol)) === $lowerTenant) {
-                        $hasTenantConflict = true;
-                        break;
+                foreach ($boundConstraints as $bound) {
+                    $boundBase = self::baseTenantColumn($bound['column']);
+                    $lowerBound = strtolower($boundBase);
+                    $hasTenantConflict = false;
+                    foreach ($conflictColumns as $cCol) {
+                        if (strtolower(self::baseTenantColumn($cCol)) === $lowerBound) {
+                            $hasTenantConflict = true;
+                            break;
+                        }
                     }
-                }
-                if (!$hasTenantConflict) {
-                    throw new DatabaseException(sprintf('Refusing MySQL UPSERT on "%s": tenant column "%s" must be included in conflictColumns to prevent cross-tenant overwrite.', $this->table, $tenantBase));
+                    if (!$hasTenantConflict) {
+                        throw new DatabaseException(sprintf('Refusing MySQL UPSERT on "%s": tenant column "%s" must be included in conflictColumns to prevent cross-tenant overwrite.', $this->table, $boundBase));
+                    }
                 }
             }
         }
@@ -536,11 +564,14 @@ final class QueryBuilder
             $updates = [];
             foreach ($updateColumns as $col) {
                 $qCol = $this->dialect->quoteIdentifier($col);
-                if (null !== $this->tenantConstraint && null !== $tenantBase) {
-                    // MySQL ON DUPLICATE KEY UPDATE fires on ANY unique/PK collision; guard every column update by tenant ownership
-                    $qTenant = $this->dialect->quoteIdentifier($tenantBase);
-                    $updates[] = sprintf('%s = IF(%s = ?, VALUES(%s), %s)', $qCol, $qTenant, $qCol, $qCol);
-                    $bindings[] = $this->tenantConstraint['value'];
+                if ([] !== $boundConstraints) {
+                    // MySQL ON DUPLICATE KEY UPDATE fires on ANY unique/PK collision; guard every column update by all bound tenant constraints
+                    $condParts = [];
+                    foreach ($boundConstraints as $bound) {
+                        $condParts[] = sprintf('%s = ?', $this->dialect->quoteIdentifier(self::baseTenantColumn($bound['column'])));
+                        $bindings[] = $bound['value'];
+                    }
+                    $updates[] = sprintf('%s = IF(%s, VALUES(%s), %s)', $qCol, implode(' AND ', $condParts), $qCol, $qCol);
                 } else {
                     $updates[] = sprintf('%s = VALUES(%s)', $qCol, $qCol);
                 }
@@ -561,13 +592,17 @@ final class QueryBuilder
 
         $sql = sprintf('%s ON CONFLICT (%s) DO UPDATE SET %s', $base->query, $conflict, implode(', ', $updates));
         $bindings = $base->bindings;
-        if (null !== $this->tenantConstraint && null !== $tenantBase) {
-            $sql .= sprintf(
-                ' WHERE %s.%s = ?',
-                $this->dialect->quoteIdentifier($this->table),
-                $this->dialect->quoteIdentifier($tenantBase),
-            );
-            $bindings[] = $this->tenantConstraint['value'];
+        if ([] !== $boundConstraints) {
+            $whereParts = [];
+            foreach ($boundConstraints as $bound) {
+                $whereParts[] = sprintf(
+                    '%s.%s = ?',
+                    $this->dialect->quoteIdentifier($this->table),
+                    $this->dialect->quoteIdentifier(self::baseTenantColumn($bound['column'])),
+                );
+                $bindings[] = $bound['value'];
+            }
+            $sql .= ' WHERE ' . implode(' AND ', $whereParts);
         }
 
         return new Sql($sql, $bindings);
@@ -615,17 +650,16 @@ final class QueryBuilder
         if ([] === $values) {
             throw new DatabaseException('Cannot compile UPDATE with empty values.');
         }
-        if ([] === $this->wheres && null === $this->tenantConstraint && [] === $this->invariantConstraints && !$allowUnscoped) {
+        if ([] === $this->wheres && null === $this->tenantConstraint && [] === $this->preservedTenantConstraints && [] === $this->invariantConstraints && !$allowUnscoped) {
             throw new DatabaseException('Refusing unscoped UPDATE without WHERE clause. Pass $allowUnscoped = true to override.');
         }
 
-        $activeTenantCol = $this->tenantConstraint['column'] ?? $this->requiredTenantColumn;
-        $lowerTenantBase = null !== $activeTenantCol ? strtolower(self::baseTenantColumn($activeTenantCol)) : null;
+        $lowerProtectedTenantCols = array_map('strtolower', $this->allProtectedTenantColumns());
 
         $sets = [];
         $bindings = [];
         foreach ($values as $column => $value) {
-            if (null !== $lowerTenantBase && strtolower(self::baseTenantColumn($column)) === $lowerTenantBase) {
+            if (in_array(strtolower(self::baseTenantColumn($column)), $lowerProtectedTenantCols, true)) {
                 throw new DatabaseException(sprintf(
                     'Refusing cross-tenant UPDATE on "%s": cannot modify tenant column "%s".',
                     $this->table,
@@ -657,7 +691,7 @@ final class QueryBuilder
     public function toDeleteSql(array $returning = [], bool $allowUnscoped = false): Sql
     {
         $this->assertTenantScoped('DELETE');
-        if ([] === $this->wheres && null === $this->tenantConstraint && [] === $this->invariantConstraints && !$allowUnscoped) {
+        if ([] === $this->wheres && null === $this->tenantConstraint && [] === $this->preservedTenantConstraints && [] === $this->invariantConstraints && !$allowUnscoped) {
             throw new DatabaseException('Refusing unscoped DELETE without WHERE clause. Pass $allowUnscoped = true to override.');
         }
 
@@ -891,7 +925,8 @@ final class QueryBuilder
      */
     private function compileWhereClause(array &$bindings): ?string
     {
-        if (null === $this->tenantConstraint && [] === $this->invariantConstraints && [] === $this->wheres) {
+        $boundConstraints = $this->allBoundTenantConstraints();
+        if ([] === $boundConstraints && [] === $this->invariantConstraints && [] === $this->wheres) {
             return null;
         }
 
@@ -911,9 +946,9 @@ final class QueryBuilder
         }
 
         $invariantClauses = [];
-        if (null !== $this->tenantConstraint) {
-            $invariantClauses[] = sprintf('%s = ?', $this->dialect->quoteIdentifier($this->tenantConstraint['column']));
-            $bindings[] = $this->tenantConstraint['value'];
+        foreach ($boundConstraints as $bound) {
+            $invariantClauses[] = sprintf('%s = ?', $this->dialect->quoteIdentifier($bound['column']));
+            $bindings[] = $bound['value'];
         }
         foreach ($this->invariantConstraints as $inv) {
             $invariantClauses[] = $inv['sql'];
@@ -955,17 +990,21 @@ final class QueryBuilder
     }
 
     /**
-     * Enforce tenant scope on INSERT / UPSERT rows.
+     * Enforce ALL preserved and active tenant constraints on INSERT / UPSERT rows so rotating
+     * tenant columns via `requireTenant()` can never silently weaken earlier `forTenant()` bindings.
      *
      * @param array<string, mixed> $row
      * @return array<string, mixed>
      */
     private function applyTenantToWriteRow(array $row, string $operation): array
     {
-        if (null !== $this->tenantConstraint) {
-            $col = self::baseTenantColumn($this->tenantConstraint['column']);
+        /** @var array<string, true> $boundBaseCols */
+        $boundBaseCols = [];
+        foreach ($this->allBoundTenantConstraints() as $constraint) {
+            $col = self::baseTenantColumn($constraint['column']);
             $lowerCol = strtolower($col);
-            $expected = $this->tenantConstraint['value'];
+            $boundBaseCols[$lowerCol] = true;
+            $expected = $constraint['value'];
             $matchedKey = null;
             foreach ($row as $k => $v) {
                 if (strtolower(self::baseTenantColumn($k)) === $lowerCol) {
@@ -994,13 +1033,19 @@ final class QueryBuilder
                 unset($row[$matchedKey]);
                 $row[$col] = $expected;
             }
-
-            return $row;
         }
 
+        $requiredCols = $this->preservedRequiredTenantColumns;
         if (null !== $this->requiredTenantColumn) {
-            $col = self::baseTenantColumn($this->requiredTenantColumn);
+            $requiredCols[] = $this->requiredTenantColumn;
+        }
+
+        foreach ($requiredCols as $reqCol) {
+            $col = self::baseTenantColumn($reqCol);
             $lowerCol = strtolower($col);
+            if (isset($boundBaseCols[$lowerCol])) {
+                continue;
+            }
             $foundKey = null;
             foreach ($row as $k => $v) {
                 if (strtolower(self::baseTenantColumn($k)) === $lowerCol) {
@@ -1039,6 +1084,48 @@ final class QueryBuilder
         }
 
         return $row;
+    }
+
+    /** @return list<array{column: string, value: int|string}> */
+    private function allBoundTenantConstraints(): array
+    {
+        if (null === $this->tenantConstraint) {
+            return $this->preservedTenantConstraints;
+        }
+
+        return [...$this->preservedTenantConstraints, $this->tenantConstraint];
+    }
+
+    /** @return list<string> */
+    private function allProtectedTenantColumns(): array
+    {
+        $cols = [];
+        $seen = [];
+        foreach ($this->allBoundTenantConstraints() as $bound) {
+            $base = self::baseTenantColumn($bound['column']);
+            $lower = strtolower($base);
+            if (!isset($seen[$lower])) {
+                $seen[$lower] = true;
+                $cols[] = $base;
+            }
+        }
+        foreach ($this->preservedRequiredTenantColumns as $req) {
+            $base = self::baseTenantColumn($req);
+            $lower = strtolower($base);
+            if (!isset($seen[$lower])) {
+                $seen[$lower] = true;
+                $cols[] = $base;
+            }
+        }
+        if (null !== $this->requiredTenantColumn) {
+            $base = self::baseTenantColumn($this->requiredTenantColumn);
+            $lower = strtolower($base);
+            if (!isset($seen[$lower])) {
+                $cols[] = $base;
+            }
+        }
+
+        return $cols;
     }
 
     private static function baseTenantColumn(string $column): string

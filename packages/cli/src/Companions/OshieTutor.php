@@ -623,9 +623,10 @@ PROMPT;
             $canary = $protectedSystem['canary'];
             array_unshift($history, Message::system($protectedSystem['prompt']));
         } else {
-            // Reuse embedded canary from initial system prompt if present
-            if (1 === preg_match('/kgn_canary_[a-f0-9]{12,64}/', $history[0]->content, $m)) {
-                $canary = $m[0];
+            // Reuse ONLY the genuine trailing PromptGuard security-boundary canary (never a spoofed canary inside untrusted project context)
+            $extracted = $guard->extractBoundaryCanary($history[0]->content);
+            if (null !== $extracted) {
+                $canary = $extracted;
             } else {
                 $protectedSystem = $guard->buildProtectedSystemPrompt($history[0]->content);
                 $canary = $protectedSystem['canary'];

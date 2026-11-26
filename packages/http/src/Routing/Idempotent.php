@@ -16,7 +16,7 @@ use Psr\Http\Server\MiddlewareInterface;
  *
  * Example: `#[Idempotent(ttlSeconds: 86400)]`
  */
-#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD)]
+#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION)]
 final readonly class Idempotent implements MiddlewareAttributeInterface
 {
     public function __construct(

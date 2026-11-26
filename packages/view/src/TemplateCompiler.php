@@ -114,10 +114,27 @@ final class TemplateCompiler
         $output = $this->replaceCallback('/(?<![a-zA-Z0-9_])@state\s*\(' . $bal . '\)/', static fn(array $m): string => sprintf('<?php echo $__env->stateAttr(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/(?<![a-zA-Z0-9_])@island\s*\(' . $bal . '\)/', static fn(array $m): string => sprintf('<?php echo $__env->island(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/(?<![a-zA-Z0-9_])@safeHtml\s*\(' . $bal . '\)/', static fn(array $m): string => sprintf('<?php echo $__env->safeHtml(%s); ?>', $m[1]), $output);
+        $output = $this->replaceCallback('/(?<![a-zA-Z0-9_])@safeUrl\s*\(' . $bal . '\)/', static fn(array $m): string => sprintf('<?php echo $__env->safeUrl(%s); ?>', $m[1]), $output);
         $output = $this->replaceCallback('/(?<![a-zA-Z0-9_])@json\s*\(' . $bal . '\)/', static fn(array $m): string => sprintf('<?php echo $__env->json(%s); ?>', $m[1]), $output);
 
         // 7. Raw echo {!! $expr !!}
         $output = $this->replaceCallback('/\{!!\s*(.+?)\s*!!\}/s', static fn(array $m): string => sprintf('<?php echo (string) (%s); ?>', $m[1]), $output);
+
+        // 7b. Context-aware URL attribute escaping (`href="{{ $url }}"`, `src="{{ $img }}"`, `action="{{ $dest }}"`)
+        // Blocks `javascript:`, `vbscript:`, `data:`, and protocol-relative `//` XSS schemes automatically.
+        $output = $this->replaceCallback(
+            '/(?<=\s)(href|src|action|formaction|poster|xlink:href)(\s*=\s*)(["\'])\{\{\s*(.+?)\s*\}\}\3/is',
+            static function (array $m): string {
+                $attrLower = strtolower($m[1]);
+                $isMediaSrc = 'src' === $attrLower || 'poster' === $attrLower;
+                $expr = $isMediaSrc
+                    ? sprintf('$__env->safeUrl(%s, \'\', false, false, false)', $m[4])
+                    : sprintf('$__env->safeUrl(%s)', $m[4]);
+
+                return sprintf('%s%s%s<?php echo %s; ?>%s', $m[1], $m[2], $m[3], $expr, $m[3]);
+            },
+            $output,
+        );
 
         // 8. Escaped echo {{ $expr }}
         $output = $this->replaceCallback('/\{\{\s*(.+?)\s*\}\}/s', static fn(array $m): string => sprintf('<?php echo $__env->escape(%s); ?>', $m[1]), $output);

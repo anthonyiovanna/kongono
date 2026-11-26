@@ -11,6 +11,7 @@ use Kongono\Http\HttpException;
 use Psr\Http\Server\MiddlewareInterface;
 use ReflectionAttribute;
 use ReflectionClass;
+use ReflectionFunction;
 use ReflectionMethod;
 
 /**
@@ -84,10 +85,50 @@ final class Router
         if ([] !== $this->groupMiddleware) {
             $route->middleware(...$this->groupMiddleware);
         }
+        $handlerAttrs = $this->collectHandlerMiddlewareAttributes($handler);
+        if ([] !== $handlerAttrs) {
+            $route->middlewareAttributes(...$handlerAttrs);
+        }
         $this->routes[] = $route;
         $this->indexRoute($route);
 
         return $route;
+    }
+
+    /**
+     * Reflect class/method or closure MiddlewareAttributeInterface attributes so direct routes
+     * enforce #[Authenticated], #[Can], #[VerifyWebhook], and #[Middleware] identically to ->controller().
+     *
+     * @param Closure|array{0: class-string, 1: string} $handler
+     * @return list<MiddlewareAttributeInterface>
+     */
+    private function collectHandlerMiddlewareAttributes(Closure|array $handler): array
+    {
+        if ($handler instanceof Closure) {
+            return array_map(
+                static fn(ReflectionAttribute $attr): MiddlewareAttributeInterface => $attr->newInstance(),
+                (new ReflectionFunction($handler))->getAttributes(MiddlewareAttributeInterface::class, ReflectionAttribute::IS_INSTANCEOF),
+            );
+        }
+
+        [$controllerClass, $methodName] = $handler;
+        if (!class_exists($controllerClass)) {
+            return [];
+        }
+        $rc = new ReflectionClass($controllerClass);
+        $attrs = array_map(
+            static fn(ReflectionAttribute $attr): MiddlewareAttributeInterface => $attr->newInstance(),
+            $rc->getAttributes(MiddlewareAttributeInterface::class, ReflectionAttribute::IS_INSTANCEOF),
+        );
+        if ($rc->hasMethod($methodName)) {
+            $methodAttrs = array_map(
+                static fn(ReflectionAttribute $attr): MiddlewareAttributeInterface => $attr->newInstance(),
+                $rc->getMethod($methodName)->getAttributes(MiddlewareAttributeInterface::class, ReflectionAttribute::IS_INSTANCEOF),
+            );
+            $attrs = [...$attrs, ...$methodAttrs];
+        }
+
+        return $attrs;
     }
 
     /**
@@ -134,22 +175,11 @@ final class Router
             $classPrefix = rtrim($prefixAttrs[0]->newInstance()->path, '/');
         }
 
-        $classMiddlewareAttrs = array_map(
-            static fn(ReflectionAttribute $attr): MiddlewareAttributeInterface => $attr->newInstance(),
-            $reflection->getAttributes(MiddlewareAttributeInterface::class, ReflectionAttribute::IS_INSTANCEOF),
-        );
-
         foreach ($reflection->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
             $attributes = $method->getAttributes(RouteAttribute::class, ReflectionAttribute::IS_INSTANCEOF);
             if ([] === $attributes) {
                 continue;
             }
-
-            $methodMiddlewareAttrs = array_map(
-                static fn(ReflectionAttribute $attr): MiddlewareAttributeInterface => $attr->newInstance(),
-                $method->getAttributes(MiddlewareAttributeInterface::class, ReflectionAttribute::IS_INSTANCEOF),
-            );
-            $allMiddlewareAttrs = [...$classMiddlewareAttrs, ...$methodMiddlewareAttrs];
 
             foreach ($attributes as $attribute) {
                 $instance = $attribute->newInstance();
@@ -159,9 +189,6 @@ final class Router
                 $route = $this->add($instance->methods, $fullPath, [$controllerClass, $method->getName()]);
                 if (null !== $instance->name) {
                     $route->name($instance->name);
-                }
-                if ([] !== $allMiddlewareAttrs) {
-                    $route->middlewareAttributes(...$allMiddlewareAttrs);
                 }
             }
         }
@@ -380,7 +407,9 @@ final class Router
         }
 
         foreach ($groupedStatic as $item) {
-            $route = $this->add($item['methods'], $item['path'], $item['handler']);
+            $normalizedMethods = array_values(array_unique(array_map('strtoupper', $item['methods'])));
+            $fullPath = $this->normalizePath($item['path']);
+            $route = new Route($normalizedMethods, $fullPath, $item['handler']);
             if (null !== $item['name']) {
                 $route->name($item['name']);
             }
@@ -388,6 +417,8 @@ final class Router
             if ([] !== $attrs) {
                 $route->middlewareAttributes(...$attrs);
             }
+            $this->routes[] = $route;
+            $this->indexRoute($route);
         }
 
         foreach ($compiled['dynamic'] ?? [] as $item) {

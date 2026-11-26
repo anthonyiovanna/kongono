@@ -80,6 +80,35 @@ final class RenderState
         return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
+    /**
+     * Validate and HTML-escape a URL for attribute contexts (`href`, `src`, `action`, `formaction`, `poster`)
+     * blocking `javascript:`, `vbscript:`, `data:`, protocol-relative `//`, and control characters.
+     */
+    public function safeUrl(
+        mixed $value,
+        string $fallback = '#',
+        bool $allowMailto = true,
+        bool $allowFragment = true,
+        bool $allowTel = true,
+    ): string {
+        if (null === $value) {
+            return '';
+        }
+        if (!is_scalar($value) && !($value instanceof \Stringable)) {
+            throw new ViewException(sprintf('Cannot render non-stringable value of type %s in URL attribute.', get_debug_type($value)));
+        }
+        $raw = (string) $value;
+        if ('' === trim($raw)) {
+            return '';
+        }
+
+        $safe = HtmlSanitizer::isSafeUrl($raw, allowMailto: $allowMailto, allowFragment: $allowFragment, allowTel: $allowTel)
+            ? trim($raw)
+            : $fallback;
+
+        return htmlspecialchars($safe, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
     /** Render untrusted/Markdown HTML strictly through the WHATWG HTML5 allowlist sanitizer. */
     public function safeHtml(mixed $value): string
     {

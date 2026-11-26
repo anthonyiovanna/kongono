@@ -222,8 +222,8 @@ final readonly class TenantIsolationProver
     /** @return list<IsolationProbe> */
     private function loadProbesFromApp(string $root, App $app): array
     {
-        $file = $root . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'isolation.php';
-        if (!is_file($file)) {
+        $file = \Kongono\Cli\Context\ProjectContext::resolveSafeExecutableFile($root, 'app/isolation.php');
+        if (null === $file) {
             return [];
         }
 

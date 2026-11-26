@@ -218,11 +218,24 @@ final readonly class CompanionSessionStore
     /** @return array<string, mixed> */
     private function readJson(string $fileName): array
     {
-        $path = $this->dir . DIRECTORY_SEPARATOR . $fileName;
-        if (!is_file($path) || is_link($path)) {
+        $realDir = $this->verifyDirectory(createIfMissing: false);
+        if (null === $realDir) {
             return [];
         }
-        $raw = @file_get_contents($path);
+        $path = $realDir . DIRECTORY_SEPARATOR . $fileName;
+        clearstatcache(true, $path);
+        if (is_link($path)) {
+            return [];
+        }
+        $stat = @lstat($path);
+        if (false === $stat || 0o100000 !== ($stat['mode'] & 0o170000)) {
+            return [];
+        }
+        $realFile = realpath($path);
+        if (false === $realFile || !str_starts_with($realFile, $realDir . DIRECTORY_SEPARATOR)) {
+            return [];
+        }
+        $raw = @file_get_contents($realFile);
         if (false === $raw || '' === trim($raw)) {
             return [];
         }
@@ -243,37 +256,96 @@ final readonly class CompanionSessionStore
     /** @param array<string, mixed> $payload */
     private function writeJson(string $fileName, array $payload): void
     {
-        $this->ensureDirectory();
-        $path = $this->dir . DIRECTORY_SEPARATOR . $fileName;
-        if (is_link($path)) {
-            throw new CoreException(sprintf('Refusing to write companion session through symlink "%s".', $fileName));
+        $realDir = $this->verifyDirectory(createIfMissing: true);
+        if (null === $realDir) {
+            throw new CoreException(sprintf('Unable to verify companion session directory "%s".', $this->dir));
         }
 
         $scrubbed = SecretScrubber::scrubArray($payload);
-        $json = json_encode($scrubbed, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-        file_put_contents($path, $json . "\n", LOCK_EX);
+        $json = json_encode($scrubbed, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n";
+        $this->atomicWriteInVerifiedDir($realDir, $fileName, $json);
     }
 
-    private function ensureDirectory(): void
+    private function verifyDirectory(bool $createIfMissing): ?string
     {
         $walk = $this->rootPath;
         foreach (['var', 'kongono', 'companions'] as $segment) {
             $walk .= DIRECTORY_SEPARATOR . $segment;
+            clearstatcache(true, $walk);
             if (is_link($walk)) {
                 throw new CoreException(sprintf('Companion session directory segment "%s" cannot be a symbolic link.', $segment));
             }
+            if (!file_exists($walk)) {
+                if (!$createIfMissing) {
+                    return null;
+                }
+                if (!@mkdir($walk, 0o775) && !is_dir($walk)) {
+                    throw new CoreException(sprintf('Unable to create companion session directory "%s".', $walk));
+                }
+                clearstatcache(true, $walk);
+                $createdStat = @lstat($walk);
+                if (false === $createdStat || 0o040000 !== ($createdStat['mode'] & 0o170000)) {
+                    throw new CoreException(sprintf('Companion session directory segment "%s" cannot be a symbolic link.', $segment));
+                }
+            } elseif (!is_dir($walk)) {
+                throw new CoreException(sprintf('Companion session path segment "%s" is not a directory.', $segment));
+            }
         }
-        if (!is_dir($this->dir) && !@mkdir($this->dir, 0o775, true) && !is_dir($this->dir)) {
-            throw new CoreException(sprintf('Unable to create companion session directory "%s".', $this->dir));
-        }
+
         $realDir = realpath($this->dir);
         $prefix = rtrim($this->rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
         if (false === $realDir || !str_starts_with($realDir, $prefix)) {
             throw new CoreException('Companion session directory escapes project root.');
         }
-        $gitignore = $this->dir . DIRECTORY_SEPARATOR . '.gitignore';
-        if (!is_file($gitignore) && !is_link($gitignore)) {
-            @file_put_contents($gitignore, "*\n!.gitignore\n", LOCK_EX);
+
+        if ($createIfMissing) {
+            $gitignore = $realDir . DIRECTORY_SEPARATOR . '.gitignore';
+            if (!file_exists($gitignore) && !is_link($gitignore)) {
+                $this->atomicWriteInVerifiedDir($realDir, '.gitignore', "*\n!.gitignore\n");
+            }
+        }
+
+        return $realDir;
+    }
+
+    private function atomicWriteInVerifiedDir(string $realDir, string $fileName, string $content): void
+    {
+        $target = $realDir . DIRECTORY_SEPARATOR . $fileName;
+        clearstatcache(true, $target);
+        if (is_link($target)) {
+            throw new CoreException(sprintf('Refusing to write companion session through symlink "%s".', $fileName));
+        }
+
+        $tmpPath = $realDir . DIRECTORY_SEPARATOR . '.' . $fileName . '.' . bin2hex(random_bytes(8)) . '.tmp';
+        $handle = @fopen($tmpPath, 'xb');
+        if (false === $handle) {
+            throw new CoreException(sprintf('Unable to create temporary companion session file for "%s".', $fileName));
+        }
+
+        $moved = false;
+        try {
+            if (false === fwrite($handle, $content)) {
+                throw new CoreException(sprintf('Unable to write companion session "%s".', $fileName));
+            }
+            fflush($handle);
+            fclose($handle);
+            $handle = null;
+
+            clearstatcache(true, $target);
+            if (is_link($target)) {
+                throw new CoreException(sprintf('Refusing to overwrite symlink "%s".', $fileName));
+            }
+            if (!@rename($tmpPath, $target)) {
+                throw new CoreException(sprintf('Unable to atomically commit companion session "%s".', $fileName));
+            }
+            $moved = true;
+        } finally {
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
+            if (!$moved && is_file($tmpPath)) {
+                @unlink($tmpPath);
+            }
         }
     }
 }
