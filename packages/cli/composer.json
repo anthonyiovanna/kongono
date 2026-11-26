@@ -1,24 +1,41 @@
 {
   "name": "kongono/cli",
-  "description": "Kongono v1 `kongo` CLI and real built-in AI companions: Oshie (learn), Chie (build), and Hantei (debug/test).",
+  "description": "Kongono v1 `kongo` CLI, 5-pillar readiness prover, 17-rule Full-Stack Contract Prover, LSP 3.17, 26-tool MCP server, and built-in Oshie, Chie & Hantei AI companions.",
   "type": "library",
   "license": "MIT",
+  "homepage": "https://kongono.com",
+  "authors": [
+    {
+      "name": "Anthony Iovanna",
+      "email": "ant@kongono.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/kongono/framework/issues",
+    "source": "https://github.com/kongono/framework",
+    "docs": "https://kongono.com/docs"
+  },
   "require": {
-    "php": ">=8.5.0",
+    "php": ">=8.5.13",
     "ext-json": "*",
-    "kongono/ai": "^1.0",
-    "kongono/core": "^1.0",
-    "kongono/database": "^1.0",
-    "kongono/http": "^1.0",
-    "kongono/jobs": "^1.0",
-    "kongono/mail": "^1.0",
-    "kongono/security": "^1.0",
-    "kongono/validation": "^1.0",
-    "kongono/view": "^1.0"
+    "kongono/ai": "^1.21",
+    "kongono/core": "^1.21",
+    "kongono/database": "^1.21",
+    "kongono/http": "^1.21",
+    "kongono/jobs": "^1.21",
+    "kongono/mail": "^1.21",
+    "kongono/security": "^1.21",
+    "kongono/validation": "^1.21",
+    "kongono/view": "^1.21"
   },
   "autoload": {
     "psr-4": {
       "Kongono\\Cli\\": "src/"
     }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "config": {
+    "sort-packages": true
   }
 }

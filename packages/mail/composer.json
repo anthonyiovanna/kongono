@@ -1,18 +1,35 @@
 {
   "name": "kongono/mail",
-  "description": "Kongono v1 zero-dependency transactional email (SMTP STARTTLS, Resend HTTPS API, Memory/Log transports, and .kgn.html email templates).",
+  "description": "Kongono v1 zero-dependency transactional email (SMTP STARTTLS, Resend HTTPS API, DevMailboxTransport, Memory/Log transports, and .kgn.html email templates).",
   "type": "library",
   "license": "MIT",
+  "homepage": "https://kongono.com",
+  "authors": [
+    {
+      "name": "Anthony Iovanna",
+      "email": "ant@kongono.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/kongono/framework/issues",
+    "source": "https://github.com/kongono/framework",
+    "docs": "https://kongono.com/docs"
+  },
   "require": {
-    "php": ">=8.5.0",
+    "php": ">=8.5.13",
     "ext-curl": "*",
-    "kongono/core": "^1.0",
-    "kongono/view": "^1.0",
+    "kongono/core": "^1.21",
+    "kongono/view": "^1.21",
     "psr/log": "^3.0"
   },
   "autoload": {
     "psr-4": {
       "Kongono\\Mail\\": "src/"
     }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "config": {
+    "sort-packages": true
   }
 }

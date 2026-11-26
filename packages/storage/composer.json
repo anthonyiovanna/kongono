@@ -1,15 +1,32 @@
 {
   "name": "kongono/storage",
-  "description": "Kongono v1 contained, atomic, versioned object storage (LocalStorage + MemoryStorage).",
+  "description": "Kongono v1 streaming object storage (LocalStorage, pure-PHP AWS SigV4 S3Storage for S3/R2/MinIO, MemoryStorage, and magic-byte UploadedFileStore).",
   "type": "library",
   "license": "MIT",
+  "homepage": "https://kongono.com",
+  "authors": [
+    {
+      "name": "Anthony Iovanna",
+      "email": "ant@kongono.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/kongono/framework/issues",
+    "source": "https://github.com/kongono/framework",
+    "docs": "https://kongono.com/docs"
+  },
   "require": {
-    "php": ">=8.5.0",
-    "kongono/core": "^1.0"
+    "php": ">=8.5.13",
+    "kongono/core": "^1.21"
   },
   "autoload": {
     "psr-4": {
       "Kongono\\Storage\\": "src/"
     }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "config": {
+    "sort-packages": true
   }
 }

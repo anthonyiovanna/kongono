@@ -1,0 +1,58 @@
+name: Subtree Split Standalone Packages
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: subtree-split-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  split:
+    name: Split kongono/${{ matrix.package }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - core
+          - validation
+          - security
+          - ai
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Split & Push Read-Only Subtree
+        env:
+          PKG: ${{ matrix.package }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          SPLIT_TOKEN: ${{ secrets.SUBTREE_SPLIT_TOKEN }}
+        run: |
+          if [ -z "$SPLIT_TOKEN" ]; then
+            echo "Skipping subtree split for kongono/${PKG}: repository secret SUBTREE_SPLIT_TOKEN is not configured."
+            exit 0
+          fi
+
+          SPLIT_SHA=$(git subtree split --prefix="packages/${PKG}")
+          AUTH_B64=$(printf 'x-access-token:%s' "$SPLIT_TOKEN" | base64 -w0)
+          REMOTE_URL="https://github.com/kongono/${PKG}.git"
+
+          if [ "$REF_TYPE" = "tag" ]; then
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${AUTH_B64}" push "$REMOTE_URL" "${SPLIT_SHA}:refs/tags/${REF_NAME}" --force
+            echo "Pushed tag ${REF_NAME} (${SPLIT_SHA}) to kongono/${PKG}"
+          else
+            git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic ${AUTH_B64}" push "$REMOTE_URL" "${SPLIT_SHA}:refs/heads/${REF_NAME}" --force
+            echo "Pushed branch ${REF_NAME} (${SPLIT_SHA}) to kongono/${PKG}"
+          fi

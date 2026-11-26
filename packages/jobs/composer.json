@@ -1,17 +1,34 @@
 {
   "name": "kongono/jobs",
-  "description": "Kongono v1 background jobs & queues with atomic leasing, generation fencing, PostgreSQL + Memory drivers, and persistent-runtime-safe Worker.",
+  "description": "Kongono v1 background jobs, priority queues, batches, durable workflows, cluster-safe cron scheduler, and persistent-runtime-safe Worker.",
   "type": "library",
   "license": "MIT",
+  "homepage": "https://kongono.com",
+  "authors": [
+    {
+      "name": "Anthony Iovanna",
+      "email": "ant@kongono.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/kongono/framework/issues",
+    "source": "https://github.com/kongono/framework",
+    "docs": "https://kongono.com/docs"
+  },
   "require": {
-    "php": ">=8.5.0",
+    "php": ">=8.5.13",
     "ext-json": "*",
-    "kongono/core": "^1.0",
-    "kongono/database": "^1.0"
+    "kongono/core": "^1.21",
+    "kongono/database": "^1.21"
   },
   "autoload": {
     "psr-4": {
       "Kongono\\Jobs\\": "src/"
     }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "config": {
+    "sort-packages": true
   }
 }

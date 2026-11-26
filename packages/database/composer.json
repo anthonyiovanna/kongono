@@ -1,16 +1,33 @@
 {
   "name": "kongono/database",
-  "description": "Kongono v1 parameterized SQL QueryBuilder (JOINs, GROUP BY, RETURNING), strict PDO connections, and transactional migrations.",
+  "description": "Kongono v1 parameterized SQL QueryBuilder (soft deletes, multi-tenant RLS, BatchLoader), read/write replicas, strict PDO connections, and zero-downtime migrations.",
   "type": "library",
   "license": "MIT",
+  "homepage": "https://kongono.com",
+  "authors": [
+    {
+      "name": "Anthony Iovanna",
+      "email": "ant@kongono.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/kongono/framework/issues",
+    "source": "https://github.com/kongono/framework",
+    "docs": "https://kongono.com/docs"
+  },
   "require": {
-    "php": ">=8.5.0",
+    "php": ">=8.5.13",
     "ext-pdo": "*",
-    "kongono/core": "^1.0"
+    "kongono/core": "^1.21"
   },
   "autoload": {
     "psr-4": {
       "Kongono\\Database\\": "src/"
     }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "config": {
+    "sort-packages": true
   }
 }

@@ -1,20 +1,53 @@
 {
   "name": "kongono/ai",
-  "description": "Kongono v1 multi-provider AI SDK (OpenAI, Anthropic, Gemini, Ollama) and governed Agent Principal runtime.",
+  "description": "Kongono v1 standalone PHP 8.5 multi-provider AI SDK (OpenAI, Anthropic Claude, Google Gemini, Groq, Ollama), live streaming, structured DTO extraction, PromptGuard canary injection defense, EvalRunner, RAG KnowledgeBase, governed AgentRunner, and JSON-RPC 2.0 MCP server.",
   "type": "library",
   "license": "MIT",
+  "keywords": [
+    "php85",
+    "kongono",
+    "ai",
+    "openai",
+    "anthropic",
+    "claude",
+    "gemini",
+    "groq",
+    "ollama",
+    "mcp",
+    "rag",
+    "prompt-injection"
+  ],
+  "homepage": "https://kongono.com",
+  "authors": [
+    {
+      "name": "Anthony Iovanna",
+      "email": "ant@kongono.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/kongono/framework/issues",
+    "source": "https://github.com/kongono/framework",
+    "docs": "https://kongono.com/docs"
+  },
   "require": {
-    "php": ">=8.5.0",
+    "php": ">=8.5.13",
     "ext-curl": "*",
     "ext-json": "*",
     "ext-mbstring": "*",
-    "kongono/core": "^1.0",
-    "kongono/database": "^1.0",
-    "kongono/validation": "^1.0"
+    "kongono/core": "^1.21",
+    "kongono/validation": "^1.21"
+  },
+  "suggest": {
+    "kongono/database": "Required only when using PgVectorStore (PostgreSQL pgvector) or HybridSearch (RRF)."
   },
   "autoload": {
     "psr-4": {
       "Kongono\\Ai\\": "src/"
     }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "config": {
+    "sort-packages": true
   }
 }

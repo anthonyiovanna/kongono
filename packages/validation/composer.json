@@ -1,16 +1,42 @@
 {
   "name": "kongono/validation",
-  "description": "Kongono v1 PHP 8.5 attribute and typed DTO validation.",
+  "description": "Kongono v1 zero-bloat PHP 8.5 attribute-driven readonly DTO validator (nested DTOs, BackedEnum, ArrayOf, custom RuleInterface).",
   "type": "library",
   "license": "MIT",
+  "keywords": [
+    "php85",
+    "kongono",
+    "validation",
+    "dto",
+    "attributes",
+    "readonly",
+    "type-safe"
+  ],
+  "homepage": "https://kongono.com",
+  "authors": [
+    {
+      "name": "Anthony Iovanna",
+      "email": "ant@kongono.com"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/kongono/framework/issues",
+    "source": "https://github.com/kongono/framework",
+    "docs": "https://kongono.com/docs"
+  },
   "require": {
-    "php": ">=8.5.0",
+    "php": ">=8.5.13",
     "ext-mbstring": "*",
-    "kongono/core": "^1.0"
+    "kongono/core": "^1.21"
   },
   "autoload": {
     "psr-4": {
       "Kongono\\Validation\\": "src/"
     }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "config": {
+    "sort-packages": true
   }
 }
