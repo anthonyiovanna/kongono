@@ -3,6 +3,7 @@
 > **Build what comes next.**
 
 [![CI](https://github.com/kongono/framework/actions/workflows/ci.yml/badge.svg)](https://github.com/kongono/framework/actions/workflows/ci.yml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/17130/badge)](https://www.bestpractices.dev/projects/17130)
 [![Latest Stable Version](https://img.shields.io/packagist/v/kongono/framework.svg?label=Packagist)](https://packagist.org/packages/kongono/framework)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/SXWjgBGwrZ)
 ![PHP 8.5.13+](https://img.shields.io/badge/PHP-8.5.13%2B-777BB4?logo=php&logoColor=white)

@@ -6,9 +6,9 @@ Kongono is engineered from the ground up for **fail-closed security, persistent-
 
 | Version | Supported | Notes |
 | :--- | :---: | :--- |
-| **1.8.x** | :white_check_mark: | Active security & performance releases (requires **PHP >= 8.5.13**) |
-| **1.7.x** | :white_check_mark: | Security patches only |
-| **< 1.7** | :x: | Upgrade to `^1.8` and **PHP >= 8.5.13** (`Encryptor` automatically decrypts legacy `v1.` ciphertexts while emitting `v2.`) |
+| **1.20.x** | :white_check_mark: | Active security & performance releases (requires **PHP >= 8.5.13**) |
+| **1.19.x** | :white_check_mark: | Security patches only |
+| **< 1.19** | :x: | Upgrade to `^1.20` and **PHP >= 8.5.13** (`Encryptor` automatically decrypts legacy `v1.` ciphertexts while emitting `v2.`) |
 
 ## PHP Runtime Security Requirements (2026 Advisories)
 
@@ -61,6 +61,6 @@ Kongono enforces the following invariants continuously in CI:
 sha256sum -c SHA256SUMS.txt
 
 # Verify SLSA Build Provenance via GitHub CLI
-gh attestation verify kongono-v1.7.0.tar.gz --repo kongono/framework
-gh attestation verify kongono-v1.7.0.cdx.json --repo kongono/framework
+gh attestation verify kongono-v1.20.4.tar.gz --repo kongono/framework
+gh attestation verify kongono-v1.20.4.cdx.json --repo kongono/framework
 ```
