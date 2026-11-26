@@ -25,7 +25,7 @@ Kongono never uses `session_start()`, `$_SESSION`, `unserialize()`, or `__call`/
 
 Instead, report vulnerabilities privately via **GitHub Security Advisories (GHSA)**:
 
-1. Open the **Security** tab of `kongono/framework` -> **Advisories** -> **Report a vulnerability**.
+1. Open a private advisory at [GitHub Security Advisories](https://github.com/kongono/framework/security/advisories/new) (`Security` tab -> `Advisories` -> `Report a vulnerability`).
 2. Include:
    - Affected package(s), file path(s), and Kongono version (`php vendor/bin/kongo version`).
    - Minimal, deterministic reproduction steps or proof-of-concept test case.
