@@ -662,7 +662,7 @@ PROMPT;
                     'driver' => [
                         'name' => 'Kongono Hantei',
                         'version' => '1.20.0',
-                        'informationUri' => 'https://github.com/anthonyiovanna/kongono',
+                        'informationUri' => 'https://github.com/kongono/framework',
                     ],
                 ],
                 'results' => $results,

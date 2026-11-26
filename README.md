@@ -2,7 +2,7 @@
 
 > **Build what comes next.**
 
-[![CI](https://github.com/anthonyiovanna/kongono/actions/workflows/ci.yml/badge.svg)](https://github.com/anthonyiovanna/kongono/actions/workflows/ci.yml)
+[![CI](https://github.com/kongono/framework/actions/workflows/ci.yml/badge.svg)](https://github.com/kongono/framework/actions/workflows/ci.yml)
 [![Latest Stable Version](https://img.shields.io/packagist/v/kongono/framework.svg?label=Packagist)](https://packagist.org/packages/kongono/framework)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/SXWjgBGwrZ)
 ![PHP 8.5.13+](https://img.shields.io/badge/PHP-8.5.13%2B-777BB4?logo=php&logoColor=white)
@@ -170,8 +170,8 @@ composer quality            # Run cs + analyse + test
 
 ## Documentation
 
-- **[Official Documentation Site (GitHub Pages)](https://anthonyiovanna.github.io/kongono/)** · **[`llms.txt`](https://anthonyiovanna.github.io/kongono/llms.txt)** · **[`llms-full.txt`](https://anthonyiovanna.github.io/kongono/llms-full.txt)**
-- **[Community Discussions](https://github.com/anthonyiovanna/kongono/discussions)**
+- **[Official Documentation Site](https://kongono.com/)** · **[`llms.txt`](https://kongono.com/llms.txt)** · **[`llms-full.txt`](https://kongono.com/llms-full.txt)**
+- **[Community Discussions](https://github.com/kongono/framework/discussions)**
 - [Getting Started](docs/getting-started.md)
 - [Architecture Overview](docs/architecture.md)
 - [Built-In AI Companions & MCP Server](docs/ai-companions.md)

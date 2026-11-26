@@ -162,7 +162,7 @@ final class CompanionsAndCliTest extends TestCase
 
             $agentsMd = (string) file_get_contents($tempDir . '/AGENTS.md');
             self::assertStringContainsString('Acme Cloud', $agentsMd);
-            self::assertStringContainsString('https://anthonyiovanna.github.io/kongono/llms.txt', $agentsMd);
+            self::assertStringContainsString('https://kongono.com/llms.txt', $agentsMd);
             self::assertStringContainsString('declare(strict_types=1);', $agentsMd);
             self::assertStringContainsString('@AGENTS.md', (string) file_get_contents($tempDir . '/CLAUDE.md'));
             self::assertStringContainsString('GROQ_API_KEY', (string) file_get_contents($tempDir . '/.env.example'));
