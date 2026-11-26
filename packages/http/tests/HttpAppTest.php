@@ -477,9 +477,14 @@ final class HttpAppTest extends TestCase
         self::assertStringContainsString("'\\n'", $docsHtml);
         self::assertStringNotContainsString("'\n'", $docsHtml);
 
-        $studioHtml = (new \Kongono\Http\Dev\DevDashboardRenderer())->render($app, new DevInspector());
-        self::assertStringContainsString("join('\\n')", $studioHtml);
-        self::assertStringNotContainsString("join('\n')", $studioHtml);
+        $renderer = new \Kongono\Http\Dev\DevDashboardRenderer();
+        $studioHtml = $renderer->render($app, new DevInspector());
+        $studioJs = $renderer->studioScript();
+        self::assertStringContainsString('/_kongono/assets/studio.css', $studioHtml);
+        self::assertStringContainsString('/_kongono/assets/studio.js', $studioHtml);
+        self::assertStringNotContainsString('<style>', $studioHtml);
+        self::assertStringContainsString("join('\\n')", $studioJs);
+        self::assertStringNotContainsString("join('\n')", $studioJs);
 
         $client = new TestClient($app);
         $client->get('/stream')->assertOk()->assertSee('event: ping');
@@ -1708,6 +1713,214 @@ HTML);
         (new \Kongono\Http\Testing\TestClient($devApp))->get('/_kongono/assets/dev-error.js')
             ->assertOk()
             ->assertSee('/api/hantei/stream');
+    }
+
+    public function testDevStudioStrictCspExternalAssetsMemoryTelemetryAndScrubbedResponses(): void
+    {
+        $inspector = new DevInspector(nPlusOneThreshold: 2);
+        $secretToken = 'sk_' . 'live_9876543210abcdefghijklmnop';
+        $app = App::create(__DIR__, name: 'Batch1 Studio')
+            ->debug(true)
+            ->routes(static function (Router $r) use ($inspector, $secretToken): void {
+                $r->get('/api/items', static function () use ($inspector, $secretToken): Response {
+                    $inspector->recordQuery('SELECT * FROM items WHERE id = 1', 1.2);
+                    $inspector->recordQuery('SELECT * FROM items WHERE id = 2', 1.5);
+
+                    return Response::json(
+                        ['items' => ['a', 'b'], 'api_key' => $secretToken],
+                        200,
+                        ['Set-Cookie' => 'session=secret_cookie_val; HttpOnly', 'X-Trace-Tag' => 'batch1'],
+                    );
+                });
+                $r->get('/bin', static fn(): Response => Response::text("\x89PNG\r\n", 200, ['Content-Type' => 'image/png']));
+            });
+        $app->middleware(new DevDashboardMiddleware($app, $inspector));
+
+        $client = new TestClient($app);
+
+        // 1. Capture live request with N+1 queries, memory delta, and scrubbed response headers/body
+        $apiRes = $client->get('/api/items')->assertOk()->assertJsonPath('items.0', 'a');
+        self::assertSame('batch1', $apiRes->header('X-Trace-Tag'));
+        $client->get('/bin')->assertOk();
+
+        $traces = $client->get('/_kongono/api/traces')->assertOk()->json();
+        self::assertIsArray($traces);
+        self::assertCount(2, $traces);
+
+        // Newest-first: index 0 is /bin (binary skipped), index 1 is /api/items
+        self::assertSame('/bin', $traces[0]['path']);
+        self::assertSame('', $traces[0]['response_body']);
+
+        $apiTrace = $traces[1];
+        self::assertSame('/api/items', $apiTrace['path']);
+        self::assertIsNumeric($apiTrace['memory_delta_kb']);
+        self::assertCount(1, $apiTrace['n_plus_one']);
+        self::assertSame('[REDACTED]', $apiTrace['response_headers']['Set-Cookie'] ?? null);
+        self::assertSame('batch1', $apiTrace['response_headers']['X-Trace-Tag'] ?? null);
+        self::assertStringNotContainsString($secretToken, (string) $apiTrace['response_body']);
+        self::assertStringContainsString('[REDACTED]', (string) $apiTrace['response_body']);
+
+        // 2. Strict CSP HTML with zero inline styles/scripts + external CSS/JS assets
+        $studioRes = $client->get('/_kongono')->assertOk();
+        $csp = $studioRes->header('Content-Security-Policy');
+        self::assertStringContainsString("script-src 'self'", $csp);
+        self::assertStringContainsString("style-src 'self'", $csp);
+        self::assertStringNotContainsString('unsafe-inline', $csp);
+
+        $html = $studioRes->body();
+        self::assertStringContainsString('/_kongono/assets/studio.css', $html);
+        self::assertStringContainsString('/_kongono/assets/studio.js', $html);
+        self::assertStringContainsString('id="kgn-studio-data"', $html);
+        self::assertStringContainsString('id="traceDrawer"', $html);
+        self::assertStringContainsString('id="liveTailBtn"', $html);
+        self::assertStringContainsString('id="themeToggleBtn"', $html);
+        self::assertStringContainsString('id="shortcutsModal"', $html);
+        self::assertStringContainsString('id="proofFindingsList"', $html);
+        self::assertStringNotContainsString('<style>', $html);
+        self::assertStringNotContainsString('style="', $html);
+
+        $cssRes = $client->get('/_kongono/assets/studio.css')->assertOk();
+        self::assertStringContainsString('text/css', $cssRes->header('Content-Type'));
+        self::assertStringContainsString('.mail-frame-mobile', $cssRes->body());
+
+        $jsRes = $client->get('/_kongono/assets/studio.js')->assertOk();
+        self::assertStringContainsString('application/javascript', $jsRes->header('Content-Type'));
+        self::assertStringContainsString('extractEmailTokens', $jsRes->body());
+        self::assertStringContainsString('buildCurl', $jsRes->body());
+
+        // 3. Production fail-closed check: assets return 404 when debug=false
+        $app->debug(false);
+        $client->get('/_kongono/assets/studio.css')->assertStatus(404);
+        $client->get('/_kongono/assets/studio.js')->assertStatus(404);
+
+        // 4. File-backed DevInspector persists traces across stateless requests (kongo serve / PHP-FPM)
+        $traceFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'kongono_traces_' . bin2hex(random_bytes(4)) . '.json';
+        try {
+            $writer = new DevInspector(maxTraces: 2, storageFile: $traceFile);
+            $writer->recordRequest('GET', '/first', 200, 1.5, memoryDeltaKb: 12.4, responseBody: '{"ok":true}');
+            $writer->recordRequest('GET', '/second', 201, 2.5, memoryDeltaKb: 8.2, responseBody: '{"id":2}');
+            $writer->recordRequest('GET', '/third', 500, 3.5, error: 'boom', memoryDeltaKb: 16.0);
+
+            $reader = new DevInspector(maxTraces: 2, storageFile: $traceFile);
+            $persisted = $reader->traces();
+            self::assertCount(2, $persisted);
+            self::assertSame(3, $persisted[0]['id']);
+            self::assertSame('/third', $persisted[0]['path']);
+            self::assertSame('boom', $persisted[0]['error']);
+            self::assertSame(2, $persisted[1]['id']);
+            self::assertSame('/second', $persisted[1]['path']);
+            self::assertNotNull($reader->findTrace(2));
+
+            $reader->clear();
+            self::assertSame([], (new DevInspector(storageFile: $traceFile))->traces());
+        } finally {
+            @unlink($traceFile);
+        }
+    }
+
+    public function testDevStudioBatch2FloatingHudTryRouteAndNondisclosingRuntime(): void
+    {
+        $inspector = new DevInspector();
+        $secretRespToken = 'sk_' . 'live_1234567890abcdefghijklmnop';
+        $app = App::create(__DIR__, name: 'Batch2 Studio')
+            ->debug(true)
+            ->routes(static function (Router $r) use ($secretRespToken): void {
+                $r->get('/home', static fn(): Response => Response::html('<!doctype html><html><head><title>Home</title></head><body><h1>Hi</h1></body></html>'));
+                $r->post('/api/echo', static function (Request $req) use ($secretRespToken): Response {
+                    return Response::json(
+                        [
+                            'received' => $req->jsonBody(),
+                            'hdr' => $req->getHeaderLine('X-Custom'),
+                            'api_key' => 'secret_field_val',
+                            'leak_guard' => $secretRespToken,
+                        ],
+                        201,
+                        ['Set-Cookie' => 'kgn_sess=supersecret', 'X-Echo' => 'ok'],
+                    );
+                });
+                $r->post('/api/signup-sample', static fn(HtmlSignupFormDto $dto): Response => Response::json(['email' => $dto->email], 201));
+            });
+        $app->middleware(new DevDashboardMiddleware($app, $inspector, devHud: true));
+
+        $client = new TestClient($app);
+
+        // 1. Floating Dev HUD injected cleanly into HTML (strict-CSP external CSS/JS, never JSON)
+        $homeHtml = $client->get('/home')->assertOk()->body();
+        self::assertStringContainsString('/_kongono/assets/dev-hud.css', $homeHtml);
+        self::assertStringContainsString('/_kongono/assets/dev-hud.js', $homeHtml);
+        self::assertStringContainsString('data-trace-id="1"', $homeHtml);
+        self::assertStringContainsString('data-status="200"', $homeHtml);
+
+        $hudCss = $client->get('/_kongono/assets/dev-hud.css')->assertOk();
+        self::assertStringContainsString('text/css', $hudCss->header('Content-Type'));
+        self::assertStringContainsString('.kgn-hud', $hudCss->body());
+
+        $hudJs = $client->get('/_kongono/assets/dev-hud.js')->assertOk();
+        self::assertStringContainsString('application/javascript', $hudJs->header('Content-Type'));
+        self::assertStringContainsString('kgn-dev-hud', $hudJs->body());
+
+        // 2. Studio bootstrap includes DTO sample template for /api/signup-sample & Runtime tab markup
+        $studioHtml = $client->get('/_kongono')->assertOk()->body();
+        self::assertStringContainsString('id="tab-runtime"', $studioHtml);
+        self::assertStringContainsString('id="tryRouteDrawer"', $studioHtml);
+        self::assertStringContainsString('dev@example.com', $studioHtml);
+
+        // 3. Inline Try Route executes live route, scrubs secrets, records trace, and blocks recursion
+        $tryRes = $client->postJson('/_kongono/api/try-route', [
+            'method' => 'POST',
+            'path' => '/api/echo',
+            'headers' => ['X-Custom' => 'hello-studio'],
+            'body' => '{"title":"Batch 2"}',
+        ])->assertOk()->json();
+        self::assertIsArray($tryRes);
+        self::assertSame(201, $tryRes['status']);
+        self::assertSame('ok', $tryRes['response_headers']['X-Echo'] ?? null);
+        self::assertSame('[REDACTED]', $tryRes['response_headers']['Set-Cookie'] ?? null);
+        self::assertStringContainsString('hello-studio', (string) $tryRes['response_body']);
+        self::assertStringNotContainsString($secretRespToken, (string) $tryRes['response_body']);
+        self::assertStringNotContainsString('secret_field_val', (string) $tryRes['response_body']);
+        self::assertStringContainsString('[REDACTED]', (string) $tryRes['response_body']);
+        self::assertIsInt($tryRes['trace_id']);
+
+        $client->postJson('/_kongono/api/try-route', ['method' => 'GET', 'path' => '/_kongono/api/runtime'])->assertStatus(400);
+        $client->postJson('/_kongono/api/try-route', ['method' => 'TRACE', 'path' => '/home'])->assertStatus(422);
+
+        // 4. Runtime & Env endpoint is strictly nondisclosing (never leaks secret values)
+        $fakeApiKey = 'sk-' . 'proj-NEVER_LEAK_THIS_OPENAI_SECRET_999';
+        $prevEnv = $_ENV['OPENAI_API_KEY'] ?? null;
+        $_ENV['OPENAI_API_KEY'] = $fakeApiKey;
+        try {
+            $rtResp = $client->get('/_kongono/api/runtime')->assertOk();
+            self::assertStringNotContainsString($fakeApiKey, $rtResp->body());
+            $rtJson = $rtResp->json();
+            self::assertIsArray($rtJson);
+            self::assertSame(PHP_VERSION, $rtJson['php']['version']);
+            self::assertNotEmpty($rtJson['extensions']);
+            self::assertNotEmpty($rtJson['subsystems']);
+            $openaiEntry = array_values(array_filter(
+                $rtJson['secret_env'],
+                static fn(array $row): bool => 'OPENAI_API_KEY' === $row['key'],
+            ));
+            self::assertCount(1, $openaiEntry);
+            self::assertTrue($openaiEntry[0]['configured']);
+            self::assertArrayNotHasKey('value', $openaiEntry[0]);
+        } finally {
+            if (null === $prevEnv) {
+                unset($_ENV['OPENAI_API_KEY']);
+            } else {
+                $_ENV['OPENAI_API_KEY'] = $prevEnv;
+            }
+        }
+
+        // 5. Production fail-closed: debug=false disables HUD injection and returns 404 for all Batch 2 endpoints
+        $app->debug(false);
+        $prodHome = $client->get('/home')->assertOk()->body();
+        self::assertStringNotContainsString('dev-hud.js', $prodHome);
+        self::assertStringNotContainsString('dev-hud.css', $prodHome);
+        $client->get('/_kongono/assets/dev-hud.css')->assertStatus(404);
+        $client->get('/_kongono/assets/dev-hud.js')->assertStatus(404);
+        $client->get('/_kongono/api/runtime')->assertStatus(404);
+        $client->postJson('/_kongono/api/try-route', ['method' => 'GET', 'path' => '/home'])->assertStatus(404);
     }
 }
 

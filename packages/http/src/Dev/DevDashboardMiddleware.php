@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kongono\Http\Dev;
 
 use Closure;
+use Kongono\Core\Config;
 use Kongono\Core\Dev\DevMailboxInterface;
 use Kongono\Core\Dev\FileDevMailbox;
 use Kongono\Core\Diagnostics\IncidentStoreInterface;
@@ -48,6 +49,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
      *     body: string,
      *     status: int,
      *     duration_ms: float,
+     *     memory_delta_kb?: float,
+     *     response_headers?: array<string, string>,
+     *     response_body?: string,
      *     queries: list<array{sql: string, ms: float}>,
      *     n_plus_one: list<array{pattern: string, count: int}>,
      *     error: ?string
@@ -76,9 +80,15 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         private ?Closure $schemaHandler = null,
         private ?Closure $authorizer = null,
         private int $aiMaxRequestsPerMinute = 30,
+        private bool $devHud = false,
     ) {
         $this->renderer = new DevDashboardRenderer();
         $this->aiRateLimiter = new DevRateLimiter();
+        if ('cli' !== PHP_SAPI && $this->app->isDebug()) {
+            $this->inspector->useStorageFile(
+                $this->app->basePath() . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'dev' . DIRECTORY_SEPARATOR . 'traces.json',
+            );
+        }
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -107,7 +117,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         if ($path === $base && 'GET' === $method) {
             return Response::html($this->renderer->render($this->app, $this->inspector, $base), 200, [
                 'X-Frame-Options' => 'DENY',
-                'Content-Security-Policy' => "frame-ancestors 'none'",
+                'X-Content-Type-Options' => 'nosniff',
+                'Referrer-Policy' => 'strict-origin-when-cross-origin',
+                'Content-Security-Policy' => "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'",
                 'Cache-Control' => 'no-store',
             ]);
         }
@@ -117,6 +129,50 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             'X-Content-Type-Options' => 'nosniff',
             'Cross-Origin-Resource-Policy' => 'same-origin',
         ];
+
+        if ($path === $base . '/assets/studio.css' && 'GET' === $method) {
+            return Response::text($this->renderer->studioStylesheet(), 200, [
+                'Content-Type' => 'text/css; charset=utf-8',
+                'Cache-Control' => 'no-store',
+                'X-Content-Type-Options' => 'nosniff',
+                'Cross-Origin-Resource-Policy' => 'same-origin',
+            ]);
+        }
+
+        if ($path === $base . '/assets/studio.js' && 'GET' === $method) {
+            return Response::text($this->renderer->studioScript(), 200, [
+                'Content-Type' => 'application/javascript; charset=utf-8',
+                'Cache-Control' => 'no-store',
+                'X-Content-Type-Options' => 'nosniff',
+                'Cross-Origin-Resource-Policy' => 'same-origin',
+            ]);
+        }
+
+        if ($path === $base . '/assets/dev-hud.css' && 'GET' === $method) {
+            return Response::text($this->renderer->devHudStylesheet(), 200, [
+                'Content-Type' => 'text/css; charset=utf-8',
+                'Cache-Control' => 'no-store',
+                'X-Content-Type-Options' => 'nosniff',
+                'Cross-Origin-Resource-Policy' => 'same-origin',
+            ]);
+        }
+
+        if ($path === $base . '/assets/dev-hud.js' && 'GET' === $method) {
+            return Response::text($this->renderer->devHudScript(), 200, [
+                'Content-Type' => 'application/javascript; charset=utf-8',
+                'Cache-Control' => 'no-store',
+                'X-Content-Type-Options' => 'nosniff',
+                'Cross-Origin-Resource-Policy' => 'same-origin',
+            ]);
+        }
+
+        if ($path === $base . '/api/runtime' && 'GET' === $method) {
+            return Response::json($this->collectRuntimeInfo(), 200, $apiHeaders);
+        }
+
+        if ($path === $base . '/api/try-route' && 'POST' === $method) {
+            return $this->handleTryRoute($request, $base);
+        }
 
         if ($path === $base . '/assets/dev-error.js' && 'GET' === $method) {
             return Response::text(self::devErrorScript(), 200, [
@@ -336,6 +392,7 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
 
         $this->inspector->beginRequest();
         $start = hrtime(true);
+        $memBefore = memory_get_usage();
         $rawQuery = $request->getUri()->getQuery();
         $rawHeaders = $request->getHeaders();
         $bodyStream = $request->getBody();
@@ -354,7 +411,9 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         try {
             $response = $handler->handle($request);
             $durationMs = (hrtime(true) - $start) / 1_000_000;
-            $this->inspector->recordRequest(
+            $memoryDeltaKb = (memory_get_usage() - $memBefore) / 1024;
+            $responseBodyPreview = $this->peekResponseBody($response);
+            $traceId = $this->inspector->recordRequest(
                 method: $request->getMethod(),
                 path: $path,
                 status: $response->getStatusCode(),
@@ -362,7 +421,26 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
                 query: $rawQuery,
                 headers: $rawHeaders,
                 body: $rawBody,
+                memoryDeltaKb: $memoryDeltaKb,
+                responseHeaders: $response->getHeaders(),
+                responseBody: $responseBodyPreview,
             );
+
+            if ($this->devHud && !$isDevRoute && $response->getStatusCode() < 500) {
+                $recordedTrace = $this->inspector->findTrace($traceId);
+                $sqlCount = null !== $recordedTrace ? count($recordedTrace['queries']) : 0;
+                $n1Count = null !== $recordedTrace ? count($recordedTrace['n_plus_one']) : 0;
+                $response = $this->injectDevHud(
+                    $response,
+                    $base,
+                    $traceId,
+                    $response->getStatusCode(),
+                    round($durationMs, 2),
+                    round($memoryDeltaKb, 1),
+                    $sqlCount,
+                    $n1Count,
+                );
+            }
 
             if ($this->hotReload && !$isDevRoute && 200 === $response->getStatusCode()) {
                 $response = $this->injectHotReloadScript($response, $base);
@@ -371,6 +449,7 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             return $response;
         } catch (Throwable $e) {
             $durationMs = (hrtime(true) - $start) / 1_000_000;
+            $memoryDeltaKb = (memory_get_usage() - $memBefore) / 1024;
             $this->inspector->recordRequest(
                 method: $request->getMethod(),
                 path: $path,
@@ -380,9 +459,36 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
                 query: $rawQuery,
                 headers: $rawHeaders,
                 body: $rawBody,
+                memoryDeltaKb: $memoryDeltaKb,
             );
             throw $e;
         }
+    }
+
+    private function peekResponseBody(ResponseInterface $response): string
+    {
+        if ('' !== trim($response->getHeaderLine('Content-Encoding'))) {
+            return '';
+        }
+        $ct = strtolower($response->getHeaderLine('Content-Type'));
+        $isTextual = '' === $ct
+            || str_contains($ct, 'application/json')
+            || str_contains($ct, '+json')
+            || str_contains($ct, 'text/')
+            || str_contains($ct, 'application/xml')
+            || str_contains($ct, '+xml');
+        if (!$isTextual) {
+            return '';
+        }
+        $stream = $response->getBody();
+        if (!$stream->isSeekable()) {
+            return '';
+        }
+        $stream->rewind();
+        $preview = $stream->read(8192);
+        $stream->rewind();
+
+        return $preview;
     }
 
     private function resolveDevMailbox(): DevMailboxInterface
@@ -422,6 +528,269 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
         $updated = substr($body, 0, $pos) . $tag . "\n" . substr($body, $pos);
 
         return $response->withoutHeader('Content-Length')->withBody(Stream::fromString($updated));
+    }
+
+    private function injectDevHud(
+        ResponseInterface $response,
+        string $base,
+        int $traceId,
+        int $status,
+        float $durationMs,
+        float $memoryDeltaKb,
+        int $sqlCount,
+        int $n1Count,
+    ): ResponseInterface {
+        $ct = strtolower($response->getHeaderLine('Content-Type'));
+        if (!str_contains($ct, 'text/html')) {
+            return $response;
+        }
+        if ('' !== trim($response->getHeaderLine('Content-Encoding'))) {
+            return $response;
+        }
+        $stream = $response->getBody();
+        if (!$stream->isSeekable()) {
+            return $response;
+        }
+        $stream->rewind();
+        $body = $stream->getContents();
+        $bodyPos = strripos($body, '</body>');
+        if (false === $bodyPos || str_contains($body, '/assets/dev-hud.js')) {
+            $stream->rewind();
+
+            return $response;
+        }
+
+        $safeBase = htmlspecialchars($base, ENT_QUOTES, 'UTF-8');
+        $cssTag = sprintf('<link rel="stylesheet" href="%s/assets/dev-hud.css">', $safeBase);
+        $scriptTag = sprintf(
+            '<script src="%s/assets/dev-hud.js" defer data-base="%s" data-trace-id="%d" data-status="%d" data-ms="%s" data-mem="%s" data-sql="%d" data-n1="%d"></script>',
+            $safeBase,
+            $safeBase,
+            $traceId,
+            $status,
+            htmlspecialchars(number_format($durationMs, 2, '.', ''), ENT_QUOTES, 'UTF-8'),
+            htmlspecialchars(number_format($memoryDeltaKb, 1, '.', ''), ENT_QUOTES, 'UTF-8'),
+            $sqlCount,
+            $n1Count,
+        );
+
+        $headPos = strripos($body, '</head>');
+        if (false !== $headPos && $headPos < $bodyPos) {
+            $body = substr($body, 0, $headPos) . $cssTag . "\n" . substr($body, $headPos);
+            $bodyPos = strripos($body, '</body>');
+            if (false === $bodyPos) {
+                return $response->withoutHeader('Content-Length')->withBody(Stream::fromString($body));
+            }
+            $updated = substr($body, 0, $bodyPos) . $scriptTag . "\n" . substr($body, $bodyPos);
+        } else {
+            $updated = substr($body, 0, $bodyPos) . $cssTag . "\n" . $scriptTag . "\n" . substr($body, $bodyPos);
+        }
+
+        return $response->withoutHeader('Content-Length')->withBody(Stream::fromString($updated));
+    }
+
+    private function handleTryRoute(ServerRequestInterface $request, string $base): Response
+    {
+        $apiHeaders = [
+            'Cache-Control' => 'no-store',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cross-Origin-Resource-Policy' => 'same-origin',
+        ];
+        $decoded = json_decode((string) $request->getBody(), true);
+        if (!is_array($decoded)) {
+            return Response::json(['error' => 'Invalid JSON request payload.'], 422, $apiHeaders);
+        }
+
+        $method = strtoupper(is_string($decoded['method'] ?? null) ? trim($decoded['method']) : 'GET');
+        $allowedMethods = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+        if (!in_array($method, $allowedMethods, true)) {
+            return Response::json(['error' => 'Unsupported HTTP method.'], 422, $apiHeaders);
+        }
+
+        $rawPath = is_string($decoded['path'] ?? null) ? trim($decoded['path']) : '';
+        if ('' === $rawPath || !str_starts_with($rawPath, '/') || str_contains($rawPath, "\r") || str_contains($rawPath, "\n")) {
+            return Response::json(['error' => 'Path must start with "/" and contain no control characters.'], 422, $apiHeaders);
+        }
+        $normalizedPath = '/' . ltrim(explode('?', $rawPath, 2)[0], '/');
+        if ($normalizedPath === $base || str_starts_with($normalizedPath, $base . '/')) {
+            return Response::json(['error' => 'Recursive Dev Studio route execution is forbidden.'], 400, $apiHeaders);
+        }
+
+        $query = is_string($decoded['query'] ?? null) ? ltrim(trim($decoded['query']), '?') : '';
+        if ('' === $query && str_contains($rawPath, '?')) {
+            $query = explode('?', $rawPath, 2)[1];
+        }
+        $uri = '' !== $query ? $normalizedPath . '?' . $query : $normalizedPath;
+
+        $customHeaders = [];
+        if (is_array($decoded['headers'] ?? null)) {
+            foreach ($decoded['headers'] as $name => $val) {
+                if (!is_string($name) || !is_string($val)) {
+                    continue;
+                }
+                $cleanName = trim($name);
+                if ('' === $cleanName || 1 === preg_match('/[\r\n:]/', $cleanName) || 1 === preg_match('/[\r\n]/', $val)) {
+                    continue;
+                }
+                $customHeaders[$cleanName] = trim($val);
+            }
+        }
+
+        $body = is_string($decoded['body'] ?? null) ? substr($decoded['body'], 0, 65_536) : '';
+        if ('' !== $body) {
+            $hasCt = false;
+            foreach (array_keys($customHeaders) as $hn) {
+                if ('content-type' === strtolower($hn)) {
+                    $hasCt = true;
+                    break;
+                }
+            }
+            if (!$hasCt && (str_starts_with(ltrim($body), '{') || str_starts_with(ltrim($body), '['))) {
+                $customHeaders['Content-Type'] = 'application/json';
+            }
+        }
+
+        $tryRequest = Request::create($method, $uri, $customHeaders, $body);
+        $start = hrtime(true);
+        $memBefore = memory_get_usage();
+        try {
+            $res = $this->app->handle($tryRequest);
+        } catch (Throwable $e) {
+            return Response::json([
+                'error' => SecretScrubber::scrub($e->getMessage()),
+                'method' => $method,
+                'uri' => $uri,
+                'status' => 500,
+                'duration_ms' => round((hrtime(true) - $start) / 1_000_000, 2),
+                'memory_delta_kb' => round((memory_get_usage() - $memBefore) / 1024, 1),
+            ], 200, $apiHeaders);
+        }
+
+        $durationMs = round((hrtime(true) - $start) / 1_000_000, 2);
+        $memoryDeltaKb = round((memory_get_usage() - $memBefore) / 1024, 1);
+
+        $safeResHeaders = [];
+        foreach ($res->getHeaders() as $hName => $vals) {
+            $lower = strtolower($hName);
+            $joined = implode(', ', $vals);
+            $sensitive = in_array($lower, ['set-cookie', 'authorization', 'x-api-key', 'x-csrf-token'], true)
+                || SecretScrubber::isSensitiveKey($hName);
+            $safeResHeaders[$hName] = $sensitive ? '[REDACTED]' : SecretScrubber::scrub($joined);
+        }
+
+        $rawResBody = $this->peekResponseBody($res);
+        $scrubbedResBody = substr($this->scrubTextualPayload($rawResBody), 0, 8000);
+        $recentTraces = $this->inspector->traces();
+        $traceId = isset($recentTraces[0]) ? $recentTraces[0]['id'] : null;
+
+        return Response::json([
+            'method' => $method,
+            'uri' => $uri,
+            'status' => $res->getStatusCode(),
+            'duration_ms' => $durationMs,
+            'memory_delta_kb' => $memoryDeltaKb,
+            'trace_id' => $traceId,
+            'response_headers' => $safeResHeaders,
+            'response_body' => $scrubbedResBody,
+        ], 200, $apiHeaders);
+    }
+
+    private function scrubTextualPayload(string $body): string
+    {
+        $trimmed = ltrim($body);
+        if (str_starts_with($trimmed, '{') || str_starts_with($trimmed, '[')) {
+            $decoded = json_decode($body, true);
+            if (is_array($decoded)) {
+                $reencoded = json_encode(
+                    SecretScrubber::scrubArray($decoded),
+                    JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE,
+                );
+                if (is_string($reencoded)) {
+                    return $reencoded;
+                }
+            }
+        }
+
+        return SecretScrubber::scrub($body);
+    }
+
+    /** @return array<string, mixed> */
+    private function collectRuntimeInfo(): array
+    {
+        $opcacheEnabled = false;
+        $jitEnabled = false;
+        if (function_exists('opcache_get_status')) {
+            $opStatus = @opcache_get_status(false);
+            if (is_array($opStatus)) {
+                $opcacheEnabled = true === ($opStatus['opcache_enabled'] ?? false);
+                $jit = $opStatus['jit'] ?? null;
+                $jitEnabled = is_array($jit) && true === ($jit['enabled'] ?? false);
+            }
+        }
+
+        $requiredExts = ['curl', 'dom', 'json', 'mbstring', 'openssl', 'pdo', 'pdo_pgsql', 'pdo_sqlite', 'sodium', 'zlib'];
+        $extensions = array_map(
+            static fn(string $ext): array => ['name' => $ext, 'loaded' => extension_loaded($ext)],
+            $requiredExts,
+        );
+
+        $container = $this->app->container();
+        $storageFile = $this->inspector->storageFile();
+
+        $subsystems = [
+            ['name' => 'Debug Mode', 'active' => $this->app->isDebug(), 'detail' => 'APP_DEBUG=true (auto-disabled in production)'],
+            ['name' => 'Hot Reload', 'active' => $this->hotReload, 'detail' => $this->hotReload ? 'Zero-build CSS swap & reload enabled' : 'Pass hotReload: true to DevDashboardMiddleware'],
+            ['name' => 'Floating Dev HUD', 'active' => $this->devHud, 'detail' => $this->devHud ? 'Strict-CSP bottom-right HUD pill active on HTML pages' : 'Pass devHud: true to DevDashboardMiddleware'],
+            ['name' => 'Trace Persistence', 'active' => null !== $storageFile, 'detail' => null !== $storageFile ? 'File ring-buffer (' . basename($storageFile) . ')' : 'In-memory ring-buffer (CLI / single worker)'],
+            ['name' => 'Dev Mailbox', 'active' => $container->hasBinding(DevMailboxInterface::class), 'detail' => $container->hasBinding(DevMailboxInterface::class) ? 'DevMailboxInterface bound' : 'Fallback storage/dev/mailbox.json'],
+            ['name' => 'Incident Time-Machine', 'active' => $container->hasBinding(IncidentStoreInterface::class), 'detail' => $container->hasBinding(IncidentStoreInterface::class) ? 'Recording KGN-* incidents' : 'Enable with $app->recordIncidents()'],
+            ['name' => 'Proof Center', 'active' => null !== $this->proofsHandler, 'detail' => null !== $this->proofsHandler ? 'All 5 proof engines wired' : 'Wire proofsHandler or use DevStudioCompanions'],
+            ['name' => 'Schema Explorer', 'active' => null !== $this->schemaHandler, 'detail' => null !== $this->schemaHandler ? 'Read-only schema inspector wired' : 'Wire schemaHandler to inspect DB schema'],
+            ['name' => 'AI Companions', 'active' => null !== $this->oshieHandler || null !== $this->hanteiHandler || null !== $this->chieHandler, 'detail' => sprintf('Oshie:%s · Chie:%s · Hantei:%s', null !== $this->oshieHandler ? 'on' : 'off', null !== $this->chieHandler ? 'on' : 'off', null !== $this->hanteiHandler ? 'on' : 'off')],
+            ['name' => 'Database', 'active' => $container->hasBinding('Kongono\\Database\\ConnectionInterface'), 'detail' => $container->hasBinding('Kongono\\Database\\ConnectionInterface') ? 'ConnectionInterface registered' : 'Not registered'],
+            ['name' => 'Cache', 'active' => $container->hasBinding('Kongono\\Core\\Cache\\CacheInterface'), 'detail' => $container->hasBinding('Kongono\\Core\\Cache\\CacheInterface') ? 'CacheInterface registered' : 'Not registered'],
+            ['name' => 'Storage', 'active' => $container->hasBinding('Kongono\\Storage\\StorageInterface'), 'detail' => $container->hasBinding('Kongono\\Storage\\StorageInterface') ? 'StorageInterface registered' : 'Not registered'],
+            ['name' => 'Queue', 'active' => $container->hasBinding('Kongono\\Jobs\\Queue'), 'detail' => $container->hasBinding('Kongono\\Jobs\\Queue') ? 'Queue registered' : 'Not registered'],
+            ['name' => 'Mailer', 'active' => $container->hasBinding('Kongono\\Mail\\Mailer'), 'detail' => $container->hasBinding('Kongono\\Mail\\Mailer') ? 'Mailer registered' : 'Not registered'],
+            ['name' => 'Metrics & Health', 'active' => $container->hasBinding('Kongono\\Core\\Health\\HealthCheck') || $container->hasBinding('Kongono\\Core\\Telemetry\\Metrics'), 'detail' => sprintf('HealthCheck:%s · Metrics:%s', $container->hasBinding('Kongono\\Core\\Health\\HealthCheck') ? 'on' : 'off', $container->hasBinding('Kongono\\Core\\Telemetry\\Metrics') ? 'on' : 'off')],
+        ];
+
+        $safeEnvKeys = ['APP_ENV', 'APP_DEBUG', 'APP_URL', 'LOG_LEVEL', 'CACHE_DRIVER', 'QUEUE_DRIVER', 'MAIL_TRANSPORT', 'SESSION_SECURE', 'OLLAMA_HOST'];
+        $safeEnv = [];
+        foreach ($safeEnvKeys as $key) {
+            $val = Config::env($key);
+            $safeEnv[] = [
+                'key' => $key,
+                'value' => null !== $val && '' !== trim($val) ? SecretScrubber::scrub(trim($val)) : null,
+            ];
+        }
+
+        $secretEnvKeys = ['APP_KEY', 'DATABASE_URL', 'REDIS_URL', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'GROQ_API_KEY', 'RESEND_API_KEY'];
+        $secretEnv = [];
+        foreach ($secretEnvKeys as $key) {
+            $val = Config::env($key);
+            $secretEnv[] = [
+                'key' => $key,
+                'configured' => null !== $val && '' !== trim($val),
+            ];
+        }
+
+        return [
+            'php' => [
+                'version' => PHP_VERSION,
+                'php_8513_safe' => version_compare(PHP_VERSION, '8.5.13', '>='),
+                'sapi' => PHP_SAPI,
+                'memory_limit' => ini_get('memory_limit'),
+                'memory_usage_mb' => round(memory_get_usage(true) / 1_048_576, 2),
+                'memory_peak_mb' => round(memory_get_peak_usage(true) / 1_048_576, 2),
+                'opcache_enabled' => $opcacheEnabled,
+                'jit_enabled' => $jitEnabled,
+            ],
+            'extensions' => $extensions,
+            'subsystems' => $subsystems,
+            'safe_env' => $safeEnv,
+            'secret_env' => $secretEnv,
+        ];
     }
 
     /**

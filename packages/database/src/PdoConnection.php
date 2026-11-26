@@ -494,7 +494,20 @@ final class PdoConnection implements ConnectionInterface, QueryGuardableInterfac
             $this->reconnect();
         }
         if (0 === $this->transactionDepth && !$this->pdo->inTransaction()) {
-            if (!$this->pdo->beginTransaction()) {
+            try {
+                $begun = $this->pdo->beginTransaction();
+            } catch (PDOException $e) {
+                if (null !== $this->connector && self::isConnectionLost($e)) {
+                    $this->reconnect();
+                    $begun = $this->pdo->beginTransaction();
+                } else {
+                    if (self::isConnectionLost($e)) {
+                        $this->needsReconnect = true;
+                    }
+                    throw new DatabaseException('Unable to begin database transaction: ' . $e->getMessage(), previous: $e);
+                }
+            }
+            if (!$begun) {
                 throw new DatabaseException('Unable to begin database transaction.');
             }
             $this->transactionDepth = 1;
@@ -507,6 +520,9 @@ final class PdoConnection implements ConnectionInterface, QueryGuardableInterfac
 
                 return $result;
             } catch (Throwable $failure) {
+                if ($failure instanceof PDOException && self::isConnectionLost($failure)) {
+                    $this->needsReconnect = true;
+                }
                 try {
                     if ($this->pdo->inTransaction()) {
                         $this->pdo->rollBack();

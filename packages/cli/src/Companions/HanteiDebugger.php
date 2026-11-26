@@ -281,6 +281,9 @@ PROMPT;
      *     body: string,
      *     status: int,
      *     duration_ms: float,
+     *     memory_delta_kb?: float,
+     *     response_headers?: array<string, string>,
+     *     response_body?: string,
      *     queries: list<array{sql: string, ms: float}>,
      *     n_plus_one: list<array{pattern: string, count: int}>,
      *     error: ?string

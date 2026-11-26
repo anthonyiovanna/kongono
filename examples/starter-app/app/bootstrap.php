@@ -260,6 +260,7 @@ $app->middleware(
         },
         hotReload: true,
         schemaHandler: static fn(): array => (new ProjectContext($baseDir, $app->graph(), $app))->inspectSchema(),
+        devHud: true,
     ),
     new CompressionMiddleware(),
     new StaticFilesMiddleware($baseDir . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'assets', '/assets/'),
