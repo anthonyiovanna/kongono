@@ -10,6 +10,7 @@ use Kongono\Core\Dev\DevMailboxInterface;
 use Kongono\Core\Dev\FileDevMailbox;
 use Kongono\Core\Diagnostics\IncidentStoreInterface;
 use Kongono\Core\Diagnostics\SecretScrubber;
+use Kongono\Core\Env\EnvExampleGenerator;
 use Kongono\Http\App;
 use Kongono\Http\Brand\KongonoBrand;
 use Kongono\Http\Request;
@@ -755,7 +756,21 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             ['name' => 'Metrics & Health', 'active' => $container->hasBinding('Kongono\\Core\\Health\\HealthCheck') || $container->hasBinding('Kongono\\Core\\Telemetry\\Metrics'), 'detail' => sprintf('HealthCheck:%s · Metrics:%s', $container->hasBinding('Kongono\\Core\\Health\\HealthCheck') ? 'on' : 'off', $container->hasBinding('Kongono\\Core\\Telemetry\\Metrics') ? 'on' : 'off')],
         ];
 
+        $envSync = (new EnvExampleGenerator())->analyze($this->app->basePath(), $this->app->graph());
+
         $safeEnvKeys = ['APP_ENV', 'APP_DEBUG', 'APP_URL', 'LOG_LEVEL', 'CACHE_DRIVER', 'QUEUE_DRIVER', 'MAIL_TRANSPORT', 'SESSION_SECURE', 'OLLAMA_HOST'];
+        $secretEnvKeys = ['APP_KEY', 'DATABASE_URL', 'REDIS_URL', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'GROQ_API_KEY', 'RESEND_API_KEY'];
+        foreach ($envSync['detected_keys'] as $entry) {
+            $k = $entry['key'];
+            if (EnvExampleGenerator::isSensitiveKey($k)) {
+                if (!in_array($k, $secretEnvKeys, true)) {
+                    $secretEnvKeys[] = $k;
+                }
+            } elseif (!in_array($k, $safeEnvKeys, true)) {
+                $safeEnvKeys[] = $k;
+            }
+        }
+
         $safeEnv = [];
         foreach ($safeEnvKeys as $key) {
             $val = Config::env($key);
@@ -765,7 +780,6 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             ];
         }
 
-        $secretEnvKeys = ['APP_KEY', 'DATABASE_URL', 'REDIS_URL', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'GROQ_API_KEY', 'RESEND_API_KEY'];
         $secretEnv = [];
         foreach ($secretEnvKeys as $key) {
             $val = Config::env($key);
@@ -790,6 +804,16 @@ final readonly class DevDashboardMiddleware implements MiddlewareInterface
             'subsystems' => $subsystems,
             'safe_env' => $safeEnv,
             'secret_env' => $secretEnv,
+            'env_example' => [
+                'exists' => $envSync['exists'],
+                'in_sync' => $envSync['in_sync'],
+                'detected_integrations' => $envSync['detected_integrations'],
+                'detected_count' => count($envSync['detected_keys']),
+                'missing_keys' => $envSync['missing_keys'],
+                'stale_keys' => $envSync['stale_keys'],
+                'diff_preview' => $envSync['diff_preview'],
+                'sync_command' => 'php bin/kongo env:sync',
+            ],
         ];
     }
 

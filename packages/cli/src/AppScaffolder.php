@@ -8,6 +8,7 @@ use Kongono\Cli\Auth\AuthScaffolder;
 use Kongono\Cli\Context\ProjectContext;
 use Kongono\Cli\Skills\SkillsInstaller;
 use Kongono\Core\CoreException;
+use Kongono\Core\Env\EnvExampleGenerator;
 
 /** Scaffolds a fresh, runnable Kongono v1 application via `kongo new <dir> [--starter=minimal|api|saas]`. */
 final class AppScaffolder
@@ -58,7 +59,6 @@ final class AppScaffolder
                     'psr-4' => ['App\\' => 'src/'],
                 ],
             ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n",
-            '.env.example' => "APP_ENV=local\nAPP_DEBUG=false\n# Run `php vendor/bin/kongo key:generate` and place the generated key in your untracked .env file:\nAPP_KEY=REPLACE_WITH_kongo_key_generate\n# Set any one AI provider for Oshie, Chie & Hantei:\n# OPENAI_API_KEY=\n# ANTHROPIC_API_KEY=\n# GEMINI_API_KEY=\n# GROQ_API_KEY=\n# OLLAMA_HOST=http://127.0.0.1:11434\n",
             'app/bootstrap.php' => $bootstrapPhp,
             'public/index.php' => <<<'PHP'
 <?php
@@ -221,6 +221,9 @@ PHP,
             $skillsResult = (new SkillsInstaller())->install($targetDir, target: 'agents', force: true);
             $created = [...$created, ...$skillsResult['installed']];
         }
+
+        (new EnvExampleGenerator())->sync($targetDir, write: true);
+        $created[] = '.env.example';
 
         return $created;
     }

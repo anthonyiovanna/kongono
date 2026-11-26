@@ -46,6 +46,7 @@ use Kongono\Core\Config;
 use Kongono\Core\CoreException;
 use Kongono\Core\Diagnostics\ErrorExplainer;
 use Kongono\Core\Diagnostics\SecretScrubber;
+use Kongono\Core\Env\EnvExampleGenerator;
 use Kongono\Core\Graph\RouteNode;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\MigrationInterface;
@@ -161,6 +162,7 @@ final readonly class KongoCli
                 'key:generate' => [0, 'APP_KEY=' . Encryptor::generateKey() . "\n"],
                 'doctor' => $this->cmdDoctor($appRoot),
                 'env:check' => $this->cmdEnvCheck($appRoot),
+                'env:sync' => $this->cmdEnvSync($appRoot, $options),
                 'check' => $this->cmdCheck($appRoot),
                 'test' => $this->cmdHantei($appRoot, ['test'], $options),
                 'oshie' => $this->cmdOshie($appRoot, $rest, $options),
@@ -194,7 +196,7 @@ final readonly class KongoCli
             'migrate:status', 'migrate:lint', 'db:seed', 'optimize', 'cache:clear',
             'make:controller', 'make:dto', 'make:migration', 'make:seeder', 'make:test',
             'make:job', 'make:policy', 'make:middleware', 'make:factory', 'make:rule',
-            'make:mail', 'make:resource', 'key:generate', 'doctor', 'env:check', 'check',
+            'make:mail', 'make:resource', 'key:generate', 'doctor', 'env:check', 'env:sync', 'check',
             'test', 'oshie', 'chie', 'hantei',
         ];
         $best = null;
@@ -1085,6 +1087,89 @@ final readonly class KongoCli
      * @param array<string, string|true> $options
      * @return array{0: int, 1: string}
      */
+    private function cmdEnvSync(string $appRoot, array $options): array
+    {
+        $checkOnly = isset($options['check']);
+        $dryRun = isset($options['dry-run']) || $checkOnly;
+        $prune = isset($options['prune']);
+
+        $app = null;
+        $realBootstrap = ProjectContext::resolveSafeExecutableFile($appRoot, 'app/bootstrap.php', $this->allowBootstrapFromOptions($options));
+        if (null !== $realBootstrap) {
+            try {
+                $loaded = require $realBootstrap;
+                if ($loaded instanceof App) {
+                    $app = $loaded;
+                }
+            } catch (Throwable) {
+                $app = null;
+            }
+        }
+
+        $generator = new EnvExampleGenerator();
+        $report = $generator->sync($appRoot, $app?->graph(), write: !$dryRun, prune: $prune);
+
+        if (isset($options['json'])) {
+            $exitCode = $checkOnly && !$report['in_sync'] ? 1 : 0;
+
+            return [$exitCode, json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"];
+        }
+
+        $integrations = [] !== $report['detected_integrations']
+            ? implode(', ', $report['detected_integrations'])
+            : 'Core Application';
+
+        if ($checkOnly) {
+            if ($report['in_sync']) {
+                return [0, sprintf(
+                    ".env.example is in sync (%d key(s) detected; integrations: %s).\n",
+                    count($report['detected_keys']),
+                    $integrations,
+                )];
+            }
+
+            $lines = [sprintf('.env.example drift detected in %s:', $appRoot)];
+            if (!$report['exists']) {
+                $lines[] = '  [MISS] .env.example does not exist yet.';
+            }
+            foreach ($report['missing_keys'] as $missingKey) {
+                $lines[] = sprintf('  [MISS] %s', $missingKey);
+            }
+            $lines[] = '';
+            $lines[] = 'Run `php vendor/bin/kongo env:sync` to populate safe non-secret placeholders.';
+
+            return [1, implode("\n", $lines) . "\n"];
+        }
+
+        $lines = [];
+        if ($dryRun) {
+            $lines[] = sprintf('Env sync dry-run (%s):', $appRoot);
+        } elseif ($report['wrote']) {
+            $lines[] = sprintf('Synced %s (integrations: %s):', $report['path'], $integrations);
+        } else {
+            $lines[] = sprintf('.env.example is already up to date (%d key(s); integrations: %s).', count($report['detected_keys']), $integrations);
+        }
+
+        if ('' !== $report['diff_preview']) {
+            $lines[] = '';
+            $lines[] = $report['diff_preview'];
+        }
+        if ([] !== $report['stale_keys'] && !$prune) {
+            $lines[] = '';
+            $lines[] = sprintf(
+                'Note: %d key(s) in .env.example were not detected in code/packages (%s). Pass --prune to remove unused keys.',
+                count($report['stale_keys']),
+                implode(', ', $report['stale_keys']),
+            );
+        }
+
+        return [0, implode("\n", $lines) . "\n"];
+    }
+
+    /**
+     * @param array<string, string|true> $options
+     * @return array{0: int, 1: string}
+     */
     private function cmdMigrateRollback(string $appRoot, array $options): array
     {
         $bootstrap = $appRoot . DIRECTORY_SEPARATOR . 'app' . DIRECTORY_SEPARATOR . 'bootstrap.php';
@@ -1729,6 +1814,12 @@ final readonly class KongoCli
                     $lines[] = '  - ' . self::sanitizeTerminalText($step);
                 }
             }
+            if (!$report['rolled_back'] && [] !== $report['applied']) {
+                $envNotice = $this->envDriftNoticeForAppliedChanges($appRoot);
+                if (null !== $envNotice) {
+                    $lines[] = "\n" . $envNotice;
+                }
+            }
             $lines[] = "\n" . $report['telemetry']->formatFooter();
 
             return [$report['verified'] ? 0 : 1, implode("\n", $lines) . "\n"];
@@ -1782,9 +1873,29 @@ final readonly class KongoCli
                 $lines[] = '  - ' . self::sanitizeTerminalText($step);
             }
         }
+        if ($apply && [] !== $result['applied']) {
+            $envNotice = $this->envDriftNoticeForAppliedChanges($appRoot);
+            if (null !== $envNotice) {
+                $lines[] = "\n" . $envNotice;
+            }
+        }
         $lines[] = "\n" . $result['telemetry']->formatFooter();
 
         return [0, implode("\n", $lines) . "\n"];
+    }
+
+    private function envDriftNoticeForAppliedChanges(string $appRoot): ?string
+    {
+        $report = (new EnvExampleGenerator())->analyze($appRoot);
+        if ([] === $report['missing_keys']) {
+            return null;
+        }
+
+        return sprintf(
+            '[env:sync] Detected %d new environment key(s) missing from .env.example (%s). Run `php vendor/bin/kongo env:sync` to add safe placeholders.',
+            count($report['missing_keys']),
+            implode(', ', $report['missing_keys']),
+        );
     }
 
     /**
@@ -1893,6 +2004,12 @@ final readonly class KongoCli
             $lines[] = "\nNext steps:";
             foreach ($result['next_steps'] as $step) {
                 $lines[] = '  - ' . self::sanitizeTerminalText($step);
+            }
+        }
+        if ([] !== $applied) {
+            $envNotice = $this->envDriftNoticeForAppliedChanges($context->rootPath);
+            if (null !== $envNotice) {
+                $lines[] = "\n" . $envNotice;
             }
         }
         $lines[] = "\n" . $result['telemetry']->formatFooter();
@@ -3921,7 +4038,7 @@ Scaffolding, Frontend & SDKs:
   skills:install [--target=agents|claude|both] [--force] Install 6 bundled Kongono AI agent SKILL.md recipes
 
 Inspection, Editor & Production:
-  doctor / env:check / key:generate                     Verify PHP 8.5 + env keys, or generate a 256-bit APP_KEY
+  doctor / env:check / env:sync / key:generate          Verify PHP 8.5, sync project .env.example (no secrets), or generate APP_KEY
   routes [--json] / graph / openapi                     Inspect routes, live ApplicationGraph, or OpenAPI 3.1 spec
   optimize / cache:clear                                Precompile views & AOT route/graph caches (or clear caches)
   deploy:init [--app=path] --domain=app.example.com     Generate zero-downtime FrankenPHP Dockerfile, Caddyfile & VPS scripts

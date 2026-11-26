@@ -458,6 +458,19 @@ final class DevDashboardRenderer
             <div class="ext-grid" id="runtimeExts"></div>
           </div>
 
+          <div class="card" id="runtimeEnvSyncCard">
+            <div class="toolbar toolbar-between mb-sm">
+              <div class="toolbar-group">
+                <h2 class="card-title">.env.example Sync</h2>
+                <span class="badge b-method" id="runtimeEnvSyncBadge">Checking...</span>
+              </div>
+              <button type="button" class="btn btn-sm" id="copyEnvSyncCmdBtn">Copy Sync Command</button>
+            </div>
+            <div class="sub" id="runtimeEnvSyncMeta">Scanning project code &amp; packages for required non-secret placeholders...</div>
+            <div class="ext-grid mt-md" id="runtimeEnvIntegrations"></div>
+            <pre id="runtimeEnvDiff" class="is-hidden mt-md"></pre>
+          </div>
+
           <div class="drawer-grid">
             <div class="card">
               <h2 class="card-title mb-sm">Wired Subsystems &amp; Studio Features</h2>
@@ -1454,7 +1467,44 @@ CSS;
       envRows.push('<tr><td><code>' + esc(s.key) + '</code></td><td><span class="badge ' + (s.configured ? 'b-ok' : 'b-method') + '">' + (s.configured ? 'Configured (hidden)' : 'Not set') + '</span></td></tr>');
     }
     document.getElementById('runtimeEnv').innerHTML = envRows.join('');
+
+    const envEx = data.env_example || null;
+    const syncBadge = document.getElementById('runtimeEnvSyncBadge');
+    const syncMeta = document.getElementById('runtimeEnvSyncMeta');
+    const syncInts = document.getElementById('runtimeEnvIntegrations');
+    const syncDiff = document.getElementById('runtimeEnvDiff');
+    if (envEx && syncBadge && syncMeta && syncInts && syncDiff) {
+      const missing = envEx.missing_keys || [];
+      const integrations = envEx.detected_integrations || [];
+      if (envEx.in_sync) {
+        syncBadge.className = 'badge b-ok';
+        syncBadge.textContent = 'In Sync';
+        syncMeta.textContent = envEx.detected_count + ' project key(s) documented in .env.example (zero secrets read).';
+      } else if (!envEx.exists) {
+        syncBadge.className = 'badge b-warn';
+        syncBadge.textContent = 'Not Created';
+        syncMeta.textContent = 'No .env.example yet — run `' + (envEx.sync_command || 'php bin/kongo env:sync') + '` to create one with ' + envEx.detected_count + ' safe placeholder(s).';
+      } else {
+        syncBadge.className = 'badge b-warn';
+        syncBadge.textContent = missing.length + ' Missing';
+        syncMeta.textContent = 'Code/packages reference key(s) missing from .env.example: ' + missing.join(', ') + '. Run `' + (envEx.sync_command || 'php bin/kongo env:sync') + '`.';
+      }
+      syncInts.innerHTML = integrations.length
+        ? integrations.map(name => '<span class="ext-chip">' + esc(name) + '</span>').join('')
+        : '<span class="muted text-sm">Core Application</span>';
+      if (!envEx.in_sync && envEx.diff_preview) {
+        syncDiff.textContent = envEx.diff_preview;
+        syncDiff.classList.remove('is-hidden');
+      } else {
+        syncDiff.classList.add('is-hidden');
+      }
+    }
   }
+
+  document.getElementById('copyEnvSyncCmdBtn').addEventListener('click', () => {
+    const cmd = (lastRuntimeData && lastRuntimeData.env_example && lastRuntimeData.env_example.sync_command) || 'php bin/kongo env:sync';
+    copyToClipboard(cmd, document.getElementById('copyEnvSyncCmdBtn'), 'Copy Sync Command');
+  });
 
   async function loadRuntime() {
     const r = await fetch(BASE + '/api/runtime', { cache: 'no-store' });

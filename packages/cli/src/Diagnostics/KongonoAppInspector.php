@@ -6,6 +6,7 @@ namespace Kongono\Cli\Diagnostics;
 
 use FilesystemIterator;
 use Kongono\Core\Container;
+use Kongono\Core\Env\EnvExampleGenerator;
 use Kongono\Database\ConnectionInterface;
 use Kongono\Database\MigrationInterface;
 use Kongono\Database\Migrator;
@@ -105,6 +106,8 @@ final readonly class KongonoAppInspector
                 $prover->proveTemplateAgainstApp($vs['rel'], $vs['raw'], $root, $app, $findings);
             }
         }
+
+        $this->inspectEnvExampleDrift($root, $app, $findings);
 
         return $this->finalizeReport($root, $routesChecked, $viewsChecked, $phpFilesChecked, $findings);
     }
@@ -1362,6 +1365,41 @@ final readonly class KongonoAppInspector
     private function lineNumber(string $source, int $byteOffset): int
     {
         return substr_count(substr($source, 0, $byteOffset), "\n") + 1;
+    }
+
+    /**
+     * @param list<AppFinding> $findings
+     */
+    private function inspectEnvExampleDrift(string $root, ?App $app, array &$findings): void
+    {
+        $exampleFile = $root . DIRECTORY_SEPARATOR . '.env.example';
+        if (!is_file($exampleFile) || is_link($exampleFile)) {
+            return;
+        }
+
+        $report = (new EnvExampleGenerator())->analyze($root, $app?->graph());
+        if ([] === $report['missing_keys']) {
+            return;
+        }
+
+        $findings[] = new AppFinding(
+            code: 'KGN-DIAG-ENV-DRIFT',
+            severity: 'warning',
+            who: 'Kongono Environment Example Sync Prover',
+            what: sprintf(
+                '`.env.example` is missing %d environment key(s) used by this project: %s.',
+                count($report['missing_keys']),
+                implode(', ', $report['missing_keys']),
+            ),
+            why: 'Developers, CI pipelines, and `kongo env:check` rely on `.env.example` to document every required variable without committing secrets.',
+            where: '.env.example',
+            howToFix: [
+                'Run `php vendor/bin/kongo env:sync` (or `kongo diagnose --fix`) to append safe non-secret placeholders to `.env.example`.',
+            ],
+            command: 'php vendor/bin/kongo env:sync',
+            file: '.env.example',
+            fixable: true,
+        );
     }
 
     private function relativePath(string $absPath, string $root): string
