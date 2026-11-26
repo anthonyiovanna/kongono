@@ -1,4 +1,4 @@
-# Kongono Framework — Complete LLM Technical Reference (v1.20.4)
+# Kongono Framework — Complete LLM Technical Reference (v1.21.0)
 
 > Single-file, verified technical reference for AI coding agents (Claude, GPT, Gemini, Groq, Cursor, Codex, Antigravity) building and maintaining Kongono PHP 8.5+ applications.
 > Every namespace, class name, and pattern below is verified against `kongono/framework`.

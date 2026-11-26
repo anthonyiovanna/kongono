@@ -106,7 +106,7 @@ final class KongonoLanguageServer
                     ],
                     'serverInfo' => [
                         'name' => 'kongono-lsp',
-                        'version' => '1.20.4',
+                        'version' => '1.21.0',
                     ],
                 ],
             ]],

@@ -1,4 +1,4 @@
-# Kongono Framework (v1.20.4)
+# Kongono Framework (v1.21.0)
 
 > Modern, zero-legacy, self-verifying PHP 8.5.13+ application framework built from the ground up — zero Symfony packages, zero third-party runtime libraries beyond the 7 PSR interfaces, zero mutable static properties, persistent-runtime safety (FrankenPHP, RoadRunner, `kongo serve`, PHP-FPM), unified 5-pillar readiness proofs (`kongo prove`), 17-rule auto-fixing diagnostics (`kongo diagnose --fix`), project-aware nondisclosing `.env.example` sync (`kongo env:sync`), least-privilege route capabilities (`#[ReadOnlyDb]`, `#[NoOutboundHttp]`, `#[MaxQueries]`, `#[MaxAiCost]`), Production Incident Time-Machine (`$app->recordIncidents()`), Zero-Build Hot Reload, Live 2.5 & Bridge frontends, Hybrid RRF search, strict-CSP `/_kongono` Dev Studio (Trace Inspector Drawer, Floating Dev HUD, Try Route, Runtime & Env, Proof Center, Dev Mailbox, Schema Explorer) & `/_ops`, zero-dependency LSP 3.17 (`kongo lsp`), 5 native AI providers (OpenAI, Anthropic, Gemini, Groq, Ollama), and a 26-tool Model Context Protocol (MCP) server.
 

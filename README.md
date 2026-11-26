@@ -1,4 +1,4 @@
-# <img src="site/assets/logo.svg" width="32" height="32" align="absmiddle" alt="Kongono"> Kongono Framework (v1.20.4)
+# <img src="site/assets/logo.svg" width="32" height="32" align="absmiddle" alt="Kongono"> Kongono Framework (v1.21.0)
 
 > **Build what comes next.**
 
