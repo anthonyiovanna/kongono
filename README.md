@@ -6,7 +6,7 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/17130/badge)](https://www.bestpractices.dev/projects/17130)
 [![Latest Stable Version](https://img.shields.io/packagist/v/kongono/framework.svg?label=Packagist)](https://packagist.org/packages/kongono/framework)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/SXWjgBGwrZ)
-[![Reddit](https://img.shields.io/badge/Reddit-r%2Fkongono-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/r/kongono)
+[![Reddit](https://img.shields.io/badge/Reddit-r%2FKongonoPHP-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/r/KongonoPHP)
 ![PHP 8.5.13+](https://img.shields.io/badge/PHP-8.5.13%2B-777BB4?logo=php&logoColor=white)
 ![Zero Symfony](https://img.shields.io/badge/Symfony-0%20runtime%20deps-16a34a)
 ![License MIT](https://img.shields.io/badge/License-MIT-0284c7)
@@ -173,7 +173,7 @@ composer quality            # Run cs + analyse + test
 ## Documentation
 
 - **[Official Documentation Site](https://kongono.com/)** · **[`llms.txt`](https://kongono.com/llms.txt)** · **[`llms-full.txt`](https://kongono.com/llms-full.txt)**
-- **[Community Discussions](https://github.com/kongono/framework/discussions)** · **[Discord](https://discord.gg/SXWjgBGwrZ)** · **[Reddit (`r/kongono`)](https://www.reddit.com/r/kongono)**
+- **[Community Discussions](https://github.com/kongono/framework/discussions)** · **[Discord](https://discord.gg/SXWjgBGwrZ)** · **[Reddit (`r/KongonoPHP`)](https://www.reddit.com/r/KongonoPHP)**
 - [Getting Started](docs/getting-started.md)
 - [Architecture Overview](docs/architecture.md)
 - [Built-In AI Companions & MCP Server](docs/ai-companions.md)
