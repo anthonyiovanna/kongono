@@ -6,11 +6,31 @@ const fs = require('fs');
 const path = require('path');
 
 const MAX_BUFFER_BYTES = 16 * 1024 * 1024;
+const MAX_DOC_BYTES = 2 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 10_000;
 const CHANGE_DEBOUNCE_MS = 250;
 
 /**
- * Resolve the local Kongono PHP CLI entry script inside a workspace without executing shell wrappers.
+ * Check whether `targetPath` resolves cleanly inside `rootDir` (case-insensitive on Windows).
+ *
+ * @param {string} targetPath
+ * @param {string} rootDir
+ * @returns {boolean}
+ */
+function isPathInside(targetPath, rootDir) {
+  try {
+    const realRoot = fs.realpathSync(rootDir);
+    const realTarget = fs.realpathSync(targetPath);
+    const normRoot = (process.platform === 'win32' ? realRoot.toLowerCase() : realRoot).replace(/[\\/]+$/, '');
+    const normTarget = process.platform === 'win32' ? realTarget.toLowerCase() : realTarget;
+    return normTarget === normRoot || normTarget.startsWith(normRoot + path.sep);
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Resolve the local Kongono PHP CLI entry script inside a workspace without following escaping symlinks.
  *
  * @param {string} workspaceRoot
  * @returns {string|null}
@@ -23,11 +43,32 @@ function resolveKongoBin(workspaceRoot) {
     path.join(workspaceRoot, 'vendor', 'bin', 'kongo'),
   ];
   for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return candidate;
+    try {
+      const stat = fs.lstatSync(candidate);
+      if (stat.isSymbolicLink() && !isPathInside(candidate, workspaceRoot)) {
+        continue;
+      }
+      if (fs.statSync(candidate).isFile() && isPathInside(candidate, workspaceRoot)) {
+        return candidate;
+      }
+    } catch (_) {
+      // candidate absent or unreadable
     }
   }
   return null;
+}
+
+/**
+ * Resolve configured `kongono.appPath` relative to `workspaceRoot` when non-empty.
+ *
+ * @param {string} workspaceRoot
+ * @param {string} rawAppPath
+ * @returns {string}
+ */
+function resolveAppPath(workspaceRoot, rawAppPath) {
+  const trimmed = String(rawAppPath || '').trim();
+  if (!trimmed) return workspaceRoot;
+  return path.isAbsolute(trimmed) ? trimmed : path.resolve(workspaceRoot, trimmed);
 }
 
 /**
@@ -81,6 +122,8 @@ class KongonoLspClient {
     this.output = output;
     this.diagnostics = diagnostics;
     this.proc = null;
+    this.workspaceRoot = null;
+    this.appRoot = null;
     this.buffer = Buffer.alloc(0);
     this.nextId = 1;
     this.pending = new Map();
@@ -107,8 +150,16 @@ class KongonoLspClient {
     this.changeTimers.clear();
   }
 
+  isManagedDocument(doc) {
+    if (!isSupportedDoc(doc)) return false;
+    const scopeRoot = this.appRoot || this.workspaceRoot;
+    if (!scopeRoot) return false;
+    return isPathInside(doc.fileName, scopeRoot);
+  }
+
   start(workspaceRoot) {
     this.stop();
+    if (!workspaceRoot) return;
     if (!vscode.workspace.isTrusted) {
       this.output.appendLine('[kongono] Workspace is not trusted; refusing to execute local PHP/kongo binaries.');
       return;
@@ -117,12 +168,15 @@ class KongonoLspClient {
     if (!cfg.get('enableLsp', true)) return;
 
     const phpBin = String(cfg.get('phpPath', 'php') || 'php').trim() || 'php';
-    const appPath = String(cfg.get('appPath', '') || '').trim() || workspaceRoot;
+    const appPath = resolveAppPath(workspaceRoot, cfg.get('appPath', ''));
     const kongoBin = this.resolveKongoBin(workspaceRoot);
     if (!kongoBin) {
       this.output.appendLine('[kongono] No vendor/bin/kongo or bin/kongo found in ' + workspaceRoot);
       return;
     }
+
+    this.workspaceRoot = workspaceRoot;
+    this.appRoot = appPath;
 
     const args = [kongoBin, 'lsp', '--app=' + appPath];
     this.output.appendLine('[kongono] Starting LSP: ' + phpBin + ' ' + args.join(' '));
@@ -171,7 +225,7 @@ class KongonoLspClient {
       this.ready = true;
       this.notify('initialized', {});
       for (const doc of vscode.workspace.textDocuments) {
-        if (isSupportedDoc(doc)) this.didOpen(doc);
+        if (this.isManagedDocument(doc)) this.didOpen(doc);
       }
     }).catch((err) => {
       if (this.proc !== proc) return;
@@ -183,6 +237,8 @@ class KongonoLspClient {
     this.clearChangeTimers();
     const proc = this.proc;
     this.proc = null;
+    this.workspaceRoot = null;
+    this.appRoot = null;
     this.ready = false;
     this.buffer = Buffer.alloc(0);
     this.rejectAllPending(new Error('Kongono LSP stopped'));
@@ -246,28 +302,32 @@ class KongonoLspClient {
   }
 
   didOpen(doc) {
-    if (!this.ready) return;
+    if (!this.ready || !this.isManagedDocument(doc)) return;
+    const text = doc.getText();
+    if (Buffer.byteLength(text, 'utf8') > MAX_DOC_BYTES) return;
     this.notify('textDocument/didOpen', {
       textDocument: {
         uri: doc.uri.toString(),
         languageId: doc.languageId,
         version: doc.version,
-        text: doc.getText(),
+        text,
       },
     });
   }
 
   didChange(doc) {
-    if (!this.ready) return;
+    if (!this.ready || !this.isManagedDocument(doc)) return;
     const key = doc.uri.toString();
     const prev = this.changeTimers.get(key);
     if (prev) clearTimeout(prev);
     const timer = setTimeout(() => {
       this.changeTimers.delete(key);
       if (!this.ready) return;
+      const text = doc.getText();
+      if (Buffer.byteLength(text, 'utf8') > MAX_DOC_BYTES) return;
       this.notify('textDocument/didChange', {
         textDocument: { uri: key, version: doc.version },
-        contentChanges: [{ text: doc.getText() }],
+        contentChanges: [{ text }],
       });
     }, CHANGE_DEBOUNCE_MS);
     timer.unref();
@@ -275,16 +335,18 @@ class KongonoLspClient {
   }
 
   didSave(doc) {
-    if (!this.ready) return;
+    if (!this.ready || !this.isManagedDocument(doc)) return;
     const key = doc.uri.toString();
     const prev = this.changeTimers.get(key);
     if (prev) {
       clearTimeout(prev);
       this.changeTimers.delete(key);
     }
+    const text = doc.getText();
+    if (Buffer.byteLength(text, 'utf8') > MAX_DOC_BYTES) return;
     this.notify('textDocument/didSave', {
       textDocument: { uri: key },
-      text: doc.getText(),
+      text,
     });
   }
 
@@ -373,12 +435,23 @@ class KongonoLspClient {
 }
 
 function isSupportedDoc(doc) {
-  if (!doc || !doc.uri || doc.uri.scheme !== 'file') return false;
+  if (!doc || !doc.uri || doc.uri.scheme !== 'file' || typeof doc.fileName !== 'string') {
+    return false;
+  }
+  const normalized = doc.fileName.replace(/\\/g, '/').toLowerCase();
+  if (
+    normalized.includes('/vendor/') ||
+    normalized.includes('/node_modules/') ||
+    normalized.includes('/.git/') ||
+    normalized.includes('/var/cache/')
+  ) {
+    return false;
+  }
   return (
     doc.languageId === 'kongono-template' ||
     doc.languageId === 'php' ||
-    doc.fileName.endsWith('.kgn.html') ||
-    doc.fileName.endsWith('.php')
+    normalized.endsWith('.kgn.html') ||
+    normalized.endsWith('.php')
   );
 }
 
@@ -389,15 +462,15 @@ function runTerminalCommand(workspaceRoot, argsList) {
   }
   const cfg = vscode.workspace.getConfiguration('kongono');
   const phpBin = String(cfg.get('phpPath', 'php') || 'php').trim() || 'php';
-  const appPath = String(cfg.get('appPath', '') || '').trim();
+  const rawAppPath = String(cfg.get('appPath', '') || '').trim();
   const kongoBin = resolveKongoBin(workspaceRoot);
   if (!kongoBin) {
     vscode.window.showErrorMessage('Could not find vendor/bin/kongo or bin/kongo in ' + workspaceRoot);
     return;
   }
   const fullArgs = [kongoBin, ...argsList];
-  if (appPath) {
-    fullArgs.push('--app=' + appPath);
+  if (rawAppPath) {
+    fullArgs.push('--app=' + resolveAppPath(workspaceRoot, rawAppPath));
   }
   const term = vscode.window.createTerminal({
     name: 'Kongono',
@@ -415,9 +488,11 @@ function activate(context) {
 
   const startIfAvailable = () => {
     const root = resolveWorkspaceRoot();
-    if (root && vscode.workspace.isTrusted) {
-      client.start(root);
+    if (!root || !vscode.workspace.isTrusted) {
+      client.stop();
+      return;
     }
+    client.start(root);
   };
 
   startIfAvailable();
@@ -437,13 +512,13 @@ function activate(context) {
         startIfAvailable();
       }
     }),
-    vscode.workspace.onDidOpenTextDocument((doc) => { if (isSupportedDoc(doc)) client.didOpen(doc); }),
-    vscode.workspace.onDidChangeTextDocument((ev) => { if (isSupportedDoc(ev.document)) client.didChange(ev.document); }),
-    vscode.workspace.onDidSaveTextDocument((doc) => { if (isSupportedDoc(doc)) client.didSave(doc); }),
+    vscode.workspace.onDidOpenTextDocument((doc) => { if (client.isManagedDocument(doc)) client.didOpen(doc); }),
+    vscode.workspace.onDidChangeTextDocument((ev) => { if (client.isManagedDocument(ev.document)) client.didChange(ev.document); }),
+    vscode.workspace.onDidSaveTextDocument((doc) => { if (client.isManagedDocument(doc)) client.didSave(doc); }),
     vscode.workspace.onDidCloseTextDocument((doc) => { if (isSupportedDoc(doc)) client.didClose(doc); }),
     vscode.languages.registerHoverProvider(selector, {
       async provideHover(doc, pos) {
-        if (!client.ready) return null;
+        if (!client.ready || !client.isManagedDocument(doc)) return null;
         try {
           const res = await client.request('textDocument/hover', {
             textDocument: { uri: doc.uri.toString() },
@@ -462,7 +537,9 @@ function activate(context) {
     }),
     vscode.languages.registerCodeActionsProvider(selector, {
       async provideCodeActions(doc, range, ctx) {
-        if (!client.ready) return [];
+        if (!client.ready || !client.isManagedDocument(doc)) return [];
+        const scopeRoot = client.appRoot || client.workspaceRoot;
+        if (!scopeRoot) return [];
         try {
           const diagPayload = (ctx && Array.isArray(ctx.diagnostics) ? ctx.diagnostics : []).map((d) => ({
             range: {
@@ -489,9 +566,13 @@ function activate(context) {
             action.isPreferred = Boolean(a.isPreferred);
             const edit = new vscode.WorkspaceEdit();
             const changes = (a.edit && a.edit.changes) || {};
+            let editCount = 0;
             for (const [uriStr, edits] of Object.entries(changes)) {
               if (!Array.isArray(edits)) continue;
               const targetUri = vscode.Uri.parse(uriStr);
+              if (targetUri.scheme !== 'file' || !isPathInside(targetUri.fsPath, scopeRoot)) {
+                continue;
+              }
               for (const e of edits) {
                 if (!e || !e.range || !e.range.start || !e.range.end || typeof e.newText !== 'string') continue;
                 edit.replace(
@@ -499,10 +580,13 @@ function activate(context) {
                   new vscode.Range(e.range.start.line, e.range.start.character, e.range.end.line, e.range.end.character),
                   e.newText,
                 );
+                editCount++;
               }
             }
-            action.edit = edit;
-            actions.push(action);
+            if (editCount > 0) {
+              action.edit = edit;
+              actions.push(action);
+            }
           }
           return actions;
         } catch (_) {
@@ -534,6 +618,8 @@ module.exports = {
   deactivate,
   KongonoLspClient,
   isSupportedDoc,
+  isPathInside,
   resolveKongoBin,
+  resolveAppPath,
   mapSeverity,
 };

@@ -106,7 +106,7 @@ final class KongonoLanguageServer
                     ],
                     'serverInfo' => [
                         'name' => 'kongono-lsp',
-                        'version' => '1.20.0',
+                        'version' => '1.20.4',
                     ],
                 ],
             ]],
@@ -340,7 +340,7 @@ final class KongonoLanguageServer
                         $uri => [[
                             'range' => [
                                 'start' => ['line' => $line0, 'character' => 0],
-                                'end' => ['line' => $line0, 'character' => strlen($origLine)],
+                                'end' => ['line' => $line0, 'character' => self::utf16Length($origLine)],
                             ],
                             'newText' => $fix['replacement'],
                         ]],
@@ -374,8 +374,9 @@ final class KongonoLanguageServer
         foreach ($findings as $f) {
             $line0 = max(0, ($f->line ?? 1) - 1);
             $lineText = $lines[$line0] ?? '';
-            $startChar = strlen($lineText) - strlen(ltrim($lineText));
-            $endChar = max($startChar + 1, strlen(rtrim($lineText)));
+            $leadingWs = substr($lineText, 0, strlen($lineText) - strlen(ltrim($lineText)));
+            $startChar = self::utf16Length($leadingWs);
+            $endChar = max($startChar + 1, self::utf16Length(rtrim($lineText)));
 
             $msgParts = [
                 $f->what,
@@ -562,7 +563,12 @@ final class KongonoLanguageServer
         }
         $realBootstrap = realpath($bootstrap);
         $prefix = rtrim($appRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
-        if (false === $realBootstrap || !str_starts_with($realBootstrap, $prefix)) {
+        $isContained = false !== $realBootstrap && (
+            '\\' === DIRECTORY_SEPARATOR
+                ? str_starts_with(strtolower($realBootstrap), strtolower($prefix))
+                : str_starts_with($realBootstrap, $prefix)
+        );
+        if (!$isContained) {
             return null;
         }
 
@@ -573,5 +579,15 @@ final class KongonoLanguageServer
         } catch (Throwable) {
             return null;
         }
+    }
+
+    /** Compute LSP 3.17 UTF-16 code-unit length for accurate character ranges on multibyte/emoji lines. */
+    private static function utf16Length(string $text): int
+    {
+        if ('' === $text) {
+            return 0;
+        }
+
+        return intdiv(strlen(mb_convert_encoding($text, 'UTF-16LE', 'UTF-8')), 2);
     }
 }
