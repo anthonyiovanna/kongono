@@ -4,6 +4,15 @@ All notable changes to the **Kongono Framework** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Cryptographic QR Login, Pure-PHP SVG QR Encoder & Single-Use Email/SMS OTP (`kongono/security`):**
+  - Added `Kongono\Security\Auth\QrCodeSvg` — zero-dependency, pure PHP 8.5 ISO/IEC 18004 Byte-mode QR Code encoder (Versions 1–10, EC Level M/L, GF(256) Reed-Solomon, optimal mask selection) rendering strict-CSP inline `<svg>` with zero inline styles/scripts, plus `Totp::provisioningQrSvg()` for 1-line 2FA setup QR codes.
+  - Added `Kongono\Security\Auth\QrLoginAuth` — phishing-resistant cross-device cryptographic QR sign-in (Discord/WhatsApp style) with domain-separated `SignedUrl` QR payloads, desktop-only 256-bit `poll_secret`, 6-digit `XXX-XXX` QRLjacking verification code + IP/User-Agent display, explicit `reject()`, and atomic single-use `claim()`.
+  - Added `Kongono\Security\Auth\OneTimeCodeAuth` — dedicated single-use Email/SMS OTP helper (`6`–`10` digits via `random_int()`) with HKDF-SHA256 + per-issue nonce HMAC storage (never plaintext), strict `maxAttempts` brute-force invalidation, and atomic one-time claim locks.
+
 ## [1.21.0] - 2026-11-26
 
 ### Added
