@@ -18,15 +18,15 @@
   "require": {
     "php": ">=8.5.13",
     "ext-json": "*",
-    "kongono/ai": "^1.22",
-    "kongono/core": "^1.22",
-    "kongono/database": "^1.22",
-    "kongono/http": "^1.22",
-    "kongono/jobs": "^1.22",
-    "kongono/mail": "^1.22",
-    "kongono/security": "^1.22",
-    "kongono/validation": "^1.22",
-    "kongono/view": "^1.22"
+    "kongono/ai": "^1.23",
+    "kongono/core": "^1.23",
+    "kongono/database": "^1.23",
+    "kongono/http": "^1.23",
+    "kongono/jobs": "^1.23",
+    "kongono/mail": "^1.23",
+    "kongono/security": "^1.23",
+    "kongono/validation": "^1.23",
+    "kongono/view": "^1.23"
   },
   "autoload": {
     "psr-4": {

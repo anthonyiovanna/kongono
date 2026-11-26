@@ -4,6 +4,21 @@ All notable changes to the **Kongono Framework** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.0] - 2026-11-26
+
+### Added
+
+- **Multimodal Vision & PDF Attachments (`kongono/ai`):**
+  - Added magic-byte-verified `Kongono\Ai\Attachment` (`Attachment::image()` for JPEG/PNG/WebP/GIF, `Attachment::pdf()`, and `Attachment::fromBase64()`) with strict MIME & payload size enforcement.
+  - Extended `Message`, `AiClient::ask()`, and `AiClient::structured()` (including `#[MaxAiCost]` image/document token accounting) across **OpenAI**, **Anthropic Claude**, **Google Gemini**, **Groq**, and local **Ollama** (images) — enabling native Receipt OCR, inspection photo triage, and PDF extraction into typed PHP 8.5 readonly DTOs with zero external SDKs.
+- **Persistent SQL Durable Workflow Store (`kongono/jobs`):**
+  - Added `Kongono\Jobs\Workflow\PdoWorkflowStore` (PostgreSQL, SQLite, MySQL) with `installSchema()`, atomic dialect-aware upserts, and indexed `listDueWakeups()`, `listByStatus()`, and `listWaitingForEvent()` queries so multi-day and multi-month workflows survive restarts without cache eviction.
+- **Multi-Provider Named Webhook Signer Registry (`kongono/security`):**
+  - Added immutable `Kongono\Security\Webhook\WebhookSignerRegistry` with `register()` and `registerStripe()` (`Stripe-Signature` header preset).
+  - Extended `#[VerifyWebhook]` to resolve named providers cleanly (`#[VerifyWebhook('stripe')]` or `#[VerifyWebhook(signer: 'internal')]`) while remaining 100% backwards-compatible with single-signer apps.
+- **Pure-PHP RFC 9562 UUIDv7 & UUIDv4 (`kongono/core`):**
+  - Added `Kongono\Core\Id\Uuid` (`Uuid::v7()`, `Uuid::v4()`, `Uuid::isValid()`, `Uuid::version()`, `Uuid::extractTimestampMs()`) for B-tree index-friendly, time-ordered primary keys.
+
 ## [1.22.0] - 2026-11-26
 
 ### Added

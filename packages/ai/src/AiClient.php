@@ -301,6 +301,10 @@ final readonly class AiClient
         $inputBytes = 0;
         foreach ($request->messages as $msg) {
             $inputBytes += strlen($msg->content);
+            foreach ($msg->attachments as $attachment) {
+                // Conservative image/document token accounting (~1024 tokens floor or raw bytes / 32)
+                $inputBytes += max(4096, intdiv($attachment->byteSize, 8));
+            }
         }
         $outputBytes = strlen($response->text);
         if (0 === $inputBytes && 0 === $outputBytes) {
@@ -335,31 +339,46 @@ final readonly class AiClient
         return (($usage->inputTokens / 1000.0) * $inPer1k) + (($usage->outputTokens / 1000.0) * $outPer1k);
     }
 
-    /** Convenience one-shot helper for simple prompts. */
-    public function ask(string $prompt, ?string $system = null, ?float $temperature = null, bool $jsonMode = false): string
-    {
+    /**
+     * Convenience one-shot helper for simple text or multimodal prompts.
+     *
+     * @param list<Attachment> $attachments Optional verified image/PDF attachments
+     */
+    public function ask(
+        string $prompt,
+        ?string $system = null,
+        ?float $temperature = null,
+        bool $jsonMode = false,
+        array $attachments = [],
+    ): string {
         $messages = [];
         if (null !== $system && '' !== trim($system)) {
             $messages[] = Message::system($system);
         }
-        $messages[] = Message::user($prompt);
+        $messages[] = Message::user($prompt, $attachments);
 
         return $this->chat(new ChatRequest($messages, temperature: $temperature, jsonMode: $jsonMode))->text;
     }
 
     /**
-     * Request structured JSON output from the LLM and validate/hydrate it directly into a PHP 8.5 readonly DTO.
+     * Request structured JSON output from the LLM (text, image OCR, or PDF) and validate/hydrate it directly into a PHP 8.5 readonly DTO.
      *
      * @template T of object
-     * @param class-string<T> $dtoClass
+     * @param class-string<T>  $dtoClass
+     * @param list<Attachment> $attachments Optional verified image/PDF attachments for Receipt OCR or photo triage
      * @return T
      */
-    public function structured(string $prompt, string $dtoClass, ?string $system = null, ?float $temperature = 0.1): object
-    {
+    public function structured(
+        string $prompt,
+        string $dtoClass,
+        ?string $system = null,
+        ?float $temperature = 0.1,
+        array $attachments = [],
+    ): object {
         $shape = $this->describeDtoFields($dtoClass);
         $systemInstruction = trim(($system ?? '') . "\n\nRespond ONLY with a valid JSON object matching these exact fields:\n" . $shape);
 
-        $raw = trim($this->ask($prompt, $systemInstruction, $temperature, jsonMode: true));
+        $raw = trim($this->ask($prompt, $systemInstruction, $temperature, jsonMode: true, attachments: $attachments));
         if (str_starts_with($raw, '```')) {
             $stripped = preg_replace('/\A```(?:json)?\s*|\s*```\z/', '', $raw);
             if (is_string($stripped)) {

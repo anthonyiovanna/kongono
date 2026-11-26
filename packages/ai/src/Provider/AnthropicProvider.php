@@ -241,6 +241,39 @@ final readonly class AnthropicProvider implements StreamingAiProviderInterface
                 continue;
             }
 
+            if ([] !== $msg->attachments) {
+                $blocks = [];
+                foreach ($msg->attachments as $attachment) {
+                    if ($attachment->isPdf()) {
+                        $blocks[] = [
+                            'type' => 'document',
+                            'source' => [
+                                'type' => 'base64',
+                                'media_type' => 'application/pdf',
+                                'data' => $attachment->base64Data,
+                            ],
+                        ];
+                    } else {
+                        $blocks[] = [
+                            'type' => 'image',
+                            'source' => [
+                                'type' => 'base64',
+                                'media_type' => $attachment->mimeType,
+                                'data' => $attachment->base64Data,
+                            ],
+                        ];
+                    }
+                }
+                if ('' !== $msg->content) {
+                    $blocks[] = ['type' => 'text', 'text' => $msg->content];
+                }
+                $messages[] = [
+                    'role' => Role::Assistant === $msg->role ? 'assistant' : 'user',
+                    'content' => $blocks,
+                ];
+                continue;
+            }
+
             $messages[] = [
                 'role' => Role::Assistant === $msg->role ? 'assistant' : 'user',
                 'content' => $msg->content,

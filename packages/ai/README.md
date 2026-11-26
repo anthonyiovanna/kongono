@@ -4,8 +4,8 @@
 
 Standalone, zero-Symfony PHP 8.5.13+ multi-provider AI SDK, prompt-injection defense, RAG engine, eval harness, and Model Context Protocol (MCP) server usable in **any** PHP application:
 
-- **5 Native Providers + Failover & Live Streaming:** OpenAI, Anthropic Claude, Google Gemini, Groq, and local Ollama (`AiClient::fromEnv()`, `FallbackProvider`) over `ext-curl` with zero heavy HTTP clients.
-- **Typed Structured Outputs:** Extract validated PHP 8.5 readonly DTOs directly via `$ai->structured(MyDto::class, $prompt)`.
+- **5 Native Providers + Failover, Streaming & Multimodal Vision/PDF:** OpenAI, Anthropic Claude, Google Gemini, Groq, and local Ollama (`AiClient::fromEnv()`, `FallbackProvider`) over `ext-curl` with magic-byte-verified `Attachment::image()` / `Attachment::pdf()` support for Receipt OCR, photo triage, and document extraction.
+- **Typed Structured Outputs:** Extract validated PHP 8.5 readonly DTOs directly from text, images, or PDFs via `$ai->structured($prompt, MyDto::class, attachments: [Attachment::image($bytes, 'image/jpeg')])`.
 - **Prompt Injection Defense & Red-Team Evals:** `PromptGuard` + `UntrustedInput` structural isolation, canary exfiltration blocking, and `EvalRunner`.
 - **Governed Agents, RAG & MCP:** `AgentPrincipal` / `AgentRunner` with `#[RequiresApproval]` and hard USD/token caps, 5-line `KnowledgeBase` RAG (`MemoryVectorStore` or optional `PgVectorStore` + `HybridSearch`), and native JSON-RPC 2.0 `McpServer`.
 

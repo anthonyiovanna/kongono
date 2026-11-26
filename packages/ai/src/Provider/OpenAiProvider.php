@@ -323,9 +323,38 @@ final readonly class OpenAiProvider implements EmbeddingProviderInterface, Strea
     /** @return array<string, mixed> */
     private function encodeMessage(Message $message): array
     {
+        if ([] !== $message->attachments) {
+            $parts = [];
+            if ('' !== $message->content) {
+                $parts[] = ['type' => 'text', 'text' => $message->content];
+            }
+            foreach ($message->attachments as $attachment) {
+                if ($attachment->isPdf()) {
+                    $parts[] = [
+                        'type' => 'file',
+                        'file' => [
+                            'filename' => $attachment->filename ?? 'document.pdf',
+                            'file_data' => $attachment->dataUri(),
+                        ],
+                    ];
+                } else {
+                    $parts[] = [
+                        'type' => 'image_url',
+                        'image_url' => [
+                            'url' => $attachment->dataUri(),
+                            'detail' => $attachment->detail,
+                        ],
+                    ];
+                }
+            }
+            $content = $parts;
+        } else {
+            $content = $message->content;
+        }
+
         $encoded = [
             'role' => $message->role->value,
-            'content' => $message->content,
+            'content' => $content,
         ];
 
         if (Role::Tool === $message->role && null !== $message->toolCallId) {

@@ -6,12 +6,16 @@ namespace Kongono\Ai;
 
 final readonly class Message
 {
-    /** @param list<ToolCall> $toolCalls */
+    /**
+     * @param list<ToolCall>   $toolCalls
+     * @param list<Attachment> $attachments Optional verified image/PDF attachments for multimodal vision & OCR
+     */
     public function __construct(
         public Role $role,
         public string $content,
         public ?string $toolCallId = null,
         public array $toolCalls = [],
+        public array $attachments = [],
     ) {}
 
     public static function system(string $content): self
@@ -19,9 +23,10 @@ final readonly class Message
         return new self(Role::System, $content);
     }
 
-    public static function user(string $content): self
+    /** @param list<Attachment> $attachments */
+    public static function user(string $content, array $attachments = []): self
     {
-        return new self(Role::User, $content);
+        return new self(Role::User, $content, attachments: $attachments);
     }
 
     /** @param list<ToolCall> $toolCalls */

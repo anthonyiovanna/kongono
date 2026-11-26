@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Documentation — Kongono Framework v1.22.0</title>
-  <meta name="description" content="Complete developer documentation for Kongono Framework v1.22.0: PHP 8.5+ routing, self-verifying kongo prove, kongo env:sync, least-privilege route capabilities, Live 2.5 &amp; Bridge, Zero-Build Hot Reload, Dev Studio (Trace Inspector, Floating HUD, Try Route, Runtime &amp; Env, Proof Center, Dev Mailbox, Schema Explorer), /_ops, AI SDK, Oshie/Chie/Hantei companions, 26-tool MCP, and FrankenPHP deployment.">
+  <title>Documentation — Kongono Framework v1.23.0</title>
+  <meta name="description" content="Complete developer documentation for Kongono Framework v1.23.0: PHP 8.5+ routing, self-verifying kongo prove, kongo env:sync, least-privilege route capabilities, Live 2.5 &amp; Bridge, Zero-Build Hot Reload, Dev Studio (Trace Inspector, Floating HUD, Try Route, Runtime &amp; Env, Proof Center, Dev Mailbox, Schema Explorer), /_ops, AI SDK, Oshie/Chie/Hantei companions, 26-tool MCP, and FrankenPHP deployment.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Documentation — Kongono Framework v1.22.0">
+  <meta property="og:title" content="Documentation — Kongono Framework v1.23.0">
   <meta property="og:description" content="Complete developer reference for Kongono PHP 8.5+: self-verifying proofs, route capabilities, Live 2.5 &amp; Bridge, Dev Studio, 26-tool MCP, and FrankenPHP.">
   <meta property="og:url" content="https://kongono.com/docs.html">
   <meta property="og:image" content="https://kongono.com/assets/og-card.png">
@@ -29,7 +29,7 @@
           </svg>
         </span>
         <span>Kongono</span>
-        <span class="version-pill">v1.22.0</span>
+        <span class="version-pill">v1.23.0</span>
       </a>
       <nav class="nav-links">
         <a href="index.html">Home</a>
@@ -294,7 +294,7 @@ $hits = $hybrid-&gt;search(
         <ul>
           <li><strong>Streaming Storage:</strong> Stream large files with <code>putStream()</code>/<code>getStream()</code> and native <code>copy()</code>/<code>move()</code> across contained atomic <code>LocalStorage</code>, pure-PHP AWS SigV4 <code>S3Storage</code> (paginated <code>ListObjectsV2</code>, native <code>x-amz-copy-source</code>, presigned URLs), and <code>MemoryStorage</code>. Add magic-byte <code>UploadedFileStore</code>, <code>SignedLocalUrl</code>, multi-disk <code>StorageDisks</code>, <code>StorageFactory</code>, and <code>Response::download()</code> / <code>Response::fromStorage()</code>.</li>
           <li><strong>Queues, Priority &amp; Dead-Letter Replay:</strong> <code>PostgresQueueDriver</code> (<code>FOR UPDATE SKIP LOCKED</code> + fencing tokens) and pure-PHP Lua-atomic <code>RedisQueueDriver</code> support multi-queue priority draining (<code>Worker::run('critical,high,default')</code>), atomic <code>uniqueKey</code> dedup, composable <code>JobMiddlewareInterface</code>, <code>--daemon</code> workers, and DLQ CLI commands (<code>kongo queue:failed</code>, <code>queue:retry</code>, <code>queue:flush</code>).</li>
-          <li><strong>Parallel Batches &amp; Durable Workflows:</strong> Fan-out/fan-in with <code>JobBatch</code> + <code>BatchDispatcher</code> (<code>then</code>/<code>catch</code>/<code>finally</code> callbacks on <code>MemoryBatchStore</code> or <code>CacheBatchStore</code>), or build multi-day durable <code>Workflow</code>s with memoized <code>$wf-&gt;step()</code>, <code>sleep()</code>, and external <code>waitForEvent()</code>/<code>signal()</code>.</li>
+          <li><strong>Parallel Batches &amp; Durable SQL Workflows:</strong> Fan-out/fan-in with <code>JobBatch</code> + <code>BatchDispatcher</code> (<code>then</code>/<code>catch</code>/<code>finally</code> callbacks on <code>MemoryBatchStore</code> or <code>CacheBatchStore</code>), or build multi-month durable <code>Workflow</code>s backed by persistent <code>PdoWorkflowStore</code> (<code>installSchema()</code>, indexed <code>listDueWakeups()</code> / <code>listWaitingForEvent()</code>), memoized <code>$wf-&gt;step()</code>, <code>sleep()</code>, and external <code>waitForEvent()</code>/<code>signal()</code>.</li>
           <li><strong>Pure-PHP Redis &amp; Mail:</strong> Zero-extension <code>RedisClient</code> (auto-reconnect, TLS, RESP2/RESP3) powers <code>RedisCache</code>, <code>RedisEventBus</code>, and <code>RedisQueueDriver</code>. Transactional <code>Mailer</code> ships with <code>SmtpTransport</code> (STARTTLS), <code>ResendTransport</code>, <code>.kgn.html</code> views, and <code>NotificationDispatcher</code>.</li>
         </ul>
       </section>
@@ -445,7 +445,7 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app</code></pre>
 
   <footer>
     <div class="container">
-      <strong>Kongono Framework v1.22.0</strong> &middot; MIT License &middot;
+      <strong>Kongono Framework v1.23.0</strong> &middot; MIT License &middot;
       <a href="index.html">Home</a> &middot;
       <a href="llms.txt">llms.txt</a> &middot;
       <a href="llms-full.txt">llms-full.txt</a> &middot;

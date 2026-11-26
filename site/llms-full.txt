@@ -1,4 +1,4 @@
-# Kongono Framework — Complete LLM Technical Reference (v1.22.0)
+# Kongono Framework — Complete LLM Technical Reference (v1.23.0)
 
 > Single-file, verified technical reference for AI coding agents (Claude, GPT, Gemini, Groq, Cursor, Codex, Antigravity) building and maintaining Kongono PHP 8.5+ applications.
 > Every namespace, class name, and pattern below is verified against `kongono/framework`.
@@ -306,7 +306,8 @@ $hits = $hybrid->search(
 - **Revocable API Tokens (PATs):** `Kongono\Security\Auth\PersonalAccessToken` + `MemoryPersonalAccessTokenStore` / `CachePersonalAccessTokenStore` / `PdoPersonalAccessTokenStore` (SHA-256 hashed at rest, `kgn_pat_` prefix automatically scrubbed by `SecretScrubber`) + `BearerAuthMiddleware`.
 - **Authorization:** `Kongono\Security\Gate` (fail-closed `define()`, `before()`, `policy()`, `allows()`, `denies()`) + `#[Can('ability')]` + `AuthorizeMiddleware`.
 - **Account & Passwordless Flows:** `PasswordResetBroker`, `EmailVerifier`, `LoginThrottler`, theft-detecting split-token `RememberMeManager`, full WebAuthn `PasskeyVerifier` (`createRegistrationOptions`, `verifyRegistration`, `createAuthenticationOptions`, `verifyAssertion` with pure-PHP RFC 8949 `CborDecoder` & `RegisteredPasskey` supporting ES256 P-256, EdDSA Ed25519 & RS256 Windows Hello TPMs), single-use `MagicLinkAuth`, cross-device cryptographic QR login (`QrLoginAuth` with desktop-only `poll_secret`, 6-digit `XXX-XXX` QRLjacking verification code & atomic `claim()`, powered by pure-PHP ISO/IEC 18004 strict-CSP `QrCodeSvg`), brute-force-hardened Email/SMS OTP (`OneTimeCodeAuth` with HKDF-SHA256 storage & `maxAttempts` lockout), `PkceOAuthClient`, and RFC 6238 `Totp` (with `provisioningQrSvg()`, `verifyOnce()`, and recovery codes). Also installable standalone via `composer require kongono/security` (alongside standalone `kongono/core`, `kongono/validation`, and `kongono/ai`).
-- **Crypto & Egress:** Argon2id `PasswordHasher`, HKDF v2 AEAD `Encryptor` (`XChaCha20-Poly1305` + `previousKeys` rotation), `TokenSigner`, `SignedUrl`, DNS-pinned `SafeHttpClient`, signed `WebhookDispatcher` + `#[VerifyWebhook]`, `AiThreatShieldMiddleware`.
+- **Crypto, Multi-Provider Webhooks & Egress:** Argon2id `PasswordHasher`, HKDF v2 AEAD `Encryptor` (`XChaCha20-Poly1305` + `previousKeys` rotation), `TokenSigner`, `SignedUrl`, DNS-pinned `SafeHttpClient`, `WebhookSignerRegistry` (`registerStripe()` + `#[VerifyWebhook('stripe')]`) + `WebhookDispatcher`, `AiThreatShieldMiddleware`, and RFC 9562 `Kongono\Core\Id\Uuid::v7()`.
+- **Durable SQL Workflows & Multimodal AI:** Persistent `Kongono\Jobs\Workflow\PdoWorkflowStore` (`installSchema()`, `listDueWakeups()`, `listWaitingForEvent()`) for multi-month `WorkflowEngine` sleeps/signals, plus `Kongono\Ai\Attachment` (`Attachment::image()`, `Attachment::pdf()`) for vision/OCR `AiClient::structured()` across OpenAI, Anthropic, Gemini, Groq, and Ollama.
 
 ---
 

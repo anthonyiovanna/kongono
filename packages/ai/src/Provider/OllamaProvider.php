@@ -183,10 +183,27 @@ final readonly class OllamaProvider implements EmbeddingProviderInterface, Strea
             'model' => $model,
             'stream' => $stream,
             'messages' => array_map(
-                static fn(Message $m): array => [
-                    'role' => $m->role->value,
-                    'content' => $m->content,
-                ],
+                static function (Message $m): array {
+                    $entry = [
+                        'role' => $m->role->value,
+                        'content' => $m->content,
+                    ];
+                    if ([] !== $m->attachments) {
+                        $images = [];
+                        foreach ($m->attachments as $attachment) {
+                            if (!$attachment->isImage()) {
+                                throw new AiException(sprintf(
+                                    'Ollama chat does not support "%s" attachments (raster images only).',
+                                    $attachment->mimeType,
+                                ));
+                            }
+                            $images[] = $attachment->base64Data;
+                        }
+                        $entry['images'] = $images;
+                    }
+
+                    return $entry;
+                },
                 $request->messages,
             ),
         ];

@@ -27,7 +27,7 @@
   "require": {
     "php": ">=8.5.13",
     "ext-mbstring": "*",
-    "kongono/core": "^1.22"
+    "kongono/core": "^1.23"
   },
   "autoload": {
     "psr-4": {

@@ -33,6 +33,10 @@ use Kongono\Jobs\Queue;
 use Kongono\Jobs\RedisQueueDriver;
 use Kongono\Jobs\Scheduler\Scheduler;
 use Kongono\Jobs\Worker;
+use Kongono\Jobs\Workflow\PdoWorkflowStore;
+use Kongono\Jobs\Workflow\WorkflowContext;
+use Kongono\Jobs\Workflow\WorkflowEngine;
+use Kongono\Jobs\Workflow\WorkflowStatus;
 use Kongono\Security\Auth\CachePersonalAccessTokenStore;
 use Kongono\Security\Auth\LoginThrottler;
 use Kongono\Security\Auth\PasswordResetBroker;
@@ -271,6 +275,30 @@ final class LiveInfrastructureTest extends TestCase
         self::assertSame(1, $failWorker->run()->failed);
         self::assertSame(1, $pgQueue->flushFailed('default'));
         self::assertSame([], $pgQueue->listFailed('default'));
+
+        // 2c. v1.23.0 live PdoWorkflowStore (durable PostgreSQL sleep + wakeup + external signal)
+        $db->execute('DROP TABLE IF EXISTS "kongono_integration_workflows"');
+        $wfStore = new PdoWorkflowStore($db, 'kongono_integration_workflows');
+        $wfStore->installSchema();
+        $wfDef = static function (WorkflowContext $wf): array {
+            $step = $wf->step('init', static fn(): string => 'initialized');
+            $wf->sleep(3600, 'cooldown');
+            $sig = $wf->waitForEvent('approved', timeoutSeconds: 7200);
+
+            return ['step' => $step, 'sig' => $sig];
+        };
+        $wfEngine = new WorkflowEngine($wfStore);
+        $s1 = $wfEngine->run('pg-wf-1', 'LivePgWorkflow', $wfDef, now: 1_700_000_000);
+        self::assertSame(WorkflowStatus::Sleeping, $s1->status);
+        self::assertCount(0, $wfStore->listDueWakeups(now: 1_700_003_599));
+        self::assertCount(1, $wfStore->listDueWakeups(now: 1_700_003_600));
+        $s2 = $wfEngine->run('pg-wf-1', 'LivePgWorkflow', $wfDef, now: 1_700_003_600);
+        self::assertSame(WorkflowStatus::WaitingForEvent, $s2->status);
+        self::assertCount(1, $wfStore->listWaitingForEvent('approved', 'LivePgWorkflow'));
+        $wfEngine->signal('pg-wf-1', 'approved', ['ok' => true], now: 1_700_003_700);
+        $s3 = $wfEngine->run('pg-wf-1', 'LivePgWorkflow', $wfDef, now: 1_700_003_705);
+        self::assertSame(WorkflowStatus::Completed, $s3->status);
+        self::assertSame(['step' => 'initialized', 'sig' => ['ok' => true]], $s3->output);
 
         // 3. Live PgVectorStore (real pgvector <=> cosine similarity + JSONB @> filter)
         $db->execute('DROP TABLE IF EXISTS "kongono_integration_vectors"');

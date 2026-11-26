@@ -664,7 +664,7 @@ PROMPT;
                 'tool' => [
                     'driver' => [
                         'name' => 'Kongono Hantei',
-                        'version' => '1.22.0',
+                        'version' => '1.23.0',
                         'informationUri' => 'https://github.com/kongono/framework',
                     ],
                 ],

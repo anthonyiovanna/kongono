@@ -93,7 +93,7 @@ final readonly class KongoCli
             return [0, $this->helpText()];
         }
         if ('help' === $command && isset($options['version'])) {
-            return [0, 'Kongono Framework v1.22.0 (PHP ' . PHP_VERSION . ")\n"];
+            return [0, 'Kongono Framework v1.23.0 (PHP ' . PHP_VERSION . ")\n"];
         }
 
         $appRoot = $this->resolveAppRoot($options['app'] ?? null);
@@ -101,7 +101,7 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h' => [0, $this->helpText()],
-                'version', '-v' => [0, 'Kongono Framework v1.22.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v' => [0, 'Kongono Framework v1.23.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot, $options),
                 'openapi' => $this->cmdOpenApi($appRoot, $options),

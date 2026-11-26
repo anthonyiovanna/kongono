@@ -241,9 +241,22 @@ final readonly class GeminiProvider implements EmbeddingProviderInterface, Strea
                 continue;
             }
 
+            $parts = [];
+            if ('' !== $msg->content || [] === $msg->attachments) {
+                $parts[] = ['text' => $msg->content];
+            }
+            foreach ($msg->attachments as $attachment) {
+                $parts[] = [
+                    'inlineData' => [
+                        'mimeType' => $attachment->mimeType,
+                        'data' => $attachment->base64Data,
+                    ],
+                ];
+            }
+
             $contents[] = [
                 'role' => Role::Assistant === $msg->role ? 'model' : 'user',
-                'parts' => [['text' => $msg->content]],
+                'parts' => $parts,
             ];
         }
 

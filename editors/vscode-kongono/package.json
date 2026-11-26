@@ -2,7 +2,7 @@
   "name": "kongono-vscode",
   "displayName": "Kongono Framework",
   "description": "Zero-logic editor bridge powered 100% by Kongono itself (`kongo lsp`): live 17-rule Full-Stack Contract squiggles, 5W1H hover explanations, one-click Quick Fixes, and .kgn.html syntax highlighting.",
-  "version": "1.22.0",
+  "version": "1.23.0",
   "publisher": "kongono",
   "license": "MIT",
   "icon": "icon.png",
