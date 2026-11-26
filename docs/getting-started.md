@@ -26,7 +26,8 @@ composer dev
 ```
 
 Every freshly scaffolded app ships Day-1 with:
-- **`/_kongono` Dev Studio** (Proof Center, Dev Mailbox, Schema Explorer, Request/SQL Replay, & Zero-Build Hot Reload)
+- **`/_kongono` Dev Studio** (calm sidebar workspace with Live Requests + Trace Inspector Drawer + Live Tail, Dev Mailbox with Desktop/Mobile preview & OTP/link extractor, Runtime & Env health + `.env.example Sync`, 5-pillar Proof Center, Read-Only Schema Explorer, inline Try Route composer, focused Oshie/Chie/Hantei/MCP workbench, Zero-Build Hot Reload, and opt-in Floating Dev HUD `devHud: true`)
+- **Preset-aware `.env.example`** kept automatically in sync with `kongo env:sync [--check|--dry-run|--prune]` (zero secrets ever read)
 - **`app/invariants.php`** executable architecture & security rules
 - **`#[ReadOnlyDb]`** least-privilege route capabilities & **`$app->recordIncidents()`** production incident capture
 - **`.vscode/mcp.json`** pre-wired for the 26-tool Kongono MCP server
@@ -40,8 +41,8 @@ php vendor/bin/kongo serve --port=8000
 ```
 
 Then open in your browser:
-- **App Home:** `http://127.0.0.1:8000/` (auto-reloads CSS & templates in dev with Zero-Build Hot Reload)
-- **Kongono Dev Studio:** `http://127.0.0.1:8000/_kongono` (Proof Center, Dev Mailbox, Schema Explorer, Requests, Incidents, Routes, AI)
+- **App Home:** `http://127.0.0.1:8000/` (auto-reloads CSS & templates in dev with Zero-Build Hot Reload, plus optional Floating Dev HUD pill when `devHud: true`)
+- **Kongono Dev Studio:** `http://127.0.0.1:8000/_kongono` (Live Requests, Dev Mailbox, Runtime & Env, Proof Center, Schema, Routes + Try Route, App Graph, AI & MCP — Light/Dark mode, strict CSP, keyboard shortcuts `1–8` / `?`)
 - **Operations Dashboard (when `OpsDashboardMiddleware` is mounted):** `http://127.0.0.1:8000/_ops`
 - **Interactive API Explorer:** `http://127.0.0.1:8000/docs`
 - **OpenAPI 3.1 Spec:** `http://127.0.0.1:8000/openapi.json`
@@ -60,7 +61,10 @@ php bin/kongo serve --app=examples/starter-app --port=8000
 
 ```bash
 php bin/kongo prove --app=examples/starter-app              # Unified 5-pillar readiness certificate (A+–F)
-php bin/kongo diagnose --fix --app=examples/starter-app     # 17-rule static + full-stack contract check & auto-fix
+php bin/kongo diagnose --fix --app=examples/starter-app     # 17-rule contract + .env.example drift check & auto-fix
+php bin/kongo env:sync --app=examples/starter-app           # Sync safe non-secret .env.example placeholders from code & packages
+php bin/kongo env:sync --check --app=examples/starter-app   # CI gate: fail if code/packages need keys missing from .env.example
+php bin/kongo env:check --app=examples/starter-app          # Verify local .env covers every key in .env.example
 php bin/kongo watch --app=examples/starter-app              # Continuous save loop (diagnose + policy + PHPUnit)
 php bin/kongo policy:check --app=examples/starter-app       # Enforce app/invariants.php architecture policies
 php bin/kongo perf --app=examples/starter-app               # Persistent-worker leak & N+1 prover

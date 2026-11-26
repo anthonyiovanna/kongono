@@ -570,7 +570,8 @@ Connect to `.mcp.json` / `.vscode/mcp.json` (`php vendor/bin/kongo mcp`) for liv
 
 ```bash
 php vendor/bin/kongo prove                # Readiness Certificate (A+..F) across all 5 proof engines
-php vendor/bin/kongo diagnose --fix       # 17-rule Full-Stack Contract Prover + safe autofix
+php vendor/bin/kongo diagnose --fix       # 17-rule Full-Stack Contract Prover + .env.example drift autofix
+php vendor/bin/kongo env:sync --check     # Ensure .env.example stays synced with code & packages (zero secrets)
 php vendor/bin/kongo policy:check         # Verify app/invariants.php & security defaults
 php vendor/bin/kongo perf                 # Prove 0 persistent-worker leaks & 0 SQL N+1 loops
 php vendor/bin/kongo watch                # Continuous live diagnose + policy + test runner on save

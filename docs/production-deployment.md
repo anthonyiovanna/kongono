@@ -47,7 +47,7 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app
 
 ## 3. Production Hardening Checklist
 
-1. **Enforce PHP `>= 8.5.13` & disable debug mode:** Set `APP_DEBUG=false` (disables `DevErrorRenderer` stack traces and automatically fail-closes `/_kongono` Dev Studio to `404`), and configure `->views(autoReload: false)` so persistent workers cache compiled `.kgn.html` closures in memory with zero per-request filesystem checks. Call `$views->warmCache()` at worker boot.
+1. **Enforce PHP `>= 8.5.13` & disable debug mode:** Set `APP_DEBUG=false` (disables `DevErrorRenderer` stack traces, strips Hot Reload / Floating Dev HUD `devHud: true` injection, and automatically fail-closes `/_kongono` Dev Studio to `404`), and configure `->views(autoReload: false)` so persistent workers cache compiled `.kgn.html` closures in memory with zero per-request filesystem checks. Call `$views->warmCache()` at worker boot.
 2. **Gate `/_ops` Operations Dashboard:** If mounting `OpsDashboardMiddleware`, register strict `Gate` rules for `ops.view` (read-only dashboards) and `ops.manage` (queue dead-letter retry/flush) and pass an explicit queue allowlist — `/_ops` fails closed by default.
 3. **Generate & rotate `APP_KEY`:** Run `php bin/kongo key:generate`. Rotate seamlessly using `new Encryptor($currentKey, previousKeys: [$oldKey])` (HKDF v2 AEAD with upgrade-safe v1 decryption).
 4. **Database, RLS & Zero-Downtime Migrations:**
@@ -61,8 +61,8 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app
    $cache = new RedisCache($redis);
    ```
    Pass `$cache` to `CacheSessionStore`, `CachePersonalAccessTokenStore`, `CacheBatchStore`, `RateLimitMiddleware`, `IdempotencyMiddleware`, and `FeatureManager`, and use `RedisEventBus` for multi-node SSE fan-out.
-6. **Pre-Deploy Proof, Security & AI Gates in CI:**
-   - Run `php bin/kongo prove`, `php bin/kongo audit --attack --strict`, `php bin/kongo eval --redteam`, `composer quality`, and `composer fuzz`.
+6. **Pre-Deploy Proof, Env, Security & AI Gates in CI:**
+   - Run `php bin/kongo prove`, `php bin/kongo env:sync --check`, `php bin/kongo env:check` (against deployment secrets), `php bin/kongo audit --attack --strict`, `php bin/kongo eval --redteam`, `composer quality`, and `composer fuzz`.
    - Enable `$app->recordIncidents()` so production 5xx errors return vague `KGN-*` references to users while saving secret-scrubbed replay bundles to `storage/incidents/` for offline `kongo incident:replay` & `kongo incident:test`.
    - Decorate read-only routes with `#[ReadOnlyDb]` / `#[NoOutboundHttp]` / `#[MaxQueries(N)]`, mutating APIs with `#[Idempotent(ttlSeconds: 86400)]`, sanitize rich HTML with `HtmlSanitizer`/`@safeHtml`, and protect outbound calls with DNS-pinned `SafeHttpClient` + signed `WebhookDispatcher`.
 7. **Observability:**

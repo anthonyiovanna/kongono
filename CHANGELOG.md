@@ -4,6 +4,34 @@ All notable changes to the **Kongono Framework** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Project-Aware, Nondisclosing `.env.example` Sync (`kongono/core`, `kongono/cli`, `kongono/http`):**
+  - Added `Kongono\Core\Env\EnvExampleGenerator` scanning PHP source tokens (`Config::env()`, `getenv()`, `$_ENV`, `$_SERVER`), `composer.json` packages, and live `ApplicationGraph` bindings to detect integrations (Stripe, Supabase, Postgres/SQLite, Redis, S3/R2, Resend/Postmark/SendGrid/SMTP, Clerk, Auth0, Twilio, Slack, Sentry, OpenTelemetry, Sessions, AI Companions) plus any custom env keys — never reading `.env` or live environment values and scrubbing all secret placeholders through `SecretScrubber`.
+  - Added `kongo env:sync [--check] [--dry-run] [--prune] [--json]` for initial generation, non-destructive merging when new services are added later, and CI drift detection.
+  - Wired preset-aware `.env.example` generation into `kongo new`, automatic `KGN-DIAG-ENV-DRIFT` drift warnings into `kongo diagnose` / `kongo prove`, deterministic auto-fixing into `kongo diagnose --fix`, post-apply drift tips into `kongo chie --apply`, and a live `.env.example Sync` status card + safe diff preview inside Dev Studio's **Runtime & Env** tab.
+  - Added synced `examples/starter-app/.env.example`.
+- **Kongono Dev Studio (`/_kongono`) Overhaul & Calm Sidebar Workspace Redesign (`kongono/http`):**
+  - Eliminated all inline `<style>`, inline `<script>`, and `style="..."` attributes under a strict `script-src 'self'; style-src 'self'` CSP with external `/_kongono/assets/studio.{css,js}` and an inert JSON bootstrap script.
+  - Redesigned `/_kongono` into a calm 3-group sidebar workspace (**Observe / Verify / Explore**) with a single-row sticky workspace bar, compact inline telemetry strip, Light/Dark theme toggle (`localStorage['kongono-dev-theme']`), and keyboard shortcuts (`1–8`, `/`, `r`, `l`, `p`, `t`, `?`, `Esc`).
+  - Added simultaneous master-detail **Trace Inspector Drawer** (Overview & Scrubbed Request/Response Headers, SQL & N+1, Replay Result, PHPUnit 13 export, Copy cURL, Diagnose), Live Tail polling, per-request `memory_delta_kb` telemetry, and automatic `flock`-locked `0600` trace persistence (`storage/dev/traces.json`) under non-CLI SAPIs (`kongo serve` / PHP-FPM).
+  - Added opt-in **Floating Dev HUD** (`devHud: true` on `DevDashboardMiddleware`, `/_kongono/assets/dev-hud.{css,js}`) linking directly to `/_kongono#trace=<id>`, inline **Try Route** composer (`POST /_kongono/api/try-route` with OpenAPI DTO skeletons & structured JSON scrubbing), nondisclosing **Runtime & Env** tab (`GET /_kongono/api/runtime`), Mailtrap-style Dev Mailbox Desktop/Mobile preview + OTP/link extractor, structured 5W1H Proof Center cards, and a focused 4-way **AI & MCP** segmented switcher.
+- **Supply-Chain & Site Hardening:** Added OpenSSF Scorecard workflow (`file_mode: git`), scoped workflow permissions, `robots.txt` / `sitemap.xml`, OpenSSF Best Practices badge, Open VSX OIDC trusted publishing, and Cloudflare CSP/HSTS preload readiness.
+
+### Fixed
+
+- **LSP & VS Code Extension (`kongono/cli`, `editors/vscode-kongono`):** Stopped orphan LSP processes on workspace folder close, filtered `vendor/` and oversized docs, enforced strict workspace containment, and fixed UTF-16 LSP diagnostic ranges.
+- **Database Exception Previous Chaining (`kongono/database`):** Passed `previous: $e` explicitly in `PdoConnection`.
+
+## [1.20.4] - 2026-11-25
+
+### Changed
+
+- Migrated repository & metadata to `https://github.com/kongono/framework` (`ant@kongono.com`).
+- Hardened the zero-npm VS Code / Cursor extension (`editors/vscode-kongono/`), expanded `.kgn.html` TextMate grammar, and prepared `v1.20.4` marketplace packaging.
+
 ## [1.20.0] - 2026-11-25
 
 ### Added

@@ -1,4 +1,4 @@
-# Kongono Framework — Complete LLM Technical Reference (v1.20.0)
+# Kongono Framework — Complete LLM Technical Reference (v1.20.4)
 
 > Single-file, verified technical reference for AI coding agents (Claude, GPT, Gemini, Groq, Cursor, Codex, Antigravity) building and maintaining Kongono PHP 8.5+ applications.
 > Every namespace, class name, and pattern below is verified against `kongono/framework`.
@@ -402,12 +402,21 @@ $dto = $ai->structured($ticketText, TicketSummaryDto::class);
 
 ## 11. Built-In `/_kongono` Dev Studio & `/_ops` Operations (`Kongono\Http\Dev`, `Kongono\Http\Ops`)
 
-- **`/_kongono` Dev Studio (`DevDashboardMiddleware`, auto-disabled in production when `APP_DEBUG=false`):**
-  - **Proof Center:** Runs `MasterProver` across all 5 verification pillars (`A+`..`F`) + live Incident Time-Machine replay & 1-click PHPUnit 13 regression test export.
+- **`/_kongono` Dev Studio (`DevDashboardMiddleware`, strict CSP `script-src 'self'; style-src 'self'` with external assets, Light/Dark mode, keyboard shortcuts `1–8`/`/`/`r`/`l`/`p`/`t`/`?`, auto-disabled `404` when `APP_DEBUG=false`):**
+  - **Calm Sidebar Workspace (Observe / Verify / Explore):** Single-row sticky workspace bar with inline telemetry strip (`routes · traces · alerts`).
+  - **Live Requests & Trace Inspector Drawer:** Captures per-request timing, `memory_delta_kb`, SQL/N+1 queries, and secret-scrubbed request/response headers & bodies with automatic `flock`-locked `0600` persistence (`storage/dev/traces.json`) under non-CLI SAPIs (`kongo serve` / PHP-FPM), Live Tail polling, simultaneous master-detail drawer, in-process Replay (`POST /_kongono/api/replay/{id}`), Copy cURL, Diagnose, and 1-click PHPUnit 13 `TestExporter` export.
+  - **Floating Dev HUD (`devHud: true`):** Opt-in strict-CSP bottom-right HUD pill (`/_kongono/assets/dev-hud.{css,js}`) on debug HTML responses showing status, latency, memory delta, and SQL count with deep-link to `/_kongono#trace=<id>`.
+  - **Inline Try Route Composer (`POST /_kongono/api/try-route`):** Populates path params and OpenAPI 3.1 DTO JSON skeletons from `OpenApiGenerator`, executes requests in-process, scrubs sensitive JSON/text outputs, and links straight into the captured trace.
+  - **Nondisclosing Runtime & Env (`GET /_kongono/api/runtime`):** Symmetric 3x2 PHP 8.5 readiness grid, loaded extensions, wired subsystems, presence-only secret checks (`Configured (hidden)` / `Not set`), and live **`.env.example Sync`** drift status + safe placeholder diff preview.
+  - **Proof Center:** Runs `MasterProver` across all 5 verification pillars (`A+`..`F`) with structured 5W1H cards + live Incident Time-Machine replay & 1-click PHPUnit 13 regression test export.
   - **Zero-Build Hot Reload (`hotReload: true`):** `DevHotReloadWatcher` separates CSS fingerprints (`css_hash`, hot-swapped in-place without losing form state) from `.kgn.html`/`.php` code changes (`code_hash`), injecting `/_kongono/assets/hot-reload.js` only on `200 text/html` in debug mode.
-  - **Built-In Dev Mailbox:** `DevMailboxTransport` + `FileDevMailbox` capture local outgoing `kongono/mail` emails with automatic `SecretScrubber` redaction, attachment badges, and sandboxed HTML iframe preview (zero SMTP/Mailpit/Docker).
+  - **Built-In Dev Mailbox:** `DevMailboxTransport` + `FileDevMailbox` capture local outgoing `kongono/mail` emails with automatic `SecretScrubber` redaction, attachment badges, Desktop/Mobile HTML preview toggle, OTP/verification-link extractor, and Raw/Headers tabs (zero SMTP/Mailpit/Docker).
   - **Read-Only Schema Explorer:** Inspects live SQLite/PostgreSQL/MySQL tables, columns, primary keys, and indexes without reading row data.
+  - **Focused AI & MCP Workbench:** Segmented 4-way switcher (`Oshie` | `Chie` | `Hantei` | `MCP Server`) with SSE streaming and safe diff previews.
   - **Plain-English 5W1H Dev X-Ray vs. Zero-Leak Production:** In debug mode, errors render interactive What/Where/Why/Who/How-to-Fix cards; in production (`APP_DEBUG=false`), responses emit strictly vague messages + `KGN-*` Reference ID while full scrubbed 5W1H diagnostics log server-side.
+- **Project-Aware `.env.example` Sync (`Kongono\Core\Env\EnvExampleGenerator`, `kongo env:sync`):**
+  - Scans PHP tokens (`Config::env()`, `getenv()`, `$_ENV`, `$_SERVER`), `composer.json`, and optional `ApplicationGraph` to populate safe non-secret placeholders for Stripe, Supabase, Postgres/SQLite, Redis, S3/R2, Resend/Postmark/SendGrid/SMTP, Clerk, Auth0, Twilio, Slack, Sentry, OpenTelemetry, Sessions, AI Companions, and custom keys.
+  - Never reads `.env` or live environment values; merges non-destructively when integrations are added later; emits fixable `KGN-DIAG-ENV-DRIFT` in `kongo diagnose` / `kongo prove` (repaired by `kongo diagnose --fix` or `kongo env:sync`).
 - **`/_ops` Operations Dashboard (`Kongono\Http\Ops\OpsDashboardMiddleware`):** Mount with a `Gate` defining `ops.view` (read-only + 1-click Hantei DLQ diagnosis via `POST /_ops/queues/diagnose` using `DevStudioCompanions::opsJobDiagnoser()`) and `ops.manage` (dead-letter retry/flush), plus an explicit queue allowlist. Renders a zero-npm, strict-CSP Live 2.5 dashboard with queue depths, 1-click DLQ retry/flush/diagnose, `JobBatch` progress, `HealthCheck`, `Metrics::snapshot()`, and recent traces. Fails closed by default.
 
 ---
@@ -473,6 +482,8 @@ php vendor/bin/kongo upgrade --plan
 php vendor/bin/kongo upgrade --apply --verify
 php vendor/bin/kongo lsp
 php vendor/bin/kongo doctor
+php vendor/bin/kongo env:sync [--check] [--dry-run] [--prune] [--json]
+php vendor/bin/kongo env:check
 php vendor/bin/kongo routes --json
 php vendor/bin/kongo graph
 php vendor/bin/kongo openapi
