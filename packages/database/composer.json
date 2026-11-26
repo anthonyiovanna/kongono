@@ -18,7 +18,7 @@
   "require": {
     "php": ">=8.5.13",
     "ext-pdo": "*",
-    "kongono/core": "^1.21"
+    "kongono/core": "^1.22"
   },
   "autoload": {
     "psr-4": {

@@ -93,7 +93,7 @@ final readonly class KongoCli
             return [0, $this->helpText()];
         }
         if ('help' === $command && isset($options['version'])) {
-            return [0, 'Kongono Framework v1.21.0 (PHP ' . PHP_VERSION . ")\n"];
+            return [0, 'Kongono Framework v1.22.0 (PHP ' . PHP_VERSION . ")\n"];
         }
 
         $appRoot = $this->resolveAppRoot($options['app'] ?? null);
@@ -101,7 +101,7 @@ final readonly class KongoCli
         try {
             return match ($command) {
                 'help', '-h' => [0, $this->helpText()],
-                'version', '-v' => [0, 'Kongono Framework v1.21.0 (PHP ' . PHP_VERSION . ")\n"],
+                'version', '-v' => [0, 'Kongono Framework v1.22.0 (PHP ' . PHP_VERSION . ")\n"],
                 'routes' => $this->cmdRoutes($appRoot, $options),
                 'graph' => $this->cmdGraph($appRoot, $options),
                 'openapi' => $this->cmdOpenApi($appRoot, $options),
@@ -3580,12 +3580,17 @@ final readonly class KongoCli
     {
         $modeOpt = $options['mode'] ?? 'both';
         $mode = is_string($modeOpt) ? $modeOpt : 'both';
+        $withOpt = $options['with'] ?? '';
+        $features = is_string($withOpt) ? AuthScaffolder::parseFeatures($withOpt) : [];
         $force = isset($options['force']);
 
         $context = ProjectContext::discover($appRoot, allowBootstrap: $this->allowBootstrapFromOptions($options));
-        $result = (new AuthScaffolder())->scaffold($context, $mode, $force);
+        $result = (new AuthScaffolder())->scaffold($context, $mode, $force, $features);
 
-        $lines = [sprintf('Kongono Auth Starter Kit (mode: %s):', $mode)];
+        $header = [] === $result['features']
+            ? sprintf('Kongono Auth Starter Kit (mode: %s):', $mode)
+            : sprintf('Kongono Auth Starter Kit (mode: %s, with: %s):', $mode, implode(', ', $result['features']));
+        $lines = [$header];
         foreach ($result['created'] as $path) {
             $lines[] = '  [CREATED]     ' . $path;
         }
@@ -3645,7 +3650,7 @@ final readonly class KongoCli
                 if (str_contains($trimmed, '=')) {
                     [$k, $v] = explode('=', $trimmed, 2);
                     $options[$k] = $v;
-                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'exercise', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target', 'mode', 'starter', 'max-repairs', 'max-cost', 'base', 'format', 'log', 'interval', 'max-cycles', 'iterations', 'max-ms', 'path', 'against', 'sleep', 'max-sleep', 'max-runtime', 'prune-after', 'framework', 'export-jsonl'], true)) {
+                } elseif (isset($argv[$i + 1]) && !str_starts_with($argv[$i + 1], '--') && in_array($trimmed, ['app', 'host', 'port', 'lesson', 'exercise', 'name', 'queue', 'max-jobs', 'steps', 'eval', 'domain', 'repo', 'branch', 'ip', 'threads', 'lang', 'out', 'file', 'table', 'limit', 'target', 'mode', 'with', 'starter', 'max-repairs', 'max-cost', 'base', 'format', 'log', 'interval', 'max-cycles', 'iterations', 'max-ms', 'path', 'against', 'sleep', 'max-sleep', 'max-runtime', 'prune-after', 'framework', 'export-jsonl'], true)) {
                     $options[$trimmed] = $argv[++$i];
                 } else {
                     $options[$trimmed] = true;
@@ -4031,7 +4036,7 @@ Scaffolding, Frontend & SDKs:
   make:resource <Name> [--app=path]                     Generate full CRUD slice (migration, DTOs, repo, controller, test)
   make:controller|dto|migration|seeder|test <Name>      Generate strict PHP 8.5 core application files
   make:job|policy|middleware|factory|rule|mail <Name>   Generate strict PHP 8.5 infrastructure & domain files
-  auth:init [--mode=web|api|both] [--force]             Scaffold zero-bloat SessionAuth + PAT Auth Starter Kit
+  auth:init [--mode=web|api|both] [--with=passkey,qr,otp,magic-link,totp,oauth|all] [--force] Scaffold composable Auth Starter Kit
   bridge:init <react|vue|svelte> / bridge:types         Scaffold React 19, Vue 3, or Svelte 5 Bridge SPA & TS types
   ui:add <modal|drawer|dropdown|tabs|toast|datatable|kanban|all> Add zero-npm accessible Kongono UI components
   sdk:generate --lang=ts|swift|kotlin|dart [--out=file] Generate typed Web/iOS/Android/Flutter client SDK

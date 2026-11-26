@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Documentation — Kongono Framework v1.21.0</title>
-  <meta name="description" content="Complete developer documentation for Kongono Framework v1.21.0: PHP 8.5+ routing, self-verifying kongo prove, kongo env:sync, least-privilege route capabilities, Live 2.5 &amp; Bridge, Zero-Build Hot Reload, Dev Studio (Trace Inspector, Floating HUD, Try Route, Runtime &amp; Env, Proof Center, Dev Mailbox, Schema Explorer), /_ops, AI SDK, Oshie/Chie/Hantei companions, 26-tool MCP, and FrankenPHP deployment.">
+  <title>Documentation — Kongono Framework v1.22.0</title>
+  <meta name="description" content="Complete developer documentation for Kongono Framework v1.22.0: PHP 8.5+ routing, self-verifying kongo prove, kongo env:sync, least-privilege route capabilities, Live 2.5 &amp; Bridge, Zero-Build Hot Reload, Dev Studio (Trace Inspector, Floating HUD, Try Route, Runtime &amp; Env, Proof Center, Dev Mailbox, Schema Explorer), /_ops, AI SDK, Oshie/Chie/Hantei companions, 26-tool MCP, and FrankenPHP deployment.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Documentation — Kongono Framework v1.21.0">
+  <meta property="og:title" content="Documentation — Kongono Framework v1.22.0">
   <meta property="og:description" content="Complete developer reference for Kongono PHP 8.5+: self-verifying proofs, route capabilities, Live 2.5 &amp; Bridge, Dev Studio, 26-tool MCP, and FrankenPHP.">
   <meta property="og:url" content="https://kongono.com/docs.html">
   <meta property="og:image" content="https://kongono.com/assets/og-card.png">
@@ -29,7 +29,7 @@
           </svg>
         </span>
         <span>Kongono</span>
-        <span class="version-pill">v1.21.0</span>
+        <span class="version-pill">v1.22.0</span>
       </a>
       <nav class="nav-links">
         <a href="index.html">Home</a>
@@ -283,7 +283,7 @@ $hits = $hybrid-&gt;search(
         <h2>10. Auth, PATs, Security &amp; AI Threat Shield</h2>
         <ul>
           <li><strong>Full Auth Stack (Zero Vendor Packages):</strong> <code>SessionAuth</code> + <code>SessionAuthMiddleware</code> + <code>#[Authenticated]</code>, <code>Gate</code> policies &amp; <code>before()</code> hooks, <code>#[Can('ability')]</code>, revocable SHA-256 <code>PersonalAccessToken</code> (<code>Memory</code>/<code>Cache</code>/<code>Pdo</code> stores with automatic <code>kgn_pat_</code> redaction in <code>SecretScrubber</code>), <code>PasswordResetBroker</code>, <code>EmailVerifier</code>, <code>LoginThrottler</code>, and split selector/validator <code>RememberMeManager</code> (revokes entire series on stolen-cookie detection).</li>
-          <li><strong>Passwordless, QR &amp; MFA:</strong> Native WebAuthn/FIDO2 Passkeys (<code>PasskeyVerifier</code> ES256/Ed25519), single-use HMAC <code>MagicLinkAuth</code>, phishing-resistant cross-device cryptographic QR sign-in (<code>QrLoginAuth</code> + pure-PHP strict-CSP ISO/IEC 18004 <code>QrCodeSvg</code>), brute-force-hardened Email/SMS OTP (<code>OneTimeCodeAuth</code>), PKCE S256 <code>PkceOAuthClient</code> (GitHub/Google/OIDC), and RFC 6238 <code>Totp</code> (<code>provisioningQrSvg()</code> + recovery codes).</li>
+          <li><strong>Passwordless, Passkeys, QR &amp; MFA:</strong> End-to-end WebAuthn/FIDO2 Passkeys (<code>PasskeyVerifier</code> registration + assertions with pure-PHP RFC 8949 <code>CborDecoder</code> for ES256 P-256, EdDSA Ed25519 &amp; RS256 Windows Hello TPMs), single-use HMAC <code>MagicLinkAuth</code>, phishing-resistant cross-device cryptographic QR sign-in (<code>QrLoginAuth</code> + pure-PHP strict-CSP ISO/IEC 18004 <code>QrCodeSvg</code>), brute-force-hardened Email/SMS OTP (<code>OneTimeCodeAuth</code>), PKCE S256 <code>PkceOAuthClient</code> (GitHub/Google/OIDC), and RFC 6238 <code>Totp</code> (<code>provisioningQrSvg()</code> + recovery codes). All primitives are also installable standalone via <code>composer require kongono/security</code>.</li>
           <li><strong>Cryptography &amp; Content Safety:</strong> Argon2id <code>PasswordHasher</code>, versioned HKDF <code>Encryptor</code> v2 (XChaCha20-Poly1305 AEAD + seamless key rotation), HTML5 <code>HtmlSanitizer</code>/<code>@safeHtml</code>, HMAC <code>TokenSigner</code>, and expiring <code>SignedUrl</code>.</li>
           <li><strong>SSRF &amp; AI Attack Defense:</strong> DNS-pinned <code>SafeHttpClient</code> (blocks loopback/private/metadata IPs), signed <code>WebhookDispatcher</code> + <code>#[VerifyWebhook]</code>, <code>AiThreatShieldMiddleware</code> (recon honeypots, hidden form traps, 404 burst auto-banning, compute budgets), and <code>PromptGuard</code>/<code>UntrustedInput</code> cryptographic Canary Token leakage blocking.</li>
         </ul>
@@ -417,7 +417,7 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app</code></pre>
               <tr><td><code>kongo shadow:record</code> / <code>shadow:diff --against=...</code></td><td>Prove deterministic behavioral equivalence across GET routes after refactors</td></tr>
               <tr><td><code>kongo upgrade [--plan|--apply --verify]</code></td><td>Run syntax-verified PHP 8.5 &amp; template upgrade codemods with post-apply proof checks</td></tr>
               <tr><td><code>kongo lsp</code></td><td>Run zero-dependency LSP 3.17 language server for VS Code / Cursor (<code>editors/vscode-kongono/</code>)</td></tr>
-              <tr><td><code>kongo auth:init [--mode=web|api|both] [--force]</code></td><td>Scaffold zero-bloat SessionAuth + LoginThrottler + CSRF + Personal Access Token auth starter kit</td></tr>
+              <tr><td><code>kongo auth:init [--mode=web|api|both] [--with=passkey,qr,otp,magic-link,totp,oauth|all] [--force]</code></td><td>Scaffold zero-bloat SessionAuth + LoginThrottler + CSRF + PAT auth starter kit with opt-in composable Passkey, QR Login, OTP, Magic Link, TOTP 2FA, and OAuth PKCE modules</td></tr>
               <tr><td><code>kongo tinker [--eval="expr"]</code></td><td>Interactive PHP 8.5 REPL (or one-liner eval) with live <code>$app</code> &amp; <code>$container</code></td></tr>
               <tr><td><code>kongo doctor</code> / <code>env:check</code> / <code>env:sync [--check|--dry-run|--prune]</code></td><td>Verify PHP 8.5.13+, validate <code>.env</code>, or auto-sync non-secret <code>.env.example</code> placeholders from code &amp; packages (Stripe, Supabase, DB, Redis, S3, Mail, custom keys)</td></tr>
               <tr><td><code>kongo audit --attack --strict</code></td><td>Graph-driven security audit + automated in-process red-team simulations</td></tr>
@@ -445,7 +445,7 @@ docker run -p 8080:8080 --env-file .env.production my-kongono-app</code></pre>
 
   <footer>
     <div class="container">
-      <strong>Kongono Framework v1.21.0</strong> &middot; MIT License &middot;
+      <strong>Kongono Framework v1.22.0</strong> &middot; MIT License &middot;
       <a href="index.html">Home</a> &middot;
       <a href="llms.txt">llms.txt</a> &middot;
       <a href="llms-full.txt">llms-full.txt</a> &middot;

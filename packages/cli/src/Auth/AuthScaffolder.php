@@ -8,23 +8,77 @@ use Kongono\Cli\Context\ProjectContext;
 use Kongono\Core\CoreException;
 
 /**
- * Zero-bloat Auth Starter Kit scaffolder (`kongo auth:init [--mode=web|api|both] [--force]`).
+ * Zero-bloat Composable Auth Starter Kit scaffolder
+ * (`kongo auth:init [--mode=web|api|both] [--with=passkey,qr,otp,magic-link,totp,oauth|all] [--force]`).
  *
  * Generates editable, PHPStan-L9-clean migrations, DTOs, user stores (Memory + PDO),
  * web SessionAuth + LoginThrottler + CSRF controllers/views, revocable SHA-256 Personal Access Token
- * API endpoints, and TestClient integration tests directly into the developer's application.
+ * API endpoints, optional composable auth modules (Passkeys, QR Login, OTP, Magic Links, TOTP 2FA, OAuth PKCE),
+ * and TestClient integration tests directly into the developer's application.
  */
 final readonly class AuthScaffolder
 {
     /**
-     * @return array{created: list<string>, overwritten: list<string>, skipped: list<string>}
+     * Parse a comma-separated `--with=...` string into validated, deduplicated feature slugs.
+     *
+     * @return list<string>
      */
-    public function scaffold(ProjectContext $context, string $mode = 'both', bool $force = false): array
+    public static function parseFeatures(string $raw): array
+    {
+        $trimmed = trim($raw);
+        if ('' === $trimmed) {
+            return [];
+        }
+
+        $parts = array_filter(
+            array_map(static fn(string $item): string => strtolower(trim($item)), explode(',', $trimmed)),
+            static fn(string $item): bool => '' !== $item,
+        );
+
+        return self::normalizeFeatures(array_values($parts));
+    }
+
+    /**
+     * @param list<string> $features
+     * @return list<string>
+     */
+    public static function normalizeFeatures(array $features): array
+    {
+        $normalized = [];
+        foreach ($features as $feature) {
+            $slug = strtolower(trim($feature));
+            if ('' === $slug) {
+                continue;
+            }
+            if ('all' === $slug) {
+                return AuthFeatureTemplates::SUPPORTED_FEATURES;
+            }
+            if (!in_array($slug, AuthFeatureTemplates::SUPPORTED_FEATURES, true)) {
+                throw new CoreException(sprintf(
+                    'Unsupported auth:init feature "%s". Allowed: %s, or all.',
+                    $feature,
+                    implode(', ', AuthFeatureTemplates::SUPPORTED_FEATURES),
+                ));
+            }
+            if (!in_array($slug, $normalized, true)) {
+                $normalized[] = $slug;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param list<string> $features Optional composable auth add-ons (`passkey`, `qr`, `otp`, `magic-link`, `totp`, `oauth`, or `all`)
+     * @return array{created: list<string>, overwritten: list<string>, skipped: list<string>, features: list<string>}
+     */
+    public function scaffold(ProjectContext $context, string $mode = 'both', bool $force = false, array $features = []): array
     {
         $normalized = strtolower(trim($mode));
         if (!in_array($normalized, ['web', 'api', 'both'], true)) {
             throw new CoreException(sprintf('Unsupported auth:init mode "%s". Use web, api, or both.', $mode));
         }
+        $normalizedFeatures = self::normalizeFeatures($features);
 
         $includeWeb = 'web' === $normalized || 'both' === $normalized;
         $includeApi = 'api' === $normalized || 'both' === $normalized;
@@ -53,6 +107,10 @@ final readonly class AuthScaffolder
 
         $files['tests/AuthFlowTest.php'] = self::authTest($includeWeb, $includeApi);
 
+        foreach (AuthFeatureTemplates::filesFor($normalizedFeatures, $includeWeb) as $relative => $contents) {
+            $files[$relative] = $contents;
+        }
+
         $created = [];
         $overwritten = [];
         $skipped = [];
@@ -76,6 +134,7 @@ final readonly class AuthScaffolder
             'created' => $created,
             'overwritten' => $overwritten,
             'skipped' => $skipped,
+            'features' => $normalizedFeatures,
         ];
     }
 

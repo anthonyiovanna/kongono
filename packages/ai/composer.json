@@ -34,8 +34,8 @@
     "ext-curl": "*",
     "ext-json": "*",
     "ext-mbstring": "*",
-    "kongono/core": "^1.21",
-    "kongono/validation": "^1.21"
+    "kongono/core": "^1.22",
+    "kongono/validation": "^1.22"
   },
   "suggest": {
     "kongono/database": "Required only when using PgVectorStore (PostgreSQL pgvector) or HybridSearch (RRF)."

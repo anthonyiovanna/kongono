@@ -1,4 +1,4 @@
-# Kongono Framework — Complete LLM Technical Reference (v1.21.0)
+# Kongono Framework — Complete LLM Technical Reference (v1.22.0)
 
 > Single-file, verified technical reference for AI coding agents (Claude, GPT, Gemini, Groq, Cursor, Codex, Antigravity) building and maintaining Kongono PHP 8.5+ applications.
 > Every namespace, class name, and pattern below is verified against `kongono/framework`.
@@ -305,7 +305,7 @@ $hits = $hybrid->search(
 - **Cookie Sessions:** `Kongono\Security\Auth\SessionAuth` + `Kongono\Security\Middleware\SessionAuthMiddleware` + `#[Authenticated]`.
 - **Revocable API Tokens (PATs):** `Kongono\Security\Auth\PersonalAccessToken` + `MemoryPersonalAccessTokenStore` / `CachePersonalAccessTokenStore` / `PdoPersonalAccessTokenStore` (SHA-256 hashed at rest, `kgn_pat_` prefix automatically scrubbed by `SecretScrubber`) + `BearerAuthMiddleware`.
 - **Authorization:** `Kongono\Security\Gate` (fail-closed `define()`, `before()`, `policy()`, `allows()`, `denies()`) + `#[Can('ability')]` + `AuthorizeMiddleware`.
-- **Account & Passwordless Flows:** `PasswordResetBroker`, `EmailVerifier`, `LoginThrottler`, theft-detecting split-token `RememberMeManager`, WebAuthn `PasskeyVerifier` (ES256/Ed25519), single-use `MagicLinkAuth`, cross-device cryptographic QR login (`QrLoginAuth` with desktop-only `poll_secret`, 6-digit `XXX-XXX` QRLjacking verification code & atomic `claim()`, powered by pure-PHP ISO/IEC 18004 strict-CSP `QrCodeSvg`), brute-force-hardened Email/SMS OTP (`OneTimeCodeAuth` with HKDF-SHA256 storage & `maxAttempts` lockout), `PkceOAuthClient`, and RFC 6238 `Totp` (with `provisioningQrSvg()`, `verifyOnce()`, and recovery codes).
+- **Account & Passwordless Flows:** `PasswordResetBroker`, `EmailVerifier`, `LoginThrottler`, theft-detecting split-token `RememberMeManager`, full WebAuthn `PasskeyVerifier` (`createRegistrationOptions`, `verifyRegistration`, `createAuthenticationOptions`, `verifyAssertion` with pure-PHP RFC 8949 `CborDecoder` & `RegisteredPasskey` supporting ES256 P-256, EdDSA Ed25519 & RS256 Windows Hello TPMs), single-use `MagicLinkAuth`, cross-device cryptographic QR login (`QrLoginAuth` with desktop-only `poll_secret`, 6-digit `XXX-XXX` QRLjacking verification code & atomic `claim()`, powered by pure-PHP ISO/IEC 18004 strict-CSP `QrCodeSvg`), brute-force-hardened Email/SMS OTP (`OneTimeCodeAuth` with HKDF-SHA256 storage & `maxAttempts` lockout), `PkceOAuthClient`, and RFC 6238 `Totp` (with `provisioningQrSvg()`, `verifyOnce()`, and recovery codes). Also installable standalone via `composer require kongono/security` (alongside standalone `kongono/core`, `kongono/validation`, and `kongono/ai`).
 - **Crypto & Egress:** Argon2id `PasswordHasher`, HKDF v2 AEAD `Encryptor` (`XChaCha20-Poly1305` + `previousKeys` rotation), `TokenSigner`, `SignedUrl`, DNS-pinned `SafeHttpClient`, signed `WebhookDispatcher` + `#[VerifyWebhook]`, `AiThreatShieldMiddleware`.
 
 ---
@@ -502,7 +502,7 @@ php vendor/bin/kongo sdk:generate --lang=ts --out=sdk/client.ts
 php vendor/bin/kongo deploy:init --domain=app.example.com
 php vendor/bin/kongo optimize
 php vendor/bin/kongo new my-app --starter=saas   # minimal | api | saas
-php vendor/bin/kongo auth:init --mode=both       # web | api | both
+php vendor/bin/kongo auth:init --mode=both --with=passkey,qr,otp   # composable: passkey,qr,otp,magic-link,totp,oauth|all
 php vendor/bin/kongo make:resource Post          # migration, DTOs, repo, controller, test
 php vendor/bin/kongo make:job SendInvoice        # also policy|middleware|factory|rule|mail
 php vendor/bin/kongo oshie --exercise routing

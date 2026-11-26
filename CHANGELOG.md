@@ -4,10 +4,18 @@ All notable changes to the **Kongono Framework** are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.22.0] - 2026-11-26
 
 ### Added
 
+- **Standalone Packagist Subtree Splits (`kongono/core`, `kongono/validation`, `kongono/security`, `kongono/ai`):**
+  - Automated read-only subtree splitting (`.github/workflows/split.yml`) publishing `kongono/core`, `kongono/validation`, `kongono/security`, and `kongono/ai` independently to GitHub & Packagist so Laravel, Symfony, Slim, and vanilla PHP 8.5+ apps can install them with zero Symfony dependencies.
+  - Broke the `kongono/security <-> kongono/http` circular Composer dependency by moving optional HTTP/DB adapters to `"suggest"`, standardized all 11 `packages/*/composer.json` manifests (`php >= 8.5.13`), added standalone `README.md`/`LICENSE`/`.gitattributes`, and added `StandalonePackageManifestTest` to enforce an acyclic DAG in CI.
+- **Full Pure-PHP WebAuthn / FIDO2 Passkey Registration & RS256 Support (`kongono/security`):**
+  - Added hardened RFC 8949 definite-length `CborDecoder` + `CborBytes` (depth/size limits, duplicate-key & indefinite-length rejection) and typed `RegisteredPasskey` DTO.
+  - Added `PasskeyVerifier::createRegistrationOptions()`, `verifyRegistration()`, and `createAuthenticationOptions()` supporting **ES256 (ECDSA P-256)**, **EdDSA (Ed25519)**, and **RS256 (RSA >= 2048-bit, Windows Hello TPMs)** with COSE-to-SPKI PEM conversion, OpenSSL curve/modulus validation, `packed` self-attestation verification, CBOR extension parsing, and domain-separated registration vs. assertion challenge isolation.
+- **Composable `kongo auth:init --with=...` Scaffolder (`kongono/cli`):**
+  - Extended `kongo auth:init` and `AuthScaffolder` with `--with=passkey,qr,otp,magic-link,totp,oauth|all` (`AuthFeatureTemplates`) generating editable, decoupled, PHPStan-L9-clean controllers, stores (Memory + PDO), migrations, views, and tests only for the auth flows selected — with automatic `kongo env:sync` discovery for OAuth credentials.
 - **Cryptographic QR Login, Pure-PHP SVG QR Encoder & Single-Use Email/SMS OTP (`kongono/security`):**
   - Added `Kongono\Security\Auth\QrCodeSvg` — zero-dependency, pure PHP 8.5 ISO/IEC 18004 Byte-mode QR Code encoder (Versions 1–10, EC Level M/L, GF(256) Reed-Solomon, optimal mask selection) rendering strict-CSP inline `<svg>` with zero inline styles/scripts, plus `Totp::provisioningQrSvg()` for 1-line 2FA setup QR codes.
   - Added `Kongono\Security\Auth\QrLoginAuth` — phishing-resistant cross-device cryptographic QR sign-in (Discord/WhatsApp style) with domain-separated `SignedUrl` QR payloads, desktop-only 256-bit `poll_secret`, 6-digit `XXX-XXX` QRLjacking verification code + IP/User-Agent display, explicit `reject()`, and atomic single-use `claim()`.

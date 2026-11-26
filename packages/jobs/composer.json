@@ -18,8 +18,8 @@
   "require": {
     "php": ">=8.5.13",
     "ext-json": "*",
-    "kongono/core": "^1.21",
-    "kongono/database": "^1.21"
+    "kongono/core": "^1.22",
+    "kongono/database": "^1.22"
   },
   "autoload": {
     "psr-4": {
