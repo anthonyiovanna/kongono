@@ -37,6 +37,6 @@
 
 ## Optional
 
-- [Framework Source Repository (GitHub)](https://github.com/anthonyiovanna/kongono)
+- [Framework Source Repository (GitHub)](https://github.com/kongono/framework)
 - [Packagist Package (`kongono/framework`)](https://packagist.org/packages/kongono/framework)
-- [Changelog](https://github.com/anthonyiovanna/kongono/blob/main/CHANGELOG.md)
+- [Changelog](https://github.com/kongono/framework/blob/main/CHANGELOG.md)

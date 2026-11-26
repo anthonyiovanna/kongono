@@ -15,7 +15,7 @@ Every contribution must honor Kongono's five engineering rules:
 ## Local Development Setup
 
 ```bash
-git clone https://github.com/anthonyiovanna/kongono.git kongono
+git clone https://github.com/kongono/framework.git kongono
 cd kongono
 composer install
 php bin/kongo doctor --app=examples/starter-app

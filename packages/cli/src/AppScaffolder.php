@@ -540,7 +540,7 @@ HTML;
 # {$appName} — Kongono v1 AI Agent Guide
 
 This application is built with **Kongono Framework v1** (pure PHP 8.5.13+, zero Symfony packages, persistent-runtime first).
-Full LLM reference: `https://anthonyiovanna.github.io/kongono/llms.txt`
+Full LLM reference: `https://kongono.com/llms.txt`
 
 ## Non-Negotiable Rules
 

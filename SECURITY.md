@@ -25,7 +25,7 @@ Kongono never uses `session_start()`, `$_SESSION`, `unserialize()`, or `__call`/
 
 Instead, report vulnerabilities privately via **GitHub Security Advisories (GHSA)**:
 
-1. Open the **Security** tab of `anthonyiovanna/kongono` -> **Advisories** -> **Report a vulnerability**.
+1. Open the **Security** tab of `kongono/framework` -> **Advisories** -> **Report a vulnerability**.
 2. Include:
    - Affected package(s), file path(s), and Kongono version (`php vendor/bin/kongo version`).
    - Minimal, deterministic reproduction steps or proof-of-concept test case.
@@ -61,6 +61,6 @@ Kongono enforces the following invariants continuously in CI:
 sha256sum -c SHA256SUMS.txt
 
 # Verify SLSA Build Provenance via GitHub CLI
-gh attestation verify kongono-v1.7.0.tar.gz --repo anthonyiovanna/kongono
-gh attestation verify kongono-v1.7.0.cdx.json --repo anthonyiovanna/kongono
+gh attestation verify kongono-v1.7.0.tar.gz --repo kongono/framework
+gh attestation verify kongono-v1.7.0.cdx.json --repo kongono/framework
 ```
