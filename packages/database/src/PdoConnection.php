@@ -352,6 +352,47 @@ final class PdoConnection implements ConnectionInterface, QueryGuardableInterfac
     }
 
     /**
+     * Stream pre-formatted PostgreSQL COPY lines directly into a table using PDO::pgsqlCopyFromArray().
+     * Enforces ExecutionCapabilities write guards and emits query telemetry identically to execute().
+     *
+     * @param list<string> $rows Tab-delimited COPY lines (without trailing newline)
+     */
+    public function copyFromArray(
+        string $table,
+        array $rows,
+        string $delimiter = "\t",
+        string $nullAs = '\\\\N',
+        ?string $fields = null,
+    ): bool {
+        if (Dialect::Postgres !== $this->dialect) {
+            throw new DatabaseException('PdoConnection::copyFromArray() is only supported on PostgreSQL connections.');
+        }
+
+        $sqlLabel = sprintf('COPY %s FROM STDIN', $table);
+        $this->assertBeforeQuery($sqlLabel);
+        $start = [] !== $this->queryListeners ? hrtime(true) : 0;
+
+        try {
+            $ok = null === $fields
+                ? $this->pdo->pgsqlCopyFromArray($table, $rows, $delimiter, $nullAs)
+                : $this->pdo->pgsqlCopyFromArray($table, $rows, $delimiter, $nullAs, $fields);
+        } catch (PDOException $e) {
+            if (self::isConnectionLost($e)) {
+                $this->needsReconnect = true;
+            }
+            throw new DatabaseException('PostgreSQL COPY failed: ' . $e->getMessage(), previous: $e);
+        }
+
+        if (!$ok) {
+            throw new DatabaseException(sprintf('PostgreSQL COPY into "%s" returned false.', $table));
+        }
+
+        $this->notifyQuery($sqlLabel, $start);
+
+        return true;
+    }
+
+    /**
      * @template T
      * @param list<mixed>                 $bindings
      * @param Closure(PDOStatement): T    $extractor

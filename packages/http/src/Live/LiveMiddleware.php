@@ -28,7 +28,7 @@ use Psr\Http\Server\RequestHandlerInterface;
  *   - kgn-transition="true" (native View Transitions API)
  *   - kgn-optimistic-text="Saved!" / kgn-optimistic-class="is-active" / kgn-disable
  *   - kgn-confirm="Confirm action?"
- *   - kgn-stream="/events/stream" + kgn-event="item.updated"
+ *   - kgn-stream="/events/stream" + kgn-event="item.updated" + targeted cell `kgn:patch` + `kgn-stream-resync-url` reconnect sync
  *
  * Zero-eval CSP-strict Client Signals, Safe Math/Pipes & Persistence:
  *   - k-state='{"bid":6450,"insured":true}' (or `@state([...])`) + k-persist="local|session"
@@ -1340,6 +1340,47 @@ final readonly class LiveMiddleware implements MiddlewareInterface
     });
   }
 
+  function applyCellPatch(patch, lastEventId) {
+    if (!patch || typeof patch !== "object" || typeof patch.target !== "string") return;
+    const sel = patch.target.trim();
+    if (!sel) return;
+    let targetEl = null;
+    try {
+      targetEl = sel.startsWith("#") && /^#[A-Za-z0-9_:-]+$/.test(sel)
+        ? document.getElementById(sel.slice(1))
+        : document.querySelector(sel);
+    } catch (_selErr) {
+      return;
+    }
+    if (!targetEl) return;
+
+    const mode = String(patch.mode || "text");
+    const content = patch.content == null ? "" : String(patch.content);
+    if (mode === "text") {
+      if (targetEl.textContent !== content) {
+        targetEl.textContent = content;
+      }
+    } else if (mode === "remove") {
+      targetEl.remove();
+      return;
+    } else {
+      const swapMap = { inner: "morphInner", outer: "morph", append: "beforeend", prepend: "afterbegin" };
+      applySwap(targetEl, content, swapMap[mode] || "morphInner", false);
+    }
+
+    if (patch.flash !== false) {
+      targetEl.classList.remove("kgn-patch-flash");
+      void targetEl.offsetWidth;
+      targetEl.classList.add("kgn-patch-flash");
+      window.setTimeout(() => targetEl.classList.remove("kgn-patch-flash"), 650);
+    }
+
+    targetEl.dispatchEvent(new CustomEvent("kongono:sse-patch", {
+      bubbles: true,
+      detail: { target: sel, mode, id: lastEventId || null }
+    }));
+  }
+
   function connectStreams(root) {
     const nodes = (root || document).querySelectorAll("[kgn-stream]");
     nodes.forEach((node) => {
@@ -1349,8 +1390,12 @@ final readonly class LiveMiddleware implements MiddlewareInterface
       if (!streamUrl || typeof EventSource === "undefined") return;
       const eventName = node.getAttribute("kgn-event") || "message";
       const swap = node.getAttribute("kgn-swap") || "morphInner";
+      const resyncAttr = node.getAttribute("kgn-stream-resync-url") || "";
+      const resyncUrl = resyncAttr ? isSameOriginUrl(resyncAttr) : null;
       const es = new EventSource(streamUrl.href);
       streams.set(node, es);
+      let disconnected = false;
+
       const handler = (ev) => {
         if (!document.contains(node)) {
           es.close();
@@ -1359,11 +1404,58 @@ final readonly class LiveMiddleware implements MiddlewareInterface
         }
         applySwap(node, ev.data || "", swap, false);
       };
+
+      const patchHandler = (ev) => {
+        if (!document.contains(node)) {
+          es.close();
+          streams.delete(node);
+          return;
+        }
+        let parsed = null;
+        try {
+          parsed = JSON.parse(ev.data || "");
+        } catch (_parseErr) {
+          return;
+        }
+        const list = Array.isArray(parsed) ? parsed : [parsed];
+        for (const item of list) {
+          applyCellPatch(item, ev.lastEventId || null);
+        }
+      };
+
+      es.addEventListener("kgn:patch", patchHandler);
       if (eventName === "message") {
         es.onmessage = handler;
-      } else {
+      } else if (eventName !== "kgn:patch") {
         es.addEventListener(eventName, handler);
       }
+
+      es.onerror = () => {
+        if (!document.contains(node)) {
+          es.close();
+          streams.delete(node);
+          return;
+        }
+        disconnected = true;
+      };
+
+      es.onopen = () => {
+        if (!disconnected) return;
+        disconnected = false;
+        node.dispatchEvent(new CustomEvent("kongono:stream-reconnected", { bubbles: true }));
+        if (!resyncUrl) return;
+        fetch(resyncUrl.href, {
+          method: "GET",
+          headers: { "X-Kongono-Live": "true", "Accept": "text/html" },
+          credentials: "same-origin"
+        }).then(async (res) => {
+          if (!res.ok || !document.contains(node)) return;
+          const ct = (res.headers.get("Content-Type") || "").toLowerCase();
+          if (ct.startsWith("text/html")) {
+            applySwap(node, await res.text(), swap, false);
+          }
+        }).catch(() => {});
+      };
     });
   }
 

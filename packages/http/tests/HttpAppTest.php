@@ -1922,6 +1922,46 @@ HTML);
         $client->get('/_kongono/api/runtime')->assertStatus(404);
         $client->postJson('/_kongono/api/try-route', ['method' => 'GET', 'path' => '/home'])->assertStatus(404);
     }
+
+    public function testTargetedCellSsePatchesAndLiveStreamReconnectResync(): void
+    {
+        // 1. SseEvent::patch emits surgical kgn:patch event with Last-Event-ID support
+        $single = SseEvent::patch('#bid-1234', '$2,450', mode: 'text', id: 'evt-42');
+        $wire = $single->format();
+        self::assertStringContainsString("id: evt-42\n", $wire);
+        self::assertStringContainsString("event: kgn:patch\n", $wire);
+        self::assertStringContainsString('"target":"#bid-1234"', $wire);
+        self::assertStringContainsString('"mode":"text"', $wire);
+        self::assertStringContainsString('"content":"$2,450"', $wire);
+        self::assertStringContainsString('"flash":true', $wire);
+
+        // 2. SseEvent::batchPatches packs multiple targeted cell updates into one SSE frame
+        $batch = SseEvent::batchPatches([
+            ['target' => '#bid-1234', 'content' => '$2,500'],
+            ['target' => '#status-1234', 'mode' => 'inner', 'content' => '<span class="z-badge">Hot</span>', 'flash' => false],
+        ], id: 'evt-43');
+        $batchWire = $batch->format();
+        self::assertStringContainsString("id: evt-43\n", $batchWire);
+        self::assertStringContainsString("event: kgn:patch\n", $batchWire);
+        self::assertStringContainsString('#bid-1234', $batchWire);
+        self::assertStringContainsString('#status-1234', $batchWire);
+
+        // 3. Invalid patch mode or empty target fails closed
+        try {
+            SseEvent::patch('#bid-1', 'x', mode: 'eval');
+            self::fail('Expected invalid SSE patch mode to throw.');
+        } catch (\InvalidArgumentException) {
+            self::addToAssertionCount(1);
+        }
+
+        // 4. LiveMiddleware script handles kgn:patch, kgn-patch-flash, and kgn-stream-resync-url reconnect sync
+        $liveJs = LiveMiddleware::scriptSource();
+        self::assertStringContainsString('es.addEventListener("kgn:patch"', $liveJs);
+        self::assertStringContainsString('kgn-stream-resync-url', $liveJs);
+        self::assertStringContainsString('kgn-patch-flash', $liveJs);
+        self::assertStringContainsString('kongono:sse-patch', $liveJs);
+        self::assertStringContainsString('kongono:stream-reconnected', $liveJs);
+    }
 }
 
 final readonly class HtmlSignupFormDto

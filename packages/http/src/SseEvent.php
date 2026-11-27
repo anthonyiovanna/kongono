@@ -23,6 +23,64 @@ final readonly class SseEvent
         );
     }
 
+    /**
+     * Build a targeted single-element Live 2.5 SSE patch (`event: kgn:patch`).
+     * Allows high-frequency cell updates (e.g. `#bid-1234` price ticks) without morphing an entire table.
+     *
+     * Supported modes: `text` (zero HTML parsing), `inner`, `outer`, `append`, `prepend`, `remove`.
+     */
+    public static function patch(
+        string $target,
+        string $content = '',
+        string $mode = 'text',
+        ?string $id = null,
+        bool $flash = true,
+    ): self {
+        $cleanTarget = trim($target);
+        if ('' === $cleanTarget) {
+            throw new \InvalidArgumentException('SseEvent::patch() requires a non-empty target selector.');
+        }
+        $normalizedMode = in_array($mode, ['text', 'inner', 'outer', 'append', 'prepend', 'remove'], true)
+            ? $mode
+            : throw new \InvalidArgumentException(sprintf('Unsupported SSE patch mode "%s".', $mode));
+
+        return self::json(
+            payload: [
+                'target' => $cleanTarget,
+                'mode' => $normalizedMode,
+                'content' => $content,
+                'flash' => $flash,
+            ],
+            event: 'kgn:patch',
+            id: $id,
+        );
+    }
+
+    /**
+     * Emit multiple targeted cell patches atomically in one `event: kgn:patch` SSE frame.
+     *
+     * @param list<array{target: string, content?: string, mode?: string, flash?: bool}> $patches
+     */
+    public static function batchPatches(array $patches, ?string $id = null): self
+    {
+        $normalized = [];
+        foreach ($patches as $patch) {
+            $cleanTarget = trim($patch['target']);
+            $mode = $patch['mode'] ?? 'text';
+            if ('' === $cleanTarget || !in_array($mode, ['text', 'inner', 'outer', 'append', 'prepend', 'remove'], true)) {
+                throw new \InvalidArgumentException(sprintf('Invalid batch SSE patch for target "%s" / mode "%s".', $cleanTarget, $mode));
+            }
+            $normalized[] = [
+                'target' => $cleanTarget,
+                'mode' => $mode,
+                'content' => $patch['content'] ?? '',
+                'flash' => $patch['flash'] ?? true,
+            ];
+        }
+
+        return self::json(payload: $normalized, event: 'kgn:patch', id: $id);
+    }
+
     public function format(): string
     {
         $lines = [];
