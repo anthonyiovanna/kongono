@@ -39,22 +39,44 @@ final class PgCopyWriterTest extends TestCase
 
     public function testBuildPostgresMergeSqlIncludesDistinctFromGuardAndDoNothingVariant(): void
     {
-        $mergeSql = PgCopyWriter::buildPostgresMergeSql(
+        $stageSql = PgCopyWriter::buildPostgresStageTableSql(
+            table: 'public.domains',
+            stageTable: 'kgn_stage_abc123',
+            columns: ['domain', 'price_cents', 'status'],
+        );
+        self::assertSame(
+            'CREATE TEMP TABLE "kgn_stage_abc123" ON COMMIT DROP AS SELECT "domain", "price_cents", "status" FROM "public"."domains" WHERE false',
+            $stageSql,
+        );
+
+        $dedupedSql = PgCopyWriter::buildPostgresMergeSql(
             table: 'public.domains',
             stageTable: 'kgn_stage_abc123',
             columns: ['domain', 'price_cents', 'status'],
             conflictColumns: ['domain'],
             updateColumns: ['price_cents', 'status'],
             skipUnchanged: true,
+            deduplicate: true,
         );
 
         self::assertSame(
             'INSERT INTO "public"."domains" ("domain", "price_cents", "status") '
-            . 'SELECT "domain", "price_cents", "status" FROM "kgn_stage_abc123" '
+            . 'SELECT DISTINCT ON ("domain") "domain", "price_cents", "status" FROM "kgn_stage_abc123" ORDER BY "domain", ctid DESC '
             . 'ON CONFLICT ("domain") DO UPDATE SET "price_cents" = EXCLUDED."price_cents", "status" = EXCLUDED."status" '
             . 'WHERE ("public"."domains"."price_cents" IS DISTINCT FROM EXCLUDED."price_cents" OR "public"."domains"."status" IS DISTINCT FROM EXCLUDED."status")',
-            $mergeSql,
+            $dedupedSql,
         );
+
+        $rawMergeSql = PgCopyWriter::buildPostgresMergeSql(
+            table: 'public.domains',
+            stageTable: 'kgn_stage_abc123',
+            columns: ['domain', 'price_cents', 'status'],
+            conflictColumns: ['domain'],
+            updateColumns: ['price_cents', 'status'],
+            skipUnchanged: true,
+            deduplicate: false,
+        );
+        self::assertStringContainsString('SELECT "domain", "price_cents", "status" FROM "kgn_stage_abc123" ON CONFLICT', $rawMergeSql);
 
         $doNothingSql = PgCopyWriter::buildPostgresMergeSql(
             table: 'domains',
@@ -96,20 +118,24 @@ final class PgCopyWriterTest extends TestCase
         self::assertCount(150, $pgSpy->executed[0]['bindings']); // 50 rows * 3 cols
         self::assertCount(60, $pgSpy->executed[2]['bindings']);  // 20 rows * 3 cols
 
-        // 2. Postgres fallback upsert emits IS DISTINCT FROM guard (prevents MVCC dead-tuple bloat)
+        // 2. Postgres fallback upsert deduplicates duplicate keys (last-row-wins) & emits IS DISTINCT FROM guard
         $pgSpy->executed = [];
         $up = $pgWriter->upsert(
             table: 'domains',
             columns: ['domain', 'price_cents', 'status'],
             conflictColumns: ['domain'],
             rows: [
+                ['domain' => 'a.com', 'price_cents' => 1000, 'status' => 'pending'],
                 ['domain' => 'a.com', 'price_cents' => 4500, 'status' => 'auction'],
                 ['domain' => 'b.com', 'price_cents' => 9900, 'status' => 'dropping'],
             ],
             skipUnchanged: true,
+            deduplicate: true,
         );
-        self::assertSame(2, $up->rowsProcessed);
+        self::assertSame(3, $up->rowsProcessed);
         self::assertSame(1, $up->chunks);
+        self::assertCount(6, $pgSpy->executed[0]['bindings']); // 2 deduped rows * 3 cols
+        self::assertSame(['a.com', 4500, 'auction', 'b.com', 9900, 'dropping'], $pgSpy->executed[0]['bindings']);
         self::assertStringContainsString('ON CONFLICT ("domain") DO UPDATE SET', $pgSpy->executed[0]['sql']);
         self::assertStringContainsString('IS DISTINCT FROM excluded."price_cents"', $pgSpy->executed[0]['sql']);
 

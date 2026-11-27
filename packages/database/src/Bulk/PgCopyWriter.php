@@ -117,11 +117,15 @@ final readonly class PgCopyWriter
     /**
      * Stream rows into `$table` with conflict-safe bulk upsert.
      *
-     * On PostgreSQL: streams chunks via `COPY FROM STDIN` into a `TEMP` staging table (`ON COMMIT DROP`)
-     * then merges with `INSERT ... SELECT ... ON CONFLICT (...) DO UPDATE` guarded by `IS DISTINCT FROM`
-     * (when `$skipUnchanged` is true) to prevent unnecessary MVCC dead-tuple bloat.
+     * On PostgreSQL: creates a narrow `TEMP` staging table containing ONLY `$columns` (avoiding `LIKE`
+     * `NOT NULL` and generated-column traps on omitted columns), streams chunks via `COPY FROM STDIN`,
+     * optionally deduplicates duplicate conflict keys (`DISTINCT ON (...) ORDER BY ..., ctid DESC`,
+     * preventing SQLSTATE 21000), optionally merges + truncates per chunk (`$mergePerChunk`) to keep
+     * temp table memory/disk strictly O(chunkSize) for 10M+ row feeds, and guards updates with
+     * `IS DISTINCT FROM` (`$skipUnchanged`) to avoid MVCC dead-tuple bloat.
      *
-     * On SQLite/MySQL: automatically falls back to chunked parameterized multi-row upsert inside a transaction.
+     * On SQLite/MySQL: automatically falls back to chunked parameterized multi-row upsert inside a transaction
+     * with matching last-row-wins batch deduplication when `$deduplicate` is true.
      *
      * @param list<string>                        $columns
      * @param list<string>                        $conflictColumns
@@ -136,6 +140,8 @@ final readonly class PgCopyWriter
         ?array $updateColumns = null,
         int $chunkSize = 10_000,
         bool $skipUnchanged = true,
+        bool $deduplicate = true,
+        bool $mergePerChunk = false,
     ): BulkUpsertResult {
         $this->assertValidTable($table);
         $this->assertValidColumns($columns);
@@ -179,6 +185,8 @@ final readonly class PgCopyWriter
             $effectiveChunkSize,
             $usePgCopy,
             $skipUnchanged,
+            $deduplicate,
+            $mergePerChunk,
             &$rowsProcessed,
             &$rowsAffected,
             &$chunks,
@@ -186,17 +194,21 @@ final readonly class PgCopyWriter
             if ($usePgCopy && $this->connection instanceof PdoConnection) {
                 $stageTable = 'kgn_stage_' . bin2hex(random_bytes(6));
                 $quotedStage = self::quoteIdent($stageTable, Dialect::Postgres);
-                $quotedTarget = self::quoteTable($table, Dialect::Postgres);
                 $quotedFields = implode(', ', array_map(
                     static fn(string $col): string => self::quoteIdent($col, Dialect::Postgres),
                     $columns,
                 ));
 
-                $this->connection->execute(sprintf(
-                    'CREATE TEMP TABLE %s (LIKE %s INCLUDING DEFAULTS) ON COMMIT DROP',
-                    $quotedStage,
-                    $quotedTarget,
-                ));
+                $this->connection->execute(self::buildPostgresStageTableSql($table, $stageTable, $columns));
+                $mergeSql = self::buildPostgresMergeSql(
+                    $table,
+                    $stageTable,
+                    $columns,
+                    $conflictColumns,
+                    $resolvedUpdateCols,
+                    $skipUnchanged,
+                    $deduplicate,
+                );
 
                 /** @var list<string> $lines */
                 $lines = [];
@@ -207,22 +219,22 @@ final readonly class PgCopyWriter
                         $chunks++;
                         $this->connection->copyFromArray($quotedStage, $lines, "\t", '\\\\N', $quotedFields);
                         $lines = [];
+                        if ($mergePerChunk) {
+                            $rowsAffected += $this->connection->execute($mergeSql);
+                            $this->connection->execute('TRUNCATE ' . $quotedStage);
+                        }
                     }
                 }
                 if ([] !== $lines) {
                     $chunks++;
                     $this->connection->copyFromArray($quotedStage, $lines, "\t", '\\\\N', $quotedFields);
+                    if ($mergePerChunk) {
+                        $rowsAffected += $this->connection->execute($mergeSql);
+                        $this->connection->execute('TRUNCATE ' . $quotedStage);
+                    }
                 }
 
-                if ($rowsProcessed > 0) {
-                    $mergeSql = self::buildPostgresMergeSql(
-                        $table,
-                        $stageTable,
-                        $columns,
-                        $conflictColumns,
-                        $resolvedUpdateCols,
-                        $skipUnchanged,
-                    );
+                if (!$mergePerChunk && $rowsProcessed > 0) {
                     $rowsAffected = $this->connection->execute($mergeSql);
                 }
 
@@ -236,13 +248,15 @@ final readonly class PgCopyWriter
                 $rowsProcessed++;
                 if (count($buffer) >= $effectiveChunkSize) {
                     $chunks++;
-                    $rowsAffected += $this->executeMultiRowUpsert($table, $columns, $conflictColumns, $resolvedUpdateCols, $buffer, $skipUnchanged);
+                    $effectiveBatch = $deduplicate ? self::deduplicateBatch($buffer, $conflictColumns) : $buffer;
+                    $rowsAffected += $this->executeMultiRowUpsert($table, $columns, $conflictColumns, $resolvedUpdateCols, $effectiveBatch, $skipUnchanged);
                     $buffer = [];
                 }
             }
             if ([] !== $buffer) {
                 $chunks++;
-                $rowsAffected += $this->executeMultiRowUpsert($table, $columns, $conflictColumns, $resolvedUpdateCols, $buffer, $skipUnchanged);
+                $effectiveBatch = $deduplicate ? self::deduplicateBatch($buffer, $conflictColumns) : $buffer;
+                $rowsAffected += $this->executeMultiRowUpsert($table, $columns, $conflictColumns, $resolvedUpdateCols, $effectiveBatch, $skipUnchanged);
             }
         });
 
@@ -256,8 +270,29 @@ final readonly class PgCopyWriter
     }
 
     /**
+     * Build the narrow `CREATE TEMP TABLE ... ON COMMIT DROP AS SELECT ... WHERE false` staging DDL.
+     * Avoids `LIKE` inheriting `NOT NULL` constraints or generated columns on omitted target columns.
+     *
+     * @param list<string> $columns
+     */
+    public static function buildPostgresStageTableSql(string $table, string $stageTable, array $columns): string
+    {
+        $qTarget = self::quoteTable($table, Dialect::Postgres);
+        $qStage = self::quoteIdent($stageTable, Dialect::Postgres);
+        $colList = implode(', ', array_map(static fn(string $c): string => self::quoteIdent($c, Dialect::Postgres), $columns));
+
+        return sprintf(
+            'CREATE TEMP TABLE %s ON COMMIT DROP AS SELECT %s FROM %s WHERE false',
+            $qStage,
+            $colList,
+            $qTarget,
+        );
+    }
+
+    /**
      * Build the exact PostgreSQL `INSERT ... SELECT FROM stage ON CONFLICT` merge statement.
-     * Exposed for deterministic verification and query inspection.
+     * When `$deduplicate` is true on `DO UPDATE`, uses `SELECT DISTINCT ON (...) ... ORDER BY ..., ctid DESC`
+     * (last-row-wins) to prevent PostgreSQL SQLSTATE 21000 on duplicate keys within a feed batch.
      *
      * @param list<string> $columns
      * @param list<string> $conflictColumns
@@ -270,6 +305,7 @@ final readonly class PgCopyWriter
         array $conflictColumns,
         array $updateColumns,
         bool $skipUnchanged = true,
+        bool $deduplicate = true,
     ): string {
         $qTarget = self::quoteTable($table, Dialect::Postgres);
         $qStage = self::quoteIdent($stageTable, Dialect::Postgres);
@@ -287,6 +323,10 @@ final readonly class PgCopyWriter
             );
         }
 
+        $selectClause = $deduplicate
+            ? sprintf('SELECT DISTINCT ON (%s) %s FROM %s ORDER BY %s, ctid DESC', $conflictList, $colList, $qStage, $conflictList)
+            : sprintf('SELECT %s FROM %s', $colList, $qStage);
+
         $sets = [];
         $distinctChecks = [];
         foreach ($updateColumns as $col) {
@@ -296,11 +336,10 @@ final readonly class PgCopyWriter
         }
 
         $sql = sprintf(
-            'INSERT INTO %s (%s) SELECT %s FROM %s ON CONFLICT (%s) DO UPDATE SET %s',
+            'INSERT INTO %s (%s) %s ON CONFLICT (%s) DO UPDATE SET %s',
             $qTarget,
             $colList,
-            $colList,
-            $qStage,
+            $selectClause,
             $conflictList,
             implode(', ', $sets),
         );
@@ -310,6 +349,33 @@ final readonly class PgCopyWriter
         }
 
         return $sql;
+    }
+
+    /**
+     * Last-row-wins in-batch deduplication by conflict key tuple (mirrors Postgres `DISTINCT ON ... ORDER BY ..., ctid DESC`).
+     *
+     * @param list<array<string, mixed>> $batch
+     * @param list<string>               $conflictColumns
+     * @return list<array<string, mixed>>
+     */
+    private static function deduplicateBatch(array $batch, array $conflictColumns): array
+    {
+        /** @var array<string, array<string, mixed>> $deduped */
+        $deduped = [];
+        foreach ($batch as $row) {
+            $keyParts = [];
+            foreach ($conflictColumns as $col) {
+                $keyParts[] = $row[$col] ?? null;
+            }
+            try {
+                $compositeKey = json_encode($keyParts, JSON_THROW_ON_ERROR);
+            } catch (JsonException $e) {
+                throw new DatabaseException('Unable to encode conflict key tuple for batch deduplication: ' . $e->getMessage(), previous: $e);
+            }
+            $deduped[$compositeKey] = $row;
+        }
+
+        return array_values($deduped);
     }
 
     /**

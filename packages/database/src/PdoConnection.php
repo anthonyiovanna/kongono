@@ -165,7 +165,7 @@ final class PdoConnection implements ConnectionInterface, QueryGuardableInterfac
             }
         }
 
-        $connector = static fn(): PDO => new PDO($dsn, $username, $password);
+        $connector = static fn(): PDO => PDO::connect($dsn, $username, $password);
 
         return new self($connector(), Dialect::Postgres, $connector);
     }
@@ -373,9 +373,15 @@ final class PdoConnection implements ConnectionInterface, QueryGuardableInterfac
         $start = [] !== $this->queryListeners ? hrtime(true) : 0;
 
         try {
-            $ok = null === $fields
-                ? $this->pdo->pgsqlCopyFromArray($table, $rows, $delimiter, $nullAs)
-                : $this->pdo->pgsqlCopyFromArray($table, $rows, $delimiter, $nullAs, $fields);
+            if ($this->pdo instanceof \Pdo\Pgsql) {
+                $ok = null === $fields
+                    ? $this->pdo->copyFromArray($table, $rows, $delimiter, $nullAs)
+                    : $this->pdo->copyFromArray($table, $rows, $delimiter, $nullAs, $fields);
+            } else {
+                $ok = null === $fields
+                    ? $this->pdo->pgsqlCopyFromArray($table, $rows, $delimiter, $nullAs)
+                    : $this->pdo->pgsqlCopyFromArray($table, $rows, $delimiter, $nullAs, $fields);
+            }
         } catch (PDOException $e) {
             if (self::isConnectionLost($e)) {
                 $this->needsReconnect = true;
