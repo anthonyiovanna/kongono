@@ -25,7 +25,13 @@ final class Route
         public readonly string $path,
         public readonly Closure|array $handler,
         private ?string $name = null,
+        private ?string $domain = null,
     ) {}
+
+    public function routeDomain(): ?string
+    {
+        return $this->domain;
+    }
 
     public function name(string $name): self
     {

@@ -25,6 +25,7 @@ use Kongono\Http\Realtime\EventBus;
 use Kongono\Http\Request;
 use Kongono\Http\Response;
 use Kongono\Http\Routing\CacheControl;
+use Kongono\Http\Routing\Domain;
 use Kongono\Http\Routing\Feature;
 use Kongono\Http\Routing\Get;
 use Kongono\Http\Routing\Idempotent;
@@ -1962,6 +1963,133 @@ HTML);
         self::assertStringContainsString('kongono:sse-patch', $liveJs);
         self::assertStringContainsString('kongono:stream-reconnected', $liveJs);
     }
+
+    public function testHostAndDomainRoutingShortDomainWildcardSubdomainAotAndSecurity(): void
+    {
+        // 1. Branded short domain (bbl.to) + multi-tenant wildcard ({tenant}.bidbylink.com) + global catch-all
+        $app = App::create(__DIR__)->routes(static function (Router $r): void {
+            $r->domain('bbl.to', static function (Router $short): void {
+                $short->get('/', static fn(): Response => Response::redirect('https://bidbylink.com', 302))->name('short.home');
+                $short->get('/{code:[A-Za-z0-9_-]{3,32}}', static fn(string $code, Request $req): Response => Response::json([
+                    'short' => true,
+                    'code' => $code,
+                    'host' => $req->host(),
+                    'route_domain' => $req->getAttribute('_route_domain'),
+                ]))->name('short.resolve');
+            });
+
+            $r->domain('{tenant}.bidbylink.com', static function (Router $sub): void {
+                $sub->get('/lots/{id:[0-9]+}', static fn(string $tenant, string $id): Response => Response::json([
+                    'tenant' => $tenant,
+                    'lot' => $id,
+                ]))->name('tenant.lot');
+            });
+
+            $r->domain('{tenantId:[a-z0-9]{2,32}}.auctions.BidByLink.COM', static function (Router $sub): void {
+                $sub->get('/status', static fn(string $tenantId): Response => Response::text('tenantId:' . $tenantId))
+                    ->name('tenant.status');
+            });
+
+            $r->get('/', static fn(): Response => Response::text('main-site'))->name('site.home');
+            $r->get('/{slug}', static fn(string $slug): Response => Response::text('global:' . $slug));
+        });
+
+        // Exact host static fast-path (bbl.to /) wins over global /
+        $shortHome = $app->handle(Request::create('GET', '/', ['Host' => 'BBL.TO.:8443']));
+        self::assertSame(302, $shortHome->getStatusCode());
+        self::assertSame('https://bidbylink.com', $shortHome->getHeaderLine('Location'));
+
+        // Exact host dynamic route (bbl.to/x8K2) wins over global /{slug}
+        $shortResolve = $app->handle(Request::create('GET', 'https://bbl.to/x8K2'));
+        self::assertSame(200, $shortResolve->getStatusCode());
+        self::assertSame('{"short":true,"code":"x8K2","host":"bbl.to","route_domain":"bbl.to"}', (string) $shortResolve->getBody());
+
+        // Main domain hits global routes and never collides with bbl.to
+        $mainHome = $app->handle(Request::create('GET', 'https://bidbylink.com/'));
+        self::assertSame('main-site', (string) $mainHome->getBody());
+        $mainSlug = $app->handle(Request::create('GET', 'https://bidbylink.com/x8K2'));
+        self::assertSame('global:x8K2', (string) $mainSlug->getBody());
+
+        // Wildcard subdomain extracts {tenant} + {id} directly into handler params
+        $tenantRes = $app->handle(Request::create('GET', '/lots/42', ['Host' => 'acme.bidbylink.com']));
+        self::assertSame(200, $tenantRes->getStatusCode());
+        self::assertSame('{"tenant":"acme","lot":"42"}', (string) $tenantRes->getBody());
+
+        // CamelCase domain param + nested {m,n} quantifier constraint preserved through normalization
+        $camelRes = $app->handle(Request::create('GET', '/status', ['Host' => 'bid42.auctions.bidbylink.com']));
+        self::assertSame(200, $camelRes->getStatusCode());
+        self::assertSame('tenantId:bid42', (string) $camelRes->getBody());
+        self::assertSame('https://bid42.auctions.bidbylink.com/status', $app->router()->url('tenant.status', ['tenantId' => 'bid42']));
+
+        // Named URL generation emits absolute URLs for domain-scoped routes and relative paths for global routes
+        self::assertSame('https://bbl.to/x8K2', $app->router()->url('short.resolve', ['code' => 'x8K2']));
+        self::assertSame('https://acme.bidbylink.com/lots/42?utm=sms', $app->router()->url('tenant.lot', ['tenant' => 'acme', 'id' => 42], ['utm' => 'sms']));
+        self::assertSame('/', $app->router()->url('site.home'));
+
+        // Invalid host label or unsupported scheme in url() fails closed
+        try {
+            $app->router()->url('tenant.lot', ['tenant' => 'evil.com/x', 'id' => 1]);
+            self::fail('Expected invalid host label in Router::url() to throw.');
+        } catch (HttpException $e) {
+            self::assertSame(500, $e->statusCode);
+        }
+
+        // 2. 405 Method Not Allowed on domain-scoped route (isolated router without global catch-all)
+        $strictRouter = new Router();
+        $strictRouter->domain('bbl.to', static function (Router $r): void {
+            $r->get('/{code}', static fn(): Response => Response::text('ok'));
+        });
+        try {
+            $strictRouter->match('POST', '/x8K2', 'bbl.to');
+            self::fail('Expected 405 Method Not Allowed on POST bbl.to/x8K2.');
+        } catch (HttpException $e) {
+            self::assertSame(405, $e->statusCode);
+            self::assertSame('GET, HEAD', $e->headers['Allow'] ?? null);
+        }
+        try {
+            $strictRouter->match('GET', '/x8K2', 'other.com');
+            self::fail('Expected 404 Not Found on unmatched domain.');
+        } catch (HttpException $e) {
+            self::assertSame(404, $e->statusCode);
+        }
+
+        // 3. Class- and method-level #[Domain] attribute controller + full AOT export/load round-trip
+        $aotSource = new Router();
+        $aotSource->controller(BrandedShortDomainController::class);
+        $compiled = $aotSource->exportCompiledTable();
+        self::assertSame(2, $compiled['version']);
+        self::assertCount(3, $compiled['domain_routes']);
+
+        $aotHydrated = new Router();
+        $aotHydrated->loadCompiledTable($compiled);
+
+        $mRoot = $aotHydrated->match('GET', '/', 'bbl.to');
+        self::assertSame('bbl.to', $mRoot->route->routeDomain());
+        self::assertSame('short.root', $mRoot->route->routeName());
+        self::assertNotEmpty($mRoot->route->routeMiddlewareAttributes());
+
+        $mCode = $aotHydrated->match('GET', '/k9m2', 'bbl.to');
+        self::assertSame(['code' => 'k9m2'], $mCode->params);
+
+        $mTenant = $aotHydrated->match('GET', '/auctions/7', 'north.bidbylink.com');
+        self::assertSame(['tenant' => 'north', 'id' => '7'], $mTenant->params);
+        self::assertSame('{tenant}.bidbylink.com', $mTenant->route->routeDomain());
+
+        // 4. Request::host() security hardening (port strip, IPv6, fail-closed on duplicate/smuggled Host headers)
+        self::assertSame('bbl.to', Request::create('GET', '/', ['Host' => 'BBL.TO:443'])->host());
+        self::assertSame('[::1]', Request::create('GET', '/', ['Host' => '[::1]:8080'])->host());
+        self::assertSame('', Request::create('GET', '/', ['Host' => ['bbl.to', 'evil.com']])->host());
+        self::assertSame('', Request::create('GET', '/', ['Host' => 'bbl.to@evil.com'])->host());
+        self::assertSame('', Request::create('GET', '/', ['Host' => "bbl.to\r\nX-Injected: 1"])->host());
+
+        // 5. Router::domain() rejects scheme/path in template
+        try {
+            (new Router())->domain('https://bbl.to', static function (Router $r): void {});
+            self::fail('Expected Router::domain() with scheme to fail.');
+        } catch (\Kongono\Core\CoreException $e) {
+            self::assertStringContainsString('omit scheme', $e->getMessage());
+        }
+    }
 }
 
 final readonly class HtmlSignupFormDto
@@ -2039,5 +2167,29 @@ final readonly class CachedDemoController
     public function beta(): Response
     {
         return Response::json(['beta' => true]);
+    }
+}
+
+#[Domain('bbl.to')]
+#[Middleware(AddTagHeaderMiddleware::class)]
+final readonly class BrandedShortDomainController
+{
+    #[Get('/', name: 'short.root')]
+    public function root(): Response
+    {
+        return Response::redirect('https://bidbylink.com', 302);
+    }
+
+    #[Get('/{code:[A-Za-z0-9_-]{3,32}}', name: 'short.code')]
+    public function resolve(string $code): Response
+    {
+        return Response::text($code);
+    }
+
+    #[Domain('{tenant}.bidbylink.com')]
+    #[Get('/auctions/{id:[0-9]+}', name: 'tenant.auction')]
+    public function tenantAuction(string $tenant, string $id): Response
+    {
+        return Response::json(['tenant' => $tenant, 'id' => $id]);
     }
 }

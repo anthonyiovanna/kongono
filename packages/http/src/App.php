@@ -421,8 +421,9 @@ final class App
         $matchedParams = [];
 
         try {
-            $match = $this->router->match($request->method(), $request->path());
-            $matchedRoute = strtoupper($request->method()) . ' ' . $match->route->path;
+            $match = $this->router->match($request->method(), $request->path(), $request->host());
+            $routeDomain = $match->route->routeDomain();
+            $matchedRoute = strtoupper($request->method()) . ' ' . (null !== $routeDomain ? $routeDomain : '') . $match->route->path;
             $matchedHandler = $match->route->handlerLabel();
             $matchedParams = $match->params;
 
@@ -463,7 +464,8 @@ final class App
     {
         $enriched = $request
             ->withAttribute('_route_params', $match->params)
-            ->withAttribute('_route_pattern', $match->route->path);
+            ->withAttribute('_route_pattern', $match->route->path)
+            ->withAttribute('_route_domain', $match->route->routeDomain());
 
         $routeTerminal = new readonly class ($this, $match) implements RequestHandlerInterface {
             public function __construct(

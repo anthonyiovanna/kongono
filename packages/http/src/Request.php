@@ -297,6 +297,57 @@ final class Request implements ServerRequestInterface
         return '' === $path ? '/' : $path;
     }
 
+    /**
+     * Normalized lowercase ASCII hostname (port stripped, trailing root dot stripped) resolved safely
+     * from the `Host` header (failing closed on duplicate/malformed Host headers) or the request URI.
+     */
+    public function host(): string
+    {
+        $hostHeaders = $this->getHeader('Host');
+        if (count($hostHeaders) > 1) {
+            return '';
+        }
+
+        $raw = 1 === count($hostHeaders) && '' !== trim($hostHeaders[0])
+            ? trim($hostHeaders[0])
+            : trim($this->uri->getHost());
+
+        if ('' === $raw) {
+            return '';
+        }
+
+        // Reject host-injection characters (whitespace, controls, credentials, path/query delimiters, commas)
+        if (1 === preg_match('/[\x00-\x20\x7f@\/\\\\?#,]/', $raw)) {
+            return '';
+        }
+
+        // Handle bracketed IPv6 literals like `[::1]:8080`
+        if (str_starts_with($raw, '[')) {
+            if (1 !== preg_match('/\A(\[[0-9a-fA-F:]+\])(?::[0-9]{1,5})?\z/', $raw, $m)) {
+                return '';
+            }
+
+            return strtolower($m[1]);
+        }
+
+        // Strip optional `:port`
+        $colonPos = strpos($raw, ':');
+        if (false !== $colonPos) {
+            $portPart = substr($raw, $colonPos + 1);
+            if ('' === $portPart || !ctype_digit($portPart)) {
+                return '';
+            }
+            $raw = substr($raw, 0, $colonPos);
+        }
+
+        $clean = rtrim(strtolower($raw), '.');
+        if ('' === $clean || 1 !== preg_match('/\A[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\z/', $clean)) {
+            return '';
+        }
+
+        return $clean;
+    }
+
     public function header(string $name, ?string $default = null): ?string
     {
         $line = $this->getHeaderLine($name);
